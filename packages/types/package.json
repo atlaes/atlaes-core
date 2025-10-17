@@ -1,0 +1,13 @@
+{
+  "name": "@vbl/types",
+  "version": "1.0.0",
+  "description": "Shared TypeScript types for VBL platform",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}

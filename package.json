@@ -1,0 +1,53 @@
+{
+  "name": "vbl-unified-platform",
+  "version": "1.0.0",
+  "description": "Unified 4-platform pension refund system - VBL, GPR, RPT, DIY",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r build",
+    "clean": "pnpm -r clean && rm -rf node_modules",
+    "db:generate": "pnpm --filter functions db:generate",
+    "db:migrate": "pnpm --filter functions db:migrate",
+    "db:studio": "pnpm --filter functions db:studio",
+    "dev": "concurrently \"pnpm docker:up\" \"pnpm sst:dev\" \"pnpm web:dev\"",
+    "docker:down": "docker-compose down",
+    "docker:reset": "docker-compose down -v && docker-compose up -d",
+    "docker:up": "docker-compose up -d",
+    "format": "prettier --write .",
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
+    "reset": "pnpm docker:reset && pnpm db:migrate",
+    "setup": "pnpm install && pnpm docker:up && pnpm db:migrate",
+    "sst:deploy": "pnpm --filter functions sst:deploy",
+    "sst:dev": "pnpm --filter functions sst:dev",
+    "test": "pnpm -r test",
+    "type-check": "tsc --noEmit",
+    "web:build": "pnpm --filter web build",
+    "web:dev": "pnpm --filter web dev"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "8.10.156",
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.1.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.12.0",
+  "dependencies": {
+    "sst": "3.17.19"
+  }
+}

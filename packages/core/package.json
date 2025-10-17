@@ -1,0 +1,16 @@
+{
+  "name": "@vbl/core",
+  "version": "1.0.0",
+  "description": "Shared business logic for VBL platform",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
