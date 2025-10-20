@@ -26,7 +26,9 @@
     "test": "pnpm -r test",
     "type-check": "tsc --noEmit",
     "web:build": "pnpm --filter web build",
-    "web:dev": "pnpm --filter web dev"
+    "web:dev": "pnpm --filter web dev",
+    "vbl:build": "pnpm --filter vbl build",
+    "vbl:dev": "pnpm --filter vbl dev"
   },
   "devDependencies": {
     "@types/aws-lambda": "8.10.156",
