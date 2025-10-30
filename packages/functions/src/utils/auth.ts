@@ -78,7 +78,10 @@ export class AuthService {
     try {
       return await bcrypt.hash(password, this.SALT_ROUNDS);
     } catch (error) {
-      logger.error('Password hashing error:', error);
+      logger.error(
+        'Password hashing error:',
+        error as unknown as Record<string, unknown>
+      );
       throw new Error('Failed to hash password');
     }
   }
@@ -93,7 +96,10 @@ export class AuthService {
     try {
       return await bcrypt.compare(password, hash);
     } catch (error) {
-      logger.error('Password verification error:', error);
+      logger.error(
+        'Password verification error:',
+        error as unknown as Record<string, unknown>
+      );
       throw new Error('Failed to verify password');
     }
   }
@@ -131,7 +137,10 @@ export class AuthService {
 
       return { accessToken, refreshToken };
     } catch (error) {
-      logger.error('Token generation error:', error);
+      logger.error(
+        'Token generation error:',
+        error as unknown as Record<string, unknown>
+      );
       throw new Error('Failed to generate tokens');
     }
   }
@@ -143,7 +152,10 @@ export class AuthService {
     try {
       return jwt.verify(token, env.JWT_SECRET) as TokenPayload;
     } catch (error) {
-      logger.error('Token verification error:', error);
+      logger.error(
+        'Token verification error:',
+        error as unknown as Record<string, unknown>
+      );
       throw new Error('Invalid token');
     }
   }
@@ -167,7 +179,51 @@ export class AuthService {
         expiresIn: this.ACCESS_TOKEN_EXPIRY,
       });
     } catch (error) {
-      logger.error('Token refresh error:', error);
+      logger.error(
+        'Token refresh error:',
+        error as unknown as Record<string, unknown>
+      );
+      throw new Error('Failed to refresh token');
+    }
+  }
+
+  /**
+   * Generate new tokens from a refresh token
+   */
+  static refreshTokens(refreshToken: string): AuthTokens {
+    try {
+      const payload = this.verifyToken(refreshToken);
+
+      const newAccessTokenPayload: TokenPayload = {
+        userId: payload.userId,
+        email: payload.email,
+        emailVerified: payload.emailVerified,
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 15 * 60, // 15 minutes
+      };
+
+      const accessToken = jwt.sign(newAccessTokenPayload, env.JWT_SECRET, {
+        expiresIn: this.ACCESS_TOKEN_EXPIRY,
+      });
+
+      const refreshTokenPayload: TokenPayload = {
+        userId: payload.userId,
+        email: payload.email,
+        emailVerified: payload.emailVerified,
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60, // 7 days
+      };
+
+      const newRefreshToken = jwt.sign(refreshTokenPayload, env.JWT_SECRET, {
+        expiresIn: this.REFRESH_TOKEN_EXPIRY,
+      });
+
+      return { accessToken, refreshToken: newRefreshToken };
+    } catch (error) {
+      logger.error(
+        'Token refresh error:',
+        error as unknown as Record<string, unknown>
+      );
       throw new Error('Failed to refresh token');
     }
   }
@@ -247,7 +303,10 @@ export class AuthService {
         type: payload.type,
       };
     } catch (error) {
-      logger.error('Magic link token verification error:', error);
+      logger.error(
+        'Magic link token verification error:',
+        error as unknown as Record<string, unknown>
+      );
       throw new Error('Invalid or expired magic link');
     }
   }

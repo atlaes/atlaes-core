@@ -11,6 +11,7 @@ import { env } from './utils/env';
 import health from './routes/health';
 import auth from './routes/auth';
 import users from './routes/users';
+import vbl from './routes/vbl';
 
 const app = new Hono();
 
@@ -25,6 +26,7 @@ app.use('*', errorHandler);
 app.route('/api/health', health);
 app.route('/api/auth', auth);
 app.route('/api/users', users);
+app.route('/api/vbl', vbl);
 
 // Root endpoint
 app.get('/', (c) => {
