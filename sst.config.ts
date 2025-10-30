@@ -11,7 +11,48 @@ export default $config({
     };
   },
   async run() {
-    // Static site deployment (recommended for corporate websites)
+    // VPC for backend services
+    const vpc = new sst.aws.Vpc('AtlaesVpc');
+
+    // ECS Cluster for backend services
+    const cluster = new sst.aws.Cluster('AtlaesCluster', { vpc });
+
+    // PostgreSQL Database
+    const postgres = new sst.aws.Postgres('AtlaesDatabase', {
+      vpc,
+      proxy: true,
+      dev: {
+        username: 'vbl_user',
+        password: 'vbl_password',
+        database: 'vbl_development',
+        port: 5432,
+        host: 'localhost',
+      },
+    });
+
+    // Backend API Service (Hono.js)
+    const backend = new sst.aws.Service('AtlaesBackend', {
+      cluster,
+      image: {
+        context: 'packages/functions',
+        dockerfile: 'Dockerfile',
+      },
+      link: [postgres],
+      loadBalancer: {
+        rules: [{ listen: '80/http' }],
+      },
+    });
+
+    // VBL Next.js App
+    const vblApp = new sst.aws.Nextjs('VBLApp', {
+      path: 'apps/vbl',
+      environment: {
+        API_URL: backend.url,
+      },
+      link: [postgres],
+    });
+
+    // Static site deployment (corporate website)
     new sst.aws.StaticSite('AtlaesWebsite', {
       path: 'apps/web',
       build: {
@@ -25,37 +66,10 @@ export default $config({
       },
       domain: 'atlaes.de',
     });
+
+    return {
+      backend: backend.url,
+      vblApp: vblApp.url,
+    };
   },
 });
-
-// export default {
-//   config(_input) {
-//     return {
-//       name: 'atlaes-corporate-website',
-//       region: 'eu-central-1', // Frankfurt
-//     };
-//   },
-//   async stacks(app) {
-//     // Import SST v3 constructs dynamically
-//     const { NextjsSite } = await import('sst');
-
-//     app.stack(function Site({ stack }) {
-//       // ATLAES Corporate Website
-//       const site = new NextjsSite(stack, 'AtlaesWebsite', {
-//         path: 'apps/web',
-//         environment: {
-//           NODE_ENV: process.env.NODE_ENV || 'production',
-//         },
-//         customDomain: {
-//           domainName: 'atlaes.de',
-//           hostedZone: 'atlaes.de',
-//         },
-//       });
-
-//       stack.addOutputs({
-//         WebsiteUrl: site.url,
-//         CustomDomain: 'atlaes.de',
-//       });
-//     });
-//   },
-// };

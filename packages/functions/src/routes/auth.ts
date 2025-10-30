@@ -1,164 +1,31 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
+import { OAuth2Client } from 'google-auth-library';
 import { logger } from '../utils/logger';
+import { env } from '../utils/env';
 import {
   AuthService,
   registrationSchema,
   loginSchema,
   passwordChangeSchema,
+  magicLinkRequestSchema,
+  magicLinkVerifySchema,
 } from '../utils/auth';
 import { UserService } from '../services/user';
 import { authMiddleware } from '../middleware/auth';
 
 const auth = new Hono();
 
-// Simple JWT test endpoint
-auth.get('/test-jwt', async (c) => {
-  try {
-    logger.info('Testing JWT generation...');
-    logger.info('JWT_SECRET from process.env:', process.env.JWT_SECRET ? 'SET' : 'NOT SET');
-    logger.info('JWT_SECRET length:', process.env.JWT_SECRET ? process.env.JWT_SECRET.length : 0);
-    
-    const jwt = require('jsonwebtoken');
-    const testToken = jwt.sign({ test: 'data' }, process.env.JWT_SECRET, { expiresIn: '15m' });
-    
-    return c.json({
-      success: true,
-      tokenGenerated: !!testToken,
-      tokenLength: testToken ? testToken.length : 0
-    });
-  } catch (error) {
-    logger.error('JWT test error:', error);
-    return c.json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    }, 500);
-  }
-});
-
-// Simplified registration endpoint
-auth.post('/simple-register', zValidator('json', registrationSchema), async (c) => {
-  try {
-    const data = c.req.valid('json');
-    logger.info('Starting simple registration...');
-
-    // Step 1: Check email exists
-    logger.info('Step 1: Checking email exists...');
-    const emailExists = await UserService.emailExists(data.email);
-    if (emailExists) {
-      return c.json({ error: 'Email already registered' }, 400);
-    }
-    logger.info('Step 1: Email check passed');
-
-    // Step 2: Hash password
-    logger.info('Step 2: Hashing password...');
-    const bcrypt = require('bcryptjs');
-    const hashedPassword = await bcrypt.hash(data.password, 12);
-    logger.info('Step 2: Password hashed successfully');
-
-    // Step 3: Generate tokens directly
-    logger.info('Step 3: Generating tokens...');
-    const jwt = require('jsonwebtoken');
-    const accessToken = jwt.sign(
-      { userId: 'test-id', email: data.email, emailVerified: false },
-      process.env.JWT_SECRET,
-      { expiresIn: '15m' }
-    );
-    const refreshToken = jwt.sign(
-      { userId: 'test-id', email: data.email, emailVerified: false },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-    logger.info('Step 3: Tokens generated successfully');
-
-    return c.json({
-      message: 'Simple registration test completed',
-      steps: {
-        emailCheck: 'PASSED',
-        passwordHashing: 'PASSED',
-        tokenGeneration: 'PASSED'
-      },
-      tokens: { accessToken, refreshToken }
-    });
-
-  } catch (error) {
-    logger.error('Simple registration error:', error);
-    return c.json({ 
-      error: 'Simple registration failed', 
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, 500);
-  }
-});
-
-// Debug endpoint to test registration components
-auth.post(
-  '/debug-register',
-  zValidator('json', registrationSchema),
-  async (c) => {
-    try {
-      const data = c.req.valid('json');
-
-      // Test 1: Check email exists
-      logger.info('Testing email existence check...');
-      const emailExists = await UserService.emailExists(data.email);
-      logger.info(`Email exists: ${emailExists}`);
-
-      if (emailExists) {
-        return c.json(
-          { error: 'Email already registered', step: 'email-check' },
-          400
-        );
-      }
-
-      // Test 2: Test password hashing
-      logger.info('Testing password hashing...');
-      const hashedPassword = await AuthService.hashPassword(data.password);
-      logger.info(
-        `Password hashed successfully: ${hashedPassword ? 'YES' : 'NO'}`
-      );
-
-      // Test 3: Test environment variables
-      logger.info('Testing environment variables...');
-      logger.info(
-        'JWT_SECRET from process.env:',
-        process.env.JWT_SECRET ? 'SET' : 'NOT SET'
-      );
-      logger.info(
-        'JWT_SECRET length:',
-        process.env.JWT_SECRET ? process.env.JWT_SECRET.length : 0
-      );
-
-      // Test 4: Test token generation
-      logger.info('Testing token generation...');
-      const testTokens = AuthService.generateTokens({
-        userId: 'test-user-id',
-        email: data.email,
-        emailVerified: false,
-      });
-      logger.info(`Tokens generated: ${testTokens ? 'YES' : 'NO'}`);
-
-      return c.json({
-        message: 'Debug test completed',
-        steps: {
-          emailCheck: 'PASSED',
-          passwordHashing: hashedPassword ? 'PASSED' : 'FAILED',
-          tokenGeneration: testTokens ? 'PASSED' : 'FAILED',
-        },
-      });
-    } catch (error) {
-      logger.error('Debug registration error:', error);
-      return c.json(
-        {
-          error: 'Debug test failed',
-          details: error instanceof Error ? error.message : 'Unknown error',
-          step: 'debug-test',
-        },
-        500
-      );
-    }
-  }
-);
+// Initialize Google OAuth client
+const googleClient =
+  env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+    ? new OAuth2Client(
+        env.GOOGLE_CLIENT_ID,
+        env.GOOGLE_CLIENT_SECRET,
+        `${env.FRONTEND_URL}/auth/google/callback`
+      )
+    : null;
 
 // Register endpoint
 auth.post('/register', zValidator('json', registrationSchema), async (c) => {
@@ -198,11 +65,6 @@ auth.post('/register', zValidator('json', registrationSchema), async (c) => {
     );
   } catch (error) {
     logger.error('Registration error:', error);
-    logger.error('Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      name: error instanceof Error ? error.name : undefined,
-    });
     return c.json({ error: 'Registration failed' }, 500);
   }
 });
@@ -245,114 +107,84 @@ auth.post('/login', zValidator('json', loginSchema), async (c) => {
 });
 
 // Refresh token endpoint
-auth.post('/refresh', async (c) => {
-  try {
-    const { refreshToken } = await c.req.json();
+auth.post(
+  '/refresh',
+  zValidator('json', z.object({ refreshToken: z.string() })),
+  async (c) => {
+    try {
+      const { refreshToken } = c.req.valid('json');
 
-    if (!refreshToken) {
-      return c.json({ error: 'Refresh token required' }, 400);
+      // Generate new tokens
+      const tokens = AuthService.refreshTokens(refreshToken);
+
+      return c.json({
+        message: 'Tokens refreshed successfully',
+        tokens,
+      });
+    } catch (error) {
+      logger.error('Token refresh error:', error);
+      return c.json({ error: 'Token refresh failed' }, 401);
     }
-
-    // Generate new access token
-    const newAccessToken = AuthService.refreshAccessToken(refreshToken);
-
-    logger.info('Token refreshed successfully');
-
-    return c.json({
-      message: 'Token refreshed successfully',
-      accessToken: newAccessToken,
-    });
-  } catch (error) {
-    logger.error('Token refresh error:', error);
-    return c.json({ error: 'Token refresh failed' }, 401);
   }
-});
+);
 
-// Logout endpoint (client-side token removal)
+// Logout endpoint
 auth.post('/logout', authMiddleware, async (c) => {
   try {
-    const user = c.get('user');
-
-    logger.info(`User logged out: ${user.email}`);
-
-    return c.json({
-      message: 'Logout successful',
-    });
+    // In a real application, you might want to blacklist the token
+    // For now, we'll just return success
+    return c.json({ message: 'Logged out successfully' });
   } catch (error) {
     logger.error('Logout error:', error);
     return c.json({ error: 'Logout failed' }, 500);
   }
 });
 
-// Get current user profile
+// Get current user endpoint
 auth.get('/me', authMiddleware, async (c) => {
   try {
     const user = c.get('user');
-
-    const userData = await UserService.findById(user.id);
-
-    if (!userData) {
-      return c.json({ error: 'User not found' }, 404);
-    }
-
-    return c.json({
-      user: {
-        id: userData.id,
-        email: userData.email,
-        emailVerified: userData.emailVerified,
-        profile: userData.profile,
-      },
-    });
+    return c.json({ user });
   } catch (error) {
-    logger.error('Get user profile error:', error);
-    return c.json({ error: 'Failed to get user profile' }, 500);
+    logger.error('Get user error:', error);
+    return c.json({ error: 'Failed to get user' }, 500);
   }
 });
 
-// Update user profile
+// Update profile endpoint
 auth.put(
   '/profile',
   authMiddleware,
   zValidator(
     'json',
     z.object({
-      firstName: z.string().min(1).max(100).optional(),
-      lastName: z.string().min(1).max(100).optional(),
+      firstName: z.string().min(1).optional(),
+      lastName: z.string().min(1).optional(),
+      phone: z.string().optional(),
       dateOfBirth: z.string().optional(),
       nationality: z.string().length(2).optional(),
-      phone: z.string().max(20).optional(),
-      addressLine1: z.string().max(255).optional(),
-      addressLine2: z.string().max(255).optional(),
-      city: z.string().max(100).optional(),
-      postalCode: z.string().max(20).optional(),
-      country: z.string().length(2).optional(),
     })
   ),
   async (c) => {
     try {
       const user = c.get('user');
-      const profileData = c.req.valid('json');
+      const data = c.req.valid('json');
 
-      const updatedUser = await UserService.updateProfile(user.id, profileData);
+      const updatedUser = await UserService.updateProfile(user.id, data);
 
       return c.json({
         message: 'Profile updated successfully',
-        user: {
-          id: updatedUser.id,
-          email: updatedUser.email,
-          emailVerified: updatedUser.emailVerified,
-          profile: updatedUser.profile,
-        },
+        user: updatedUser,
       });
     } catch (error) {
       logger.error('Profile update error:', error);
-      return c.json({ error: 'Failed to update profile' }, 500);
+      return c.json({ error: 'Profile update failed' }, 500);
     }
   }
 );
 
 // Change password endpoint
-auth.post(
+auth.put(
   '/change-password',
   authMiddleware,
   zValidator('json', passwordChangeSchema),
@@ -361,40 +193,319 @@ auth.post(
       const user = c.get('user');
       const { currentPassword, newPassword } = c.req.valid('json');
 
-      await UserService.changePassword(user.id, currentPassword, newPassword);
-
-      return c.json({
-        message: 'Password changed successfully',
-      });
-    } catch (error) {
-      logger.error('Password change error:', error);
-
-      if (
-        error instanceof Error &&
-        error.message === 'Current password is incorrect'
-      ) {
+      // Verify current password
+      const isValid = await UserService.verifyPassword(
+        (user as any).email,
+        currentPassword
+      );
+      if (!isValid) {
         return c.json({ error: 'Current password is incorrect' }, 400);
       }
 
-      return c.json({ error: 'Failed to change password' }, 500);
+      // Update password
+      await UserService.changePassword(user.id, newPassword);
+
+      return c.json({ message: 'Password changed successfully' });
+    } catch (error) {
+      logger.error('Password change error:', error);
+      return c.json({ error: 'Password change failed' }, 500);
     }
   }
 );
 
 // Verify email endpoint
-auth.post('/verify-email', authMiddleware, async (c) => {
+auth.post(
+  '/verify-email',
+  zValidator('json', z.object({ token: z.string() })),
+  async (c) => {
+    try {
+      const { token } = c.req.valid('json');
+
+      const user = await UserService.verifyEmail(token);
+
+      return c.json({
+        message: 'Email verified successfully',
+        user: {
+          id: user.id,
+          email: user.email,
+          emailVerified: user.emailVerified,
+        },
+      });
+    } catch (error) {
+      logger.error('Email verification error:', error);
+      return c.json({ error: 'Email verification failed' }, 400);
+    }
+  }
+);
+
+// Test endpoint to check environment
+auth.get('/test-env', async (c) => {
+  return c.json({
+    jwtSecret: !!env.JWT_SECRET,
+    jwtSecretLength: env.JWT_SECRET?.length,
+    databaseUrl: !!env.DATABASE_URL,
+    nodeEnv: env.NODE_ENV,
+  });
+});
+
+// Request magic link endpoint
+auth.post(
+  '/magic-link/request',
+  zValidator('json', magicLinkRequestSchema),
+  async (c) => {
+    try {
+      const { email } = c.req.valid('json');
+
+      // Debug: Check if JWT_SECRET is available
+      logger.info('JWT_SECRET available:', !!env.JWT_SECRET);
+      logger.info('Email received:', email);
+
+      // Generate magic link token (works for both existing and new users)
+      const token = AuthService.generateMagicLinkToken(email);
+      const magicLinkUrl = AuthService.generateMagicLinkUrl(token);
+
+      // TODO: Send email with magic link
+      // For now, we'll log it for development
+      logger.info(`Magic link for ${email}: ${magicLinkUrl}`);
+
+      return c.json({
+        message: 'Magic link sent to your email address.',
+        magicLink: magicLinkUrl, // Always show magic link for testing
+      });
+    } catch (error) {
+      logger.error('Magic link request error:', error);
+      logger.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        error: error,
+      });
+      return c.json({ error: 'Failed to send magic link' }, 500);
+    }
+  }
+);
+
+// Verify magic link endpoint
+auth.post(
+  '/magic-link/verify',
+  zValidator('json', magicLinkVerifySchema),
+  async (c) => {
+    try {
+      const { token } = c.req.valid('json');
+
+      // Verify magic link token
+      const { email } = AuthService.verifyMagicLinkToken(token);
+
+      // Find user by email
+      let user = await UserService.findByEmail(email);
+
+      // If user doesn't exist, create a new account
+      if (!user) {
+        logger.info(`Creating new user account via magic link: ${email}`);
+
+        // Create user with minimal data (no password required)
+        user = await UserService.createUser({
+          email,
+          password: '', // Empty password for magic link users
+          firstName: '', // Will be filled later in profile
+          lastName: '', // Will be filled later in profile
+          skipPasswordHash: true, // Skip password hashing for magic link users
+        });
+
+        logger.info(`New user created via magic link: ${user.email}`);
+      }
+
+      // Generate authentication tokens
+      const authTokens = AuthService.generateTokens({
+        userId: user.id,
+        email: user.email,
+        emailVerified: user.emailVerified,
+      });
+
+      logger.info(`User logged in via magic link: ${user.email}`);
+
+      return c.json({
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          email: user.email,
+          emailVerified: user.emailVerified,
+          profile: user.profile,
+        },
+        tokens: authTokens,
+        isNewUser: !user.profile?.firstName, // Indicate if this is a new user
+      });
+    } catch (error) {
+      logger.error('Magic link verification error:', error);
+      return c.json({ error: 'Invalid or expired magic link' }, 400);
+    }
+  }
+);
+
+// Google OAuth: Get authorization URL
+auth.get('/google/authorize', async (c) => {
   try {
-    const user = c.get('user');
+    if (!googleClient) {
+      return c.json({ error: 'Google OAuth not configured' }, 500);
+    }
 
-    await UserService.verifyEmail(user.id);
-
-    return c.json({
-      message: 'Email verified successfully',
+    const authUrl = googleClient.generateAuthUrl({
+      access_type: 'offline',
+      scope: [
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile',
+      ],
+      prompt: 'consent',
     });
+
+    return c.json({ authUrl });
   } catch (error) {
-    logger.error('Email verification error:', error);
-    return c.json({ error: 'Failed to verify email' }, 500);
+    logger.error('Google OAuth authorization error:', error);
+    return c.json({ error: 'Failed to generate authorization URL' }, 500);
   }
 });
+
+// Google OAuth: Verify token and create/login user
+auth.post(
+  '/google/verify',
+  zValidator('json', z.object({ code: z.string() })),
+  async (c) => {
+    try {
+      if (!googleClient) {
+        return c.json({ error: 'Google OAuth not configured' }, 500);
+      }
+
+      const { code } = c.req.valid('json');
+
+      // Exchange code for tokens
+      const { tokens } = await googleClient.getToken(code);
+      googleClient.setCredentials(tokens);
+
+      // Get user info from Google
+      const ticket = await googleClient.verifyIdToken({
+        idToken: tokens.id_token!,
+        audience: env.GOOGLE_CLIENT_ID!,
+      });
+
+      const payload = ticket.getPayload();
+      if (!payload) {
+        return c.json({ error: 'Invalid token payload' }, 400);
+      }
+
+      const email = payload.email;
+      const googleId = payload.sub;
+      const firstName = payload.given_name || '';
+      const lastName = payload.family_name || '';
+      const emailVerified = payload.email_verified || false;
+
+      if (!email) {
+        return c.json({ error: 'Email not provided by Google' }, 400);
+      }
+
+      // Find or create user
+      const user = await UserService.findOrCreateOAuthUser({
+        email,
+        authProvider: 'google',
+        authProviderId: googleId,
+        firstName,
+        lastName,
+        emailVerified,
+      });
+
+      // Generate authentication tokens
+      const authTokens = AuthService.generateTokens({
+        userId: user.id,
+        email: user.email,
+        emailVerified: user.emailVerified,
+      });
+
+      logger.info(`User logged in via Google OAuth: ${user.email}`);
+
+      return c.json({
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          email: user.email,
+          emailVerified: user.emailVerified,
+          profile: user.profile,
+        },
+        tokens: authTokens,
+        isNewUser: !user.profile?.firstName, // Indicate if this is a new user
+      });
+    } catch (error) {
+      logger.error('Google OAuth verification error:', error);
+      return c.json({ error: 'Google authentication failed' }, 400);
+    }
+  }
+);
+
+// Google OAuth: Verify ID token directly (for client-side flow)
+auth.post(
+  '/google/verify-id-token',
+  zValidator('json', z.object({ idToken: z.string() })),
+  async (c) => {
+    try {
+      if (!googleClient) {
+        return c.json({ error: 'Google OAuth not configured' }, 500);
+      }
+
+      const { idToken } = c.req.valid('json');
+
+      // Verify the ID token
+      const ticket = await googleClient.verifyIdToken({
+        idToken,
+        audience: env.GOOGLE_CLIENT_ID!,
+      });
+
+      const payload = ticket.getPayload();
+      if (!payload) {
+        return c.json({ error: 'Invalid token payload' }, 400);
+      }
+
+      const email = payload.email;
+      const googleId = payload.sub;
+      const firstName = payload.given_name || '';
+      const lastName = payload.family_name || '';
+      const emailVerified = payload.email_verified || false;
+
+      if (!email) {
+        return c.json({ error: 'Email not provided by Google' }, 400);
+      }
+
+      // Find or create user
+      const user = await UserService.findOrCreateOAuthUser({
+        email,
+        authProvider: 'google',
+        authProviderId: googleId,
+        firstName,
+        lastName,
+        emailVerified,
+      });
+
+      // Generate authentication tokens
+      const authTokens = AuthService.generateTokens({
+        userId: user.id,
+        email: user.email,
+        emailVerified: user.emailVerified,
+      });
+
+      logger.info(`User logged in via Google OAuth: ${user.email}`);
+
+      return c.json({
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          email: user.email,
+          emailVerified: user.emailVerified,
+          profile: user.profile,
+        },
+        tokens: authTokens,
+        isNewUser: !user.profile?.firstName, // Indicate if this is a new user
+      });
+    } catch (error) {
+      logger.error('Google OAuth ID token verification error:', error);
+      return c.json({ error: 'Google authentication failed' }, 400);
+    }
+  }
+);
 
 export default auth;

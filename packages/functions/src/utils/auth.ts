@@ -43,6 +43,16 @@ export const passwordChangeSchema = z.object({
   newPassword: passwordSchema,
 });
 
+// Magic link request schema
+export const magicLinkRequestSchema = z.object({
+  email: emailSchema,
+});
+
+// Magic link verification schema
+export const magicLinkVerifySchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+});
+
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
@@ -95,13 +105,6 @@ export class AuthService {
     payload: Omit<TokenPayload, 'iat' | 'exp'>
   ): AuthTokens {
     try {
-      logger.info('Starting token generation...');
-      logger.info('JWT_SECRET available:', !!process.env.JWT_SECRET);
-      logger.info(
-        'JWT_SECRET length:',
-        process.env.JWT_SECRET ? process.env.JWT_SECRET.length : 0
-      );
-
       const accessTokenPayload = {
         ...payload,
       };
@@ -110,7 +113,6 @@ export class AuthService {
         ...payload,
       };
 
-      logger.info('Generating access token...');
       const accessToken = jwt.sign(
         accessTokenPayload,
         process.env.JWT_SECRET!,
@@ -119,7 +121,6 @@ export class AuthService {
         }
       );
 
-      logger.info('Generating refresh token...');
       const refreshToken = jwt.sign(
         refreshTokenPayload,
         process.env.JWT_SECRET!,
@@ -128,14 +129,9 @@ export class AuthService {
         }
       );
 
-      logger.info('Tokens generated successfully');
       return { accessToken, refreshToken };
     } catch (error) {
       logger.error('Token generation error:', error);
-      logger.error('Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-      });
       throw new Error('Failed to generate tokens');
     }
   }
@@ -219,5 +215,50 @@ export class AuthService {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }
+
+  /**
+   * Generate a magic link token
+   */
+  static generateMagicLinkToken(email: string): string {
+    const payload = {
+      email,
+      type: 'magic_link',
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 15 * 60, // 15 minutes expiry
+    };
+
+    return jwt.sign(payload, env.JWT_SECRET);
+  }
+
+  /**
+   * Verify a magic link token
+   */
+  static verifyMagicLinkToken(token: string): { email: string; type: string } {
+    try {
+      const payload = jwt.verify(token, env.JWT_SECRET) as any;
+
+      if (payload.type !== 'magic_link') {
+        throw new Error('Invalid token type');
+      }
+
+      return {
+        email: payload.email,
+        type: payload.type,
+      };
+    } catch (error) {
+      logger.error('Magic link token verification error:', error);
+      throw new Error('Invalid or expired magic link');
+    }
+  }
+
+  /**
+   * Generate a magic link URL
+   */
+  static generateMagicLinkUrl(
+    token: string,
+    baseUrl: string = 'http://localhost:3000'
+  ): string {
+    return `${baseUrl}/auth/magic-link?token=${token}`;
   }
 }

@@ -28,6 +28,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   updateProfile: (data: Partial<User['profile']>) => Promise<void>;
@@ -35,6 +36,8 @@ interface AuthContextType {
     currentPassword: string,
     newPassword: string
   ) => Promise<void>;
+  requestMagicLink: (email: string) => Promise<{ magicLink?: string }>;
+  verifyMagicLink: (token: string) => Promise<{ isNewUser?: boolean }>;
 }
 
 export interface RegisterData {
@@ -160,15 +163,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const requestMagicLink = async (email: string) => {
+    try {
+      const response = await apiClient.post('/auth/magic-link/request', {
+        email,
+      });
+      return { magicLink: response.data.magicLink };
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.error || 'Failed to send magic link'
+      );
+    }
+  };
+
+  const verifyMagicLink = async (token: string) => {
+    try {
+      const response = await apiClient.post('/auth/magic-link/verify', {
+        token,
+      });
+
+      const { user: userData, tokens, isNewUser } = response.data;
+
+      // Store tokens
+      localStorage.setItem('accessToken', tokens.accessToken);
+      localStorage.setItem('refreshToken', tokens.refreshToken);
+
+      // Set user
+      setUser(userData);
+
+      // Return additional info for handling new users
+      return { isNewUser };
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.error || 'Magic link verification failed'
+      );
+    }
+  };
+
+  const loginWithGoogle = async (idToken: string) => {
+    try {
+      const response = await apiClient.post('/auth/google/verify-id-token', {
+        idToken,
+      });
+
+      const { user: userData, tokens } = response.data;
+
+      // Store tokens
+      localStorage.setItem('accessToken', tokens.accessToken);
+      localStorage.setItem('refreshToken', tokens.refreshToken);
+
+      // Set user
+      setUser(userData);
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Google login failed');
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
     isAuthenticated,
     login,
+    loginWithGoogle,
     register,
     logout,
     updateProfile,
     changePassword,
+    requestMagicLink,
+    verifyMagicLink,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

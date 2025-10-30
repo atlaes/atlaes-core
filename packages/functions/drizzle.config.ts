@@ -5,7 +5,11 @@ export default {
   out: './src/drizzle/migrations',
   driver: 'pg',
   dbCredentials: {
-    connectionString: process.env.DATABASE_URL!,
+    host: 'localhost',
+    port: 5432,
+    user: 'vbl_user',
+    password: 'vbl_password',
+    database: 'vbl_development',
   },
   verbose: true,
   strict: true,

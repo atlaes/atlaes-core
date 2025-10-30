@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db } from '../utils/db';
 import { users, profiles, auditLogs } from '../drizzle/schema/shared';
 import { AuthService } from '../utils/auth';
@@ -12,6 +12,16 @@ export interface CreateUserData {
   dateOfBirth?: string;
   nationality?: string;
   phone?: string;
+  skipPasswordHash?: boolean; // For magic link users
+}
+
+export interface CreateOAuthUserData {
+  email: string;
+  authProvider: string;
+  authProviderId: string;
+  firstName?: string;
+  lastName?: string;
+  emailVerified?: boolean;
 }
 
 export interface UserWithProfile {
@@ -52,8 +62,10 @@ export class UserService {
    */
   static async createUser(userData: CreateUserData): Promise<UserWithProfile> {
     try {
-      // Hash the password
-      const passwordHash = await AuthService.hashPassword(userData.password);
+      // Hash the password (skip for magic link users)
+      const passwordHash = userData.skipPasswordHash
+        ? null
+        : await AuthService.hashPassword(userData.password);
 
       // Create user and profile in a transaction
       const result = await db.transaction(async (tx: any) => {
@@ -370,6 +382,119 @@ export class UserService {
     } catch (error) {
       logger.error('Email existence check error:', error);
       throw new Error('Failed to check email existence');
+    }
+  }
+
+  /**
+   * Find or create OAuth user
+   */
+  static async findOrCreateOAuthUser(
+    oauthData: CreateOAuthUserData
+  ): Promise<UserWithProfile> {
+    try {
+      // Check if user exists by auth provider ID
+      const existingByProvider = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          emailVerified: users.emailVerified,
+          authProvider: users.authProvider,
+          mfaEnabled: users.mfaEnabled,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+          profile: {
+            id: profiles.id,
+            firstName: profiles.firstName,
+            lastName: profiles.lastName,
+            dateOfBirth: profiles.dateOfBirth,
+            nationality: profiles.nationality,
+            phone: profiles.phone,
+          },
+        })
+        .from(users)
+        .leftJoin(profiles, eq(profiles.userId, users.id))
+        .where(
+          and(
+            eq(users.authProviderId, oauthData.authProviderId),
+            eq(users.authProvider, oauthData.authProvider)
+          )
+        )
+        .limit(1);
+
+      if (existingByProvider.length > 0) {
+        return existingByProvider[0];
+      }
+
+      // Check if user exists by email (for account linking)
+      const existingByEmail = await this.findByEmail(oauthData.email);
+      if (existingByEmail) {
+        // Link OAuth provider to existing account
+        await db
+          .update(users)
+          .set({
+            authProvider: oauthData.authProvider,
+            authProviderId: oauthData.authProviderId,
+            emailVerified: oauthData.emailVerified ?? true,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, existingByEmail.id));
+
+        return {
+          ...existingByEmail,
+          authProvider: oauthData.authProvider,
+          emailVerified: oauthData.emailVerified ?? true,
+        };
+      }
+
+      // Create new OAuth user
+      const result = await db.transaction(async (tx: any) => {
+        // Create user
+        const [newUser] = await tx
+          .insert(users)
+          .values({
+            email: oauthData.email.toLowerCase(),
+            passwordHash: null,
+            authProvider: oauthData.authProvider,
+            authProviderId: oauthData.authProviderId,
+            emailVerified: oauthData.emailVerified ?? true,
+            mfaEnabled: false,
+          })
+          .returning();
+
+        // Create profile if we have name information
+        let newProfile = null;
+        if (oauthData.firstName || oauthData.lastName) {
+          const [profile] = await tx
+            .insert(profiles)
+            .values({
+              userId: newUser.id,
+              firstName: oauthData.firstName || '',
+              lastName: oauthData.lastName || '',
+            })
+            .returning();
+          newProfile = profile;
+        }
+
+        // Log the user creation
+        await tx.insert(auditLogs).values({
+          userId: newUser.id,
+          action: 'user_created',
+          resource: 'user',
+          resourceId: newUser.id,
+          details: {
+            email: newUser.email,
+            authProvider: newUser.authProvider,
+          },
+        });
+
+        return { ...newUser, profile: newProfile };
+      });
+
+      logger.info(`OAuth user created successfully: ${result.email}`);
+      return result;
+    } catch (error) {
+      logger.error('OAuth user creation error:', error);
+      throw new Error('Failed to create OAuth user');
     }
   }
 }

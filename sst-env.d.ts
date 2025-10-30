@@ -5,8 +5,28 @@
 
 declare module "sst" {
   export interface Resource {
+    "AtlaesBackend": {
+      "service": string
+      "type": "sst.aws.Service"
+      "url": string
+    }
+    "AtlaesDatabase": {
+      "database": string
+      "host": string
+      "password": string
+      "port": number
+      "type": "sst.aws.Postgres"
+      "username": string
+    }
+    "AtlaesVpc": {
+      "type": "sst.aws.Vpc"
+    }
     "AtlaesWebsite": {
       "type": "sst.aws.StaticSite"
+      "url": string
+    }
+    "VBLApp": {
+      "type": "sst.aws.Nextjs"
       "url": string
     }
   }
