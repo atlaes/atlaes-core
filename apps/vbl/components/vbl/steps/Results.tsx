@@ -44,13 +44,13 @@ export const Results: React.FC = () => {
     const westGermanyStates = [
       'Baden-Württemberg',
       'Bavaria',
-      'West Berlin',
+      'Berlin (West)',
       'Bremen',
       'Hamburg',
       'Hesse',
       'Lower Saxony',
       'North Rhine-Westphalia',
-      'Rhineland-Palatinate',
+      'Rheinland-Palatinate',
       'Saarland',
       'Schleswig-Holstein',
     ];
@@ -112,7 +112,12 @@ export const Results: React.FC = () => {
       }
     } catch (err: any) {
       console.error('VBL calculation error:', err);
-      if (err.response?.data?.error) {
+      console.error('Error response:', err.response?.data);
+      console.error('Error details:', JSON.stringify(err.response?.data, null, 2));
+
+      if (err.response?.data?.details) {
+        setError(`${err.response.data.error}: ${err.response.data.details}`);
+      } else if (err.response?.data?.error) {
         setError(err.response.data.error);
       } else if (err.message) {
         setError(err.message);

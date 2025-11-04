@@ -1,0 +1,111 @@
+:root {
+  /* Colors */
+  --vbl-color-primary: #221E49;
+  --vbl-color-secondary: #242150;
+  --vbl-color-accent: #50C9A5;
+  --vbl-color-black: #000000;
+  --vbl-color-gray: #7D7D7D;
+
+  /* Font Families */
+  --vbl-font-inter-tight: 'Inter Tight', sans-serif;
+  --vbl-font-montserrat: 'Montserrat', sans-serif;
+
+  /* Font Styles */
+  --vbl-font-style-normal: normal;
+
+  /* Font Weights */
+  --vbl-font-weight-600: 600;
+  --vbl-font-weight-bold: bold;
+  --vbl-font-weight-normal: normal;
+
+  /* Font Sizes */
+  --vbl-font-size-16: 16px;
+  --vbl-font-size-20: 20px;
+  --vbl-font-size-25: 25px;
+  --vbl-font-size-35: 35px;
+  --vbl-font-size-40: 40px;
+  --vbl-font-size-55: 55px;
+
+  /* Character Spacing */
+  --vbl-character-spacing-0: 0px;
+
+  /* Line Heights */
+  --vbl-line-spacing-24: 24px;
+  --vbl-line-spacing-27: 27px;
+  --vbl-line-spacing-28: 28px;
+  --vbl-line-spacing-30: 30px;
+  --vbl-line-spacing-43: 43px;
+  --vbl-line-spacing-56: 56px;
+  --vbl-line-spacing-71: 71px;
+}
+
+/* Character Styles */
+.vbl-style-1 {
+  font-family: var(--vbl-font-inter-tight);
+  font-style: var(--vbl-font-style-normal);
+  font-weight: var(--vbl-font-weight-bold);
+  font-size: var(--vbl-font-size-25);
+  line-height: var(--vbl-line-spacing-28);
+  letter-spacing: var(--vbl-character-spacing-0);
+  color: var(--vbl-color-primary);
+}
+
+.vbl-style-2 {
+  font-family: var(--vbl-font-montserrat);
+  font-style: var(--vbl-font-style-normal);
+  font-weight: var(--vbl-font-weight-normal);
+  font-size: var(--vbl-font-size-16);
+  line-height: var(--vbl-line-spacing-27);
+  letter-spacing: var(--vbl-character-spacing-0);
+  color: var(--vbl-color-gray);
+}
+
+.vbl-style-3 {
+  font-family: var(--vbl-font-montserrat);
+  font-style: var(--vbl-font-style-normal);
+  font-weight: var(--vbl-font-weight-600);
+  font-size: var(--vbl-font-size-20);
+  line-height: var(--vbl-line-spacing-24);
+  letter-spacing: var(--vbl-character-spacing-0);
+  color: var(--vbl-color-black);
+}
+
+.vbl-style-4 {
+  font-family: var(--vbl-font-montserrat);
+  font-style: var(--vbl-font-style-normal);
+  font-weight: var(--vbl-font-weight-600);
+  font-size: var(--vbl-font-size-25);
+  line-height: var(--vbl-line-spacing-30);
+  letter-spacing: var(--vbl-character-spacing-0);
+  color: var(--vbl-color-black);
+}
+
+.vbl-style-5 {
+  font-family: var(--vbl-font-montserrat);
+  font-style: var(--vbl-font-style-normal);
+  font-weight: var(--vbl-font-weight-600);
+  font-size: var(--vbl-font-size-35);
+  line-height: var(--vbl-line-spacing-43);
+  letter-spacing: var(--vbl-character-spacing-0);
+  color: var(--vbl-color-black);
+}
+
+.vbl-style-6 {
+  font-family: var(--vbl-font-montserrat);
+  font-style: var(--vbl-font-style-normal);
+  font-weight: var(--vbl-font-weight-bold);
+  font-size: var(--vbl-font-size-40);
+  line-height: var(--vbl-line-spacing-56);
+  letter-spacing: var(--vbl-character-spacing-0);
+  color: var(--vbl-color-black);
+}
+
+.vbl-style-7 {
+  font-family: var(--vbl-font-montserrat);
+  font-style: var(--vbl-font-style-normal);
+  font-weight: var(--vbl-font-weight-bold);
+  font-size: var(--vbl-font-size-55);
+  line-height: var(--vbl-line-spacing-71);
+  letter-spacing: var(--vbl-character-spacing-0);
+  color: var(--vbl-color-black);
+}

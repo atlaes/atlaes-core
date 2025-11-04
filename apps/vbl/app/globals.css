@@ -1,6 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;600;700&family=Montserrat:wght@400;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@import './vbl-calculator.css';
 
 html {
   scroll-behavior: smooth;

@@ -545,13 +545,15 @@ export class VBLCalculationService {
     const { periods = [] } = input;
 
     // Load contribution caps/rates
-    const dataPath = path.join(__dirname, '..', 'data', 'contributions.json');
+    // In bundled code, __dirname is dist/, so data is at dist/data/
+    const dataPath = path.join(__dirname, 'data', 'contributions.json');
     let tables: any;
     try {
       const raw = fs.readFileSync(dataPath, 'utf-8');
       tables = JSON.parse(raw);
     } catch (e) {
       logger.error('Failed to load contributions table', e as any);
+      logger.error(`Attempted path: ${dataPath}`, {} as any);
       throw new Error('Configuration error');
     }
 
