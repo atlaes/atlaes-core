@@ -15,6 +15,24 @@ try {
     stdio: 'inherit',
     cwd: __dirname
   });
+
+  // Copy data directory to dist
+  const srcDataPath = path.join(__dirname, 'src', 'data');
+  const distDataPath = path.join(distPath, 'data');
+
+  if (fs.existsSync(srcDataPath)) {
+    fs.mkdirSync(distDataPath, { recursive: true });
+
+    // Copy all files from src/data to dist/data
+    const files = fs.readdirSync(srcDataPath);
+    files.forEach(file => {
+      const srcFile = path.join(srcDataPath, file);
+      const distFile = path.join(distDataPath, file);
+      fs.copyFileSync(srcFile, distFile);
+      console.log(`Copied ${file} to dist/data/`);
+    });
+  }
+
   console.log('Build completed successfully!');
 } catch (error) {
   console.error('Build failed:', error);
