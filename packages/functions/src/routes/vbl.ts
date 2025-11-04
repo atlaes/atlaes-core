@@ -6,7 +6,7 @@ import {
   VBLCalculationService,
   VBLCalculationInput,
 } from '../services/vbl-calculation';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 import { db } from '../utils/db';
 import { applications, calculationLogs } from '../drizzle/schema/vbl';
 import { eq, and } from 'drizzle-orm';
@@ -83,18 +83,14 @@ const applicationUpdateSchema = z.object({
 // Calculate VBL refund (public endpoint - no auth required)
 vbl.post(
   '/calculate',
+  optionalAuthMiddleware,
   zValidator('json', vblCalculationSchema),
   async (c) => {
     try {
       const input = c.req.valid('json') as VBLCalculationInput;
 
       // Check if user is authenticated (optional)
-      let user = null;
-      try {
-        user = c.get('user');
-      } catch (e) {
-        // User not authenticated, that's okay for calculation
-      }
+      const user = c.get('user') || null;
 
       if (user) {
         logger.info(`VBL calculation requested by user ${user.id}`);
