@@ -80,26 +80,47 @@ const applicationUpdateSchema = z.object({
   vblInsuranceNumber: z.string().optional(),
 });
 
-// Calculate VBL refund
+// Calculate VBL refund (public endpoint - no auth required)
 vbl.post(
   '/calculate',
-  authMiddleware,
   zValidator('json', vblCalculationSchema),
   async (c) => {
     try {
-      const user = c.get('user');
       const input = c.req.valid('json') as VBLCalculationInput;
 
-      logger.info(`VBL calculation requested by user ${user.id}`);
+      // Check if user is authenticated (optional)
+      let user = null;
+      try {
+        user = c.get('user');
+      } catch (e) {
+        // User not authenticated, that's okay for calculation
+      }
+
+      if (user) {
+        logger.info(`VBL calculation requested by user ${user.id}`);
+      } else {
+        logger.info('VBL calculation requested by anonymous user');
+      }
 
       // Perform calculation
       const result = await VBLCalculationService.calculateVBLRefund(input);
 
       // If calculation is successful and user wants to save, create/update application
+      // (requires authentication)
       const shouldSave = c.req.query('save') === 'true';
       let applicationId = null;
 
       if (shouldSave && result.isEligible) {
+        if (!user) {
+          return c.json(
+            {
+              success: false,
+              error: 'Authentication required to save calculation results',
+              calculation: result,
+            },
+            401
+          );
+        }
         // Check if application already exists
         const existingApplication = await db
           .select()
