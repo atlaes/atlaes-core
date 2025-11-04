@@ -49,6 +49,20 @@ const vblCalculationSchema = z.object({
     .optional(),
   isMandatoryInsuranceRequired: z.boolean().optional(),
   retirementAge: z.number().min(50).max(80).optional(),
+
+  // New: periods input (preferred for accurate calculation)
+  periods: z
+    .array(
+      z.object({
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        state: z.string().min(2),
+        grossMonthlySalary: z.number().min(0),
+        publicSector: z.boolean().optional(),
+        institution: z.enum(['drv', 'vblklassik', 'vddb', 'vddko']).optional(),
+      })
+    )
+    .optional(),
 });
 
 const applicationUpdateSchema = z.object({
@@ -103,9 +117,6 @@ vbl.post(
           const [updatedApp] = await db
             .update(applications)
             .set({
-              employerName: input.employmentStart
-                ? new Date(input.employmentStart).toISOString().split('T')[0]
-                : null,
               employmentStart: input.employmentStart
                 ? new Date(input.employmentStart).toISOString().split('T')[0]
                 : null,
@@ -131,9 +142,6 @@ vbl.post(
             .insert(applications)
             .values({
               userId: user.id,
-              employerName: input.employmentStart
-                ? new Date(input.employmentStart).toISOString().split('T')[0]
-                : null,
               employmentStart: input.employmentStart
                 ? new Date(input.employmentStart).toISOString().split('T')[0]
                 : null,

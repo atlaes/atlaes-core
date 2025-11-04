@@ -2,6 +2,8 @@ import { logger } from '../utils/logger';
 import { db } from '../utils/db';
 import { calculationLogs } from '../drizzle/schema/vbl';
 import { eq, desc } from 'drizzle-orm';
+import fs from 'fs';
+import path from 'path';
 
 // Types for VBL calculation
 export interface VBLCalculationInput {
@@ -30,6 +32,16 @@ export interface VBLCalculationInput {
   disabilityDate?: string; // YYYY-MM-DD format
   isMandatoryInsuranceRequired?: boolean;
   retirementAge?: number;
+
+  // New period-based input (preferred)
+  periods?: Array<{
+    startDate: string; // YYYY-MM-DD
+    endDate: string; // YYYY-MM-DD
+    state: string; // German state name
+    grossMonthlySalary: number;
+    publicSector?: boolean; // whether this period is public sector
+    institution?: 'drv' | 'vblklassik' | 'vddb' | 'vddko'; // optional hint
+  }>;
 }
 
 export interface VBLCalculationResult {
@@ -51,7 +63,8 @@ export interface VBLCalculationResult {
 }
 
 export class VBLCalculationService {
-  private static readonly VAT_RATE = 0.19; // 19% VAT
+  // For supplementary refunds we do NOT add VAT; set to 0 for new model
+  private static readonly VAT_RATE = 0;
   private static readonly RULES_VERSION = '1.0.0';
 
   // West Germany states (for reference)
@@ -98,10 +111,15 @@ export class VBLCalculationService {
         const employmentEndDate = new Date(input.employmentEnd);
         const isPost2018 = employmentEndDate >= new Date('2018-01-01');
 
-        if (isPost2018) {
-          result = this.calculatePost2018Refund(input);
+        // If period-based input is present, use new per-year capped model
+        if (input.periods && input.periods.length > 0) {
+          result = this.calculateFromPeriods(input);
         } else {
-          result = this.calculatePre2018Refund(input);
+          if (isPost2018) {
+            result = this.calculatePost2018Refund(input);
+          } else {
+            result = this.calculatePre2018Refund(input);
+          }
         }
       }
 
@@ -183,7 +201,7 @@ export class VBLCalculationService {
 
     const isEligible = eligibilityReasons.length === 0;
 
-    // Calculate refund amount (simplified calculation)
+    // Legacy path (no periods): keep existing behavior but with VAT_RATE=0
     const baseRefundAmount = isEligible
       ? this.calculateBaseRefundAmount(input.monthsContributed)
       : 0;
@@ -281,7 +299,7 @@ export class VBLCalculationService {
 
     const isEligible = eligibilityReasons.length === 0;
 
-    // Calculate refund amount
+    // Legacy path (no periods): keep existing behavior but with VAT_RATE=0
     const baseRefundAmount = isEligible
       ? this.calculateBaseRefundAmount(input.monthsContributed)
       : 0;
@@ -384,7 +402,7 @@ export class VBLCalculationService {
 
     const isEligible = eligibilityReasons.length === 0;
 
-    // Calculate refund amount
+    // Legacy path (no periods): keep existing behavior but with VAT_RATE=0
     const baseRefundAmount = isEligible
       ? this.calculateBaseRefundAmount(input.monthsContributed)
       : 0;
@@ -415,17 +433,10 @@ export class VBLCalculationService {
    * actual contribution amounts and VBL's specific calculation formulas
    */
   private static calculateBaseRefundAmount(monthsContributed: number): number {
-    // Simplified calculation - in reality, this would be much more complex
-    // and based on actual contribution amounts, interest rates, etc.
-    const baseAmountPerMonth = 50; // Example: €50 per month contributed
-    const interestRate = 0.02; // 2% annual interest
-    const yearsContributed = monthsContributed / 12;
-
-    // Simple compound interest calculation
+    // Legacy fallback: treat each month as a nominal unit; no interest/VAT
+    const baseAmountPerMonth = 50;
     const baseAmount = monthsContributed * baseAmountPerMonth;
-    const interestAmount = baseAmount * interestRate * yearsContributed;
-
-    return Math.round((baseAmount + interestAmount) * 100) / 100; // Round to 2 decimal places
+    return Math.round(baseAmount * 100) / 100;
   }
 
   /**
@@ -519,6 +530,190 @@ export class VBLCalculationService {
       westGermanyEligible: false,
       timeSinceEmploymentEnd: 0,
     };
+  }
+
+  /**
+   * New: Calculate from periods using per-year caps and rates (no interest/VAT)
+   */
+  private static calculateFromPeriods(
+    input: VBLCalculationInput
+  ): VBLCalculationResult {
+    const rulesApplied: string[] = [];
+    const eligibilityReasons: string[] = [];
+    const warnings: string[] = [];
+
+    const { periods = [] } = input;
+
+    // Load contribution caps/rates
+    const dataPath = path.join(__dirname, '..', 'data', 'contributions.json');
+    let tables: any;
+    try {
+      const raw = fs.readFileSync(dataPath, 'utf-8');
+      tables = JSON.parse(raw);
+    } catch (e) {
+      logger.error('Failed to load contributions table', e as any);
+      throw new Error('Configuration error');
+    }
+
+    const westStates: string[] = tables.states?.WEST ?? [];
+    const years: Record<string, any> = tables.years ?? {};
+
+    // Derive months from periods
+    const monthsTotal = periods.reduce(
+      (acc, p) => acc + this.monthsBetween(p.startDate, p.endDate),
+      0
+    );
+    const consecutiveMonths = monthsTotal; // Placeholder: real consecutive detection can be added later
+
+    // Eligibility checks (supplementary flavor for this route)
+    if (!input.hasLeftPublicSector) {
+      eligibilityReasons.push('User must have left the public sector');
+    } else {
+      rulesApplied.push('User left public sector');
+    }
+
+    // West-only check for supplementary
+    const hasOnlyWest = periods.every((p) => westStates.includes(p.state));
+    if (!hasOnlyWest) {
+      eligibilityReasons.push(
+        'Only West Germany periods are refundable for supplementary'
+      );
+    } else {
+      rulesApplied.push('All periods in West Germany');
+    }
+
+    // Pre/Post 2018 logic based on employmentEnd
+    const employmentEndDate = new Date(input.employmentEnd);
+    const isPost2018 = employmentEndDate >= new Date('2018-01-01');
+    if (isPost2018) {
+      if (consecutiveMonths >= 36) {
+        eligibilityReasons.push(
+          'Consecutive contribution period must be less than 36 months'
+        );
+      } else {
+        rulesApplied.push(
+          'Consecutive contribution period less than 36 months'
+        );
+      }
+    }
+    if (monthsTotal >= 60) {
+      eligibilityReasons.push(
+        'Total contribution period must be less than 60 months'
+      );
+    } else {
+      rulesApplied.push('Total contribution period less than 60 months');
+    }
+    if (input.hasPaidVBLExtra) {
+      eligibilityReasons.push(
+        'Only VBLklassik contributions allowed (no VBL extra)'
+      );
+    } else {
+      rulesApplied.push('Only VBLklassik contributions');
+    }
+    if (input.currentAge >= 69) {
+      eligibilityReasons.push('User must be younger than 69 years old');
+    } else {
+      rulesApplied.push('User younger than 69 years old');
+    }
+    if (input.hasMovedContributions) {
+      eligibilityReasons.push(
+        'Contributions must not be moved to another supplementary insurance'
+      );
+    } else {
+      rulesApplied.push('Contributions not moved to another insurance');
+    }
+
+    const isEligible = eligibilityReasons.length === 0;
+
+    let baseRefundAmount = 0;
+    if (isEligible) {
+      // Sum per-year contributions across periods
+      for (const p of periods) {
+        baseRefundAmount += this.sumPeriodContribution(p, years, westStates);
+      }
+    }
+
+    const vatAmount = baseRefundAmount * this.VAT_RATE; // 0
+    const totalAmount = baseRefundAmount + vatAmount;
+
+    return {
+      isEligible,
+      eligibilityReasons,
+      calculationMethod: isPost2018 ? 'post2018' : 'pre2018',
+      baseRefundAmount: Math.round(baseRefundAmount * 100) / 100,
+      vatAmount,
+      totalAmount: Math.round(totalAmount * 100) / 100,
+      calculationDetails: {
+        contributionPeriod: monthsTotal,
+        consecutivePeriod: consecutiveMonths,
+        ageAtEmploymentEnd: input.currentAge,
+        westGermanyEligible: hasOnlyWest,
+        timeSinceEmploymentEnd: this.calculateMonthsSinceEmploymentEnd(
+          input.employmentEnd
+        ),
+      },
+      rulesApplied,
+      warnings,
+    };
+  }
+
+  private static monthsBetween(start: string, end: string): number {
+    const s = new Date(start);
+    const e = new Date(end);
+    const ms = e.getTime() - s.getTime();
+    return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24 * 30.44)) + 1); // inclusive approx
+  }
+
+  private static sumPeriodContribution(
+    period: {
+      startDate: string;
+      endDate: string;
+      state: string;
+      grossMonthlySalary: number;
+    },
+    years: Record<string, any>,
+    westStates: string[]
+  ): number {
+    let sum = 0;
+    // Split by year boundaries
+    const s = new Date(period.startDate);
+    const e = new Date(period.endDate);
+    let cursor = new Date(
+      Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate())
+    );
+    const end = new Date(
+      Date.UTC(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate())
+    );
+
+    while (cursor <= end) {
+      const year = cursor.getUTCFullYear();
+      const yearEnd = new Date(Date.UTC(year, 11, 31));
+      const segmentEnd = end < yearEnd ? end : yearEnd;
+
+      const months = Math.max(
+        0,
+        Math.floor(
+          (segmentEnd.getTime() - cursor.getTime()) /
+            (1000 * 60 * 60 * 24 * 30.44)
+        ) + 1
+      );
+      const yearCfg = years[String(year)] || {};
+      const isWest = westStates.includes(period.state);
+      const cap = isWest ? yearCfg.westCap : yearCfg.eastCap;
+      const rates = yearCfg.rates || {};
+
+      if (cap && rates) {
+        const cappedGross = Math.min(period.grossMonthlySalary, cap);
+        // For supplementary route, use VBL klassik by default if public sector, else drv
+        const rate = rates.vblklassik ?? rates.drv ?? 0;
+        sum += months * cappedGross * rate;
+      }
+
+      // move cursor to next year start
+      cursor = new Date(Date.UTC(year + 1, 0, 1));
+    }
+
+    return sum;
   }
 
   /**

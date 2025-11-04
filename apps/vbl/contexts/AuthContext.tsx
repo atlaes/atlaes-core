@@ -55,6 +55,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
+    // During SSR/static generation, return a safe default
+    if (typeof window === 'undefined') {
+      return {
+        user: null,
+        isLoading: true,
+        isAuthenticated: false,
+        login: async () => {},
+        loginWithGoogle: async () => {},
+        register: async () => {},
+        logout: () => {},
+        updateProfile: async () => {},
+        changePassword: async () => {},
+        requestMagicLink: async () => ({ magicLink: undefined }),
+        verifyMagicLink: async () => ({ isNewUser: false }),
+      } as AuthContextType;
+    }
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

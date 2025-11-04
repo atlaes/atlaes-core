@@ -20,6 +20,46 @@ const SimpleVBLCalculator: React.FC = () => {
   const [error, setError] = useState('');
   const [isMounted, setIsMounted] = useState(false);
 
+  // Periods state (repeater)
+  type Period = {
+    startDate: string;
+    endDate: string;
+    state: string;
+    grossMonthlySalary: number;
+    publicSector: boolean;
+  };
+  const WEST_STATES = [
+    'Baden-Württemberg',
+    'Bavaria',
+    'Berlin (West)',
+    'Bremen',
+    'Hamburg',
+    'Hesse',
+    'Lower Saxony',
+    'North Rhine-Westphalia',
+    'Rheinland-Palatinate',
+    'Saarland',
+    'Schleswig-Holstein',
+  ];
+  const EAST_STATES = [
+    'Berlin (East)',
+    'Brandenburg',
+    'Mecklenburg-Western Pomerania',
+    'Saxony',
+    'Saxony-Anhalt',
+    'Thuringia',
+  ];
+  const ALL_STATES = [...WEST_STATES, ...EAST_STATES];
+  const [periods, setPeriods] = useState<Period[]>([
+    {
+      startDate: '',
+      endDate: '',
+      state: 'Bavaria',
+      grossMonthlySalary: 0,
+      publicSector: true,
+    },
+  ]);
+
   // Form state
   const [formData, setFormData] = useState({
     userType: 'insured_person',
@@ -59,7 +99,28 @@ const SimpleVBLCalculator: React.FC = () => {
     setResult(null);
 
     try {
-      const response = await apiClient.post('/vbl/calculate', formData);
+      const payload = {
+        ...formData,
+        // compute envelope start/end from periods if provided
+        employmentStart:
+          periods[0]?.startDate || formData.employmentStart || '',
+        employmentEnd:
+          periods[periods.length - 1]?.endDate || formData.employmentEnd || '',
+        isWestGermany: periods.every((p) => WEST_STATES.includes(p.state)),
+        hasLeftPublicSector: true,
+        hasMovedContributions: false,
+        hasPaidVBLExtra: false,
+        isStageOrchestra: false,
+        periods: periods.map((p) => ({
+          startDate: p.startDate,
+          endDate: p.endDate,
+          state: p.state,
+          grossMonthlySalary: Number(p.grossMonthlySalary) || 0,
+          publicSector: p.publicSector,
+        })),
+      };
+
+      const response = await apiClient.post('/vbl/calculate', payload);
 
       if (response.data.success) {
         setResult(response.data.calculation);
@@ -122,6 +183,118 @@ const SimpleVBLCalculator: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Periods */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900">Work Periods</h3>
+            {periods.map((p, idx) => (
+              <div key={idx} className="grid md:grid-cols-5 gap-4 items-end border-b pb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={p.startDate}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setPeriods((arr) => arr.map((it, i) => (i === idx ? { ...it, startDate: v } : it)));
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={p.endDate}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setPeriods((arr) => arr.map((it, i) => (i === idx ? { ...it, endDate: v } : it)));
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    State
+                  </label>
+                  <select
+                    value={p.state}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setPeriods((arr) => arr.map((it, i) => (i === idx ? { ...it, state: v } : it)));
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {ALL_STATES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Gross Monthly (€)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={p.grossMonthlySalary}
+                    onChange={(e) => {
+                      const v = Number(e.target.value) || 0;
+                      setPeriods((arr) => arr.map((it, i) => (i === idx ? { ...it, grossMonthlySalary: v } : it)));
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={p.publicSector}
+                      onChange={(e) => {
+                        const v = e.target.checked;
+                        setPeriods((arr) => arr.map((it, i) => (i === idx ? { ...it, publicSector: v } : it)));
+                      }}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label className="ml-2 text-sm text-gray-700">Public sector</label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPeriods((arr) => arr.filter((_, i) => i !== idx))}
+                    className="text-sm text-red-600 hover:text-red-700"
+                    disabled={periods.length === 1}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() =>
+                  setPeriods((arr) => [
+                    ...arr,
+                    {
+                      startDate: '',
+                      endDate: '',
+                      state: 'Bavaria',
+                      grossMonthlySalary: 0,
+                      publicSector: true,
+                    },
+                  ])
+                }
+                className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
+              >
+                Add Period
+              </button>
+            </div>
+          </div>
           {/* User Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">User Information</h3>

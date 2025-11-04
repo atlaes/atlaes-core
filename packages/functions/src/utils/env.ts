@@ -4,13 +4,31 @@ import { config } from 'dotenv';
 // Load environment variables from .env file
 config({ path: '../../.env' });
 
+// Build DATABASE_URL from SST Resource if available, otherwise use env var
+function getDatabaseUrl(): string {
+  // Check if we're running in SST environment
+  if (process.env.SST_RESOURCE_AtlaesDatabase) {
+    try {
+      const dbResource = JSON.parse(process.env.SST_RESOURCE_AtlaesDatabase);
+      const url = `postgresql://${dbResource.username}:${dbResource.password}@${dbResource.host}:${dbResource.port}/${dbResource.database}`;
+      console.log('Using SST database resource for connection');
+      return url;
+    } catch (error) {
+      console.error('Failed to parse SST database resource:', error);
+    }
+  }
+
+  // Fallback to DATABASE_URL env var or default
+  const fallback = process.env.DATABASE_URL || 'postgresql://vbl_user:vbl_password@localhost:5432/vbl_development';
+  console.log('Using DATABASE_URL from environment or default');
+  return fallback;
+}
+
 const envSchema = z.object({
-  DATABASE_URL: z
-    .string()
-    .optional()
-    .default(
-      'postgresql://vbl_user:vbl_password@localhost:5432/vbl_development'
-    ),
+  DATABASE_URL: z.preprocess(
+    () => getDatabaseUrl(),
+    z.string()
+  ),
   REDIS_URL: z.string().optional().default('redis://localhost:6379'),
   JWT_SECRET: z
     .string()
