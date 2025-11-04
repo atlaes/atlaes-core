@@ -90,7 +90,11 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
   };
 
   const markStepComplete = (stepKey: string) => {
-    setCompletedSteps((prev) => new Set([...prev, stepKey]));
+    setCompletedSteps((prev) => {
+      const newSet = new Set(prev);
+      newSet.add(stepKey);
+      return newSet;
+    });
   };
 
   const goToNextStep = () => {
