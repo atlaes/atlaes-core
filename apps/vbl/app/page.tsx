@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export default function HomePage() {
   const { isAuthenticated, isLoading } = useAuth();

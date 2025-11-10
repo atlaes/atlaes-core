@@ -5,6 +5,7 @@ import MultiStepVBLCalculator from '../../components/vbl/MultiStepVBLCalculator'
 import ErrorBoundary from '../../components/ErrorBoundary';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export default function CalculatorPage() {
   return (

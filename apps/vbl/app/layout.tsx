@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   description: 'Secure platform for German pension refund applications',
 };
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export default function RootLayout({
   children,
 }: {

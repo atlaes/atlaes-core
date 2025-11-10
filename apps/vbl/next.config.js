@@ -1,11 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  images: {
-    domains: ['localhost'],
+  experimental: {
+    esmExternals: 'loose',
   },
-  env: {
-    CUSTOM_KEY: process.env.CUSTOM_KEY,
+  // Disable static generation for pages using React Context
+  generateBuildId: async () => {
+    return 'build-id'
   },
 }
 

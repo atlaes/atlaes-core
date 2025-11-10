@@ -6,6 +6,7 @@ import { LoginForm } from '../../components/auth/LoginForm';
 import { RegisterForm } from '../../components/auth/RegisterForm';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 function AuthPageContent() {
   const router = useRouter();

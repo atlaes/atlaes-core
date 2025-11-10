@@ -6,6 +6,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 function MagicLinkPageContent() {
   const router = useRouter();
