@@ -11,12 +11,27 @@ export interface JobData {
   monthlyIncome: number;
 }
 
+export interface QualificationData {
+  contributionDuration: 'less_than_5' | '5_or_more' | '';
+  lastContribution: 'less_than_2_years' | 'more_than_2_years' | '';
+  nationality: string;
+  currentResidence: string;
+}
+
+export interface CalculationResult {
+  statePension: number;
+  vblKlassik: number;
+  totalMonths: number;
+}
+
 export interface VBLFormData {
   numberOfJobs: number;
   jobs: JobData[];
   userType: string;
   dateOfBirth: string;
   currentAge: number;
+  qualification?: QualificationData;
+  calculationResult?: CalculationResult;
 }
 
 interface VBLCalculatorContextType {

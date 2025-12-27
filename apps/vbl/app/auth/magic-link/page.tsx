@@ -20,7 +20,7 @@ function MagicLinkPageContent() {
   useEffect(() => {
     const handleMagicLink = async () => {
       try {
-        const token = searchParams.get('token');
+        const token = searchParams?.get('token');
 
         if (!token) {
           setStatus('error');

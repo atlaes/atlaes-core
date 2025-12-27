@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { StepContainer } from '../StepContainer';
 import { useVBLCalculator } from '../../../hooks/useVBLCalculator';
 import { Loader2, AlertCircle } from 'lucide-react';
@@ -17,10 +18,18 @@ interface CalculationResult {
   eligibilityReasons: string[];
   rulesApplied: string[];
   monthsContributed?: number;
+  calculationDetails?: {
+    contributionPeriod: number;
+    consecutivePeriod: number;
+    ageAtEmploymentEnd: number;
+    westGermanyEligible: boolean;
+    timeSinceEmploymentEnd: number;
+  };
 }
 
 export const Results: React.FC = () => {
-  const { formData, resetForm } = useVBLCalculator();
+  const router = useRouter();
+  const { formData, updateFormData, resetForm } = useVBLCalculator();
   const [result, setResult] = useState<CalculationResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -29,84 +38,40 @@ export const Results: React.FC = () => {
     calculateRefund();
   }, []);
 
-  // Helper function to convert YYYY-MM to YYYY-MM-DD
-  const formatDateToYYYYMMDD = (dateString: string): string => {
-    if (!dateString) return '';
-    // If already in YYYY-MM-DD format, return as is
-    if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) return dateString;
-    // If in YYYY-MM format, append -01 for first day of month
-    if (dateString.match(/^\d{4}-\d{2}$/)) return `${dateString}-01`;
-    return dateString;
-  };
-
-  // Helper function to determine if state is in West Germany
-  const isWestGermanyState = (state: string): boolean => {
-    const westGermanyStates = [
-      'Baden-Württemberg',
-      'Bavaria',
-      'Berlin (West)',
-      'Bremen',
-      'Hamburg',
-      'Hesse',
-      'Lower Saxony',
-      'North Rhine-Westphalia',
-      'Rheinland-Palatinate',
-      'Saarland',
-      'Schleswig-Holstein',
-    ];
-    return westGermanyStates.includes(state);
-  };
-
-  // Helper function to calculate total months contributed
-  const calculateMonthsContributed = (jobs: typeof formData.jobs): number => {
-    return jobs.reduce((total, job) => {
-      if (!job.startDate || !job.endDate) return total;
-      const start = new Date(formatDateToYYYYMMDD(job.startDate));
-      const end = new Date(formatDateToYYYYMMDD(job.endDate));
-      const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
-      return total + months;
-    }, 0);
-  };
-
   const calculateRefund = async () => {
     setIsLoading(true);
     setError('');
 
     try {
-      // Check if at least one job is in West Germany
-      const hasWestGermanyJob = formData.jobs.some(job => isWestGermanyState(job.location));
-
-      // Calculate total months contributed
-      const monthsContributed = calculateMonthsContributed(formData.jobs);
-
-      // Transform formData to API payload
+      // Use the simplified API - just send the job data directly!
       const payload = {
-        userType: formData.userType || 'insured_person',
-        dateOfBirth: formData.dateOfBirth || '1980-01-01',
-        currentAge: formData.currentAge || 40,
-        employmentStart: formatDateToYYYYMMDD(formData.jobs[0]?.startDate || ''),
-        employmentEnd: formatDateToYYYYMMDD(formData.jobs[formData.jobs.length - 1]?.endDate || ''),
-        isWestGermany: hasWestGermanyJob,
-        monthsContributed: monthsContributed,
-        consecutiveMonthsContributed: monthsContributed, // Using same value for now
-        hasLeftPublicSector: true,
-        isWorkingInPublicSectorEU: false,
-        hasMovedContributions: false,
-        hasPaidVBLExtra: formData.jobs.some(j => j.supplementaryPension === 'VBLextra'),
-        isStageOrchestra: false,
-        periods: formData.jobs.map((job) => ({
-          startDate: formatDateToYYYYMMDD(job.startDate),
-          endDate: formatDateToYYYYMMDD(job.endDate),
-          state: job.location,
-          grossMonthlySalary: job.monthlyIncome,
-          publicSector: job.employmentType === 'Public Sector',
+        jobs: formData.jobs.map((job) => ({
+          location: job.location,
+          employmentType: job.employmentType,
+          supplementaryPension: job.supplementaryPension,
+          startDate: job.startDate,
+          endDate: job.endDate,
+          monthlyIncome: job.monthlyIncome,
         })),
+        // Optional fields (if collected in the future)
+        ...(formData.dateOfBirth && { dateOfBirth: formData.dateOfBirth }),
+        ...(formData.currentAge && { currentAge: formData.currentAge }),
+        ...(formData.userType && { userType: formData.userType }),
       };
 
-      const response = await apiClient.post('/vbl/calculate', payload);
+      const response = await apiClient.post('/vbl/calculate-simple', payload);
 
       if (response.data.success) {
         setResult(response.data.calculation);
+
+        // Store the calculation results in the context for later use
+        updateFormData({
+          calculationResult: {
+            statePension: response.data.calculation.statePension || 0,
+            vblKlassik: response.data.calculation.vblKlassik || 0,
+            totalMonths: response.data.calculation.monthsContributed || 0,
+          },
+        });
       } else {
         setError(response.data.error || 'Calculation failed');
       }
@@ -138,8 +103,8 @@ export const Results: React.FC = () => {
   };
 
   const handleCheckEligibility = () => {
-    // In real app, this might navigate to an eligibility check page or form
-    console.log('Check eligibility clicked');
+    // Navigate to qualification flow
+    router.push('/calculator/qualification/1');
   };
 
   const handleBack = () => {
@@ -263,7 +228,7 @@ export const Results: React.FC = () => {
           <div className="text-center mb-12">
             <p className="text-base text-gray-700" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
               You have contributed to the German pension scheme for{' '}
-              <strong>[{result?.monthsContributed || 'xy'}]</strong> months.
+              <strong>{result?.calculationDetails?.contributionPeriod || result?.monthsContributed || 'N/A'}</strong> months.
             </p>
             <p className="text-base text-gray-700 mt-2" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
               Depending on your nationality, qualifying for a retirement pension may disqualify you from claiming a

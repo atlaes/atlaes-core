@@ -14,6 +14,7 @@ import {
 } from '../utils/auth';
 import { UserService } from '../services/user';
 import { authMiddleware } from '../middleware/auth';
+import { GPRApplicationService } from '../services/gpr-application';
 
 const auth = new Hono();
 
@@ -248,17 +249,90 @@ auth.get('/test-env', async (c) => {
   });
 });
 
-// Request magic link endpoint
+// Extended magic link request schema with optional GPR session data
+const extendedMagicLinkRequestSchema = z.object({
+  email: z.string().email(),
+  gprSessionData: z
+    .object({
+      calculatorData: z.object({
+        numberOfJobs: z.number().min(1),
+        jobs: z.array(
+          z.object({
+            startMonth: z.string(),
+            startYear: z.string(),
+            endMonth: z.string(),
+            endYear: z.string(),
+            monthlySalary: z.number(),
+            sector: z.string(),
+            state: z.string().optional(),
+            supplementaryPension: z.string().optional(),
+          })
+        ),
+        calculationResult: z.object({
+          statePensionRefund: z.number(),
+          supplementaryRefund: z.number(),
+          totalRefund: z.number(),
+          totalMonthsContributed: z.number(),
+          details: z.object({
+            drvEligible: z.boolean(),
+            drvReason: z.string(),
+            supplementaryEligible: z.boolean(),
+            supplementaryReason: z.string(),
+          }),
+        }),
+      }),
+      eligibilityData: z
+        .object({
+          citizenship: z.string().optional(),
+          residence: z.string().optional(),
+          lastEmploymentMonth: z.string().optional(),
+          lastEmploymentYear: z.string().optional(),
+          contributionDuration: z.string().optional(),
+          dateOfBirth: z.string().optional(),
+          eligibilityResult: z
+            .object({
+              isEligible: z.boolean(),
+              reasons: z.array(z.string()),
+            })
+            .optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+});
+
+// Request magic link endpoint (with optional GPR session data)
 auth.post(
   '/magic-link/request',
-  zValidator('json', magicLinkRequestSchema),
+  zValidator('json', extendedMagicLinkRequestSchema),
   async (c) => {
     try {
-      const { email } = c.req.valid('json');
+      const { email, gprSessionData } = c.req.valid('json');
 
       // Debug: Check if JWT_SECRET is available
       logger.info('JWT_SECRET available:', !!env.JWT_SECRET);
       logger.info('Email received:', email);
+
+      // If GPR session data is provided, save it to pending sessions
+      if (gprSessionData) {
+        const ipAddress =
+          c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+        const userAgent = c.req.header('user-agent') || 'unknown';
+
+        try {
+          await GPRApplicationService.savePendingSession({
+            email,
+            calculatorData: gprSessionData.calculatorData,
+            eligibilityData: gprSessionData.eligibilityData,
+            ipAddress,
+            userAgent,
+          });
+          logger.info(`GPR session data saved for: ${email}`);
+        } catch (sessionError) {
+          logger.error('Failed to save GPR session data:', sessionError);
+          // Don't fail the magic link request if session save fails
+        }
+      }
 
       // Generate magic link token (works for both existing and new users)
       const token = AuthService.generateMagicLinkToken(email);
@@ -297,6 +371,7 @@ auth.post(
 
       // Find user by email
       let user = await UserService.findByEmail(email);
+      const isNewUser = !user;
 
       // If user doesn't exist, create a new account
       if (!user) {
@@ -321,6 +396,18 @@ auth.post(
         emailVerified: user.emailVerified,
       });
 
+      // Migrate any pending GPR session to application
+      let gprApplication = null;
+      try {
+        gprApplication = await GPRApplicationService.migrateToApplication(email, user.id);
+        if (gprApplication) {
+          logger.info(`GPR session migrated to application ${gprApplication.id} for user ${user.id}`);
+        }
+      } catch (migrationError) {
+        logger.error('Failed to migrate GPR session:', migrationError);
+        // Don't fail the login if migration fails
+      }
+
       logger.info(`User logged in via magic link: ${user.email}`);
 
       return c.json({
@@ -332,7 +419,8 @@ auth.post(
           profile: user.profile,
         },
         tokens: authTokens,
-        isNewUser: !user.profile?.firstName, // Indicate if this is a new user
+        isNewUser: isNewUser || !user.profile?.firstName,
+        gprApplication, // Include the migrated application if available
       });
     } catch (error) {
       logger.error('Magic link verification error:', error);

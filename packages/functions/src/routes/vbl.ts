@@ -6,6 +6,10 @@ import {
   VBLCalculationService,
   VBLCalculationInput,
 } from '../services/vbl-calculation';
+import {
+  VBLSimpleCalculationService,
+  VBLSimpleCalculationInput,
+} from '../services/vbl-calculation-simple';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 import { db } from '../utils/db';
 import { applications, calculationLogs } from '../drizzle/schema/vbl';
@@ -63,6 +67,29 @@ const vblCalculationSchema = z.object({
       })
     )
     .optional(),
+});
+
+// Simplified schema for multi-step calculator (only job data required)
+const vblSimpleCalculationSchema = z.object({
+  jobs: z
+    .array(
+      z.object({
+        location: z.string().min(2), // German state name
+        employmentType: z.string().min(1), // "Public Sector", etc.
+        supplementaryPension: z.string().min(1), // "VBLextra", "VBLklassik", etc.
+        startDate: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/), // YYYY-MM or YYYY-MM-DD
+        endDate: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/), // YYYY-MM or YYYY-MM-DD
+        monthlyIncome: z.number().min(0),
+      })
+    )
+    .min(1, 'At least one job is required'),
+  // Optional fields for improved accuracy
+  dateOfBirth: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
+    .optional(),
+  currentAge: z.number().min(0).max(120).optional(),
+  userType: z.enum(['insured_person', 'widow', 'orphan']).optional(),
 });
 
 const applicationUpdateSchema = z.object({
@@ -190,6 +217,50 @@ vbl.post(
       });
     } catch (error) {
       logger.error('VBL calculation error:', error);
+      return c.json(
+        {
+          success: false,
+          error: 'Failed to calculate VBL refund',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+        500
+      );
+    }
+  }
+);
+
+// Calculate VBL refund using simplified input (public endpoint - no auth required)
+// This endpoint accepts only job data and derives all other fields automatically
+vbl.post(
+  '/calculate-simple',
+  optionalAuthMiddleware,
+  zValidator('json', vblSimpleCalculationSchema),
+  async (c) => {
+    try {
+      const input = c.req.valid('json') as VBLSimpleCalculationInput;
+
+      // Check if user is authenticated (optional)
+      const user = c.get('user') || null;
+
+      if (user) {
+        logger.info(`Simplified VBL calculation requested by user ${user.id}`);
+      } else {
+        logger.info('Simplified VBL calculation requested by anonymous user');
+      }
+
+      // Perform simplified calculation
+      const result =
+        await VBLSimpleCalculationService.calculateVBLRefund(input);
+
+      return c.json({
+        success: true,
+        calculation: result,
+        message: result.isEligible
+          ? 'Calculation completed successfully. You are eligible for a VBL refund.'
+          : 'Calculation completed. You are not eligible for a VBL refund based on the provided information.',
+      });
+    } catch (error) {
+      logger.error('Simplified VBL calculation error:', error);
       return c.json(
         {
           success: false,

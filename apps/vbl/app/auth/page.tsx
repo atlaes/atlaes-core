@@ -17,7 +17,7 @@ function AuthPageContent() {
   );
 
   useEffect(() => {
-    const mode = searchParams.get('mode');
+    const mode = searchParams?.get('mode');
     if (mode === 'magic-link') {
       setLoginMode('magic-link');
     }

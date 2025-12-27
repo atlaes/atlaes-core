@@ -51,6 +51,9 @@ export interface VBLCalculationResult {
   baseRefundAmount: number;
   vatAmount: number;
   totalAmount: number;
+  // Separate amounts for each pension type
+  statePension?: number; // DRV (Deutsche Rentenversicherung) refund
+  vblKlassik?: number; // VBL supplementary pension refund
   calculationDetails: {
     contributionPeriod: number;
     consecutivePeriod?: number;
@@ -627,16 +630,19 @@ export class VBLCalculationService {
 
     const isEligible = eligibilityReasons.length === 0;
 
-    let baseRefundAmount = 0;
+    let drvRefund = 0;
+    let vblRefund = 0;
     if (isEligible) {
-      // Sum per-year contributions across periods
+      // Calculate both DRV (State Pension) and VBL (Supplementary Pension) separately
       for (const p of periods) {
-        baseRefundAmount += this.sumPeriodContribution(p, years, westStates);
+        drvRefund += this.sumPeriodContributionByType(p, years, westStates, 'drv');
+        vblRefund += this.sumPeriodContributionByType(p, years, westStates, 'vblklassik');
       }
     }
 
+    const baseRefundAmount = vblRefund; // Keep for backward compatibility
     const vatAmount = baseRefundAmount * this.VAT_RATE; // 0
-    const totalAmount = baseRefundAmount + vatAmount;
+    const totalAmount = drvRefund + vblRefund + vatAmount;
 
     return {
       isEligible,
@@ -645,6 +651,8 @@ export class VBLCalculationService {
       baseRefundAmount: Math.round(baseRefundAmount * 100) / 100,
       vatAmount,
       totalAmount: Math.round(totalAmount * 100) / 100,
+      statePension: Math.round(drvRefund * 100) / 100,
+      vblKlassik: Math.round(vblRefund * 100) / 100,
       calculationDetails: {
         contributionPeriod: monthsTotal,
         consecutivePeriod: consecutiveMonths,
@@ -666,7 +674,10 @@ export class VBLCalculationService {
     return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24 * 30.44)) + 1); // inclusive approx
   }
 
-  private static sumPeriodContribution(
+  /**
+   * Calculate contributions for a specific pension type (DRV or VBL)
+   */
+  private static sumPeriodContributionByType(
     period: {
       startDate: string;
       endDate: string;
@@ -674,7 +685,8 @@ export class VBLCalculationService {
       grossMonthlySalary: number;
     },
     years: Record<string, any>,
-    westStates: string[]
+    westStates: string[],
+    pensionType: 'drv' | 'vblklassik'
   ): number {
     let sum = 0;
     // Split by year boundaries
@@ -706,8 +718,7 @@ export class VBLCalculationService {
 
       if (cap && rates) {
         const cappedGross = Math.min(period.grossMonthlySalary, cap);
-        // For supplementary route, use VBL klassik by default if public sector, else drv
-        const rate = rates.vblklassik ?? rates.drv ?? 0;
+        const rate = rates[pensionType] ?? 0;
         sum += months * cappedGross * rate;
       }
 
@@ -717,6 +728,7 @@ export class VBLCalculationService {
 
     return sum;
   }
+
 
   /**
    * Sanitize input for logging (remove sensitive data)

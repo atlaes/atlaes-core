@@ -13,7 +13,7 @@
     "db:generate": "pnpm --filter functions db:generate",
     "db:migrate": "pnpm --filter functions db:migrate",
     "db:studio": "pnpm --filter functions db:studio",
-    "dev": "concurrently \"pnpm docker:up\" \"pnpm sst:dev\" \"pnpm vbl:dev\"",
+    "dev": "concurrently \"pnpm docker:up\" \"pnpm sst:dev\" \"pnpm gpr:dev\"",
     "docker:down": "docker-compose down",
     "docker:reset": "docker-compose down -v && docker-compose up -d",
     "docker:up": "docker-compose up -d",
@@ -29,7 +29,9 @@
     "web:dev": "pnpm --filter web dev",
     "vbl:build": "pnpm --filter vbl build",
     "vbl:dev": "pnpm --filter vbl dev",
-    "dev:all": "concurrently \"pnpm docker:up\" \"pnpm sst:dev\" \"pnpm web:dev\" \"pnpm vbl:dev\""
+    "gpr:build": "pnpm --filter gpr build",
+    "gpr:dev": "pnpm --filter gpr dev",
+    "dev:all": "concurrently \"pnpm docker:up\" \"pnpm sst:dev\" \"pnpm web:dev\" \"pnpm vbl:dev\" \"pnpm gpr:dev\""
   },
   "devDependencies": {
     "@types/aws-lambda": "8.10.156",
