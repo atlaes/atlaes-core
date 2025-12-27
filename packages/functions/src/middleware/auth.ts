@@ -1,6 +1,6 @@
 import { Context, Next } from 'hono';
 import { verify } from 'jsonwebtoken';
-import { env } from '../utils/env';
+import { getJwtSecret } from '../utils/env';
 import { logger } from '../utils/logger';
 
 export interface AuthUser {
@@ -34,7 +34,7 @@ export const authMiddleware = async (c: Context, next: Next) => {
     }
 
     // Verify JWT token
-    const decoded = verify(token, env.JWT_SECRET) as any;
+    const decoded = verify(token, getJwtSecret()) as any;
 
     if (!decoded || !decoded.userId || !decoded.email) {
       return c.json({ error: 'Invalid token' }, 401);
@@ -72,7 +72,7 @@ export const optionalAuthMiddleware = async (c: Context, next: Next) => {
       const token = authHeader.substring(7);
 
       if (token) {
-        const decoded = verify(token, env.JWT_SECRET) as any;
+        const decoded = verify(token, getJwtSecret()) as any;
 
         if (decoded && decoded.userId && decoded.email) {
           c.set('user', {

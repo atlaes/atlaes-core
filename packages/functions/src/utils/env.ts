@@ -1,8 +1,11 @@
 import { z } from 'zod';
 import { config } from 'dotenv';
 
-// Load environment variables from .env file
-config({ path: '../../.env' });
+// Only load .env file in non-test environments
+// Tests set their own environment variables before importing modules
+if (process.env.NODE_ENV !== 'test') {
+  config({ path: '../../.env' });
+}
 
 // Build DATABASE_URL from SST Resource if available, otherwise use env var
 function getDatabaseUrl(): string {
@@ -46,3 +49,15 @@ const envSchema = z.object({
 export const env = envSchema.parse(process.env);
 
 export type Env = z.infer<typeof envSchema>;
+
+/**
+ * Get JWT secret dynamically.
+ * In test environments, this reads from process.env to support runtime changes.
+ * In production, uses the cached env value for performance.
+ */
+export function getJwtSecret(): string {
+  if (process.env.NODE_ENV === 'test') {
+    return process.env.JWT_SECRET || env.JWT_SECRET;
+  }
+  return env.JWT_SECRET;
+}

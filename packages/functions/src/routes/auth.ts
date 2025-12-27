@@ -3,7 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { OAuth2Client } from 'google-auth-library';
 import { logger } from '../utils/logger';
-import { env } from '../utils/env';
+import { env, getJwtSecret } from '../utils/env';
 import {
   AuthService,
   registrationSchema,
@@ -242,8 +242,8 @@ auth.post(
 // Test endpoint to check environment
 auth.get('/test-env', async (c) => {
   return c.json({
-    jwtSecret: !!env.JWT_SECRET,
-    jwtSecretLength: env.JWT_SECRET?.length,
+    jwtSecret: !!getJwtSecret(),
+    jwtSecretLength: getJwtSecret()?.length,
     databaseUrl: !!env.DATABASE_URL,
     nodeEnv: env.NODE_ENV,
   });
@@ -310,7 +310,7 @@ auth.post(
       const { email, gprSessionData } = c.req.valid('json');
 
       // Debug: Check if JWT_SECRET is available
-      logger.info('JWT_SECRET available:', !!env.JWT_SECRET);
+      logger.info('JWT_SECRET available:', !!getJwtSecret());
       logger.info('Email received:', email);
 
       // If GPR session data is provided, save it to pending sessions
