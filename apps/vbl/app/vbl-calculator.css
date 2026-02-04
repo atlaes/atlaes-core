@@ -6,6 +6,14 @@
   --vbl-color-black: #000000;
   --vbl-color-gray: #7D7D7D;
 
+  /* New Supplementary Pension Calculator Colors */
+  --vbl-sidebar-dark: #163300;
+  --vbl-sidebar-light: #163300;
+  --vbl-accent-lime: #9FE870;
+  --vbl-accent-lime-hover: #8AD860;
+  --vbl-accent-lime-light: #B8F090;
+  --vbl-bg-light: #F5F5F5;
+
   /* Font Families */
   --vbl-font-inter-tight: 'Inter Tight', sans-serif;
   --vbl-font-montserrat: 'Montserrat', sans-serif;

@@ -10,12 +10,12 @@ import {
  */
 export interface VBLSimpleCalculationInput {
   jobs: Array<{
-    location: string; // German state name
-    employmentType: string; // "Public Sector", etc.
-    supplementaryPension: string; // "VBLextra", "VBLklassik", etc.
+    location?: string; // German state name (optional)
+    employmentType: string; // "Public Sector", "Stage/Performing Arts", etc.
+    supplementaryPension: string; // "VBLklassik", "VddB", "VddKO", "ZVK"
     startDate: string; // YYYY-MM or YYYY-MM-DD
     endDate: string; // YYYY-MM or YYYY-MM-DD
-    monthlyIncome: number;
+    monthlyIncome?: number; // Monthly income (optional)
   }>;
   dateOfBirth?: string; // Optional: YYYY-MM-DD
   currentAge?: number; // Optional: current age
@@ -42,6 +42,34 @@ export class VBLSimpleCalculationService {
     'Saarland',
     'Schleswig-Holstein',
   ];
+
+  // Stage/Orchestra pension providers
+  private static readonly STAGE_ORCHESTRA_PROVIDERS = ['VddB', 'VddKO'];
+
+  /**
+   * Check if job is Stage/Orchestra based on employment type or pension provider
+   */
+  private static isStageOrchestraJob(job: VBLSimpleCalculationInput['jobs'][0]): boolean {
+    const employmentType = job.employmentType.toLowerCase();
+    const pension = job.supplementaryPension;
+
+    // Check employment type
+    if (
+      employmentType.includes('stage') ||
+      employmentType.includes('orchestra') ||
+      employmentType.includes('bühne') ||
+      employmentType.includes('performing')
+    ) {
+      return true;
+    }
+
+    // Check pension provider
+    if (this.STAGE_ORCHESTRA_PROVIDERS.includes(pension)) {
+      return true;
+    }
+
+    return false;
+  }
 
   /**
    * Convert YYYY-MM to YYYY-MM-DD format by appending -01
@@ -228,9 +256,9 @@ export class VBLSimpleCalculationService {
       sortedJobs[sortedJobs.length - 1]?.endDate || ''
     );
 
-    // Determine if any job is in West Germany
+    // Determine if any job is in West Germany (default to true if location not provided)
     const hasWestGermanyJob = input.jobs.some((job) =>
-      this.isWestGermanyState(job.location)
+      job.location ? this.isWestGermanyState(job.location) : true
     );
 
     // Calculate months contributed
@@ -275,13 +303,14 @@ export class VBLSimpleCalculationService {
       isWorkingInPublicSectorEU,
       hasPaidVBLExtra,
       hasMovedContributions: false, // Assume not moved (we don't ask this)
-      isStageOrchestra: false, // Assume not stage/orchestra (we don't ask this)
+      isStageOrchestra: input.jobs.some((job) => this.isStageOrchestraJob(job)),
+      hasOccupationalDisability: false, // Default for Stage/Orchestra calculations
       // Build periods array for accurate calculation
       periods: input.jobs.map((job) => ({
         startDate: this.formatDateToYYYYMMDD(job.startDate),
         endDate: this.formatDateToYYYYMMDD(job.endDate),
-        state: job.location,
-        grossMonthlySalary: job.monthlyIncome,
+        state: job.location || 'West Germany', // Default to West Germany if not provided
+        grossMonthlySalary: job.monthlyIncome || 0, // Default to 0 if not provided
         publicSector:
           job.employmentType.toLowerCase().includes('public') ||
           job.employmentType.toLowerCase().includes('öffentlich'),

@@ -25,14 +25,6 @@ declare module "sst" {
       "type": "sst.aws.StaticSite"
       "url": string
     }
-    "GPRApp": {
-      "type": "sst.aws.Nextjs"
-      "url": string
-    }
-    "VBLApp": {
-      "type": "sst.aws.Nextjs"
-      "url": string
-    }
   }
 }
 /// <reference path="sst-env.d.ts" />

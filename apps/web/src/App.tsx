@@ -379,10 +379,10 @@ function App() {
             </div>
             <div className="flex space-x-6">
               <a
-                href="mailto:hello@atlaes.de"
+                href="mailto:info@atlaes.de"
                 className="hover:text-blue-400 transition-colors"
               >
-                hello@atlaes.de
+                info@atlaes.de
               </a>
               <a
                 href="https://www.germanypensionrefund.com/"

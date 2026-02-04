@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { StepContainer } from '../StepContainer';
-import { useVBLCalculator } from '../../../hooks/useVBLCalculator';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { useVBLCalculator, JobData, RefundBreakdown } from '../../../hooks/useVBLCalculator';
+import { Loader2, AlertCircle, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import apiClient from '../../../lib/api';
 
 interface CalculationResult {
@@ -27,10 +26,22 @@ interface CalculationResult {
   };
 }
 
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const formatDateForAPI = (month: string, year: string): string => {
+  const monthIndex = MONTHS.indexOf(month) + 1;
+  return `${year}-${String(monthIndex).padStart(2, '0')}`;
+};
+
 export const Results: React.FC = () => {
   const router = useRouter();
-  const { formData, updateFormData, resetForm } = useVBLCalculator();
+  const { formData, updateFormData, goToPreviousStep } = useVBLCalculator();
   const [result, setResult] = useState<CalculationResult | null>(null);
+  const [breakdown, setBreakdown] = useState<RefundBreakdown[]>([]);
+  const [totalRefund, setTotalRefund] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -43,17 +54,15 @@ export const Results: React.FC = () => {
     setError('');
 
     try {
-      // Use the simplified API - just send the job data directly!
       const payload = {
-        jobs: formData.jobs.map((job) => ({
-          location: job.location,
-          employmentType: job.employmentType,
-          supplementaryPension: job.supplementaryPension,
-          startDate: job.startDate,
-          endDate: job.endDate,
-          monthlyIncome: job.monthlyIncome,
-        })),
-        // Optional fields (if collected in the future)
+        jobs: formData.jobs
+          .filter((job) => job.employmentType !== 'Private sector')
+          .map((job) => ({
+            employmentType: job.employmentType,
+            supplementaryPension: job.supplementaryPension,
+            startDate: formatDateForAPI(job.startMonth, job.startYear),
+            endDate: formatDateForAPI(job.endMonth, job.endYear),
+          })),
         ...(formData.dateOfBirth && { dateOfBirth: formData.dateOfBirth }),
         ...(formData.currentAge && { currentAge: formData.currentAge }),
         ...(formData.userType && { userType: formData.userType }),
@@ -64,11 +73,19 @@ export const Results: React.FC = () => {
       if (response.data.success) {
         setResult(response.data.calculation);
 
-        // Store the calculation results in the context for later use
+        const calculatedBreakdown = calculateProviderBreakdown(
+          formData.jobs,
+          response.data.calculation
+        );
+        setBreakdown(calculatedBreakdown);
+
+        const total = calculatedBreakdown.reduce((sum, item) => sum + item.amount, 0);
+        setTotalRefund(total);
+
         updateFormData({
           calculationResult: {
-            statePension: response.data.calculation.statePension || 0,
-            vblKlassik: response.data.calculation.vblKlassik || 0,
+            totalRefund: total,
+            breakdown: calculatedBreakdown,
             totalMonths: response.data.calculation.monthsContributed || 0,
           },
         });
@@ -77,8 +94,6 @@ export const Results: React.FC = () => {
       }
     } catch (err: any) {
       console.error('VBL calculation error:', err);
-      console.error('Error response:', err.response?.data);
-      console.error('Error details:', JSON.stringify(err.response?.data, null, 2));
 
       if (err.response?.data?.details) {
         setError(`${err.response.data.error}: ${err.response.data.details}`);
@@ -94,6 +109,38 @@ export const Results: React.FC = () => {
     }
   };
 
+  const calculateProviderBreakdown = (
+    jobs: JobData[],
+    calcResult: CalculationResult
+  ): RefundBreakdown[] => {
+    const providerAmounts: Record<string, number> = {};
+
+    const eligibleJobs = jobs.filter((job) => job.employmentType !== 'Private sector');
+
+    eligibleJobs.forEach((job) => {
+      if (job.supplementaryPension) {
+        if (!providerAmounts[job.supplementaryPension]) {
+          providerAmounts[job.supplementaryPension] = 0;
+        }
+      }
+    });
+
+    const totalAmount = calcResult.vblKlassik || calcResult.totalAmount || 0;
+    const providerCount = Object.keys(providerAmounts).length;
+
+    if (providerCount > 0) {
+      const amountPerProvider = Math.round(totalAmount / providerCount);
+      Object.keys(providerAmounts).forEach((provider) => {
+        providerAmounts[provider] = amountPerProvider;
+      });
+    }
+
+    return Object.entries(providerAmounts).map(([provider, amount]) => ({
+      provider,
+      amount,
+    }));
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE', {
       style: 'decimal',
@@ -103,157 +150,127 @@ export const Results: React.FC = () => {
   };
 
   const handleCheckEligibility = () => {
-    // Navigate to qualification flow
-    router.push('/calculator/qualification/1');
+    router.push('/calculator/onboarding');
   };
 
   const handleBack = () => {
-    resetForm();
+    goToPreviousStep();
   };
 
   if (isLoading) {
     return (
-      <StepContainer
-        title="Calculating Your Refund"
-        description="Please wait while we process your information..."
-        showBackButton={false}
-        showNextButton={false}
-      >
-        <div className="flex flex-col items-center justify-center py-12">
-          <Loader2 className="w-16 h-16 text-[#50C9A5] animate-spin mb-4" />
-          <p className="text-gray-600" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
-            Processing...
-          </p>
+      <div className="flex-1 bg-white p-8 flex flex-col justify-center rounded-2xl shadow-lg">
+        <div className="w-full max-w-xl mx-auto text-center">
+          <Loader2 className="w-16 h-16 animate-spin mb-4 mx-auto" style={{ color: 'var(--vbl-accent-lime)' }} />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Calculating Your Refund</h2>
+          <p className="text-gray-500">Please wait while we process your information...</p>
         </div>
-      </StepContainer>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <StepContainer
-        title="Calculation Error"
-        description="We encountered an issue processing your request"
-        showBackButton={true}
-        showNextButton={false}
-      >
-        <div className="flex flex-col items-center justify-center py-12">
-          <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
-          <p className="text-red-600 text-center max-w-md" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
-            {error}
-          </p>
+      <div className="flex-1 bg-white p-8 flex flex-col justify-center rounded-2xl shadow-lg">
+        <div className="w-full max-w-xl mx-auto text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mb-4 mx-auto" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Calculation Error</h2>
+          <p className="text-red-600 mb-6">{error}</p>
           <button
             onClick={calculateRefund}
-            className="mt-6 px-6 py-3 bg-[#50C9A5] text-white rounded-lg hover:bg-[#45b894] font-semibold"
-            style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+            className="px-6 py-3 rounded-lg font-medium"
+            style={{
+              backgroundColor: 'var(--vbl-accent-lime)',
+              color: 'var(--vbl-sidebar-dark)',
+            }}
           >
             Try Again
           </button>
         </div>
-      </StepContainer>
+      </div>
     );
   }
 
   return (
-    <div className="flex-1 min-h-screen flex flex-col" style={{ background: '#F7F8F6' }}>
-      {/* Header */}
-      <div className="px-12 py-6 border-b border-gray-200" style={{ background: '#F7F8F6' }}>
-        <p className="text-right text-sm" style={{ color: 'var(--vbl-color-gray)' }}>
-          <span style={{ color: 'var(--vbl-color-black)' }}>German Pension Refund Calculator</span>
-          {' - '}
-          <span style={{ color: 'var(--vbl-color-accent)' }}>Easy, Fast & Secure</span>
-        </p>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-12 py-16">
-        <div className="w-full max-w-3xl">
-          {/* Title */}
-          <div className="text-center mb-12">
-            <h1 className="vbl-style-5 mb-3">Pension Refund Amount</h1>
-            <p className="vbl-style-2">Your estimated pension refund amount is:</p>
-          </div>
-
-          {/* Results Box */}
-          <div
-            className="border-4 rounded-2xl p-12 mb-8"
-            style={{ borderColor: 'var(--vbl-color-primary)' }}
+    <div className="flex-1 bg-white p-8 flex flex-col justify-center rounded-2xl shadow-lg">
+      <div className="w-full max-w-xl mx-auto">
+        {/* Title Section */}
+        <div className="text-center mb-8 pb-6 border-b border-gray-100">
+          <h1
+            className="text-2xl font-bold text-gray-900"
+            style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
           >
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <span
-                  className="text-2xl font-semibold"
-                  style={{
-                    fontFamily: 'var(--vbl-font-montserrat)',
-                    color: 'var(--vbl-color-black)',
-                  }}
-                >
-                  State Pension:
-                </span>
-                <span
-                  className="text-4xl font-bold"
-                  style={{
-                    fontFamily: 'var(--vbl-font-montserrat)',
-                    color: 'var(--vbl-color-accent)',
-                  }}
-                >
-                  {formatCurrency(result?.statePension || result?.baseRefundAmount || 0)} €
-                </span>
-              </div>
+            Your Supplementary Pension Estimate
+          </h1>
+          <p className="text-gray-500 mt-2 text-sm" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
+            Based on your employment history, here&apos;s your estimated supplementary pension refund.
+          </p>
+        </div>
 
-              <div className="flex items-center justify-between">
-                <span
-                  className="text-2xl font-semibold"
-                  style={{
-                    fontFamily: 'var(--vbl-font-montserrat)',
-                    color: 'var(--vbl-color-black)',
-                  }}
+        {/* Total Refund Box */}
+        <div
+          className="rounded-xl p-6 mb-6 flex items-center justify-center gap-3"
+          style={{ backgroundColor: 'var(--vbl-accent-lime)', color: 'var(--vbl-sidebar-dark)' }}
+        >
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: 'var(--vbl-sidebar-dark)' }}
+          >
+            <Check className="w-5 h-5 text-white" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium opacity-90">Total supplementary pension refund:</p>
+            <p className="text-4xl font-bold mt-1" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
+              &euro;{formatCurrency(totalRefund || result?.totalAmount || 0)}
+            </p>
+          </div>
+        </div>
+
+        {/* Refund Breakdown */}
+        {breakdown.length > 0 && (
+          <div className="mb-8">
+            <p className="text-sm font-semibold text-gray-800 mb-3">Refund Breakdown:</p>
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              {breakdown.map((item, index) => (
+                <div
+                  key={item.provider}
+                  className={`flex items-center justify-between px-4 py-3 ${
+                    index !== breakdown.length - 1 ? 'border-b border-gray-200' : ''
+                  }`}
                 >
-                  VBLklassik:
-                </span>
-                <span
-                  className="text-4xl font-bold"
-                  style={{
-                    fontFamily: 'var(--vbl-font-montserrat)',
-                    color: 'var(--vbl-color-accent)',
-                  }}
-                >
-                  {formatCurrency(result?.vblKlassik || result?.vatAmount || 0)} €
-                </span>
-              </div>
+                  <span className="font-medium text-gray-700">{item.provider}</span>
+                  <span className="font-bold text-gray-900">
+                    &euro; {formatCurrency(item.amount)}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
+        )}
 
-          {/* Additional Info */}
-          <div className="text-center mb-12">
-            <p className="text-base text-gray-700" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
-              You have contributed to the German pension scheme for{' '}
-              <strong>{result?.calculationDetails?.contributionPeriod || result?.monthsContributed || 'N/A'}</strong> months.
-            </p>
-            <p className="text-base text-gray-700 mt-2" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
-              Depending on your nationality, qualifying for a retirement pension may disqualify you from claiming a
-              refund.
-            </p>
-          </div>
+        {/* Navigation Buttons */}
+        <div className="flex items-center justify-between pt-6">
+          <button
+            onClick={handleBack}
+            className="flex items-center gap-2 px-6 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Back
+          </button>
 
-          {/* Navigation Buttons */}
-          <div className="flex items-center justify-between">
-            <button
-              onClick={handleBack}
-              className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors"
-              style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
-            >
-              <span className="font-semibold">← Back</span>
-            </button>
-
-            <button
-              onClick={handleCheckEligibility}
-              className="px-8 py-3 rounded-lg font-semibold bg-[#50C9A5] text-white hover:bg-[#45b894] shadow-md transition-all duration-200"
-              style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
-            >
-              Check Eligibility
-            </button>
-          </div>
+          <button
+            onClick={handleCheckEligibility}
+            className="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200"
+            style={{
+              fontFamily: 'var(--vbl-font-montserrat)',
+              backgroundColor: 'var(--vbl-accent-lime)',
+              color: 'var(--vbl-sidebar-dark)',
+            }}
+          >
+            Start your claim
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>

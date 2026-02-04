@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useVBLCalculator } from '../../hooks/useVBLCalculator';
 
 interface StepContainerProps {
@@ -23,7 +23,7 @@ export const StepContainer: React.FC<StepContainerProps> = ({
   onNext,
   showNextButton = true,
 }) => {
-  const { goToPreviousStep, goToNextStep, canProceed, currentStep } = useVBLCalculator();
+  const { goToPreviousStep, goToNextStep, canProceed, currentStep, currentJobIndex } = useVBLCalculator();
 
   const handleNext = () => {
     if (onNext) {
@@ -37,62 +37,62 @@ export const StepContainer: React.FC<StepContainerProps> = ({
     goToPreviousStep();
   };
 
+  const showBack = showBackButton && (currentStep > 0 || currentJobIndex > 0);
+
   return (
-    <div className="flex-1 min-h-screen flex flex-col" style={{ background: '#F7F8F6' }}>
-      {/* Header */}
-      <div className="px-12 py-6 border-b border-gray-200" style={{ background: '#F7F8F6' }}>
-        <p className="text-right text-sm" style={{ color: 'var(--vbl-color-gray)' }}>
-          <span style={{ color: 'var(--vbl-color-black)' }}>German Pension Refund Calculator</span>
-          {' - '}
-          <span style={{ color: 'var(--vbl-color-accent)' }}>Easy, Fast & Secure</span>
-        </p>
-      </div>
+    <div className="flex-1 bg-white p-8 flex flex-col justify-center rounded-2xl shadow-lg">
+      <div className="w-full max-w-xl mx-auto">
+        {/* Title Section */}
+        <div className="text-center mb-10 pb-6 border-b border-gray-100">
+          <h1
+            className="text-2xl font-bold text-gray-900"
+            style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
+          >
+            {title}
+          </h1>
+          {description && (
+            <p className="text-gray-500 mt-2 text-sm" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
+              {description}
+            </p>
+          )}
+        </div>
 
-      {/* Content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-12 py-16">
-        <div className="w-full max-w-3xl">
-          {/* Title */}
-          <div className="text-center mb-12">
-            <h1 className="vbl-style-5" style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}>{title}</h1>
-            {description && <p className="vbl-style-2 mt-3">{description}</p>}
-          </div>
+        {/* Form Content */}
+        <div className="mb-10">{children}</div>
 
-          {/* Form Content */}
-          <div className="mb-16">{children}</div>
-
-          {/* Navigation Buttons */}
-          <div className="flex items-center justify-between">
-            <div>
-              {showBackButton && currentStep > 0 && (
-                <button
-                  onClick={handleBack}
-                  className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors"
-                  style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                  <span className="font-semibold">Back</span>
-                </button>
-              )}
-            </div>
-
-            {showNextButton && (
+        {/* Navigation Buttons */}
+        <div className="flex items-center justify-between pt-6">
+          <div>
+            {showBack && (
               <button
-                onClick={handleNext}
-                disabled={!canProceed()}
-                className={`
-                  px-8 py-3 rounded-lg font-semibold transition-all duration-200
-                  ${
-                    canProceed()
-                      ? 'bg-[#50C9A5] text-white hover:bg-[#45b894] shadow-md'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  }
-                `}
+                onClick={handleBack}
+                className="flex items-center gap-2 px-6 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                 style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
               >
-                {nextButtonText}
+                <ChevronLeft className="w-4 h-4" />
+                Back
               </button>
             )}
           </div>
+
+          {showNextButton && (
+            <button
+              onClick={handleNext}
+              disabled={!canProceed()}
+              className={`
+                flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200
+              `}
+              style={{
+                fontFamily: 'var(--vbl-font-montserrat)',
+                backgroundColor: canProceed() ? 'var(--vbl-accent-lime)' : '#E5E7EB',
+                color: canProceed() ? 'var(--vbl-sidebar-dark)' : '#9CA3AF',
+                cursor: canProceed() ? 'pointer' : 'not-allowed',
+              }}
+            >
+              {nextButtonText}
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
     </div>

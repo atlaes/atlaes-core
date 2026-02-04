@@ -41,8 +41,15 @@ const envSchema = z.object({
     .enum(['development', 'production', 'test'])
     .default('development'),
   PORT: z.string().transform(Number).default('3001'),
+  // Google OAuth
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
+  // Apple Sign-In
+  APPLE_CLIENT_ID: z.string().optional(), // Service ID (e.g., com.yourapp.auth)
+  APPLE_TEAM_ID: z.string().optional(), // Your Apple Team ID
+  APPLE_KEY_ID: z.string().optional(), // Key ID from Apple Developer Console
+  APPLE_PRIVATE_KEY: z.string().optional(), // Private key contents (PEM format)
+  // Frontend URL for OAuth callbacks and magic links
   FRONTEND_URL: z.string().optional().default('http://localhost:3000'),
 });
 

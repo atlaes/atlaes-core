@@ -3,12 +3,12 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export interface JobData {
-  location: string;
-  employmentType: string;
-  supplementaryPension: string;
-  startDate: string;
-  endDate: string;
-  monthlyIncome: number;
+  startMonth: string;
+  startYear: string;
+  endMonth: string;
+  endYear: string;
+  employmentType: '' | 'Stage/Performing Arts' | 'Private sector' | 'Public Sector' | 'Orchestra';
+  supplementaryPension: '' | 'VddB' | 'VddKO' | 'VBLklassik' | 'ZVK';
 }
 
 export interface QualificationData {
@@ -18,9 +18,14 @@ export interface QualificationData {
   currentResidence: string;
 }
 
+export interface RefundBreakdown {
+  provider: string;
+  amount: number;
+}
+
 export interface CalculationResult {
-  statePension: number;
-  vblKlassik: number;
+  totalRefund: number;
+  breakdown: RefundBreakdown[];
   totalMonths: number;
 }
 
@@ -39,11 +44,11 @@ interface VBLCalculatorContextType {
   updateFormData: (data: Partial<VBLFormData>) => void;
   updateJob: (index: number, job: Partial<JobData>) => void;
   currentStep: number;
-  currentSubStep: number;
+  currentJobIndex: number;
   setCurrentStep: (step: number) => void;
-  setCurrentSubStep: (subStep: number) => void;
-  completedSteps: Set<string>;
-  markStepComplete: (stepKey: string) => void;
+  setCurrentJobIndex: (index: number) => void;
+  completedSteps: Set<number>;
+  markStepComplete: (step: number) => void;
   goToNextStep: () => void;
   goToPreviousStep: () => void;
   canProceed: () => boolean;
@@ -51,6 +56,15 @@ interface VBLCalculatorContextType {
 }
 
 const VBLCalculatorContext = createContext<VBLCalculatorContextType | undefined>(undefined);
+
+const createEmptyJob = (): JobData => ({
+  startMonth: '',
+  startYear: '',
+  endMonth: '',
+  endYear: '',
+  employmentType: '',
+  supplementaryPension: '',
+});
 
 const INITIAL_FORM_DATA: VBLFormData = {
   numberOfJobs: 0,
@@ -62,32 +76,24 @@ const INITIAL_FORM_DATA: VBLFormData = {
 
 export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [formData, setFormData] = useState<VBLFormData>(INITIAL_FORM_DATA);
-  const [currentStep, setCurrentStep] = useState(0); // 0: General Info, 1: Income, 2: Estimate
-  const [currentSubStep, setCurrentSubStep] = useState(0);
-  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
+  const [currentStep, setCurrentStep] = useState(0);
+  const [currentJobIndex, setCurrentJobIndex] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
   const updateFormData = (data: Partial<VBLFormData>) => {
     setFormData((prev) => {
       const updated = { ...prev, ...data };
 
-      // If numberOfJobs changes, update jobs array
       if (data.numberOfJobs !== undefined) {
         const jobCount = data.numberOfJobs;
         const currentJobs = prev.jobs;
 
         if (jobCount > currentJobs.length) {
-          // Add new jobs
-          const newJobs = Array(jobCount - currentJobs.length).fill(null).map(() => ({
-            location: '',
-            employmentType: '',
-            supplementaryPension: '',
-            startDate: '',
-            endDate: '',
-            monthlyIncome: 0,
-          }));
+          const newJobs = Array(jobCount - currentJobs.length)
+            .fill(null)
+            .map(() => createEmptyJob());
           updated.jobs = [...currentJobs, ...newJobs];
         } else if (jobCount < currentJobs.length) {
-          // Remove excess jobs
           updated.jobs = currentJobs.slice(0, jobCount);
         }
       }
@@ -104,76 +110,73 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
     });
   };
 
-  const markStepComplete = (stepKey: string) => {
+  const markStepComplete = (step: number) => {
     setCompletedSteps((prev) => {
       const newSet = new Set(prev);
-      newSet.add(stepKey);
+      newSet.add(step);
       return newSet;
     });
   };
 
   const goToNextStep = () => {
-    const stepsInSection = getStepsForCurrentSection();
-
-    if (currentSubStep < stepsInSection - 1) {
-      setCurrentSubStep(currentSubStep + 1);
-    } else if (currentStep < 2) {
-      markStepComplete(`${currentStep}-${currentSubStep}`);
-      setCurrentStep(currentStep + 1);
-      setCurrentSubStep(0);
-    } else {
-      // Final step - calculate
-      markStepComplete(`${currentStep}-${currentSubStep}`);
+    if (currentStep === 0) {
+      markStepComplete(0);
+      setCurrentStep(1);
+      setCurrentJobIndex(0);
+    } else if (currentStep === 1) {
+      if (currentJobIndex < formData.numberOfJobs - 1) {
+        setCurrentJobIndex(currentJobIndex + 1);
+      } else {
+        markStepComplete(1);
+        setCurrentStep(2);
+      }
     }
   };
 
   const goToPreviousStep = () => {
-    if (currentSubStep > 0) {
-      setCurrentSubStep(currentSubStep - 1);
-    } else if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-      const prevStepsInSection = getStepsForSection(currentStep - 1);
-      setCurrentSubStep(prevStepsInSection - 1);
+    if (currentStep === 2) {
+      setCurrentStep(1);
+      setCurrentJobIndex(formData.numberOfJobs - 1);
+    } else if (currentStep === 1) {
+      if (currentJobIndex > 0) {
+        setCurrentJobIndex(currentJobIndex - 1);
+      } else {
+        setCurrentStep(0);
+      }
     }
-  };
-
-  const getStepsForSection = (section: number): number => {
-    if (section === 0) return 4; // General Info: Jobs, Location, Type, Pension
-    if (section === 1) return 2; // Income: Period, Monthly Income
-    return 1; // Estimate: Results
-  };
-
-  const getStepsForCurrentSection = (): number => {
-    return getStepsForSection(currentStep);
   };
 
   const canProceed = (): boolean => {
-    // Validate current sub-step
-    if (currentStep === 0 && currentSubStep === 0) {
+    if (currentStep === 0) {
       return formData.numberOfJobs > 0;
     }
-    if (currentStep === 0 && currentSubStep === 1) {
-      return formData.jobs.every(job => job.location !== '');
+
+    if (currentStep === 1) {
+      const job = formData.jobs[currentJobIndex];
+      if (!job) return false;
+
+      const hasDateFields =
+        job.startMonth !== '' &&
+        job.startYear !== '' &&
+        job.endMonth !== '' &&
+        job.endYear !== '';
+
+      const hasEmploymentType = job.employmentType !== '';
+
+      if (job.employmentType === 'Private sector') {
+        return hasDateFields && hasEmploymentType;
+      }
+
+      return hasDateFields && hasEmploymentType && job.supplementaryPension !== '';
     }
-    if (currentStep === 0 && currentSubStep === 2) {
-      return formData.jobs.every(job => job.employmentType !== '');
-    }
-    if (currentStep === 0 && currentSubStep === 3) {
-      return formData.jobs.every(job => job.supplementaryPension !== '');
-    }
-    if (currentStep === 1 && currentSubStep === 0) {
-      return formData.jobs.every(job => job.startDate !== '' && job.endDate !== '');
-    }
-    if (currentStep === 1 && currentSubStep === 1) {
-      return formData.jobs.every(job => job.monthlyIncome > 0);
-    }
+
     return true;
   };
 
   const resetForm = () => {
     setFormData(INITIAL_FORM_DATA);
     setCurrentStep(0);
-    setCurrentSubStep(0);
+    setCurrentJobIndex(0);
     setCompletedSteps(new Set());
   };
 
@@ -184,9 +187,9 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
         updateFormData,
         updateJob,
         currentStep,
-        currentSubStep,
+        currentJobIndex,
         setCurrentStep,
-        setCurrentSubStep,
+        setCurrentJobIndex,
         completedSteps,
         markStepComplete,
         goToNextStep,

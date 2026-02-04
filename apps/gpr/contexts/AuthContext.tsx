@@ -29,6 +29,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
+  loginWithApple: (idToken: string, user?: { email?: string; name?: { firstName?: string; lastName?: string } }) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   updateProfile: (data: Partial<User['profile']>) => Promise<void>;
@@ -62,6 +63,7 @@ export const useAuth = () => {
       isAuthenticated: false,
       login: async () => {},
       loginWithGoogle: async () => {},
+      loginWithApple: async () => {},
       register: async () => {},
       logout: () => {},
       updateProfile: async () => {},
@@ -232,12 +234,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const loginWithApple = async (
+    idToken: string,
+    user?: { email?: string; name?: { firstName?: string; lastName?: string } }
+  ) => {
+    try {
+      const response = await apiClient.post('/auth/apple/verify', {
+        idToken,
+        user,
+      });
+
+      const { user: userData, tokens } = response.data;
+
+      // Store tokens
+      localStorage.setItem('accessToken', tokens.accessToken);
+      localStorage.setItem('refreshToken', tokens.refreshToken);
+
+      // Set user
+      setUser(userData);
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Apple login failed');
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
     isAuthenticated,
     login,
     loginWithGoogle,
+    loginWithApple,
     register,
     logout,
     updateProfile,

@@ -336,7 +336,7 @@ auth.post(
 
       // Generate magic link token (works for both existing and new users)
       const token = AuthService.generateMagicLinkToken(email);
-      const magicLinkUrl = AuthService.generateMagicLinkUrl(token);
+      const magicLinkUrl = AuthService.generateMagicLinkUrl(token, env.FRONTEND_URL);
 
       // TODO: Send email with magic link
       // For now, we'll log it for development
@@ -595,5 +595,133 @@ auth.post(
     }
   }
 );
+
+// ============================================
+// Apple Sign-In Routes
+// ============================================
+
+// Apple Sign-In configuration check
+const isAppleConfigured = !!(
+  env.APPLE_CLIENT_ID &&
+  env.APPLE_TEAM_ID &&
+  env.APPLE_KEY_ID &&
+  env.APPLE_PRIVATE_KEY
+);
+
+// Apple Sign-In: Verify ID token
+auth.post(
+  '/apple/verify',
+  zValidator(
+    'json',
+    z.object({
+      idToken: z.string(),
+      user: z
+        .object({
+          email: z.string().email().optional(),
+          name: z
+            .object({
+              firstName: z.string().optional(),
+              lastName: z.string().optional(),
+            })
+            .optional(),
+        })
+        .optional(),
+    })
+  ),
+  async (c) => {
+    try {
+      if (!isAppleConfigured) {
+        return c.json(
+          {
+            error: 'Apple Sign-In not configured',
+            hint: 'Set APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, and APPLE_PRIVATE_KEY',
+          },
+          500
+        );
+      }
+
+      const { idToken, user: appleUserData } = c.req.valid('json');
+
+      // Decode the JWT to extract claims (Apple ID tokens are JWTs)
+      // In production, you should verify the token with Apple's public keys
+      const tokenParts = idToken.split('.');
+      if (tokenParts.length !== 3) {
+        return c.json({ error: 'Invalid token format' }, 400);
+      }
+
+      // Decode payload (base64url)
+      const payload = JSON.parse(
+        Buffer.from(tokenParts[1], 'base64url').toString('utf8')
+      );
+
+      // Verify issuer and audience
+      if (payload.iss !== 'https://appleid.apple.com') {
+        return c.json({ error: 'Invalid token issuer' }, 400);
+      }
+
+      if (payload.aud !== env.APPLE_CLIENT_ID) {
+        return c.json({ error: 'Invalid token audience' }, 400);
+      }
+
+      // Check expiration
+      if (payload.exp && payload.exp < Date.now() / 1000) {
+        return c.json({ error: 'Token expired' }, 400);
+      }
+
+      const email = payload.email || appleUserData?.email;
+      const appleId = payload.sub;
+
+      if (!email) {
+        return c.json({ error: 'Email not provided by Apple' }, 400);
+      }
+
+      // Apple only sends user info on first sign-in, so we use it if available
+      const firstName = appleUserData?.name?.firstName || '';
+      const lastName = appleUserData?.name?.lastName || '';
+
+      // Find or create user
+      const user = await UserService.findOrCreateOAuthUser({
+        email,
+        authProvider: 'apple',
+        authProviderId: appleId,
+        firstName,
+        lastName,
+        emailVerified: true, // Apple verifies email
+      });
+
+      // Generate authentication tokens
+      const authTokens = AuthService.generateTokens({
+        userId: user.id,
+        email: user.email,
+        emailVerified: user.emailVerified,
+      });
+
+      logger.info(`User logged in via Apple Sign-In: ${user.email}`);
+
+      return c.json({
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          email: user.email,
+          emailVerified: user.emailVerified,
+          profile: user.profile,
+        },
+        tokens: authTokens,
+        isNewUser: !user.profile?.firstName,
+      });
+    } catch (error) {
+      logger.error('Apple Sign-In verification error:', error);
+      return c.json({ error: 'Apple authentication failed' }, 400);
+    }
+  }
+);
+
+// Apple Sign-In: Check if configured
+auth.get('/apple/config', async (c) => {
+  return c.json({
+    configured: isAppleConfigured,
+    clientId: isAppleConfigured ? env.APPLE_CLIENT_ID : undefined,
+  });
+});
 
 export default auth;

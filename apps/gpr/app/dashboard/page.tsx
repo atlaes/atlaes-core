@@ -150,7 +150,10 @@ export default function DashboardPage() {
                   Ready to start your German pension refund application? Click
                   below to begin.
                 </p>
-                <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                <button
+                  onClick={() => router.push('/claims')}
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                >
                   Start New Application
                 </button>
               </div>

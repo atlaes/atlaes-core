@@ -10,6 +10,7 @@ import { Eye, EyeOff, Loader2, Mail } from 'lucide-react';
 declare global {
   interface Window {
     google?: any;
+    AppleID?: any;
   }
 }
 
@@ -36,10 +37,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   onSwitchToRegister,
   initialMode = 'password',
 }) => {
-  const { login, requestMagicLink, loginWithGoogle } = useAuth();
+  const { login, requestMagicLink, loginWithGoogle, loginWithApple } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isMagicLinkLoading, setIsMagicLinkLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isAppleLoading, setIsAppleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -49,6 +51,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   );
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+  const appleClientId = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID || '';
 
   // Initialize Google Identity Services
   useEffect(() => {
@@ -79,10 +82,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           },
         });
 
-        // Render the button - clear any existing button first
+        // Render the button - clear any existing button first using safe DOM methods
         if (googleButtonRef.current && window.google?.accounts?.id) {
-          // Clear the ref container
-          googleButtonRef.current.innerHTML = '';
+          // Clear using DOM methods instead of innerHTML
+          while (googleButtonRef.current.firstChild) {
+            googleButtonRef.current.removeChild(googleButtonRef.current.firstChild);
+          }
 
           try {
             window.google.accounts.id.renderButton(googleButtonRef.current, {
@@ -104,6 +109,60 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
     initGoogle();
   }, [googleClientId, loginWithGoogle, onSuccess]);
+
+  // Initialize Apple Sign-In
+  useEffect(() => {
+    if (!appleClientId) return;
+
+    // Load Apple Sign-In script if not already loaded
+    if (!document.getElementById('apple-signin-script')) {
+      const script = document.createElement('script');
+      script.id = 'apple-signin-script';
+      script.src = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+  }, [appleClientId]);
+
+  // Handle Apple Sign-In
+  const handleAppleSignIn = async () => {
+    if (!window.AppleID) {
+      setError('Apple Sign-In is not available. Please try again later.');
+      return;
+    }
+
+    setIsAppleLoading(true);
+    setError('');
+
+    try {
+      window.AppleID.auth.init({
+        clientId: appleClientId,
+        scope: 'name email',
+        redirectURI: window.location.origin + '/auth/apple/callback',
+        usePopup: true,
+      });
+
+      const response = await window.AppleID.auth.signIn();
+
+      // Apple returns the id_token in authorization.id_token
+      const idToken = response.authorization?.id_token;
+      const user = response.user; // Only provided on first sign-in
+
+      if (idToken) {
+        await loginWithApple(idToken, user);
+        onSuccess?.();
+      } else {
+        throw new Error('No ID token received from Apple');
+      }
+    } catch (err: any) {
+      if (err.error !== 'popup_closed_by_user') {
+        setError(err.message || 'Apple login failed');
+      }
+    } finally {
+      setIsAppleLoading(false);
+    }
+  };
 
   // Load Google Identity Services script
   useEffect(() => {
@@ -184,16 +243,40 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         </p>
       </div>
 
-      {/* Google Login Button */}
-      <div className="mb-6">
+      {/* Social Login Buttons */}
+      <div className="mb-6 space-y-3">
+        {/* Google Sign-In */}
         <div
           ref={googleButtonRef}
           className="flex items-center justify-center w-full"
           style={{ minHeight: '40px' }}
         ></div>
         {!googleClientId && (
-          <p className="text-xs text-gray-500 mt-2 text-center">
-            Google Sign-In not configured (set NEXT_PUBLIC_GOOGLE_CLIENT_ID)
+          <p className="text-xs text-gray-500 text-center">
+            Google Sign-In not configured
+          </p>
+        )}
+
+        {/* Apple Sign-In */}
+        {appleClientId ? (
+          <button
+            type="button"
+            onClick={handleAppleSignIn}
+            disabled={isAppleLoading || isGoogleLoading}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-black text-white rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+          >
+            {isAppleLoading ? (
+              <Loader2 className="animate-spin h-4 w-4" />
+            ) : (
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+              </svg>
+            )}
+            <span>{isAppleLoading ? 'Signing in...' : 'Sign in with Apple'}</span>
+          </button>
+        ) : (
+          <p className="text-xs text-gray-500 text-center">
+            Apple Sign-In not configured
           </p>
         )}
       </div>
@@ -329,7 +412,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
           <button
             type="submit"
-            disabled={isLoading || isGoogleLoading || isMagicLinkLoading}
+            disabled={isLoading || isGoogleLoading || isMagicLinkLoading || isAppleLoading}
             className="w-full bg-gray-900 text-white py-2.5 px-4 rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm font-medium"
           >
             {isLoading ? (

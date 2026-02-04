@@ -1,4 +1,4 @@
-   import { vpc } from '../network';
+import { vpc } from '../network';
    // PostgreSQL Database
 export const postgres = new sst.aws.Postgres('AtlaesDatabase', {
       vpc,
