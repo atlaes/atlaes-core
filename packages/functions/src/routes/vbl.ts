@@ -74,12 +74,17 @@ const vblSimpleCalculationSchema = z.object({
   jobs: z
     .array(
       z.object({
-        location: z.string().min(2).optional(), // German state name (optional)
+        location: z.string().min(2).optional(), // German state name (optional, legacy)
         employmentType: z.string().min(1), // "Public Sector", "Stage/Performing Arts", etc.
-        supplementaryPension: z.string().min(1), // "VBLklassik", "VddB", "VddKO", "ZVK"
+        // Support both old single value and new array format
+        supplementaryPension: z.string().optional(), // Legacy: single pension
+        supplementaryPensions: z.array(z.string()).optional(), // New: array of pensions
         startDate: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/), // YYYY-MM or YYYY-MM-DD
         endDate: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/), // YYYY-MM or YYYY-MM-DD
-        monthlyIncome: z.number().min(0).optional(), // Monthly income (optional)
+        monthlyIncome: z.number().min(0).optional(), // Monthly income (optional, legacy)
+        averageMonthlyGrossSalary: z.string().optional(), // New: salary range string
+        germanFederalState: z.string().nullable().optional(), // New: German state (Public Sector)
+        customPensionName: z.string().nullable().optional(), // New: custom pension name (Private + Others)
       })
     )
     .min(1, 'At least one job is required'),

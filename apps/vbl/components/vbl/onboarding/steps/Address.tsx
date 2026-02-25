@@ -36,7 +36,7 @@ export const Address: React.FC<AddressProps> = ({ onNext }) => {
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
-        Enter your supplementary pension scheme membership information.
+        Please enter your current residential address.
       </p>
 
       {/* Form Fields */}

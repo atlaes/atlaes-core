@@ -10,12 +10,16 @@ import {
  */
 export interface VBLSimpleCalculationInput {
   jobs: Array<{
-    location?: string; // German state name (optional)
+    location?: string; // German state name (optional, legacy)
     employmentType: string; // "Public Sector", "Stage/Performing Arts", etc.
-    supplementaryPension: string; // "VBLklassik", "VddB", "VddKO", "ZVK"
+    supplementaryPension?: string; // Legacy: single pension value
+    supplementaryPensions?: string[]; // New: array of pension providers
     startDate: string; // YYYY-MM or YYYY-MM-DD
     endDate: string; // YYYY-MM or YYYY-MM-DD
-    monthlyIncome?: number; // Monthly income (optional)
+    monthlyIncome?: number; // Monthly income (optional, legacy)
+    averageMonthlyGrossSalary?: string; // New: salary range string (e.g., "5,000 - 6,000")
+    germanFederalState?: string | null; // New: German state (Public Sector only)
+    customPensionName?: string | null; // New: custom pension name (Private + Others)
   }>;
   dateOfBirth?: string; // Optional: YYYY-MM-DD
   currentAge?: number; // Optional: current age
@@ -31,6 +35,7 @@ export class VBLSimpleCalculationService {
   private static readonly WEST_GERMANY_STATES = [
     'Baden-Württemberg',
     'Bavaria',
+    'Berlin',
     'Berlin (West)',
     'Bremen',
     'Hamburg',
@@ -47,11 +52,58 @@ export class VBLSimpleCalculationService {
   private static readonly STAGE_ORCHESTRA_PROVIDERS = ['VddB', 'VddKO'];
 
   /**
+   * Get pension providers from job (handles both legacy and new format)
+   */
+  private static getPensionProviders(job: VBLSimpleCalculationInput['jobs'][0]): string[] {
+    if (job.supplementaryPensions && job.supplementaryPensions.length > 0) {
+      return job.supplementaryPensions;
+    }
+    if (job.supplementaryPension) {
+      return [job.supplementaryPension];
+    }
+    return [];
+  }
+
+  /**
+   * Parse salary from range string (e.g., "5,000 - 6,000" -> 5500)
+   */
+  private static parseSalaryFromRange(salaryRange?: string): number {
+    if (!salaryRange) return 0;
+
+    // Handle "10,000+" format
+    if (salaryRange.includes('+')) {
+      const match = salaryRange.match(/[\d,]+/);
+      if (match) {
+        return parseInt(match[0].replace(/,/g, ''), 10);
+      }
+      return 0;
+    }
+
+    // Handle "X,XXX - Y,YYY" format - take the midpoint
+    const parts = salaryRange.split('-').map((s) => s.trim());
+    if (parts.length === 2) {
+      const low = parseInt(parts[0].replace(/,/g, ''), 10);
+      const high = parseInt(parts[1].replace(/,/g, ''), 10);
+      if (!isNaN(low) && !isNaN(high)) {
+        return Math.round((low + high) / 2);
+      }
+    }
+
+    // Try to parse as single number
+    const match = salaryRange.match(/[\d,]+/);
+    if (match) {
+      return parseInt(match[0].replace(/,/g, ''), 10);
+    }
+
+    return 0;
+  }
+
+  /**
    * Check if job is Stage/Orchestra based on employment type or pension provider
    */
   private static isStageOrchestraJob(job: VBLSimpleCalculationInput['jobs'][0]): boolean {
     const employmentType = job.employmentType.toLowerCase();
-    const pension = job.supplementaryPension;
+    const pensions = this.getPensionProviders(job);
 
     // Check employment type
     if (
@@ -64,7 +116,7 @@ export class VBLSimpleCalculationService {
     }
 
     // Check pension provider
-    if (this.STAGE_ORCHESTRA_PROVIDERS.includes(pension)) {
+    if (pensions.some((p) => this.STAGE_ORCHESTRA_PROVIDERS.includes(p))) {
       return true;
     }
 
@@ -236,6 +288,23 @@ export class VBLSimpleCalculationService {
   }
 
   /**
+   * Get job location (uses new germanFederalState or legacy location field)
+   */
+  private static getJobLocation(job: VBLSimpleCalculationInput['jobs'][0]): string {
+    return job.germanFederalState || job.location || 'West Germany';
+  }
+
+  /**
+   * Get job salary (uses new averageMonthlyGrossSalary or legacy monthlyIncome)
+   */
+  private static getJobSalary(job: VBLSimpleCalculationInput['jobs'][0]): number {
+    if (job.averageMonthlyGrossSalary) {
+      return this.parseSalaryFromRange(job.averageMonthlyGrossSalary);
+    }
+    return job.monthlyIncome || 0;
+  }
+
+  /**
    * Transform simplified input to full VBL calculation input
    */
   private static transformToFullInput(
@@ -256,22 +325,26 @@ export class VBLSimpleCalculationService {
       sortedJobs[sortedJobs.length - 1]?.endDate || ''
     );
 
-    // Determine if any job is in West Germany (default to true if location not provided)
-    const hasWestGermanyJob = input.jobs.some((job) =>
-      job.location ? this.isWestGermanyState(job.location) : true
-    );
+    // Determine if any job is in West Germany
+    // Uses new germanFederalState field, falls back to location, defaults to true
+    const hasWestGermanyJob = input.jobs.some((job) => {
+      const location = this.getJobLocation(job);
+      return location === 'West Germany' || this.isWestGermanyState(location);
+    });
 
     // Calculate months contributed
     const monthsContributed = this.calculateMonthsContributed(input.jobs);
     const consecutiveMonthsContributed =
       this.calculateConsecutiveMonths(input.jobs);
 
-    // Check for VBLextra
-    const hasPaidVBLExtra = input.jobs.some(
-      (job) =>
-        job.supplementaryPension.toLowerCase() === 'vblextra' ||
-        job.supplementaryPension.toLowerCase().includes('extra')
-    );
+    // Check for VBLextra in any job's pension providers
+    const hasPaidVBLExtra = input.jobs.some((job) => {
+      const pensions = this.getPensionProviders(job);
+      return pensions.some(
+        (p) =>
+          p.toLowerCase() === 'vblextra' || p.toLowerCase().includes('extra')
+      );
+    });
 
     // Determine user status
     const hasLeftPublicSector = this.hasLeftPublicSector(input.jobs);
@@ -309,8 +382,8 @@ export class VBLSimpleCalculationService {
       periods: input.jobs.map((job) => ({
         startDate: this.formatDateToYYYYMMDD(job.startDate),
         endDate: this.formatDateToYYYYMMDD(job.endDate),
-        state: job.location || 'West Germany', // Default to West Germany if not provided
-        grossMonthlySalary: job.monthlyIncome || 0, // Default to 0 if not provided
+        state: this.getJobLocation(job),
+        grossMonthlySalary: this.getJobSalary(job),
         publicSector:
           job.employmentType.toLowerCase().includes('public') ||
           job.employmentType.toLowerCase().includes('öffentlich'),

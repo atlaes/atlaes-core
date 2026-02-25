@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { ArrowRight, Upload, X, Calendar, ChevronDown } from 'lucide-react';
+import { ArrowRight, Upload, X, Calendar, ChevronDown, Info } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 
 interface IdentityProps {
@@ -90,7 +90,7 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
         </h2>
         <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
         <p className="text-gray-600 text-center mb-8">
-          Please upload a photo of your passport or identity card
+          A copy of your passport or ID is required by the pension authority and will be included with your refund application.
         </p>
 
         {/* Upload Area */}
@@ -222,11 +222,19 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
         </div>
       </div>
 
+      {/* Info Banner */}
+      <div className="mt-6 bg-[#F0FDE4] rounded-lg p-4 flex items-center gap-3">
+        <Info className="w-5 h-5 text-[#163300] flex-shrink-0" />
+        <p className="text-sm text-[#163300]">
+          The details you confirm here will be used in the official refund application.
+        </p>
+      </div>
+
       {/* Continue Button */}
       <button
         onClick={onNext}
         disabled={!canProceed}
-        className={`w-full mt-8 py-4 px-6 font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors ${
+        className={`w-full mt-6 py-4 px-6 font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors ${
           canProceed
             ? 'bg-[#9FE870] text-[#163300] hover:bg-[#8AD860]'
             : 'bg-gray-200 text-gray-500 cursor-not-allowed'

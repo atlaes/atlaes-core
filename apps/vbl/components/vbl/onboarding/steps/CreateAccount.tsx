@@ -58,7 +58,7 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
       </h2>
       <p className="text-gray-600 text-center mb-8">
         Create your secure account to start your claim. We'll guide you through
-        every step and prepare the full application.
+        every step and help you prepare the required submission.
       </p>
 
       {/* Email Form */}

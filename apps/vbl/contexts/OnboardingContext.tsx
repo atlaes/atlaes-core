@@ -26,8 +26,14 @@ export interface OnboardingAddress {
 export type BankAccountOption = 'own_iban' | 'open_free_account' | 'trusted_third_party' | 'add_later';
 
 export interface OnboardingBankDetails {
+  accountHolder: string;
   iban: string;
   accountOption: BankAccountOption;
+  // For "Open free EUR account" option
+  phoneNumber: string;
+  phoneConsent: boolean;
+  // For "Trusted third-party" option
+  thirdPartyConfirmed: boolean;
 }
 
 export interface OnboardingSignature {
@@ -37,7 +43,18 @@ export interface OnboardingSignature {
   signatureType: 'draw' | 'upload' | '';
 }
 
+export interface OnboardingSuccessData {
+  submissionId?: string;
+  submittedAt?: string;
+  drvEligibilityDate?: string;
+  drvReminderSet?: boolean;
+  additionalPensions?: ('BVV' | 'DRV')[];
+}
+
 export interface OnboardingData {
+  // Pre-step - Pension Type Selection
+  pensionType: 'public' | 'private' | '';
+
   // Step 1 - Account
   email: string;
   authMethod: 'email' | 'google' | 'apple' | '';
@@ -52,6 +69,9 @@ export interface OnboardingData {
   address: OnboardingAddress;
   bankDetails: OnboardingBankDetails;
   signature: OnboardingSignature;
+
+  // Post-submission data
+  successData: OnboardingSuccessData;
 }
 
 // Sub-steps for Step 3
@@ -87,6 +107,7 @@ interface OnboardingContextType {
   updateAddress: (updates: Partial<OnboardingAddress>) => void;
   updateBankDetails: (updates: Partial<OnboardingBankDetails>) => void;
   updateSignature: (updates: Partial<OnboardingSignature>) => void;
+  updateSuccessData: (updates: Partial<OnboardingSuccessData>) => void;
 
   // Navigation helpers
   canProceedFromStep: (step: 1 | 2 | 3) => boolean;
@@ -98,6 +119,7 @@ interface OnboardingContextType {
 }
 
 const initialData: OnboardingData = {
+  pensionType: '',
   email: '',
   authMethod: '',
   paymentCompleted: false,
@@ -117,12 +139,17 @@ const initialData: OnboardingData = {
     country: '',
   },
   bankDetails: {
+    accountHolder: '',
     iban: '',
     accountOption: 'own_iban',
+    phoneNumber: '',
+    phoneConsent: false,
+    thirdPartyConfirmed: false,
   },
   signature: {
     signatureType: '',
   },
+  successData: {},
 };
 
 const OnboardingContext = createContext<OnboardingContextType | null>(null);
@@ -171,6 +198,13 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const updateSuccessData = useCallback((updates: Partial<OnboardingSuccessData>) => {
+    setData((prev) => ({
+      ...prev,
+      successData: { ...prev.successData, ...updates },
+    }));
+  }, []);
+
   const canProceedFromStep = useCallback((step: 1 | 2 | 3): boolean => {
     switch (step) {
       case 1:
@@ -212,12 +246,27 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
           data.address.country !== ''
         );
       case 'bank-details':
-        return (
-          data.bankDetails.iban !== '' ||
-          data.bankDetails.accountOption === 'open_free_account' ||
-          data.bankDetails.accountOption === 'trusted_third_party' ||
-          data.bankDetails.accountOption === 'add_later'
-        );
+        // Own IBAN: just need IBAN
+        if (data.bankDetails.accountOption === 'own_iban') {
+          return data.bankDetails.iban !== '';
+        }
+        // Open free EUR account: need phone number and consent
+        if (data.bankDetails.accountOption === 'open_free_account') {
+          return data.bankDetails.phoneNumber !== '' && data.bankDetails.phoneConsent;
+        }
+        // Trusted third-party: need account holder, IBAN, and confirmation
+        if (data.bankDetails.accountOption === 'trusted_third_party') {
+          return (
+            data.bankDetails.accountHolder !== '' &&
+            data.bankDetails.iban !== '' &&
+            data.bankDetails.thirdPartyConfirmed
+          );
+        }
+        // Add later: always valid
+        if (data.bankDetails.accountOption === 'add_later') {
+          return true;
+        }
+        return false;
       case 'signature':
         return (
           data.signature.signatureData !== undefined ||
@@ -260,6 +309,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         updateAddress,
         updateBankDetails,
         updateSignature,
+        updateSuccessData,
         canProceedFromStep,
         canProceedFromSubStep,
         getCompletedSubSteps,

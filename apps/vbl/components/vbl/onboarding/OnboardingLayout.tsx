@@ -13,7 +13,7 @@ interface OnboardingLayoutProps {
 
 const MAIN_STEPS = [
   { id: 1, label: 'Create account' },
-  { id: 2, label: 'Payment' },
+  { id: 2, label: 'Start claim' },
   { id: 3, label: 'Submit Details' },
 ] as const;
 

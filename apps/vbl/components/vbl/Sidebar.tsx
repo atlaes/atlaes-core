@@ -52,9 +52,15 @@ export const Sidebar: React.FC = () => {
     }
   };
 
-  const getJobProgressLabel = (): string => {
-    if (currentStep === 1 && formData.numberOfJobs > 0) {
-      return `(${currentJobIndex + 1}/${formData.numberOfJobs})`;
+  const getJobProgressLabel = (stepId: number): string => {
+    if (stepId === 1 && formData.numberOfJobs > 0) {
+      if (currentStep === 1) {
+        return `(${currentJobIndex + 1}/${formData.numberOfJobs})`;
+      }
+      // Show completed count when step is done
+      if (isStepComplete(1)) {
+        return `(${formData.numberOfJobs}/${formData.numberOfJobs})`;
+      }
     }
     return '';
   };
@@ -145,8 +151,8 @@ export const Sidebar: React.FC = () => {
                   }`}
                 >
                   {step.title}
-                  {step.id === 1 && isActive && (
-                    <span className="ml-1 font-normal">{getJobProgressLabel()}</span>
+                  {step.id === 1 && (
+                    <span className="ml-1 font-normal">{getJobProgressLabel(step.id)}</span>
                   )}
                 </div>
                 <div

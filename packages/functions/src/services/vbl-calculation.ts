@@ -548,8 +548,8 @@ export class VBLCalculationService {
     const { periods = [] } = input;
 
     // Load contribution caps/rates
-    // In bundled code, __dirname is dist/, so data is at dist/data/
-    const dataPath = path.join(__dirname, 'data', 'contributions.json');
+    // __dirname is src/services/, so data is at ../data/
+    const dataPath = path.join(__dirname, '..', 'data', 'contributions.json');
     let tables: any;
     try {
       const raw = fs.readFileSync(dataPath, 'utf-8');

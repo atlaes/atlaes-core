@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ArrowRight, ChevronDown, HelpCircle } from 'lucide-react';
+import { ArrowRight, ChevronDown, Info } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 
 interface MembershipProps {
@@ -9,17 +9,31 @@ interface MembershipProps {
 }
 
 const PENSION_PROVIDERS = [
-  { value: 'VBL', label: 'VBL' },
-  { value: 'ZVK', label: 'ZVK' },
-  { value: 'KVBW', label: 'KVBW' },
-  { value: 'VddB', label: 'VddB' },
-  { value: 'VddKO', label: 'VddKO' },
+  { value: 'VBL', label: 'VBLklassik', shortLabel: 'VBL' },
+  { value: 'ZVK', label: 'ZVK', shortLabel: 'ZVK' },
+  { value: 'KVBW', label: 'KVBW', shortLabel: 'KVBW' },
+  { value: 'VddB', label: 'VddB', shortLabel: 'VddB' },
+  { value: 'VddKO', label: 'VddKO', shortLabel: 'VddKO' },
 ] as const;
 
 export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
   const { data, updateMembership } = useOnboarding();
 
   const canProceed = data.membership.pensionProvider !== '';
+
+  // Get the selected provider for dynamic labeling
+  const selectedProvider = PENSION_PROVIDERS.find(
+    (p) => p.value === data.membership.pensionProvider
+  );
+
+  // Dynamic membership number label based on selection
+  const membershipNumberLabel = selectedProvider
+    ? `${selectedProvider.label} Membership number`
+    : 'Membership number';
+
+  const membershipNumberPlaceholder = selectedProvider
+    ? `Enter your ${selectedProvider.label} membership number`
+    : 'Enter your membership number';
 
   return (
     <div className="max-w-lg mx-auto">
@@ -36,7 +50,7 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
         {/* Pension Provider */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Supplementary pension provider
+            Supplementary pension:
           </label>
           <div className="relative">
             <select
@@ -48,7 +62,7 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
               }
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white"
             >
-              <option value="">Select Supplementary Pension Provider</option>
+              <option value="">Select supplementary pension provider</option>
               {PENSION_PROVIDERS.map((provider) => (
                 <option key={provider.value} value={provider.value}>
                   {provider.label}
@@ -62,18 +76,21 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
         {/* Membership Number */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Membership number
+            {membershipNumberLabel}
           </label>
           <input
             type="text"
             value={data.membership.membershipNumber}
             onChange={(e) => updateMembership({ membershipNumber: e.target.value })}
-            placeholder="Enter your membership number"
+            placeholder={membershipNumberPlaceholder}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
           />
-          <div className="flex items-center gap-2 mt-2 text-gray-500">
-            <HelpCircle className="w-4 h-4" />
-            <span className="text-sm">You can find this on correspondence letters.</span>
+          {/* Info Banner */}
+          <div className="mt-3 bg-[#F0FDE4] rounded-lg p-3 flex items-center gap-3">
+            <Info className="w-5 h-5 text-[#163300] flex-shrink-0" />
+            <p className="text-sm text-[#163300]">
+              You can find this number on letters or statements from VBL
+            </p>
           </div>
         </div>
       </div>

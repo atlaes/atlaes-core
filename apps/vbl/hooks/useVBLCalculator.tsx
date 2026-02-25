@@ -8,8 +8,13 @@ export interface JobData {
   endMonth: string;
   endYear: string;
   employmentType: '' | 'Stage/Performing Arts' | 'Private sector' | 'Public Sector' | 'Orchestra';
-  supplementaryPension: '' | 'VddB' | 'VddKO' | 'VBLklassik' | 'ZVK';
+  averageMonthlyGrossSalary: string;
+  germanFederalState: string;
+  supplementaryPensions: string[];
+  customPensionName: string;
 }
+
+export type ResultScenario = 'eligible' | 'private_review' | 'not_eligible_vesting' | 'vested';
 
 export interface QualificationData {
   contributionDuration: 'less_than_5' | '5_or_more' | '';
@@ -63,7 +68,10 @@ const createEmptyJob = (): JobData => ({
   endMonth: '',
   endYear: '',
   employmentType: '',
-  supplementaryPension: '',
+  averageMonthlyGrossSalary: '',
+  germanFederalState: '',
+  supplementaryPensions: [],
+  customPensionName: '',
 });
 
 const INITIAL_FORM_DATA: VBLFormData = {
@@ -162,12 +170,28 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
         job.endYear !== '';
 
       const hasEmploymentType = job.employmentType !== '';
+      const hasSalary = job.averageMonthlyGrossSalary !== '';
 
-      if (job.employmentType === 'Private sector') {
-        return hasDateFields && hasEmploymentType;
+      if (!hasDateFields || !hasEmploymentType || !hasSalary) {
+        return false;
       }
 
-      return hasDateFields && hasEmploymentType && job.supplementaryPension !== '';
+      // Private sector with "Others" requires custom pension name
+      if (job.employmentType === 'Private sector') {
+        if (job.supplementaryPensions.includes('Others')) {
+          return job.customPensionName.trim() !== '';
+        }
+        // Private sector can proceed with or without pension selection
+        return true;
+      }
+
+      // Public Sector requires german federal state
+      if (job.employmentType === 'Public Sector') {
+        if (job.germanFederalState === '') return false;
+      }
+
+      // Non-private sector requires at least one pension selected
+      return job.supplementaryPensions.length > 0;
     }
 
     return true;
