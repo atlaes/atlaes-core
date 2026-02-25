@@ -16,9 +16,22 @@ export const JobsCount: React.FC = () => {
   return (
     <StepContainer
       title="How many jobs did you have in Germany?"
-      description="Please count every job where you received a salary and paid German pension contributions (DRV)."
+      description="Please count each period where you were employed in Germany and paid into the German state pension system."
       showBackButton={false}
     >
+      {/* Info banner */}
+      <div className="flex items-center gap-3 px-4 py-3 rounded-lg mb-6" style={{ backgroundColor: 'rgba(159, 232, 112, 0.1)' }}>
+        <div
+          className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: 'var(--vbl-accent-lime)' }}
+        >
+          <span className="text-sm font-semibold" style={{ color: '#163300' }}>i</span>
+        </div>
+        <p className="text-sm text-gray-700">
+          This takes about 2–3 minutes. No documents needed at this stage.
+        </p>
+      </div>
+
       <div className="flex flex-col">
         <label className="text-sm font-medium text-gray-700 mb-3">
           Number of jobs

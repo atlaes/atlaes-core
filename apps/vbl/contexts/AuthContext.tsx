@@ -63,6 +63,7 @@ export const useAuth = () => {
       isAuthenticated: false,
       login: async () => {},
       loginWithGoogle: async () => {},
+      loginWithApple: async () => {},
       register: async () => {},
       logout: () => {},
       updateProfile: async () => {},

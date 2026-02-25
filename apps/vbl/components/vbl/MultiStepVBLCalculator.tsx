@@ -20,12 +20,12 @@ const StepRouter: React.FC = () => {
 const MultiStepVBLCalculatorContent: React.FC = () => {
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4"
+      className="min-h-screen flex items-stretch p-3 md:p-4"
       style={{ background: 'var(--vbl-bg-light)' }}
     >
       <div
-        className="flex gap-4 items-stretch"
-        style={{ maxWidth: '1000px', width: '100%', minHeight: '580px' }}
+        className="flex gap-4 items-stretch flex-1"
+        style={{ width: '100%' }}
       >
         <Sidebar />
         <StepRouter />

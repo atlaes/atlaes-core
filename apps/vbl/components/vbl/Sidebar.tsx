@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Check, MessageCircle } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { useVBLCalculator } from '../../hooks/useVBLCalculator';
 
 interface StepConfig {
@@ -19,11 +19,11 @@ const STEPS: StepConfig[] = [
   {
     id: 1,
     title: 'Job details',
-    description: 'Enter the start/end months and salary for each job',
+    description: 'Enter the start/end months and salary periods for each job',
   },
   {
     id: 2,
-    title: 'Your results',
+    title: 'Refund estimate',
     description: 'See your estimated refund',
   },
 ];
@@ -67,28 +67,25 @@ export const Sidebar: React.FC = () => {
 
   return (
     <div
-      className="w-72 px-4 py-6 flex flex-col flex-shrink-0 rounded-2xl shadow-lg"
+      className="w-[334px] px-4 py-6 flex flex-col flex-shrink-0 rounded-[20px] shadow-lg overflow-hidden"
       style={{
         background: 'var(--vbl-sidebar-dark)',
       }}
     >
       {/* Logo/Branding */}
-      <div className="flex items-center gap-3 mb-10 px-2">
-        {/* Placeholder logo */}
-        <div
-          className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
-          style={{ backgroundColor: 'var(--vbl-accent-lime)' }}
-        >
-          <span role="img" aria-label="shield">🛡️</span>
-        </div>
-        <div>
-          <h1 className="text-white font-semibold text-lg leading-tight">Supplementary</h1>
-          <h2 className="text-white/90 text-sm">Pension Refund</h2>
-        </div>
+      <div className="mb-10 px-2 flex justify-center">
+        <img
+          src="/logo-horizontal.png"
+          alt="Company Pension"
+          className="w-[173px]"
+        />
       </div>
 
+      {/* Gradient divider */}
+      <div className="absolute w-[350px] top-[140px] h-[2px] left-0 right-0 bg-white/100" />
+
       {/* Steps */}
-      <div className="flex-1 space-y-2">
+      <div className="flex-1 space-y-2 px-2 ">
         {STEPS.map((step) => {
           const isActive = isStepActive(step.id);
           const isComplete = isStepComplete(step.id);
@@ -100,23 +97,24 @@ export const Sidebar: React.FC = () => {
               onClick={() => handleStepClick(step.id)}
               disabled={!canNavigate}
               className={`
-                w-full px-4 py-3 flex items-center gap-3
-                transition-all duration-200 rounded-xl text-left
+                w-full px-4 py-4 flex items-center gap-3
+                transition-all duration-200 rounded-xl text-left relative
                 ${canNavigate ? 'cursor-pointer' : 'cursor-not-allowed'}
               `}
-              style={
-                isActive
-                  ? {
-                      backgroundColor: 'var(--vbl-accent-lime)',
-                    }
-                  : {}
-              }
             >
+              {/* Active step background */}
+              {isActive && (
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 left-2 -right-6 h-full rounded-l-xl"
+                  style={{ backgroundColor: 'var(--vbl-accent-lime)' }}
+                />
+              )}
+
               {/* Step number/check circle */}
               <div
                 className={`
-                  w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0
-                  font-semibold text-base transition-all duration-200
+                  relative z-10 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0
+                  font-semibold text-lg transition-all duration-200
                 `}
                 style={
                   isComplete
@@ -144,9 +142,9 @@ export const Sidebar: React.FC = () => {
               </div>
 
               {/* Step text */}
-              <div className="flex-1 pt-1">
+              <div className="relative z-10 flex-1 pt-1">
                 <div
-                  className={`font-semibold text-sm ${
+                  className={`font-semibold text-base ${
                     isActive ? 'text-[#163300]' : isComplete ? 'text-white' : 'text-white/60'
                   }`}
                 >
@@ -156,7 +154,7 @@ export const Sidebar: React.FC = () => {
                   )}
                 </div>
                 <div
-                  className={`text-xs mt-0.5 ${
+                  className={`text-sm mt-0.5 ${
                     isActive ? 'text-[#163300]/80' : isComplete ? 'text-white/80' : 'text-white/40'
                   }`}
                 >
@@ -169,17 +167,14 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Need help section */}
-      <div className="mt-auto pt-6 border-t border-white/10 px-2">
+      <div className="mt-auto pt-6 px-2">
         <div className="flex items-center gap-3">
           <div className="flex-1">
-            <p className="text-white font-medium text-sm">Need help?</p>
-            <p className="text-white/60 text-xs">Our assistant is here for you.</p>
+            <p className="text-white font-bold text-base">Need help?</p>
+            <p className="text-white/60 text-sm">Our assistant is here for you.</p>
           </div>
-          <div
-            className="w-10 h-10 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: 'var(--vbl-accent-lime)' }}
-          >
-            <MessageCircle className="w-5 h-5" style={{ color: 'var(--vbl-sidebar-dark)' }} />
+          <div className="w-12 h-12 rounded-2xl bg-white/100 flex items-center justify-center flex-shrink-0">
+            <img src="/chat-bubble.png" alt="Chat" className="w-7 h-7" />
           </div>
         </div>
       </div>
