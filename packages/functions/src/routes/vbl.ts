@@ -6,7 +6,11 @@ import {
   VBLCalculationService,
   VBLCalculationInput,
 } from '../services/vbl-calculation';
-import { authMiddleware } from '../middleware/auth';
+import {
+  VBLSimpleCalculationService,
+  VBLSimpleCalculationInput,
+} from '../services/vbl-calculation-simple';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 import { db } from '../utils/db';
 import { applications, calculationLogs } from '../drizzle/schema/vbl';
 import { eq, and } from 'drizzle-orm';
@@ -49,6 +53,48 @@ const vblCalculationSchema = z.object({
     .optional(),
   isMandatoryInsuranceRequired: z.boolean().optional(),
   retirementAge: z.number().min(50).max(80).optional(),
+
+  // New: periods input (preferred for accurate calculation)
+  periods: z
+    .array(
+      z.object({
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        state: z.string().min(2),
+        grossMonthlySalary: z.number().min(0),
+        publicSector: z.boolean().optional(),
+        institution: z.enum(['drv', 'vblklassik', 'vddb', 'vddko']).optional(),
+      })
+    )
+    .optional(),
+});
+
+// Simplified schema for multi-step calculator (only job data required)
+const vblSimpleCalculationSchema = z.object({
+  jobs: z
+    .array(
+      z.object({
+        location: z.string().min(2).optional(), // German state name (optional, legacy)
+        employmentType: z.string().min(1), // "Public Sector", "Stage/Performing Arts", etc.
+        // Support both old single value and new array format
+        supplementaryPension: z.string().optional(), // Legacy: single pension
+        supplementaryPensions: z.array(z.string()).optional(), // New: array of pensions
+        startDate: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/), // YYYY-MM or YYYY-MM-DD
+        endDate: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/), // YYYY-MM or YYYY-MM-DD
+        monthlyIncome: z.number().min(0).optional(), // Monthly income (optional, legacy)
+        averageMonthlyGrossSalary: z.string().optional(), // New: salary range string
+        germanFederalState: z.string().nullable().optional(), // New: German state (Public Sector)
+        customPensionName: z.string().nullable().optional(), // New: custom pension name (Private + Others)
+      })
+    )
+    .min(1, 'At least one job is required'),
+  // Optional fields for improved accuracy
+  dateOfBirth: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
+    .optional(),
+  currentAge: z.number().min(0).max(120).optional(),
+  userType: z.enum(['insured_person', 'widow', 'orphan']).optional(),
 });
 
 const applicationUpdateSchema = z.object({
@@ -66,26 +112,43 @@ const applicationUpdateSchema = z.object({
   vblInsuranceNumber: z.string().optional(),
 });
 
-// Calculate VBL refund
+// Calculate VBL refund (public endpoint - no auth required)
 vbl.post(
   '/calculate',
-  authMiddleware,
+  optionalAuthMiddleware,
   zValidator('json', vblCalculationSchema),
   async (c) => {
     try {
-      const user = c.get('user');
       const input = c.req.valid('json') as VBLCalculationInput;
 
-      logger.info(`VBL calculation requested by user ${user.id}`);
+      // Check if user is authenticated (optional)
+      const user = c.get('user') || null;
+
+      if (user) {
+        logger.info(`VBL calculation requested by user ${user.id}`);
+      } else {
+        logger.info('VBL calculation requested by anonymous user');
+      }
 
       // Perform calculation
       const result = await VBLCalculationService.calculateVBLRefund(input);
 
       // If calculation is successful and user wants to save, create/update application
+      // (requires authentication)
       const shouldSave = c.req.query('save') === 'true';
       let applicationId = null;
 
       if (shouldSave && result.isEligible) {
+        if (!user) {
+          return c.json(
+            {
+              success: false,
+              error: 'Authentication required to save calculation results',
+              calculation: result,
+            },
+            401
+          );
+        }
         // Check if application already exists
         const existingApplication = await db
           .select()
@@ -103,9 +166,6 @@ vbl.post(
           const [updatedApp] = await db
             .update(applications)
             .set({
-              employerName: input.employmentStart
-                ? new Date(input.employmentStart).toISOString().split('T')[0]
-                : null,
               employmentStart: input.employmentStart
                 ? new Date(input.employmentStart).toISOString().split('T')[0]
                 : null,
@@ -131,9 +191,6 @@ vbl.post(
             .insert(applications)
             .values({
               userId: user.id,
-              employerName: input.employmentStart
-                ? new Date(input.employmentStart).toISOString().split('T')[0]
-                : null,
               employmentStart: input.employmentStart
                 ? new Date(input.employmentStart).toISOString().split('T')[0]
                 : null,
@@ -165,6 +222,50 @@ vbl.post(
       });
     } catch (error) {
       logger.error('VBL calculation error:', error);
+      return c.json(
+        {
+          success: false,
+          error: 'Failed to calculate VBL refund',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+        500
+      );
+    }
+  }
+);
+
+// Calculate VBL refund using simplified input (public endpoint - no auth required)
+// This endpoint accepts only job data and derives all other fields automatically
+vbl.post(
+  '/calculate-simple',
+  optionalAuthMiddleware,
+  zValidator('json', vblSimpleCalculationSchema),
+  async (c) => {
+    try {
+      const input = c.req.valid('json') as VBLSimpleCalculationInput;
+
+      // Check if user is authenticated (optional)
+      const user = c.get('user') || null;
+
+      if (user) {
+        logger.info(`Simplified VBL calculation requested by user ${user.id}`);
+      } else {
+        logger.info('Simplified VBL calculation requested by anonymous user');
+      }
+
+      // Perform simplified calculation
+      const result =
+        await VBLSimpleCalculationService.calculateVBLRefund(input);
+
+      return c.json({
+        success: true,
+        calculation: result,
+        message: result.isEligible
+          ? 'Calculation completed successfully. You are eligible for a VBL refund.'
+          : 'Calculation completed. You are not eligible for a VBL refund based on the provided information.',
+      });
+    } catch (error) {
+      logger.error('Simplified VBL calculation error:', error);
       return c.json(
         {
           success: false,

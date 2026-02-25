@@ -8,6 +8,20 @@
       "when": 1761547875557,
       "tag": "0000_eager_killer_shrike",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1766808407128,
+      "tag": "0001_tricky_archangel",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1766810680826,
+      "tag": "0002_first_unicorn",
+      "breakpoints": true
     }
   ]
 }

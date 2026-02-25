@@ -12,6 +12,9 @@ import health from './routes/health';
 import auth from './routes/auth';
 import users from './routes/users';
 import vbl from './routes/vbl';
+import gpr from './routes/gpr';
+import claims from './routes/claims';
+import documentsRouter from './routes/documents';
 
 const app = new Hono();
 
@@ -27,6 +30,9 @@ app.route('/api/health', health);
 app.route('/api/auth', auth);
 app.route('/api/users', users);
 app.route('/api/vbl', vbl);
+app.route('/api/gpr', gpr);
+app.route('/api/claims', claims);
+app.route('/api/documents', documentsRouter);
 
 // Root endpoint
 app.get('/', (c) => {

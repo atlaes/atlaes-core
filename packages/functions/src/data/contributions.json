@@ -1,0 +1,20 @@
+{
+  "years": {
+    "2018": { "westCap": 6500, "eastCap": 5800, "rates": { "drv": 0.093, "vblklassik": 0.0181, "vddb": 0.045, "vddko": 0.045 } },
+    "2019": { "westCap": 6700, "eastCap": 6150, "rates": { "drv": 0.093, "vblklassik": 0.0181, "vddb": 0.045, "vddko": 0.045 } },
+    "2020": { "westCap": 6900, "eastCap": 6450, "rates": { "drv": 0.093, "vblklassik": 0.0181, "vddb": 0.045, "vddko": 0.045 } },
+    "2021": { "westCap": 7100, "eastCap": 6700, "rates": { "drv": 0.093, "vblklassik": 0.0181, "vddb": 0.045, "vddko": 0.045 } },
+    "2022": { "westCap": 7050, "eastCap": 6750, "rates": { "drv": 0.093, "vblklassik": 0.0181, "vddb": 0.045, "vddko": 0.045 } },
+    "2023": { "westCap": 7300, "eastCap": 7100, "rates": { "drv": 0.093, "vblklassik": 0.0181, "vddb": 0.045, "vddko": 0.045 } },
+    "2024": { "westCap": 7550, "eastCap": 7450, "rates": { "drv": 0.093, "vblklassik": 0.0181, "vddb": 0.045, "vddko": 0.045 } },
+    "2025": { "westCap": 8050, "eastCap": null, "rates": { "drv": 0.093, "vblklassik": 0.0181, "vddb": 0.045, "vddko": 0.045 } }
+  },
+  "states": {
+    "WEST": [
+      "Baden-Württemberg", "Bavaria", "Berlin (West)", "Bremen", "Hamburg", "Hesse", "Lower Saxony", "North Rhine-Westphalia", "Rheinland-Palatinate", "Saarland", "Schleswig-Holstein"
+    ],
+    "EAST": [
+      "Berlin (East)", "Brandenburg", "Mecklenburg-Western Pomerania", "Saxony", "Saxony-Anhalt", "Thuringia"
+    ]
+  }
+}

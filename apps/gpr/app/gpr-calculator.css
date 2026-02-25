@@ -1,0 +1,485 @@
+/* GPR Calculator Styles */
+
+/* Main Calculator Layout */
+.gpr-calculator {
+  min-height: 100vh;
+  background-color: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.gpr-calculator-container {
+  display: flex;
+  background-color: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  max-width: 900px;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Sidebar Styles */
+.gpr-sidebar {
+  width: 280px;
+  min-width: 280px;
+  background-color: #f5f3ff;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.gpr-sidebar-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e1b4b;
+  margin-bottom: 2rem;
+  line-height: 1.3;
+}
+
+.gpr-steps {
+  flex: 1;
+}
+
+.gpr-step-item {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.gpr-step-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gpr-step-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.gpr-step-circle.pending {
+  background-color: #e5e7eb;
+  color: #6b7280;
+}
+
+.gpr-step-circle.current {
+  background-color: #6366f1;
+  color: white;
+}
+
+.gpr-step-circle.completed {
+  background-color: #6366f1;
+  color: white;
+}
+
+.gpr-step-line {
+  width: 2px;
+  height: 40px;
+  background-color: #c7d2fe;
+  margin: 4px 0;
+}
+
+.gpr-step-line.completed {
+  background-color: #6366f1;
+}
+
+.gpr-step-content {
+  padding-bottom: 1rem;
+}
+
+.gpr-step-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+}
+
+.gpr-step-title.current {
+  color: #1e1b4b;
+}
+
+.gpr-job-progress {
+  color: #6366f1;
+  margin-left: 0.25rem;
+}
+
+.gpr-step-description {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  line-height: 1.4;
+}
+
+.gpr-help {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  margin-top: auto;
+}
+
+.gpr-help-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.gpr-help-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e1b4b;
+}
+
+.gpr-help-text {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* Main Content Area */
+.gpr-calculator-main {
+  flex: 1;
+  padding: 2rem;
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Step Container */
+.gpr-step-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.gpr-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 1rem;
+}
+
+.gpr-back-link:hover {
+  color: #4b5563;
+}
+
+.gpr-step-content-area {
+  flex: 1;
+}
+
+.gpr-next-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: #6366f1;
+  color: white;
+  font-weight: 600;
+  padding: 0.875rem 2rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  margin-top: auto;
+  transition: background-color 0.2s;
+}
+
+.gpr-next-button:hover:not(:disabled) {
+  background-color: #4f46e5;
+}
+
+.gpr-next-button:disabled {
+  background-color: #c7d2fe;
+  cursor: not-allowed;
+}
+
+/* Form Styles */
+.gpr-form-section {
+  margin-bottom: 1.5rem;
+}
+
+.gpr-question {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e1b4b;
+  margin-bottom: 0.5rem;
+}
+
+.gpr-description {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+}
+
+.gpr-form-group {
+  margin-bottom: 1.5rem;
+}
+
+.gpr-form-group-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e1b4b;
+  margin-bottom: 0.75rem;
+}
+
+.gpr-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.gpr-form-field {
+  margin-bottom: 1rem;
+}
+
+.gpr-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.gpr-error-message {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.gpr-select,
+.gpr-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  color: #1e1b4b;
+  background-color: white;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.gpr-select:focus,
+.gpr-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.gpr-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1.25rem;
+  padding-right: 2.5rem;
+}
+
+/* Radio Group */
+.gpr-radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.gpr-radio-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.gpr-radio {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #6366f1;
+}
+
+/* Results Styles */
+.gpr-results {
+  display: flex;
+  flex-direction: column;
+}
+
+.gpr-results-loading,
+.gpr-results-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem;
+}
+
+.gpr-results-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.gpr-result-card {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+
+.gpr-result-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.gpr-result-card-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e1b4b;
+}
+
+.gpr-result-card-subtitle {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+}
+
+.gpr-result-card-amount {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1e1b4b;
+}
+
+/* Tooltip */
+.gpr-tooltip-wrapper {
+  position: relative;
+}
+
+.gpr-info-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gpr-info-button:hover {
+  color: #4b5563;
+}
+
+.gpr-tooltip {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background-color: #1e1b4b;
+  color: white;
+  font-size: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  width: 200px;
+  z-index: 10;
+  line-height: 1.4;
+}
+
+.gpr-tooltip::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  right: 0.75rem;
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent transparent #1e1b4b transparent;
+}
+
+/* Total Banner */
+.gpr-total-banner {
+  background-color: #6366f1;
+  color: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.gpr-total-banner-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.gpr-total-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.gpr-total-amount {
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+/* Eligibility Button */
+.gpr-eligibility-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #6366f1;
+  color: white;
+  font-weight: 600;
+  padding: 0.875rem 2rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+  transition: background-color 0.2s;
+}
+
+.gpr-eligibility-button:hover {
+  background-color: #4f46e5;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .gpr-calculator-container {
+    flex-direction: column;
+  }
+
+  .gpr-sidebar {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .gpr-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .gpr-results-cards {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,11 +1,14 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
-export default function MagicLinkPage() {
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+function MagicLinkPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { verifyMagicLink } = useAuth();
@@ -17,7 +20,7 @@ export default function MagicLinkPage() {
   useEffect(() => {
     const handleMagicLink = async () => {
       try {
-        const token = searchParams.get('token');
+        const token = searchParams?.get('token');
 
         if (!token) {
           setStatus('error');
@@ -106,5 +109,22 @@ export default function MagicLinkPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MagicLinkPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="animate-spin h-8 w-8 text-blue-600 mx-auto mb-2" />
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <MagicLinkPageContent />
+    </Suspense>
   );
 }

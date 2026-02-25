@@ -29,6 +29,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
+  loginWithApple: (idToken: string, user?: { email?: string; name?: { firstName?: string; lastName?: string } }) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   updateProfile: (data: Partial<User['profile']>) => Promise<void>;
@@ -54,8 +55,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  // Return safe default if context is not available (SSR, SSG, or outside provider)
+  if (!context) {
+    return {
+      user: null,
+      isLoading: true,
+      isAuthenticated: false,
+      login: async () => {},
+      loginWithGoogle: async () => {},
+      register: async () => {},
+      logout: () => {},
+      updateProfile: async () => {},
+      changePassword: async () => {},
+      requestMagicLink: async () => ({ magicLink: undefined }),
+      verifyMagicLink: async () => ({ isNewUser: false }),
+    } as AuthContextType;
   }
   return context;
 };
@@ -219,12 +233,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const loginWithApple = async (
+    idToken: string,
+    user?: { email?: string; name?: { firstName?: string; lastName?: string } }
+  ) => {
+    try {
+      const response = await apiClient.post('/auth/apple/verify', {
+        idToken,
+        user,
+      });
+
+      const { user: userData, tokens } = response.data;
+
+      // Store tokens
+      localStorage.setItem('accessToken', tokens.accessToken);
+      localStorage.setItem('refreshToken', tokens.refreshToken);
+
+      // Set user
+      setUser(userData);
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Apple login failed');
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
     isAuthenticated,
     login,
     loginWithGoogle,
+    loginWithApple,
     register,
     logout,
     updateProfile,

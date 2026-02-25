@@ -10,11 +10,22 @@ export const corsMiddleware = cors({
         : null;
     }
 
-    // Production origins
+    // Staging and Production origins
     const allowedOrigins = [
+      // Production domains
       'https://vblrefund.com',
       'https://www.vblrefund.com',
       'https://admin.vblrefund.com',
+      'https://vbl.atlaes.de',
+      'https://atlaes.de',
+      // Staging domains
+      'https://staging.vbl.atlaes.de',
+      'https://staging.atlaes.de',
+      'https://staging.api.atlaes.de',
+      // Local development - allow localhost for testing with staging API
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://127.0.0.1:3000',
     ];
 
     return allowedOrigins.includes(origin || '') ? origin : null;

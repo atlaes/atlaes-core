@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { env } from '../utils/env';
+import { getJwtSecret } from '../utils/env';
 import { logger } from '../utils/logger';
 
 // Password validation schema
@@ -121,7 +121,7 @@ export class AuthService {
 
       const accessToken = jwt.sign(
         accessTokenPayload,
-        process.env.JWT_SECRET!,
+        getJwtSecret(),
         {
           expiresIn: this.ACCESS_TOKEN_EXPIRY,
         }
@@ -129,7 +129,7 @@ export class AuthService {
 
       const refreshToken = jwt.sign(
         refreshTokenPayload,
-        process.env.JWT_SECRET!,
+        getJwtSecret(),
         {
           expiresIn: this.REFRESH_TOKEN_EXPIRY,
         }
@@ -150,7 +150,7 @@ export class AuthService {
    */
   static verifyToken(token: string): TokenPayload {
     try {
-      return jwt.verify(token, env.JWT_SECRET) as TokenPayload;
+      return jwt.verify(token, getJwtSecret()) as TokenPayload;
     } catch (error) {
       logger.error(
         'Token verification error:',
@@ -167,15 +167,14 @@ export class AuthService {
     try {
       const payload = this.verifyToken(refreshToken);
 
-      const newAccessTokenPayload: TokenPayload = {
+      // Create payload without exp - let jwt.sign handle expiry via expiresIn option
+      const newAccessTokenPayload = {
         userId: payload.userId,
         email: payload.email,
         emailVerified: payload.emailVerified,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 15 * 60, // 15 minutes
       };
 
-      return jwt.sign(newAccessTokenPayload, env.JWT_SECRET, {
+      return jwt.sign(newAccessTokenPayload, getJwtSecret(), {
         expiresIn: this.ACCESS_TOKEN_EXPIRY,
       });
     } catch (error) {
@@ -194,27 +193,24 @@ export class AuthService {
     try {
       const payload = this.verifyToken(refreshToken);
 
-      const newAccessTokenPayload: TokenPayload = {
+      // Create payloads without exp - let jwt.sign handle expiry via expiresIn option
+      const newAccessTokenPayload = {
         userId: payload.userId,
         email: payload.email,
         emailVerified: payload.emailVerified,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 15 * 60, // 15 minutes
       };
 
-      const accessToken = jwt.sign(newAccessTokenPayload, env.JWT_SECRET, {
+      const accessToken = jwt.sign(newAccessTokenPayload, getJwtSecret(), {
         expiresIn: this.ACCESS_TOKEN_EXPIRY,
       });
 
-      const refreshTokenPayload: TokenPayload = {
+      const refreshTokenPayload = {
         userId: payload.userId,
         email: payload.email,
         emailVerified: payload.emailVerified,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60, // 7 days
       };
 
-      const newRefreshToken = jwt.sign(refreshTokenPayload, env.JWT_SECRET, {
+      const newRefreshToken = jwt.sign(refreshTokenPayload, getJwtSecret(), {
         expiresIn: this.REFRESH_TOKEN_EXPIRY,
       });
 
@@ -284,7 +280,7 @@ export class AuthService {
       exp: Math.floor(Date.now() / 1000) + 15 * 60, // 15 minutes expiry
     };
 
-    return jwt.sign(payload, env.JWT_SECRET);
+    return jwt.sign(payload, getJwtSecret());
   }
 
   /**
@@ -292,7 +288,7 @@ export class AuthService {
    */
   static verifyMagicLinkToken(token: string): { email: string; type: string } {
     try {
-      const payload = jwt.verify(token, env.JWT_SECRET) as any;
+      const payload = jwt.verify(token, getJwtSecret()) as any;
 
       if (payload.type !== 'magic_link') {
         throw new Error('Invalid token type');

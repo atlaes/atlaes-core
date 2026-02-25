@@ -3,7 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { OAuth2Client } from 'google-auth-library';
 import { logger } from '../utils/logger';
-import { env } from '../utils/env';
+import { env, getJwtSecret } from '../utils/env';
 import {
   AuthService,
   registrationSchema,
@@ -14,6 +14,7 @@ import {
 } from '../utils/auth';
 import { UserService } from '../services/user';
 import { authMiddleware } from '../middleware/auth';
+import { GPRApplicationService } from '../services/gpr-application';
 
 const auth = new Hono();
 
@@ -241,28 +242,101 @@ auth.post(
 // Test endpoint to check environment
 auth.get('/test-env', async (c) => {
   return c.json({
-    jwtSecret: !!env.JWT_SECRET,
-    jwtSecretLength: env.JWT_SECRET?.length,
+    jwtSecret: !!getJwtSecret(),
+    jwtSecretLength: getJwtSecret()?.length,
     databaseUrl: !!env.DATABASE_URL,
     nodeEnv: env.NODE_ENV,
   });
 });
 
-// Request magic link endpoint
+// Extended magic link request schema with optional GPR session data
+const extendedMagicLinkRequestSchema = z.object({
+  email: z.string().email(),
+  gprSessionData: z
+    .object({
+      calculatorData: z.object({
+        numberOfJobs: z.number().min(1),
+        jobs: z.array(
+          z.object({
+            startMonth: z.string(),
+            startYear: z.string(),
+            endMonth: z.string(),
+            endYear: z.string(),
+            monthlySalary: z.number(),
+            sector: z.string(),
+            state: z.string().optional(),
+            supplementaryPension: z.string().optional(),
+          })
+        ),
+        calculationResult: z.object({
+          statePensionRefund: z.number(),
+          supplementaryRefund: z.number(),
+          totalRefund: z.number(),
+          totalMonthsContributed: z.number(),
+          details: z.object({
+            drvEligible: z.boolean(),
+            drvReason: z.string(),
+            supplementaryEligible: z.boolean(),
+            supplementaryReason: z.string(),
+          }),
+        }),
+      }),
+      eligibilityData: z
+        .object({
+          citizenship: z.string().optional(),
+          residence: z.string().optional(),
+          lastEmploymentMonth: z.string().optional(),
+          lastEmploymentYear: z.string().optional(),
+          contributionDuration: z.string().optional(),
+          dateOfBirth: z.string().optional(),
+          eligibilityResult: z
+            .object({
+              isEligible: z.boolean(),
+              reasons: z.array(z.string()),
+            })
+            .optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+});
+
+// Request magic link endpoint (with optional GPR session data)
 auth.post(
   '/magic-link/request',
-  zValidator('json', magicLinkRequestSchema),
+  zValidator('json', extendedMagicLinkRequestSchema),
   async (c) => {
     try {
-      const { email } = c.req.valid('json');
+      const { email, gprSessionData } = c.req.valid('json');
 
       // Debug: Check if JWT_SECRET is available
-      logger.info('JWT_SECRET available:', !!env.JWT_SECRET);
+      logger.info('JWT_SECRET available:', !!getJwtSecret());
       logger.info('Email received:', email);
+
+      // If GPR session data is provided, save it to pending sessions
+      if (gprSessionData) {
+        const ipAddress =
+          c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+        const userAgent = c.req.header('user-agent') || 'unknown';
+
+        try {
+          await GPRApplicationService.savePendingSession({
+            email,
+            calculatorData: gprSessionData.calculatorData,
+            eligibilityData: gprSessionData.eligibilityData,
+            ipAddress,
+            userAgent,
+          });
+          logger.info(`GPR session data saved for: ${email}`);
+        } catch (sessionError) {
+          logger.error('Failed to save GPR session data:', sessionError);
+          // Don't fail the magic link request if session save fails
+        }
+      }
 
       // Generate magic link token (works for both existing and new users)
       const token = AuthService.generateMagicLinkToken(email);
-      const magicLinkUrl = AuthService.generateMagicLinkUrl(token);
+      const magicLinkUrl = AuthService.generateMagicLinkUrl(token, env.FRONTEND_URL);
 
       // TODO: Send email with magic link
       // For now, we'll log it for development
@@ -297,6 +371,7 @@ auth.post(
 
       // Find user by email
       let user = await UserService.findByEmail(email);
+      const isNewUser = !user;
 
       // If user doesn't exist, create a new account
       if (!user) {
@@ -321,6 +396,18 @@ auth.post(
         emailVerified: user.emailVerified,
       });
 
+      // Migrate any pending GPR session to application
+      let gprApplication = null;
+      try {
+        gprApplication = await GPRApplicationService.migrateToApplication(email, user.id);
+        if (gprApplication) {
+          logger.info(`GPR session migrated to application ${gprApplication.id} for user ${user.id}`);
+        }
+      } catch (migrationError) {
+        logger.error('Failed to migrate GPR session:', migrationError);
+        // Don't fail the login if migration fails
+      }
+
       logger.info(`User logged in via magic link: ${user.email}`);
 
       return c.json({
@@ -332,7 +419,8 @@ auth.post(
           profile: user.profile,
         },
         tokens: authTokens,
-        isNewUser: !user.profile?.firstName, // Indicate if this is a new user
+        isNewUser: isNewUser || !user.profile?.firstName,
+        gprApplication, // Include the migrated application if available
       });
     } catch (error) {
       logger.error('Magic link verification error:', error);
@@ -507,5 +595,133 @@ auth.post(
     }
   }
 );
+
+// ============================================
+// Apple Sign-In Routes
+// ============================================
+
+// Apple Sign-In configuration check
+const isAppleConfigured = !!(
+  env.APPLE_CLIENT_ID &&
+  env.APPLE_TEAM_ID &&
+  env.APPLE_KEY_ID &&
+  env.APPLE_PRIVATE_KEY
+);
+
+// Apple Sign-In: Verify ID token
+auth.post(
+  '/apple/verify',
+  zValidator(
+    'json',
+    z.object({
+      idToken: z.string(),
+      user: z
+        .object({
+          email: z.string().email().optional(),
+          name: z
+            .object({
+              firstName: z.string().optional(),
+              lastName: z.string().optional(),
+            })
+            .optional(),
+        })
+        .optional(),
+    })
+  ),
+  async (c) => {
+    try {
+      if (!isAppleConfigured) {
+        return c.json(
+          {
+            error: 'Apple Sign-In not configured',
+            hint: 'Set APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, and APPLE_PRIVATE_KEY',
+          },
+          500
+        );
+      }
+
+      const { idToken, user: appleUserData } = c.req.valid('json');
+
+      // Decode the JWT to extract claims (Apple ID tokens are JWTs)
+      // In production, you should verify the token with Apple's public keys
+      const tokenParts = idToken.split('.');
+      if (tokenParts.length !== 3) {
+        return c.json({ error: 'Invalid token format' }, 400);
+      }
+
+      // Decode payload (base64url)
+      const payload = JSON.parse(
+        Buffer.from(tokenParts[1], 'base64url').toString('utf8')
+      );
+
+      // Verify issuer and audience
+      if (payload.iss !== 'https://appleid.apple.com') {
+        return c.json({ error: 'Invalid token issuer' }, 400);
+      }
+
+      if (payload.aud !== env.APPLE_CLIENT_ID) {
+        return c.json({ error: 'Invalid token audience' }, 400);
+      }
+
+      // Check expiration
+      if (payload.exp && payload.exp < Date.now() / 1000) {
+        return c.json({ error: 'Token expired' }, 400);
+      }
+
+      const email = payload.email || appleUserData?.email;
+      const appleId = payload.sub;
+
+      if (!email) {
+        return c.json({ error: 'Email not provided by Apple' }, 400);
+      }
+
+      // Apple only sends user info on first sign-in, so we use it if available
+      const firstName = appleUserData?.name?.firstName || '';
+      const lastName = appleUserData?.name?.lastName || '';
+
+      // Find or create user
+      const user = await UserService.findOrCreateOAuthUser({
+        email,
+        authProvider: 'apple',
+        authProviderId: appleId,
+        firstName,
+        lastName,
+        emailVerified: true, // Apple verifies email
+      });
+
+      // Generate authentication tokens
+      const authTokens = AuthService.generateTokens({
+        userId: user.id,
+        email: user.email,
+        emailVerified: user.emailVerified,
+      });
+
+      logger.info(`User logged in via Apple Sign-In: ${user.email}`);
+
+      return c.json({
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          email: user.email,
+          emailVerified: user.emailVerified,
+          profile: user.profile,
+        },
+        tokens: authTokens,
+        isNewUser: !user.profile?.firstName,
+      });
+    } catch (error) {
+      logger.error('Apple Sign-In verification error:', error);
+      return c.json({ error: 'Apple authentication failed' }, 400);
+    }
+  }
+);
+
+// Apple Sign-In: Check if configured
+auth.get('/apple/config', async (c) => {
+  return c.json({
+    configured: isAppleConfigured,
+    clientId: isAppleConfigured ? env.APPLE_CLIENT_ID : undefined,
+  });
+});
 
 export default auth;

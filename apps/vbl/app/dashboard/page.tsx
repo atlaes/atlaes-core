@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2, User, Mail, Calendar, MapPin, Phone } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export default function DashboardPage() {
   const { user, isLoading, logout } = useAuth();
   const router = useRouter();
