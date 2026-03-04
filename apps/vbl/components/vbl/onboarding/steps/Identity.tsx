@@ -1,24 +1,26 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { ArrowRight, Upload, X, Calendar, ChevronDown, Info } from 'lucide-react';
+import { ArrowRight, Upload, X, Calendar, ChevronDown, Info, Loader2 } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import { uploadDocument } from '@/lib/onboarding-api';
 
 interface IdentityProps {
   onNext: () => void;
 }
 
-type IdentityPhase = 'upload' | 'confirm';
+type IdentityPhase = 'upload' | 'processing' | 'confirm';
 
 export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
-  const { data, updateIdentity } = useOnboarding();
+  const { data, updateData, updateIdentity } = useOnboarding();
   const [phase, setPhase] = useState<IdentityPhase>(
     data.identity.documentPreview ? 'confirm' : 'upload'
   );
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handleFileSelect = useCallback(
-    (file: File) => {
+    async (file: File) => {
       // Validate file type
       if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
         alert('Please upload an image or PDF file');
@@ -33,11 +35,34 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
         documentPreview: previewUrl,
       });
 
-      // Simulate OCR extraction (in real app, this would call backend)
-      // For now, just move to confirm phase
-      setPhase('confirm');
+      // Upload to backend for OCR processing
+      setPhase('processing');
+      setUploadError(null);
+
+      try {
+        const result = await uploadDocument(file, 'passport');
+
+        // Store the document ID for later claim attachment
+        updateData({ documentId: result.document.id });
+
+        // Auto-fill OCR data if available
+        if (result.ocr) {
+          updateIdentity({
+            fullName: result.ocr.fullName || `${result.ocr.firstName || ''} ${result.ocr.lastName || ''}`.trim(),
+            dateOfBirth: result.ocr.dateOfBirth || '',
+            gender: (result.ocr.gender?.toLowerCase() as 'male' | 'female' | 'other') || '',
+          });
+        }
+
+        setPhase('confirm');
+      } catch (err) {
+        // If OCR fails, still allow manual entry
+        console.error('Document upload/OCR error:', err);
+        setUploadError('Document uploaded but OCR extraction failed. Please enter details manually.');
+        setPhase('confirm');
+      }
     },
-    [updateIdentity]
+    [updateIdentity, updateData]
   );
 
   const handleDrop = useCallback(
@@ -82,6 +107,24 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
     data.identity.dateOfBirth !== '' &&
     data.identity.gender !== '';
 
+  if (phase === 'processing') {
+    return (
+      <div className="max-w-lg mx-auto">
+        <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
+          Processing your document
+        </h2>
+        <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
+        <p className="text-gray-600 text-center mb-8">
+          We're extracting information from your document. This may take a moment.
+        </p>
+        <div className="flex flex-col items-center gap-4 py-12">
+          <Loader2 className="w-12 h-12 text-[#9FE870] animate-spin" />
+          <p className="text-gray-500">Analyzing document...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (phase === 'upload') {
     return (
       <div className="max-w-lg mx-auto">
@@ -104,7 +147,12 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
               : 'border-gray-300 hover:border-gray-400'
           }`}
         >
-          <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          {/* Cloud upload icon matching design */}
+          <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M14 32l10-10 10 10" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M24 22v18" strokeLinecap="round" />
+            <path d="M38.5 30.3A9 9 0 0 0 36 14h-1.3A14.4 14.4 0 1 0 8 26.7" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
           <p className="text-gray-600 mb-2">
             Drag & drop your file here or{' '}
             <label className="text-[#163300] font-medium cursor-pointer hover:underline">
@@ -164,6 +212,13 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
         </div>
       )}
 
+      {/* OCR Error */}
+      {uploadError && (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
+          {uploadError}
+        </div>
+      )}
+
       {/* Form Fields */}
       <div className="space-y-4">
         {/* Full Name */}
@@ -191,7 +246,7 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
                 type="date"
                 value={data.identity.dateOfBirth}
                 onChange={(e) => updateIdentity({ dateOfBirth: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
               />
               <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
             </div>

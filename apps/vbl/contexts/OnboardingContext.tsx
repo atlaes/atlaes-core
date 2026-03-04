@@ -70,6 +70,12 @@ export interface OnboardingData {
   bankDetails: OnboardingBankDetails;
   signature: OnboardingSignature;
 
+  // Backend resource IDs (tracked throughout the flow)
+  userId?: string;
+  claimId?: string;
+  documentId?: string;
+  signatureId?: string;
+
   // Post-submission data
   successData: OnboardingSuccessData;
 }

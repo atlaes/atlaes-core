@@ -12,15 +12,17 @@ export default $config({
   },
   async run() {
     const web =  await import('./resources/web');
-    // Import in dependency order: network -> database -> services -> web
+
+    // Import in dependency order: network -> database -> storage -> services -> web
     if($app.stage === "staging"){
-    // await import('./resources/network');
-    // await import('./resources/database');
-    // await import('./resources/services');
+    await import('./resources/network');
+    await import('./resources/database');
+    const { bucket } = await import('./resources/storage');
+    await import('./resources/services');
     }
 
     return {
-      web: web.atlaesWebsite.url
+      web: web.atlaesWebsite.url,
     }
   },
 });

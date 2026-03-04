@@ -50,7 +50,7 @@ export const Address: React.FC<AddressProps> = ({ onNext }) => {
             type="text"
             value={data.address.streetAndNumber}
             onChange={(e) => updateAddress({ streetAndNumber: e.target.value })}
-            placeholder="e.g., Hauptstraße 123"
+            placeholder="Street and house number"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
           />
         </div>
@@ -95,7 +95,7 @@ export const Address: React.FC<AddressProps> = ({ onNext }) => {
               onChange={(e) => updateAddress({ country: e.target.value })}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white"
             >
-              <option value="">Select your country</option>
+              <option value="">Select country</option>
               {COUNTRIES.map((country) => (
                 <option key={country.value} value={country.value}>
                   {country.label}

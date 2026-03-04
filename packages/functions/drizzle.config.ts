@@ -5,12 +5,10 @@ export default {
   out: './src/drizzle/migrations',
   driver: 'pg',
   dbCredentials: {
-    host: 'localhost',
-    port: 5432,
-    user: 'vbl_user',
-    password: 'vbl_password',
-    database: 'vbl_development',
+    connectionString: process.env.DATABASE_URL ||
+      'postgresql://vbl_user:vbl_password@localhost:5432/vbl_development',
   },
+  schemaFilter: ['public', 'shared', 'gpr', 'claims', 'vbl'],
   verbose: true,
   strict: true,
 } satisfies Config;

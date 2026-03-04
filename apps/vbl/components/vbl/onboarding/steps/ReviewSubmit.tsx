@@ -3,6 +3,13 @@
 import React, { useState } from 'react';
 import { ArrowRight, User, CreditCard as CardIcon, MapPin, Landmark, PenTool, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { useOnboarding, SubmitDetailsSubStep } from '@/contexts/OnboardingContext';
+import {
+  createClaim,
+  updateClaim,
+  attachDocument,
+  attachSignatureToClaim,
+  submitClaim,
+} from '@/lib/onboarding-api';
 
 const GENDER_LABELS: Record<string, string> = {
   male: 'Male',
@@ -43,8 +50,9 @@ interface ReviewSubmitProps {
 }
 
 export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onEditSection }) => {
-  const { data, setCurrentSubStep, canProceedFromSubStep } = useOnboarding();
+  const { data, updateData, updateSuccessData, setCurrentSubStep, canProceedFromSubStep } = useOnboarding();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
   const formatDate = (dateString: string) => {
@@ -79,16 +87,59 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
-      // In real implementation, this would submit to backend API
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // 1. Create claim
+      const claimResult = await createClaim();
+      const claimId = claimResult.claim.id;
+      updateData({ claimId });
 
-      // Call onSubmitSuccess if provided (parent handles success screen)
+      // 2. Update claim with all collected data
+      // Split fullName into first/last for the backend schema
+      const nameParts = data.identity.fullName.trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      await updateClaim(claimId, {
+        firstName,
+        lastName,
+        dateOfBirth: data.identity.dateOfBirth,
+        gender: data.identity.gender,
+        currentAddressLine1: data.address.streetAndNumber,
+        currentPostalCode: data.address.postalCode,
+        currentCity: data.address.city,
+        currentCountry: data.address.country,
+        iban: data.bankDetails.iban || undefined,
+        accountHolderName: data.bankDetails.accountHolder || undefined,
+      });
+
+      // 3. Attach document (passport) if uploaded
+      if (data.documentId) {
+        await attachDocument(claimId, data.documentId, 'passport');
+      }
+
+      // 4. Attach signature if uploaded
+      if (data.signatureId) {
+        await attachSignatureToClaim(claimId, data.signatureId);
+      }
+
+      // 5. Submit claim
+      const submitResult = await submitClaim(claimId);
+
+      // Update success data with real submission info
+      updateSuccessData({
+        submissionId: submitResult.claim.id,
+        submittedAt: submitResult.claim.submittedAt as string || new Date().toISOString(),
+      });
+
       if (onSubmitSuccess) {
         onSubmitSuccess();
       }
     } catch (error) {
       console.error('Submission error:', error);
+      setSubmitError(
+        error instanceof Error ? error.message : 'Failed to submit claim. Please try again.'
+      );
       setIsSubmitting(false);
     }
   };
@@ -259,6 +310,13 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
           );
         })}
       </div>
+
+      {/* Submit Error */}
+      {submitError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          {submitError}
+        </div>
+      )}
 
       {/* Submit Button */}
       <button

@@ -15,6 +15,7 @@ import vbl from './routes/vbl';
 import gpr from './routes/gpr';
 import claims from './routes/claims';
 import documentsRouter from './routes/documents';
+import signaturesRouter from './routes/signatures';
 
 const app = new Hono();
 
@@ -33,6 +34,7 @@ app.route('/api/vbl', vbl);
 app.route('/api/gpr', gpr);
 app.route('/api/claims', claims);
 app.route('/api/documents', documentsRouter);
+app.route('/api/signatures', signaturesRouter);
 
 // Root endpoint
 app.get('/', (c) => {

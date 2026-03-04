@@ -10,6 +10,10 @@ declare module "sst" {
       "type": "sst.aws.Service"
       "url": string
     }
+    "AtlaesBucket": {
+      "name": string
+      "type": "sst.aws.Bucket"
+    }
     "AtlaesDatabase": {
       "database": string
       "host": string
@@ -19,10 +23,15 @@ declare module "sst" {
       "username": string
     }
     "AtlaesVpc": {
+      "bastion": string
       "type": "sst.aws.Vpc"
     }
     "AtlaesWebsite": {
       "type": "sst.aws.StaticSite"
+      "url": string
+    }
+    "VBLApp": {
+      "type": "sst.aws.Nextjs"
       "url": string
     }
   }

@@ -3,6 +3,9 @@
 import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import { requestMagicLink, verifyMagicLink } from '@/lib/onboarding-api';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 interface CreateAccountProps {
   onNext: () => void;
@@ -12,17 +15,41 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
   const { data, updateData } = useOnboarding();
   const [email, setEmail] = useState(data.email);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
 
     setIsSubmitting(true);
+    setError(null);
     try {
-      // Update context with email and auth method
+      const result = await requestMagicLink(email);
+
+      // In dev mode, the API returns the magic link URL so we can auto-verify
+      if (result.magicLink) {
+        const url = new URL(result.magicLink);
+        const token = url.searchParams.get('token');
+        if (token) {
+          const verifyResult = await verifyMagicLink(token);
+          localStorage.setItem('accessToken', verifyResult.tokens.accessToken);
+          localStorage.setItem('refreshToken', verifyResult.tokens.refreshToken);
+          updateData({
+            email,
+            authMethod: 'email',
+            userId: verifyResult.user.id,
+          });
+          onNext();
+          return;
+        }
+      }
+
+      // In production, show message that magic link was sent
       updateData({ email, authMethod: 'email' });
-      // In real implementation, this would send magic link
       onNext();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to send magic link';
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -30,24 +57,16 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
 
   const handleGoogleAuth = async () => {
     setIsSubmitting(true);
-    try {
-      // In real implementation, this would trigger Google OAuth
-      updateData({ authMethod: 'google' });
-      onNext();
-    } finally {
-      setIsSubmitting(false);
-    }
+    setError(null);
+    // Redirect to backend Google OAuth flow
+    window.location.href = `${API_BASE_URL}/api/auth/google/authorize`;
   };
 
   const handleAppleAuth = async () => {
     setIsSubmitting(true);
-    try {
-      // In real implementation, this would trigger Apple Sign In
-      updateData({ authMethod: 'apple' });
-      onNext();
-    } finally {
-      setIsSubmitting(false);
-    }
+    setError(null);
+    // Redirect to backend Apple Sign In flow
+    window.location.href = `${API_BASE_URL}/api/auth/apple/authorize`;
   };
 
   return (
@@ -56,10 +75,18 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
       <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
         Create your account
       </h2>
+      <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
         Create your secure account to start your claim. We'll guide you through
         every step and help you prepare the required submission.
       </p>
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Email Form */}
       <form onSubmit={handleEmailSubmit}>

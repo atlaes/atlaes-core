@@ -548,8 +548,12 @@ export class VBLCalculationService {
     const { periods = [] } = input;
 
     // Load contribution caps/rates
-    // __dirname is src/services/, so data is at ../data/
-    const dataPath = path.join(__dirname, '..', 'data', 'contributions.json');
+    // Try production path first (esbuild bundles to dist/index.js, data at dist/data/)
+    let dataPath = path.join(__dirname, 'data', 'contributions.json');
+    if (!fs.existsSync(dataPath)) {
+      // Fallback for development (tsx runs from src/services/, data at src/data/)
+      dataPath = path.join(__dirname, '..', 'data', 'contributions.json');
+    }
     let tables: any;
     try {
       const raw = fs.readFileSync(dataPath, 'utf-8');

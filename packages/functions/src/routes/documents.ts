@@ -5,6 +5,7 @@ import { authMiddleware } from '../middleware/auth';
 import { db } from '../utils/db';
 import { documents } from '../drizzle/schema/shared';
 import { extractPassportData, PassportOCRResult } from '../services/mindee';
+import { uploadFile, deleteFile } from '../utils/s3';
 
 const documentsRouter = new Hono();
 
@@ -69,9 +70,8 @@ documentsRouter.post('/upload', authMiddleware, async (c) => {
     // Get file buffer for OCR processing
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-    // In development, we'll just store the metadata
-    // In production, you would upload to S3 here:
-    // await s3Client.upload({ Bucket: 'your-bucket', Key: s3Key, Body: fileBuffer })
+    // Upload file to S3
+    await uploadFile(s3Key, fileBuffer, file.type);
 
     // Create document record in database
     const [document] = await db
@@ -193,8 +193,10 @@ documentsRouter.delete('/:id', authMiddleware, async (c) => {
       );
     }
 
-    // In production, you would also delete from S3:
-    // await s3Client.deleteObject({ Bucket: 'your-bucket', Key: doc.s3Key })
+    // Delete from S3
+    if (doc.s3Key) {
+      await deleteFile(doc.s3Key);
+    }
 
     // Delete from database
     await db

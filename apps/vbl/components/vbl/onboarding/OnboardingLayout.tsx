@@ -2,13 +2,16 @@
 
 import React, { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, Shield } from 'lucide-react';
+import { ArrowLeft, Check } from 'lucide-react';
+import { CompanyPensionLogo } from '@/components/vbl/icons/CompanyPensionLogo';
 import { useOnboarding, SubmitDetailsSubStep, SUBMIT_DETAILS_SUBSTEPS } from '@/contexts/OnboardingContext';
 
 interface OnboardingLayoutProps {
   children: ReactNode;
   showBack?: boolean;
   onBack?: () => void;
+  headerTitle?: string;
+  headerIcon?: ReactNode;
 }
 
 const MAIN_STEPS = [
@@ -24,7 +27,7 @@ const SubStepIcon: React.FC<{ icon: string; isActive: boolean; isCompleted: bool
   isCompleted,
 }) => {
   const iconColor = isActive ? '#163300' : isCompleted ? '#163300' : '#9CA3AF';
-  const bgColor = isActive ? '#9FE870' : isCompleted ? '#9FE870' : 'transparent';
+  const bgColor = isActive ? '#9FE870' : isCompleted ? '#9FE870' : '#E5E7EB';
 
   const iconMap: Record<string, ReactNode> = {
     user: (
@@ -71,7 +74,7 @@ const SubStepIcon: React.FC<{ icon: string; isActive: boolean; isCompleted: bool
 
   return (
     <div
-      className="w-7 h-7 rounded-md flex items-center justify-center"
+      className="w-7 h-7 rounded-full flex items-center justify-center"
       style={{ backgroundColor: bgColor }}
     >
       {iconMap[icon]}
@@ -83,6 +86,8 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
   children,
   showBack = true,
   onBack,
+  headerTitle,
+  headerIcon,
 }) => {
   const router = useRouter();
   const { currentStep, currentSubStep, canProceedFromSubStep } = useOnboarding();
@@ -108,18 +113,18 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden">
+      <div className="w-full max-w-[1000px] bg-white rounded-2xl shadow-xl overflow-hidden">
         {/* Dark Green Header */}
         <div
-          className="px-8 py-6"
+          className="px-8 pt-6"
           style={{ backgroundColor: '#163300' }}
         >
           {/* Logo and Title */}
           <div className="flex items-center justify-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-[#9FE870] rounded-lg flex items-center justify-center">
-              <Shield className="w-6 h-6 text-[#163300]" />
-            </div>
-            <h1 className="text-white text-xl font-semibold">Supplementary Pension Refund</h1>
+            {headerIcon ?? <CompanyPensionLogo />}
+            {headerTitle && (
+              <h1 className="text-[#9FE870] text-xl font-semibold">{headerTitle}</h1>
+            )}
           </div>
 
           {/* Divider */}
@@ -129,66 +134,63 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
           <div className="flex items-center justify-center">
             {MAIN_STEPS.map((step, index) => (
               <React.Fragment key={step.id}>
-                {/* Step Circle and Label */}
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm ${
-                      isStepCompleted(step.id)
-                        ? 'bg-[#9FE870] text-[#163300]'
-                        : isStepActive(step.id)
-                        ? 'bg-[#9FE870] text-[#163300]'
-                        : 'border-2 border-white/40 text-white/60'
-                    }`}
-                  >
-                    {isStepCompleted(step.id) ? (
-                      <Check className="w-4 h-4" />
+                {/* Step Circle, Label, and Triangle */}
+                <div className="flex flex-col items-center">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm ${
+                        isStepCompleted(step.id)
+                          ? 'bg-[#9FE870] text-[#163300]'
+                          : isStepActive(step.id)
+                          ? 'bg-[#9FE870] text-[#163300]'
+                          : 'border-2 border-white/70 text-white'
+                      }`}
+                    >
+                      {isStepCompleted(step.id) ? (
+                        <Check className="w-4 h-4" />
+                      ) : (
+                        step.id
+                      )}
+                    </div>
+                    <span
+                      className={`text-sm font-medium ${
+                        isStepActive(step.id) || isStepCompleted(step.id)
+                          ? 'text-[#9FE870]'
+                          : 'text-white'
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                  {/* Triangle Pointer — only under active step */}
+                  <div className="mt-3">
+                    {isStepActive(step.id) ? (
+                      <div
+                        className="w-0 h-0"
+                        style={{
+                          borderLeft: '8px solid transparent',
+                          borderRight: '8px solid transparent',
+                          borderBottom: '8px solid white',
+                        }}
+                      />
                     ) : (
-                      step.id
+                      <div className="h-2" />
                     )}
                   </div>
-                  <span
-                    className={`text-sm font-medium ${
-                      isStepActive(step.id) || isStepCompleted(step.id)
-                        ? 'text-[#9FE870]'
-                        : 'text-white/60'
-                    }`}
-                  >
-                    {step.label}
-                  </span>
                 </div>
 
                 {/* Connector Line */}
                 {index < MAIN_STEPS.length - 1 && (
                   <div
-                    className={`w-20 h-0.5 mx-4 ${
+                    className={`w-20 h-0.5 mx-4 mb-3 ${
                       isStepCompleted(step.id + 1) || isStepActive(step.id + 1)
                         ? 'bg-[#9FE870]'
-                        : 'bg-white/30'
+                        : 'bg-white/50'
                     }`}
                   />
                 )}
               </React.Fragment>
             ))}
-          </div>
-
-          {/* Triangle Pointer for Active Step */}
-          <div className="flex justify-center mt-3">
-            <div
-              className="relative"
-              style={{
-                marginLeft:
-                  currentStep === 1 ? '-200px' : currentStep === 2 ? '0' : '200px',
-              }}
-            >
-              <div
-                className="w-0 h-0"
-                style={{
-                  borderLeft: '8px solid transparent',
-                  borderRight: '8px solid transparent',
-                  borderBottom: '8px solid white',
-                }}
-              />
-            </div>
           </div>
         </div>
 
@@ -207,37 +209,37 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
 
           {/* Sub-step Tabs (only for Step 3) */}
           {currentStep === 3 && (
-            <div className="flex items-center justify-center gap-2 mb-8 border-b border-gray-200 pb-4">
-              {SUBMIT_DETAILS_SUBSTEPS.map((subStep) => {
+            <div className="flex items-stretch mb-8 rounded-[5px] overflow-hidden" style={{ border: '0.84px solid #E5E7EB' }}>
+              {SUBMIT_DETAILS_SUBSTEPS.map((subStep, index) => {
                 const isActive = isSubStepActive(subStep.id);
                 const isCompleted = isSubStepCompleted(subStep.id);
 
                 return (
-                  <div
-                    key={subStep.id}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-gray-100'
-                        : ''
-                    }`}
-                  >
-                    <SubStepIcon
-                      icon={subStep.icon}
-                      isActive={isActive}
-                      isCompleted={isCompleted}
-                    />
-                    <span
-                      className={`text-sm font-medium ${
-                        isActive
-                          ? 'text-[#163300]'
-                          : isCompleted
-                          ? 'text-[#163300]'
-                          : 'text-gray-400'
+                  <React.Fragment key={subStep.id}>
+                    {index > 0 && <div className="w-px bg-gray-200" />}
+                    <div
+                      className={`flex items-center gap-2 px-4 py-3 flex-1 justify-center transition-colors ${
+                        isActive ? 'bg-gray-50' : ''
                       }`}
                     >
-                      {subStep.label}
-                    </span>
-                  </div>
+                      <SubStepIcon
+                        icon={subStep.icon}
+                        isActive={isActive}
+                        isCompleted={isCompleted}
+                      />
+                      <span
+                        className={`text-sm font-medium whitespace-nowrap ${
+                          isActive
+                            ? 'text-[#163300]'
+                            : isCompleted
+                            ? 'text-[#163300]'
+                            : 'text-gray-400'
+                        }`}
+                      >
+                        {subStep.label}
+                      </span>
+                    </div>
+                  </React.Fragment>
                 );
               })}
             </div>

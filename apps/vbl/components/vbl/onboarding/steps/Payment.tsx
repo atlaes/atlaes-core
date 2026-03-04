@@ -41,9 +41,9 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
       </p>
 
       {/* Payment Card */}
-      <div className="bg-[#F0FDE4] rounded-xl p-6 mb-6">
+      <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6">
         {/* Deposit Amount */}
-        <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#163300]/10">
+        <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
           <span className="font-medium text-gray-700">Refundable deposit (minimum fee):</span>
           <span className="text-3xl font-bold text-[#163300]">€199</span>
         </div>

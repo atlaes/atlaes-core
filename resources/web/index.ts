@@ -16,16 +16,16 @@ export const atlaesWebsite = new sst.aws.StaticSite('AtlaesWebsite', {
   $app.stage === 'production' ? 'atlaes.de' : 'staging.atlaes.de',
 });
 
-//   export const vblApp = new sst.aws.Nextjs('VBLApp', {
-//   path: 'apps/vbl',
-//   environment: {
-//     NEXT_PUBLIC_API_URL: $app.stage === 'production' ? 'https://api.atlaes.de' : 'https://staging.api.atlaes.de',
-//   },
-//   domain:
-//   $app.stage === 'production'
-//       ? 'vbl.atlaes.de'
-//       : 'staging.vbl.atlaes.de',
-// });
+  export const vblApp = new sst.aws.Nextjs('VBLApp', {
+  path: 'apps/vbl',
+  environment: {
+    NEXT_PUBLIC_API_URL: $app.stage === 'production' ? 'https://api.atlaes.de' : 'https://staging.api.atlaes.de',
+  },
+  domain:
+  $app.stage === 'production'
+      ? 'vbl.atlaes.de'
+      : 'staging.vbl.atlaes.de',
+});
 
 //  export const gprApp = new sst.aws.Nextjs('GPRApp', {
 //   path: 'apps/gpr',

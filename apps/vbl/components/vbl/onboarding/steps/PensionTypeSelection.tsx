@@ -1,14 +1,21 @@
 'use client';
 
-import React from 'react';
-import { ArrowRight, ArrowUpRight, Info, Shield } from 'lucide-react';
+import React, { ReactNode } from 'react';
+import { ArrowRight, Info } from 'lucide-react';
+import { CompanyPensionLogo } from '@/components/vbl/icons/CompanyPensionLogo';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 
 interface PensionTypeSelectionProps {
   onNext: () => void;
+  headerTitle?: string;
+  headerIcon?: ReactNode;
 }
 
-export const PensionTypeSelection: React.FC<PensionTypeSelectionProps> = ({ onNext }) => {
+export const PensionTypeSelection: React.FC<PensionTypeSelectionProps> = ({
+  onNext,
+  headerTitle,
+  headerIcon,
+}) => {
   const { updateData } = useOnboarding();
 
   const handlePublicSector = () => {
@@ -23,17 +30,17 @@ export const PensionTypeSelection: React.FC<PensionTypeSelectionProps> = ({ onNe
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden">
+      <div className="w-full max-w-[1000px] bg-white rounded-2xl shadow-xl overflow-hidden">
         {/* Dark Green Header - Simplified version without steps */}
         <div
           className="px-8 py-6"
           style={{ backgroundColor: '#163300' }}
         >
           <div className="flex items-center justify-center gap-3">
-            <div className="w-10 h-10 bg-[#9FE870] rounded-lg flex items-center justify-center">
-              <Shield className="w-6 h-6 text-[#163300]" />
-            </div>
-            <h1 className="text-white text-xl font-semibold">Supplementary Pension Refund</h1>
+            {headerIcon ?? <CompanyPensionLogo />}
+            {headerTitle && (
+              <h1 className="text-[#9FE870] text-xl font-semibold">{headerTitle}</h1>
+            )}
           </div>
         </div>
 
@@ -42,11 +49,12 @@ export const PensionTypeSelection: React.FC<PensionTypeSelectionProps> = ({ onNe
           <div className="max-w-lg mx-auto">
             {/* Title */}
             <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-              Which pension refund would you like to claim first?
+              Which pension would you like to claim first?
             </h2>
             <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
             <p className="text-gray-600 text-center mb-8">
-              Choose which pension to process. You can claim the other one afterwards.
+              You can only submit one claim at a time. Choose which pension to
+              process first — you can start the other claim afterwards.
             </p>
 
             {/* Option Cards */}
@@ -88,7 +96,7 @@ export const PensionTypeSelection: React.FC<PensionTypeSelectionProps> = ({ onNe
                   <p className="font-semibold text-gray-900">Private Sector Pension</p>
                   <p className="text-sm text-gray-500">BVV</p>
                 </div>
-                <ArrowUpRight className="w-6 h-6 text-gray-400" />
+                <ArrowRight className="w-6 h-6 text-gray-400" />
               </button>
             </div>
 

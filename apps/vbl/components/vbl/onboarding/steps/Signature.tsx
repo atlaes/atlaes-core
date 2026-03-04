@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { ArrowRight, Pencil, Upload, Undo2, Redo2, Trash2 } from 'lucide-react';
+import { ArrowRight, Pencil, Upload, Undo2, Redo2, Trash2, Loader2 } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import { uploadSignature as uploadSignatureApi } from '@/lib/onboarding-api';
 
 interface SignatureProps {
   onNext: () => void;
@@ -11,11 +12,13 @@ interface SignatureProps {
 type SignatureMode = 'draw' | 'upload';
 
 export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
-  const { data, updateSignature } = useOnboarding();
+  const { data, updateData, updateSignature } = useOnboarding();
   const [mode, setMode] = useState<SignatureMode>(
     data.signature.signatureType === 'upload' ? 'upload' : 'draw'
   );
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
 
@@ -214,6 +217,24 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
     [updateSignature]
   );
 
+  const handleContinue = useCallback(async () => {
+    const sigData = data.signature.signatureData;
+    if (!sigData) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      const result = await uploadSignatureApi(sigData);
+      updateData({ signatureId: result.signature.id });
+      onNext();
+    } catch (err) {
+      console.error('Signature upload error:', err);
+      setUploadError('Failed to upload signature. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  }, [data.signature.signatureData, updateData, onNext]);
+
   const canProceed =
     data.signature.signatureData !== undefined || data.signature.signatureFile !== null;
 
@@ -350,18 +371,34 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
         </div>
       )}
 
+      {/* Upload Error */}
+      {uploadError && (
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          {uploadError}
+        </div>
+      )}
+
       {/* Continue Button */}
       <button
-        onClick={onNext}
-        disabled={!canProceed}
+        onClick={handleContinue}
+        disabled={!canProceed || isUploading}
         className={`w-full mt-8 py-4 px-6 font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors ${
-          canProceed
+          canProceed && !isUploading
             ? 'bg-[#9FE870] text-[#163300] hover:bg-[#8AD860]'
             : 'bg-gray-200 text-gray-500 cursor-not-allowed'
         }`}
       >
-        Continue
-        <ArrowRight className="w-4 h-4" />
+        {isUploading ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Uploading...
+          </>
+        ) : (
+          <>
+            Continue
+            <ArrowRight className="w-4 h-4" />
+          </>
+        )}
       </button>
     </div>
   );

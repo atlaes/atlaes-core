@@ -423,8 +423,11 @@ auth.post(
         gprApplication, // Include the migrated application if available
       });
     } catch (error) {
+      if (error instanceof Error && error.message === 'Invalid or expired magic link') {
+        return c.json({ error: 'Invalid or expired magic link' }, 400);
+      }
       logger.error('Magic link verification error:', error);
-      return c.json({ error: 'Invalid or expired magic link' }, 400);
+      return c.json({ error: 'Account creation failed. Please try again.' }, 500);
     }
   }
 );
