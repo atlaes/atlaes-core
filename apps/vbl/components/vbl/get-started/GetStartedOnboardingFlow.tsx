@@ -141,6 +141,7 @@ export function GetStartedOnboardingFlow() {
           if (data.documentId) {
             await attachDocument(claimId, data.documentId, 'passport');
           }
+          await markStepComplete(claimId, 'claimType');
           await markStepComplete(claimId, 'passportUpload');
           break;
         }
@@ -148,6 +149,7 @@ export function GetStartedOnboardingFlow() {
           await updateClaim(claimId, {
             svNummer: data.membership.membershipNumber || undefined,
           });
+          await markStepComplete(claimId, 'germanSocialInsurance');
           break;
         case 'address':
           await updateClaim(claimId, {

@@ -361,8 +361,10 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       setCurrentSubStep('signature');
     } else if (steps.currentAddress) {
       setCurrentSubStep('bank-details');
-    } else if (steps.passportUpload) {
+    } else if (steps.germanSocialInsurance) {
       setCurrentSubStep('address');
+    } else if (steps.passportUpload) {
+      setCurrentSubStep('membership');
     } else {
       setCurrentSubStep('identity');
     }
