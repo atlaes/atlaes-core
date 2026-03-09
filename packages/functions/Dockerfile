@@ -8,18 +8,16 @@ RUN apk add --no-cache libc6-compat python3 make g++ vips-dev
 WORKDIR /app
 
 COPY package.json ./
-COPY package-lock.json ./
 COPY tsconfig.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Build stage
 FROM base AS builder
 RUN apk add --no-cache libc6-compat python3 make g++ vips-dev
 WORKDIR /app
 COPY package.json ./
-COPY package-lock.json ./
 COPY tsconfig.json ./
-RUN npm ci
+RUN npm install
 
 # Copy source code and build script
 COPY src ./src
