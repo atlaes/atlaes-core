@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Mail } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { requestMagicLink, verifyMagicLink } from '@/lib/onboarding-api';
 import { apiClient } from '@/lib/api';
@@ -15,6 +15,7 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
   const [email, setEmail] = useState(data.email);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +24,7 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
     setIsSubmitting(true);
     setError(null);
     try {
-      const result = await requestMagicLink(email, '/get-started');
+      const result = await requestMagicLink(email, '/get-started?fromAuth=1');
 
       // In dev mode, the API returns the magic link URL so we can auto-verify
       if (result.magicLink) {
@@ -43,9 +44,9 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
         }
       }
 
-      // In production, show message that magic link was sent
+      // In production, show "check your email" message instead of advancing
       updateData({ email, authMethod: 'email' });
-      onNext();
+      setMagicLinkSent(true);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to send magic link';
       setError(message);
@@ -77,6 +78,30 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
       setIsSubmitting(false);
     }
   };
+
+  if (magicLinkSent) {
+    return (
+      <div className="max-w-md mx-auto text-center">
+        <div className="w-16 h-16 bg-[#9FE870]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Mail className="h-8 w-8 text-[#163300]" />
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          Check your email
+        </h2>
+        <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
+        <p className="text-gray-600 mb-6">
+          We sent a secure login link to <strong>{email}</strong>.
+          Click the link in the email to verify your account and continue.
+        </p>
+        <button
+          onClick={() => setMagicLinkSent(false)}
+          className="text-sm text-gray-500 underline hover:text-gray-700 transition-colors"
+        >
+          Use a different email
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto">
