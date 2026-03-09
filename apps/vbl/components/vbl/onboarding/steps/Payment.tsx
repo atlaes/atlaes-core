@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { CreditCard, Check } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import { createClaim } from '@/lib/onboarding-api';
 
 interface PaymentProps {
   onNext: () => void;
@@ -19,10 +20,19 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
       // Simulate payment processing
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
+      // Create the claim immediately after payment so subsequent steps can save incrementally
+      const claimResult = await createClaim();
+      const claimId = claimResult.claim.id;
+
       updateData({
         paymentCompleted: true,
         paymentReference: `PAY-${Date.now()}`,
+        claimId,
       });
+
+      // Persist claimId for resume across page refreshes
+      localStorage.setItem('vbl_draft_claimId', claimId);
+
       onNext();
     } finally {
       setIsProcessing(false);

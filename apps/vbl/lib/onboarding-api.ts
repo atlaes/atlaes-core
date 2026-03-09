@@ -109,6 +109,11 @@ export interface ClaimResponse {
   };
 }
 
+export async function getClaim(claimId: string): Promise<ClaimResponse> {
+  const { data } = await apiClient.get(`/claims/${claimId}`);
+  return data;
+}
+
 export async function createClaim(): Promise<ClaimResponse> {
   const { data } = await apiClient.post('/claims', {});
   return data;

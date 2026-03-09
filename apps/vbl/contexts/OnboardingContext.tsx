@@ -122,6 +122,9 @@ interface OnboardingContextType {
   updateSignature: (updates: Partial<OnboardingSignature>) => void;
   updateSuccessData: (updates: Partial<OnboardingSuccessData>) => void;
 
+  // Resume from backend claim
+  loadFromClaim: (claim: Record<string, unknown>) => void;
+
   // Navigation helpers
   canProceedFromStep: (step: 1 | 2 | 3) => boolean;
   canProceedFromSubStep: (subStep: SubmitDetailsSubStep) => boolean;
@@ -309,6 +312,60 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     return completed;
   }, [canProceedFromSubStep]);
 
+  const loadFromClaim = useCallback((claim: Record<string, unknown>) => {
+    const str = (v: unknown) => (typeof v === 'string' ? v : '');
+    const fullName = [str(claim.firstName), str(claim.lastName)].filter(Boolean).join(' ');
+
+    setData((prev) => ({
+      ...prev,
+      claimId: str(claim.id),
+      paymentCompleted: true,
+      identity: {
+        ...prev.identity,
+        fullName,
+        firstName: str(claim.firstName),
+        lastName: str(claim.lastName),
+        dateOfBirth: str(claim.dateOfBirth),
+        gender: (str(claim.gender) as OnboardingIdentity['gender']) || '',
+        passportNumber: str(claim.passportNumber),
+        nationality: str(claim.nationality),
+        placeOfBirth: str(claim.placeOfBirth),
+        passportIssueDate: str(claim.passportIssueDate),
+        passportExpiryDate: str(claim.passportExpiryDate),
+      },
+      membership: {
+        ...prev.membership,
+        membershipNumber: str(claim.svNummer),
+      },
+      address: {
+        streetAndNumber: str(claim.currentAddressLine1),
+        postalCode: str(claim.currentPostalCode),
+        city: str(claim.currentCity),
+        country: str(claim.currentCountry),
+      },
+      bankDetails: {
+        ...prev.bankDetails,
+        iban: str(claim.iban),
+        accountHolder: str(claim.accountHolderName),
+      },
+    }));
+
+    // Determine which substep to resume at based on completedSteps
+    const steps = (claim.completedSteps as Record<string, boolean>) || {};
+    setCurrentStep(3);
+    if (steps.signDocuments) {
+      setCurrentSubStep('review');
+    } else if (steps.bankDetails) {
+      setCurrentSubStep('signature');
+    } else if (steps.currentAddress) {
+      setCurrentSubStep('bank-details');
+    } else if (steps.passportUpload) {
+      setCurrentSubStep('address');
+    } else {
+      setCurrentSubStep('identity');
+    }
+  }, []);
+
   const resetOnboarding = useCallback(() => {
     setCurrentStep(1);
     setCurrentSubStep('identity');
@@ -330,6 +387,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         updateBankDetails,
         updateSignature,
         updateSuccessData,
+        loadFromClaim,
         canProceedFromStep,
         canProceedFromSubStep,
         getCompletedSubSteps,

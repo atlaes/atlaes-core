@@ -4,10 +4,6 @@ import React, { useState } from 'react';
 import { ArrowRight, User, CreditCard as CardIcon, MapPin, Landmark, PenTool, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { useOnboarding, SubmitDetailsSubStep } from '@/contexts/OnboardingContext';
 import {
-  createClaim,
-  updateClaim,
-  attachDocument,
-  attachSignatureToClaim,
   submitClaim,
   markStepComplete,
 } from '@/lib/onboarding-api';
@@ -51,7 +47,7 @@ interface ReviewSubmitProps {
 }
 
 export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onEditSection }) => {
-  const { data, updateData, updateSuccessData, setCurrentSubStep, canProceedFromSubStep } = useOnboarding();
+  const { data, updateSuccessData, setCurrentSubStep, canProceedFromSubStep } = useOnboarding();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
@@ -90,59 +86,21 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
     setIsSubmitting(true);
     setSubmitError(null);
     try {
-      // 1. Create claim
-      const claimResult = await createClaim();
-      const claimId = claimResult.claim.id;
-      updateData({ claimId });
-
-      // 2. Update claim with all collected data
-      // Prefer OCR-extracted first/last over splitting fullName
-      const firstName = data.identity.firstName || data.identity.fullName.trim().split(/\s+/)[0] || '';
-      const lastName = data.identity.lastName || data.identity.fullName.trim().split(/\s+/).slice(1).join(' ') || '';
-
-      await updateClaim(claimId, {
-        claimType: 'own_refund',
-        firstName,
-        lastName,
-        dateOfBirth: data.identity.dateOfBirth || undefined,
-        gender: data.identity.gender || undefined,
-        passportNumber: data.identity.passportNumber || undefined,
-        nationality: data.identity.nationality || undefined,
-        placeOfBirth: data.identity.placeOfBirth || undefined,
-        passportIssueDate: data.identity.passportIssueDate || undefined,
-        passportExpiryDate: data.identity.passportExpiryDate || undefined,
-        currentAddressLine1: data.address.streetAndNumber,
-        currentPostalCode: data.address.postalCode,
-        currentCity: data.address.city,
-        currentCountry: data.address.country,
-        iban: data.bankDetails.iban || undefined,
-        accountHolderName: data.bankDetails.accountHolder || undefined,
-      });
-
-      // 3. Attach document (passport) if uploaded
-      if (data.documentId) {
-        await attachDocument(claimId, data.documentId, 'passport');
+      const claimId = data.claimId;
+      if (!claimId) {
+        throw new Error('No claim found. Please restart the onboarding process.');
       }
 
-      // 4. Attach signature if uploaded
-      if (data.signatureId) {
-        await attachSignatureToClaim(claimId, data.signatureId);
-      }
+      // Mark final review steps as complete
+      await markStepComplete(claimId, 'reviewInformation');
+      await markStepComplete(claimId, 'finalConfirmation');
 
-      // 5. Mark VBL-relevant steps as complete
-      await Promise.all([
-        markStepComplete(claimId, 'claimType'),
-        markStepComplete(claimId, 'passportUpload'),
-        markStepComplete(claimId, 'currentAddress'),
-        markStepComplete(claimId, 'signDocuments'),
-        markStepComplete(claimId, 'reviewInformation'),
-        markStepComplete(claimId, 'finalConfirmation'),
-      ]);
-
-      // 6. Submit claim
+      // Submit the claim (data was already saved incrementally per substep)
       const submitResult = await submitClaim(claimId);
 
-      // Update success data with real submission info
+      // Clean up draft from localStorage
+      localStorage.removeItem('vbl_draft_claimId');
+
       updateSuccessData({
         submissionId: submitResult.claim.id,
         submittedAt: submitResult.claim.submittedAt as string || new Date().toISOString(),
