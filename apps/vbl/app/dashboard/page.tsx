@@ -144,7 +144,7 @@ export default function DashboardPage() {
                 Your Applications
               </h2>
               <button
-                onClick={() => router.push('/calculator/onboarding')}
+                onClick={() => router.push('/get-started')}
                 className="flex items-center gap-2 py-2 px-4 bg-[#9FE870] text-[#163300] font-semibold rounded-lg hover:bg-[#8AD860] transition-colors text-sm"
               >
                 <Plus className="w-4 h-4" />
@@ -189,7 +189,7 @@ export default function DashboardPage() {
                   of the process.
                 </p>
                 <button
-                  onClick={() => router.push('/calculator/onboarding')}
+                  onClick={() => router.push('/get-started')}
                   className="inline-flex items-center gap-2 py-3 px-6 bg-[#9FE870] text-[#163300] font-semibold rounded-lg hover:bg-[#8AD860] transition-colors"
                 >
                   Start New Application
@@ -255,7 +255,7 @@ export default function DashboardPage() {
                       {claim.status === 'draft' && (
                         <button
                           onClick={() =>
-                            router.push('/calculator/onboarding')
+                            router.push('/get-started')
                           }
                           className="flex items-center gap-1 text-sm font-medium text-[#163300] hover:opacity-70 transition-opacity"
                         >
