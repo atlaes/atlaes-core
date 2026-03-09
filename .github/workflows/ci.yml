@@ -81,3 +81,11 @@ jobs:
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: test-jwt-secret-key-for-ci
           NODE_ENV: test
+
+      - name: Run tests
+        run: pnpm --filter functions test:run
+        env:
+          DATABASE_URL: postgresql://vbl_user:vbl_password@localhost:5432/vbl_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-jwt-secret-key-for-ci
+          NODE_ENV: test
