@@ -1,6 +1,7 @@
 import { cluster } from '../network';
 import { postgres } from '../database';
 import { bucket } from '../storage';
+import { email } from '../email';
 
 export const backend = new sst.aws.Service('AtlaesBackend', {
   cluster,
@@ -8,7 +9,7 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
     context: 'packages/functions',
     dockerfile: 'Dockerfile',
   },
-  link: [postgres, bucket],
+  link: [postgres, bucket, email],
   environment: {
     FRONTEND_URL: $app.stage === 'production'
       ? 'https://vbl.atlaes.de'
@@ -16,6 +17,7 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
     JWT_SECRET: 'a-proper-32-char-minimum-secret-for-staging-env',
     NODE_ENV: 'production',
     MINDEE_API: process.env.MINDEE_API ?? '',
+    SES_FROM_EMAIL: 'noreply@atlaes.de',
   },
   loadBalancer: {
     domain:

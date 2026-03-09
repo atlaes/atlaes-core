@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useOnboarding, SUBMIT_DETAILS_SUBSTEPS, SubmitDetailsSubStep } from '@/contexts/OnboardingContext';
 import { useEligibility } from '@/contexts/EligibilityContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { GetStartedLayout } from './GetStartedLayout';
 import { CreateAccount } from '@/components/vbl/onboarding/steps/CreateAccount';
 import { Payment } from '@/components/vbl/onboarding/steps/Payment';
@@ -18,6 +19,7 @@ import { DRVUpsellModal } from '@/components/vbl/onboarding/DRVUpsellModal';
 
 export function GetStartedOnboardingFlow() {
   const router = useRouter();
+  const { user } = useAuth();
   const { data: eligibilityData } = useEligibility();
   const {
     data,
@@ -28,6 +30,15 @@ export function GetStartedOnboardingFlow() {
     setCurrentSubStep,
     updateSuccessData,
   } = useOnboarding();
+
+  // Auto-advance past CreateAccount when user is already authenticated
+  // (e.g. arriving via magic link redirect back to /get-started)
+  useEffect(() => {
+    if (user && currentStep === 1) {
+      updateData({ email: user.email, authMethod: 'email', userId: user.id });
+      setCurrentStep(2);
+    }
+  }, [user, currentStep, updateData, setCurrentStep]);
 
   // Set pension type from eligibility data on mount
   useEffect(() => {

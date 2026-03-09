@@ -22,6 +22,7 @@ function MagicLinkPageContent() {
     const handleMagicLink = async () => {
       try {
         const token = searchParams?.get('token');
+        const redirectTo = searchParams?.get('redirect') || '/dashboard';
 
         if (!token) {
           setStatus('error');
@@ -32,10 +33,10 @@ function MagicLinkPageContent() {
         await verifyMagicLink(token);
 
         setStatus('success');
-        setMessage('Login successful! Redirecting to dashboard...');
+        setMessage('Login successful! Redirecting...');
 
         setTimeout(() => {
-          router.push('/dashboard');
+          router.push(redirectTo);
         }, 2000);
       } catch (error: unknown) {
         setStatus('error');
@@ -86,7 +87,7 @@ function MagicLinkPageContent() {
                 <p className="text-gray-600 mb-4">{message}</p>
                 <div className="animate-pulse">
                   <p className="text-sm text-gray-500">
-                    Redirecting to dashboard...
+                    Redirecting...
                   </p>
                 </div>
               </>

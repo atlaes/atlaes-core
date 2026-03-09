@@ -23,7 +23,7 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
     setIsSubmitting(true);
     setError(null);
     try {
-      const result = await requestMagicLink(email);
+      const result = await requestMagicLink(email, '/get-started');
 
       // In dev mode, the API returns the magic link URL so we can auto-verify
       if (result.magicLink) {

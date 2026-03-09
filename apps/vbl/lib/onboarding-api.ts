@@ -16,8 +16,8 @@ export interface VerifyMagicLinkResponse {
   isNewUser: boolean;
 }
 
-export async function requestMagicLink(email: string): Promise<MagicLinkResponse> {
-  const { data } = await apiClient.post('/auth/magic-link/request', { email });
+export async function requestMagicLink(email: string, redirectUrl?: string): Promise<MagicLinkResponse> {
+  const { data } = await apiClient.post('/auth/magic-link/request', { email, redirectUrl });
   return data;
 }
 

@@ -15,6 +15,7 @@ import {
 import { UserService } from '../services/user';
 import { authMiddleware } from '../middleware/auth';
 import { GPRApplicationService } from '../services/gpr-application';
+import { sendMagicLinkEmail } from '../services/email';
 
 const auth = new Hono();
 
@@ -252,6 +253,7 @@ auth.get('/test-env', async (c) => {
 // Extended magic link request schema with optional GPR session data
 const extendedMagicLinkRequestSchema = z.object({
   email: z.string().email(),
+  redirectUrl: z.string().startsWith('/').max(200).optional(),
   gprSessionData: z
     .object({
       calculatorData: z.object({
@@ -307,7 +309,7 @@ auth.post(
   zValidator('json', extendedMagicLinkRequestSchema),
   async (c) => {
     try {
-      const { email, gprSessionData } = c.req.valid('json');
+      const { email, redirectUrl, gprSessionData } = c.req.valid('json');
 
       // Debug: Check if JWT_SECRET is available
       logger.info('JWT_SECRET available:', !!getJwtSecret());
@@ -336,16 +338,24 @@ auth.post(
 
       // Generate magic link token (works for both existing and new users)
       const token = AuthService.generateMagicLinkToken(email);
-      const magicLinkUrl = AuthService.generateMagicLinkUrl(token, env.FRONTEND_URL);
+      const baseMagicLinkUrl = AuthService.generateMagicLinkUrl(token, env.FRONTEND_URL);
+      const magicLinkUrl = redirectUrl
+        ? `${baseMagicLinkUrl}&redirect=${encodeURIComponent(redirectUrl)}`
+        : baseMagicLinkUrl;
 
-      // TODO: Send email with magic link
-      // For now, we'll log it for development
+      // Send magic link email (skips in local dev, sends via SES in prod)
+      await sendMagicLinkEmail(email, magicLinkUrl);
       logger.info(`Magic link for ${email}: ${magicLinkUrl}`);
 
-      return c.json({
+      // Only include magic link in response during development (for auto-verify)
+      const response: Record<string, string> = {
         message: 'Magic link sent to your email address.',
-        magicLink: magicLinkUrl, // Always show magic link for testing
-      });
+      };
+      if (env.NODE_ENV === 'development') {
+        response.magicLink = magicLinkUrl;
+      }
+
+      return c.json(response);
     } catch (error) {
       logger.error('Magic link request error:', error);
       logger.error('Error details:', {
