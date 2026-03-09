@@ -123,7 +123,8 @@ interface OnboardingContextType {
   updateSuccessData: (updates: Partial<OnboardingSuccessData>) => void;
 
   // Resume from backend claim
-  loadFromClaim: (claim: Record<string, unknown>) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  loadFromClaim: (claim: Record<string, any>) => void;
 
   // Navigation helpers
   canProceedFromStep: (step: 1 | 2 | 3) => boolean;
@@ -312,7 +313,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     return completed;
   }, [canProceedFromSubStep]);
 
-  const loadFromClaim = useCallback((claim: Record<string, unknown>) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const loadFromClaim = useCallback((claim: Record<string, any>) => {
     const str = (v: unknown) => (typeof v === 'string' ? v : '');
     const fullName = [str(claim.firstName), str(claim.lastName)].filter(Boolean).join(' ');
 
