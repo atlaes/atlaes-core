@@ -1,26 +1,26 @@
 'use client';
 
 import React, { ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
 import { ArrowLeft, Check } from 'lucide-react';
 import { CompanyPensionLogo } from '@/components/vbl/icons/CompanyPensionLogo';
-import { useOnboarding, SubmitDetailsSubStep, SUBMIT_DETAILS_SUBSTEPS } from '@/contexts/OnboardingContext';
+import { SubmitDetailsSubStep, SUBMIT_DETAILS_SUBSTEPS } from '@/contexts/OnboardingContext';
 
-interface OnboardingLayoutProps {
+interface GetStartedLayoutProps {
   children: ReactNode;
   showBack?: boolean;
   onBack?: () => void;
-  headerTitle?: string;
-  headerIcon?: ReactNode;
+  activeStep?: 1 | 2 | 3 | 4;
+  currentSubStep?: SubmitDetailsSubStep;
 }
 
 const MAIN_STEPS = [
-  { id: 1, label: 'Create account' },
-  { id: 2, label: 'Start claim' },
-  { id: 3, label: 'Submit Details' },
+  { id: 1, label: 'Eligibility' },
+  { id: 2, label: 'Create Account' },
+  { id: 3, label: 'Start Claim' },
+  { id: 4, label: 'Submit Details' },
 ] as const;
 
-// Icon components for sub-steps
+// Icon components for sub-steps (copied from OnboardingLayout)
 const SubStepIcon: React.FC<{ icon: string; isActive: boolean; isCompleted: boolean }> = ({
   icon,
   isActive,
@@ -82,28 +82,18 @@ const SubStepIcon: React.FC<{ icon: string; isActive: boolean; isCompleted: bool
   );
 };
 
-export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
+export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
   children,
-  showBack = true,
+  showBack = false,
   onBack,
-  headerTitle,
-  headerIcon,
+  activeStep = 1,
+  currentSubStep,
 }) => {
-  const router = useRouter();
-  const { currentStep, currentSubStep } = useOnboarding();
-
-  const handleBack = () => {
-    if (onBack) {
-      onBack();
-    } else {
-      router.back();
-    }
-  };
-
-  const isStepCompleted = (stepId: number) => stepId < currentStep;
-  const isStepActive = (stepId: number) => stepId === currentStep;
+  const isStepCompleted = (stepId: number) => stepId < activeStep;
+  const isStepActive = (stepId: number) => stepId === activeStep;
 
   const isSubStepCompleted = (subStepId: SubmitDetailsSubStep) => {
+    if (!currentSubStep) return false;
     const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === currentSubStep);
     const stepIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === subStepId);
     return stepIndex < currentIndex;
@@ -115,16 +105,10 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="w-full max-w-[1000px] bg-white rounded-2xl shadow-xl overflow-hidden">
         {/* Dark Green Header */}
-        <div
-          className="px-8 pt-6"
-          style={{ backgroundColor: '#163300' }}
-        >
-          {/* Logo and Title */}
+        <div className="px-8 pt-6" style={{ backgroundColor: '#163300' }}>
+          {/* Logo */}
           <div className="flex items-center justify-center gap-3 mb-6">
-            {headerIcon ?? <CompanyPensionLogo />}
-            {headerTitle && (
-              <h1 className="text-[#9FE870] text-xl font-semibold">{headerTitle}</h1>
-            )}
+            <CompanyPensionLogo />
           </div>
 
           {/* Divider */}
@@ -134,7 +118,6 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
           <div className="flex items-center justify-center">
             {MAIN_STEPS.map((step, index) => (
               <React.Fragment key={step.id}>
-                {/* Step Circle, Label, and Triangle */}
                 <div className="flex flex-col items-center">
                   <div className="flex items-center gap-2">
                     <div
@@ -197,9 +180,9 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
         {/* Content Area */}
         <div className="p-8">
           {/* Back Button */}
-          {showBack && (
+          {showBack && onBack && (
             <button
-              onClick={handleBack}
+              onClick={onBack}
               className="flex items-center gap-2 text-[#163300] font-medium mb-6 hover:opacity-70 transition-opacity"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -207,8 +190,8 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
             </button>
           )}
 
-          {/* Sub-step Tabs (only for Step 3) */}
-          {currentStep === 3 && (
+          {/* Sub-step Tabs (only for Step 4 - Submit Details) */}
+          {activeStep === 4 && currentSubStep && (
             <div className="flex items-stretch mb-8 rounded-[5px] overflow-hidden" style={{ border: '0.84px solid #E5E7EB' }}>
               {SUBMIT_DETAILS_SUBSTEPS.map((subStep, index) => {
                 const isActive = isSubStepActive(subStep.id);
@@ -245,7 +228,6 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
             </div>
           )}
 
-          {/* Step Content */}
           {children}
         </div>
       </div>
@@ -253,4 +235,4 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
   );
 };
 
-export default OnboardingLayout;
+export default GetStartedLayout;

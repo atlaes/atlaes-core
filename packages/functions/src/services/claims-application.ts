@@ -761,27 +761,10 @@ export class ClaimsApplicationService {
       const missingSteps: ClaimStepName[] = [];
       const errors: string[] = [];
 
-      // Required steps
-      const requiredSteps: ClaimStepName[] = [
-        'claimType',
-        'passportUpload',
-        'currentAddress',
-        'lastAddressInGermany',
-        'bankDetails',
-        'signDocuments',
-        'identityConfirmationForm',
-        'reviewInformation',
-        'finalConfirmation',
-      ];
+      // Detect if this is a VBL-style claim (own_refund without German address data)
+      const isVblClaim = claim.claimType === 'own_refund' && !claim.germanStreet;
 
-      for (const step of requiredSteps) {
-        if (!claim.completedSteps[step]) {
-          missingSteps.push(step);
-        }
-      }
-
-      // Check required fields
-      if (!claim.claimType) errors.push('Claim type is required');
+      // Universal checks — required for all claim types
       if (!claim.firstName) errors.push('First name is required');
       if (!claim.lastName) errors.push('Last name is required');
       if (!claim.dateOfBirth) errors.push('Date of birth is required');
@@ -789,22 +772,46 @@ export class ClaimsApplicationService {
       if (!claim.currentAddressLine1) errors.push('Current address is required');
       if (!claim.currentCity) errors.push('Current city is required');
       if (!claim.currentCountry) errors.push('Current country is required');
-      if (!claim.germanStreet) errors.push('German address is required');
-      if (!claim.germanCity) errors.push('German city is required');
-      if (!claim.moveOutDate) errors.push('Move out date is required');
-      if (!claim.accountHolderName) errors.push('Bank account holder name is required');
-      if (!claim.bankName) errors.push('Bank name is required');
       if (!claim.signatureId) errors.push('Signature is required');
-      if (!claim.confirmationAccuracyAccepted) errors.push('Accuracy confirmation is required');
-      if (!claim.confirmationAuthorizationAccepted) errors.push('Authorization confirmation is required');
 
-      // Check for required documents
+      // Check for passport document (required for all)
       const docs = await this.getClaimDocuments(claimId, userId);
       const hasPassport = docs.some((d) => d.documentRole === 'passport');
-      const hasCertifiedId = docs.some((d) => d.documentRole === 'certified_id_form');
-
       if (!hasPassport) errors.push('Passport document is required');
-      if (!hasCertifiedId) errors.push('Certified identity form is required');
+
+      // GPR-specific checks — only for full GPR claims
+      if (!isVblClaim) {
+        if (!claim.claimType) errors.push('Claim type is required');
+        if (!claim.germanStreet) errors.push('German address is required');
+        if (!claim.germanCity) errors.push('German city is required');
+        if (!claim.moveOutDate) errors.push('Move out date is required');
+        if (!claim.accountHolderName) errors.push('Bank account holder name is required');
+        if (!claim.bankName) errors.push('Bank name is required');
+        if (!claim.confirmationAccuracyAccepted) errors.push('Accuracy confirmation is required');
+        if (!claim.confirmationAuthorizationAccepted) errors.push('Authorization confirmation is required');
+
+        const hasCertifiedId = docs.some((d) => d.documentRole === 'certified_id_form');
+        if (!hasCertifiedId) errors.push('Certified identity form is required');
+
+        // Check required steps for GPR
+        const requiredSteps: ClaimStepName[] = [
+          'claimType',
+          'passportUpload',
+          'currentAddress',
+          'lastAddressInGermany',
+          'bankDetails',
+          'signDocuments',
+          'identityConfirmationForm',
+          'reviewInformation',
+          'finalConfirmation',
+        ];
+
+        for (const step of requiredSteps) {
+          if (!claim.completedSteps[step]) {
+            missingSteps.push(step);
+          }
+        }
+      }
 
       return {
         isValid: missingSteps.length === 0 && errors.length === 0,

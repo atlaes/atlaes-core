@@ -2,30 +2,10 @@
 /* tslint:disable */
 /* eslint-disable */
 /* deno-fmt-ignore-file */
+/* biome-ignore-all lint: auto-generated */
 
 declare module "sst" {
   export interface Resource {
-    "AtlaesBackend": {
-      "service": string
-      "type": "sst.aws.Service"
-      "url": string
-    }
-    "AtlaesBucket": {
-      "name": string
-      "type": "sst.aws.Bucket"
-    }
-    "AtlaesDatabase": {
-      "database": string
-      "host": string
-      "password": string
-      "port": number
-      "type": "sst.aws.Postgres"
-      "username": string
-    }
-    "AtlaesVpc": {
-      "bastion": string
-      "type": "sst.aws.Vpc"
-    }
     "AtlaesWebsite": {
       "type": "sst.aws.StaticSite"
       "url": string

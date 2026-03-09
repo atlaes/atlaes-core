@@ -78,36 +78,35 @@ export async function extractPassportData(
       };
     }
 
-    // Log the field names available in the Map
-    const fieldNames: string[] = [];
-    if (fieldsMap instanceof Map) {
-      fieldsMap.forEach((_, key) => fieldNames.push(key));
-    }
-    logger.info('Available fields in Map:', fieldNames);
+    // Log the field names available
+    const fieldNames = Array.from(fieldsMap.keys());
+    logger.info('Available fields:', fieldNames);
 
-    // Helper to get field value from InferenceFields Map
+    // Helper to get a simple string field value from InferenceFields
+    const getSimpleValue = (fieldName: string): string => {
+      try {
+        return fieldsMap.getSimpleField(fieldName).stringValue ?? '';
+      } catch {
+        return '';
+      }
+    };
+
+    // Helper to get a list field value (e.g. given_names, surnames) joined as a string
+    const getListValue = (fieldName: string): string => {
+      try {
+        return fieldsMap
+          .getListField(fieldName)
+          .simpleItems.map((item) => item.stringValue ?? '')
+          .filter(Boolean)
+          .join(' ');
+      } catch {
+        return '';
+      }
+    };
+
+    // Helper that tries simple field first, then list field
     const getFieldValue = (fieldName: string): string => {
-      // InferenceFields extends Map - use get() method
-      const field = fieldsMap.get(fieldName);
-
-      if (!field) return '';
-
-      // Log the field structure for debugging
-      logger.info(`Field ${fieldName}:`, JSON.stringify(field));
-
-      // Handle different field value structures (SimpleField, ObjectField, ListField)
-      if (typeof field === 'string') return field;
-      if ((field as any).value !== undefined && (field as any).value !== null) {
-        return String((field as any).value);
-      }
-      if ((field as any).content) return String((field as any).content);
-
-      // Handle ListField (array fields like given_names with items)
-      if ((field as any).items && Array.isArray((field as any).items) && (field as any).items.length > 0) {
-        return (field as any).items.map((item: { value?: string }) => item.value).filter(Boolean).join(' ');
-      }
-
-      return '';
+      return getSimpleValue(fieldName) || getListValue(fieldName);
     };
 
     // Map gender value
@@ -148,7 +147,11 @@ export async function extractPassportData(
       data: extractedData,
     };
   } catch (error) {
-    logger.error('Mindee OCR error:', error);
+    const errorDetail =
+      error instanceof Error
+        ? { message: error.message, name: error.name, stack: error.stack }
+        : { raw: String(error) };
+    logger.error('Mindee OCR error:', errorDetail);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'OCR processing failed',

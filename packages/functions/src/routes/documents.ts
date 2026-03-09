@@ -112,8 +112,8 @@ documentsRouter.post('/upload', authMiddleware, async (c) => {
         status: document.status,
         createdAt: document.createdAt,
       },
-      // Include OCR data if available
       ocr: ocrResult?.success ? ocrResult.data : null,
+      ocrError: ocrResult && !ocrResult.success ? ocrResult.error : undefined,
     });
   } catch (error) {
     logger.error('Document upload error:', error);

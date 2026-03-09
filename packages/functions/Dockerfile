@@ -2,32 +2,24 @@
 FROM node:20-alpine AS base
 
 
-# Install dependencies only when needed
+# Install production dependencies only
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat python3 make g++ vips-dev
 WORKDIR /app
 
-# Copy package files
 COPY package.json ./
+COPY package-lock.json ./
 COPY tsconfig.json ./
-# Configure npm with increased timeout and retries
-RUN npm config set fetch-timeout 600000 && \
-    npm config set fetch-retries 5 && \
-    npm config set fetch-retry-mintimeout 20000 && \
-    npm config set fetch-retry-maxtimeout 120000 && \
-    npm install --only=production
+RUN npm ci --omit=dev
 
 # Build stage
 FROM base AS builder
+RUN apk add --no-cache libc6-compat python3 make g++ vips-dev
 WORKDIR /app
 COPY package.json ./
+COPY package-lock.json ./
 COPY tsconfig.json ./
-# Configure npm with increased timeout and retries
-RUN npm config set fetch-timeout 600000 && \
-    npm config set fetch-retries 5 && \
-    npm config set fetch-retry-mintimeout 20000 && \
-    npm config set fetch-retry-maxtimeout 120000 && \
-    npm install
+RUN npm ci
 
 # Copy source code and build script
 COPY src ./src

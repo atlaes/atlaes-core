@@ -1,17 +1,85 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { Loader2, User, Mail, Calendar, MapPin, Phone } from 'lucide-react';
+import { getUserClaims } from '@/lib/onboarding-api';
+import { CompanyPensionLogo } from '@/components/vbl/icons/CompanyPensionLogo';
+import {
+  Loader2,
+  User,
+  Mail,
+  Calendar,
+  MapPin,
+  Phone,
+  LogOut,
+  Plus,
+  ArrowRight,
+  CheckCircle,
+} from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+interface Claim {
+  id: string;
+  status: string;
+  workflowState: string;
+  completedSteps: string[];
+  firstName?: string;
+  lastName?: string;
+  createdAt: string;
+  updatedAt: string;
+  submittedAt?: string;
+}
+
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; className: string; icon?: React.ReactNode }
+> = {
+  draft: {
+    label: 'Draft',
+    className: 'bg-gray-100 text-gray-700',
+  },
+  ready: {
+    label: 'Ready to Submit',
+    className: 'bg-[#9FE870] text-[#163300]',
+  },
+  submitted: {
+    label: 'Submitted',
+    className: 'bg-blue-100 text-blue-700',
+  },
+  processing: {
+    label: 'Processing',
+    className: 'bg-yellow-100 text-yellow-700',
+  },
+  completed: {
+    label: 'Completed',
+    className: 'bg-green-100 text-green-700',
+    icon: <CheckCircle className="w-3 h-3" />,
+  },
+  rejected: {
+    label: 'Rejected',
+    className: 'bg-red-100 text-red-700',
+  },
+};
+
+const TOTAL_STEPS = 10;
+
+function formatDate(dateString: string) {
+  return new Date(dateString).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 export default function DashboardPage() {
   const { user, isLoading, logout } = useAuth();
   const router = useRouter();
+  const [claims, setClaims] = useState<Claim[]>([]);
+  const [isLoadingClaims, setIsLoadingClaims] = useState(true);
+  const [claimsError, setClaimsError] = useState('');
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -19,13 +87,18 @@ export default function DashboardPage() {
     }
   }, [user, isLoading, router]);
 
+  useEffect(() => {
+    if (!user) return;
+    getUserClaims()
+      .then((res) => setClaims(res.claims))
+      .catch(() => setClaimsError('Failed to load applications'))
+      .finally(() => setIsLoadingClaims(false));
+  }, [user]);
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">Loading...</p>
-        </div>
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <Loader2 className="animate-spin h-8 w-8 text-[#163300]" />
       </div>
     );
   }
@@ -35,129 +108,235 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">
-                VBL Refund Dashboard
-              </h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-600">
-                Welcome, {user.profile?.firstName || user.email}
-              </span>
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-[1000px] bg-white rounded-2xl shadow-xl overflow-hidden">
+        {/* Dark Green Header */}
+        <div className="px-8 py-6" style={{ backgroundColor: '#163300' }}>
+          <div className="flex items-center justify-between">
+            <CompanyPensionLogo />
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 text-white/80 hover:text-white text-sm font-medium transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </button>
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="p-8">
+          {/* Welcome */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-[#163300]">
+              Welcome back
+              {user.profile?.firstName ? `, ${user.profile.firstName}` : ''}
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Manage your pension refund applications
+            </p>
+          </div>
+
+          {/* Claims Section */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-[#163300]">
+                Your Applications
+              </h2>
               <button
-                onClick={logout}
-                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+                onClick={() => router.push('/calculator/onboarding')}
+                className="flex items-center gap-2 py-2 px-4 bg-[#9FE870] text-[#163300] font-semibold rounded-lg hover:bg-[#8AD860] transition-colors text-sm"
               >
-                Logout
+                <Plus className="w-4 h-4" />
+                New Application
               </button>
             </div>
-          </div>
-        </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Profile Card */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center">
-                <User className="w-5 h-5 mr-2 text-blue-600" />
-                Profile Information
-              </h2>
-
-              <div className="space-y-4">
-                <div className="flex items-center">
-                  <Mail className="w-4 h-4 mr-3 text-gray-400" />
-                  <div>
-                    <p className="text-sm text-gray-500">Email</p>
-                    <p className="font-medium">{user.email}</p>
-                    {user.emailVerified && (
-                      <span className="text-xs text-green-600">✓ Verified</span>
-                    )}
-                  </div>
-                </div>
-
-                {user.profile && (
-                  <>
-                    <div className="flex items-center">
-                      <User className="w-4 h-4 mr-3 text-gray-400" />
-                      <div>
-                        <p className="text-sm text-gray-500">Name</p>
-                        <p className="font-medium">
-                          {user.profile.firstName} {user.profile.lastName}
-                        </p>
-                      </div>
-                    </div>
-
-                    {user.profile.dateOfBirth && (
-                      <div className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-3 text-gray-400" />
-                        <div>
-                          <p className="text-sm text-gray-500">Date of Birth</p>
-                          <p className="font-medium">
-                            {user.profile.dateOfBirth}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {user.profile.nationality && (
-                      <div className="flex items-center">
-                        <MapPin className="w-4 h-4 mr-3 text-gray-400" />
-                        <div>
-                          <p className="text-sm text-gray-500">Nationality</p>
-                          <p className="font-medium">
-                            {user.profile.nationality}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {user.profile.phone && (
-                      <div className="flex items-center">
-                        <Phone className="w-4 h-4 mr-3 text-gray-400" />
-                        <div>
-                          <p className="text-sm text-gray-500">Phone</p>
-                          <p className="font-medium">{user.profile.phone}</p>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Application Status */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4">Application Status</h2>
-
+            {isLoadingClaims ? (
               <div className="text-center py-12">
-                <div className="text-gray-400 mb-4">
-                  <User className="w-16 h-16 mx-auto" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No Application Started
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  Ready to start your German pension refund application? Click
-                  below to begin.
+                <Loader2 className="animate-spin h-6 w-6 text-[#163300] mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">
+                  Loading applications...
                 </p>
-                <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+              </div>
+            ) : claimsError ? (
+              <div className="text-center py-12">
+                <p className="text-red-600 text-sm">{claimsError}</p>
+              </div>
+            ) : claims.length === 0 ? (
+              /* Empty State */
+              <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
+                <div className="w-16 h-16 bg-[#F0FDE4] rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg
+                    className="w-8 h-8 text-[#163300]"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-[#163300] mb-2">
+                  Ready to start your German pension refund?
+                </h3>
+                <p className="text-gray-600 mb-6 max-w-sm mx-auto">
+                  Start your application and we'll guide you through every step
+                  of the process.
+                </p>
+                <button
+                  onClick={() => router.push('/calculator/onboarding')}
+                  className="inline-flex items-center gap-2 py-3 px-6 bg-[#9FE870] text-[#163300] font-semibold rounded-lg hover:bg-[#8AD860] transition-colors"
+                >
                   Start New Application
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
+            ) : (
+              /* Claims List */
+              <div className="space-y-4">
+                {claims.map((claim) => {
+                  const statusConfig =
+                    STATUS_CONFIG[claim.status] || STATUS_CONFIG.draft;
+                  const completedCount = Array.isArray(claim.completedSteps)
+                    ? claim.completedSteps.length
+                    : 0;
+                  const progressPercent = Math.round(
+                    (completedCount / TOTAL_STEPS) * 100
+                  );
+                  const displayName =
+                    claim.firstName && claim.lastName
+                      ? `${claim.firstName} ${claim.lastName}`
+                      : 'Untitled Application';
+
+                  return (
+                    <div
+                      key={claim.id}
+                      className="border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h3 className="font-semibold text-[#163300]">
+                            {displayName}
+                          </h3>
+                          <p className="text-sm text-gray-500 mt-0.5">
+                            Created {formatDate(claim.createdAt)}
+                          </p>
+                        </div>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.className}`}
+                        >
+                          {statusConfig.icon}
+                          {statusConfig.label}
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="mb-3">
+                        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                          <span>Progress</span>
+                          <span>
+                            {completedCount}/{TOTAL_STEPS} steps
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-[#9FE870] rounded-full transition-all"
+                            style={{ width: `${progressPercent}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* CTA for draft claims */}
+                      {claim.status === 'draft' && (
+                        <button
+                          onClick={() =>
+                            router.push('/calculator/onboarding')
+                          }
+                          className="flex items-center gap-1 text-sm font-medium text-[#163300] hover:opacity-70 transition-opacity"
+                        >
+                          Continue Application
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Profile Section */}
+          <div className="border-t border-gray-200 pt-6">
+            <h2 className="text-lg font-semibold text-[#163300] mb-4">
+              Profile
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex items-center gap-3">
+                <Mail className="w-4 h-4 text-gray-400 shrink-0" />
+                <div>
+                  <p className="text-xs text-gray-500">Email</p>
+                  <p className="text-sm font-medium text-[#163300]">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+
+              {user.profile?.firstName && (
+                <div className="flex items-center gap-3">
+                  <User className="w-4 h-4 text-gray-400 shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500">Name</p>
+                    <p className="text-sm font-medium text-[#163300]">
+                      {user.profile.firstName} {user.profile.lastName}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {user.profile?.dateOfBirth && (
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500">Date of Birth</p>
+                    <p className="text-sm font-medium text-[#163300]">
+                      {user.profile.dateOfBirth}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {user.profile?.nationality && (
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500">Nationality</p>
+                    <p className="text-sm font-medium text-[#163300]">
+                      {user.profile.nationality}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {user.profile?.phone && (
+                <div className="flex items-center gap-3">
+                  <Phone className="w-4 h-4 text-gray-400 shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500">Phone</p>
+                    <p className="text-sm font-medium text-[#163300]">
+                      {user.profile.phone}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

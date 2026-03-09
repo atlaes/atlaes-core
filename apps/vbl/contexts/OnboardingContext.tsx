@@ -7,8 +7,15 @@ export interface OnboardingIdentity {
   documentFile?: File | null;
   documentPreview?: string;
   fullName: string;
+  firstName: string;
+  lastName: string;
   dateOfBirth: string;
   gender: 'male' | 'female' | 'other' | '';
+  passportNumber: string;
+  nationality: string;
+  placeOfBirth: string;
+  passportIssueDate: string;
+  passportExpiryDate: string;
 }
 
 export interface OnboardingMembership {
@@ -131,8 +138,15 @@ const initialData: OnboardingData = {
   paymentCompleted: false,
   identity: {
     fullName: '',
+    firstName: '',
+    lastName: '',
     dateOfBirth: '',
     gender: '',
+    passportNumber: '',
+    nationality: '',
+    placeOfBirth: '',
+    passportIssueDate: '',
+    passportExpiryDate: '',
   },
   membership: {
     pensionProvider: '',
@@ -275,8 +289,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         return false;
       case 'signature':
         return (
-          data.signature.signatureData !== undefined ||
-          data.signature.signatureFile !== null
+          !!data.signature.signatureData ||
+          !!data.signature.signatureFile
         );
       case 'review':
         return true; // Review page is always valid

@@ -478,18 +478,20 @@ claims.put('/:id/steps/:stepName', authMiddleware, zValidator('json', stepComple
       );
     }
 
-    let completedSteps;
     if (completed) {
-      completedSteps = await ClaimsApplicationService.markStepComplete(claimId, user.id, stepName);
+      await ClaimsApplicationService.markStepComplete(claimId, user.id, stepName);
     } else {
-      completedSteps = await ClaimsApplicationService.markStepIncomplete(claimId, user.id, stepName);
+      await ClaimsApplicationService.markStepIncomplete(claimId, user.id, stepName);
     }
+
+    // Re-fetch the full claim so the frontend gets a complete object
+    const updatedClaim = await ClaimsApplicationService.getClaim(claimId, user.id);
 
     logger.info(`Step ${stepName} ${completed ? 'completed' : 'uncompleted'} for claim: ${claimId}`);
 
     return c.json({
       success: true,
-      completedSteps,
+      claim: updatedClaim,
     });
   } catch (error) {
     logger.error('Update step error:', error);

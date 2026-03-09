@@ -1,10 +1,10 @@
 'use client';
 
-import React, { ReactNode, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useOnboarding, SUBMIT_DETAILS_SUBSTEPS, SubmitDetailsSubStep } from '@/contexts/OnboardingContext';
-import { OnboardingLayout } from '@/components/vbl/onboarding/OnboardingLayout';
-import { PensionTypeSelection } from '@/components/vbl/onboarding/steps/PensionTypeSelection';
+import { useEligibility } from '@/contexts/EligibilityContext';
+import { GetStartedLayout } from './GetStartedLayout';
 import { CreateAccount } from '@/components/vbl/onboarding/steps/CreateAccount';
 import { Payment } from '@/components/vbl/onboarding/steps/Payment';
 import { Identity } from '@/components/vbl/onboarding/steps/Identity';
@@ -16,55 +16,39 @@ import { ReviewSubmit } from '@/components/vbl/onboarding/steps/ReviewSubmit';
 import { SuccessScreen } from '@/components/vbl/onboarding/steps/SuccessScreen';
 import { DRVUpsellModal } from '@/components/vbl/onboarding/DRVUpsellModal';
 
-interface OnboardingFlowProps {
-  headerTitle?: string;
-  headerIcon?: ReactNode;
-}
-
-export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps) {
+export function GetStartedOnboardingFlow() {
   const router = useRouter();
-  const { data, updateData, currentStep, currentSubStep, setCurrentStep, setCurrentSubStep, updateSuccessData } = useOnboarding();
+  const { data: eligibilityData } = useEligibility();
+  const {
+    data,
+    updateData,
+    currentStep,
+    currentSubStep,
+    setCurrentStep,
+    setCurrentSubStep,
+    updateSuccessData,
+  } = useOnboarding();
 
-  // Track if user has completed pension type selection (pre-step)
-  // Skip if arriving from the /get-started eligibility flow
-  const [showPensionTypeSelection, setShowPensionTypeSelection] = useState(
-    () => {
-      if (typeof window !== 'undefined') {
-        const eligibilityResult = sessionStorage.getItem('eligibility-result');
-        if (eligibilityResult) return false;
-      }
-      return data.pensionType === '';
-    }
-  );
-
-  // Process eligibility result from /get-started flow
+  // Set pension type from eligibility data on mount
   useEffect(() => {
-    const stored = sessionStorage.getItem('eligibility-result');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (parsed.eligible) {
-          updateData({ pensionType: 'public' });
-        }
-      } catch {
-        // Ignore parsing errors
-      }
-      sessionStorage.removeItem('eligibility-result');
+    if (data.pensionType === '') {
+      const pensionType =
+        eligibilityData.employmentType === 'private_sector'
+          ? 'private'
+          : 'public';
+      updateData({ pensionType });
     }
-  }, [updateData]);
+  }, [data.pensionType, eligibilityData.employmentType, updateData]);
 
   // Success screen and DRV modal state
   const [showSuccess, setShowSuccess] = useState(false);
   const [showDRVModal, setShowDRVModal] = useState(false);
 
-  // Example: determine DRV eligibility (in real app, this would come from backend)
   const drvEligibilityDate = '15 Mar 2027';
   const isDRVEligibleNow = false;
 
-  // Handle pension type selection completion
-  const handlePensionTypeNext = () => {
-    setShowPensionTypeSelection(false);
-  };
+  // Map onboarding step (1-3) to get-started step (2-4)
+  const activeStep = (currentStep + 1) as 2 | 3 | 4;
 
   // Navigation handlers
   const handleStep1Next = () => {
@@ -85,7 +69,8 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
 
   const handleBack = () => {
     if (currentStep === 1) {
-      setShowPensionTypeSelection(true);
+      // Don't go back past Create Account — eligibility is already confirmed
+      return;
     } else if (currentStep === 2) {
       setCurrentStep(1);
     } else if (currentStep === 3) {
@@ -98,7 +83,6 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
     }
   };
 
-  // Handle successful submission
   const handleSubmitSuccess = () => {
     updateSuccessData({
       submittedAt: new Date().toISOString(),
@@ -107,42 +91,27 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
     setShowSuccess(true);
   };
 
-  // Handle edit section from review
   const handleEditSection = (subStep: SubmitDetailsSubStep) => {
     setCurrentSubStep(subStep);
   };
 
-  // Handle DRV reminder
   const handleRemindDRV = () => {
     updateSuccessData({ drvReminderSet: true });
     setShowDRVModal(false);
   };
 
-  // Handle starting DRV claim
   const handleStartDRVClaim = () => {
     router.push('/calculator/drv');
   };
 
-  // Handle go to dashboard
   const handleGoToDashboard = () => {
     router.push('/dashboard');
   };
 
-  // If pension type not selected yet, show that screen
-  if (showPensionTypeSelection) {
-    return (
-      <PensionTypeSelection
-        onNext={handlePensionTypeNext}
-        headerTitle={headerTitle}
-        headerIcon={headerIcon}
-      />
-    );
-  }
-
-  // If submission was successful, show success screen
+  // Success screen
   if (showSuccess) {
     return (
-      <OnboardingLayout showBack={false} headerTitle={headerTitle} headerIcon={headerIcon}>
+      <GetStartedLayout showBack={false} activeStep={4} currentSubStep={currentSubStep}>
         <SuccessScreen
           onGoToDashboard={handleGoToDashboard}
           onStartDRVClaim={handleStartDRVClaim}
@@ -158,7 +127,7 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
           eligibilityDate={drvEligibilityDate}
           isEligibleNow={isDRVEligibleNow}
         />
-      </OnboardingLayout>
+      </GetStartedLayout>
     );
   }
 
@@ -176,7 +145,6 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
     }
   };
 
-  // Render Step 3 sub-step content
   const renderSubStep = () => {
     switch (currentSubStep) {
       case 'identity':
@@ -202,10 +170,15 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
   };
 
   return (
-    <OnboardingLayout showBack={true} onBack={handleBack} headerTitle={headerTitle} headerIcon={headerIcon}>
+    <GetStartedLayout
+      showBack={currentStep > 1}
+      onBack={handleBack}
+      activeStep={activeStep}
+      currentSubStep={currentStep === 3 ? currentSubStep : undefined}
+    >
       {renderStepContent()}
-    </OnboardingLayout>
+    </GetStartedLayout>
   );
 }
 
-export default OnboardingFlow;
+export default GetStartedOnboardingFlow;

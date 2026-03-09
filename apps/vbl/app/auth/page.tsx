@@ -1,53 +1,35 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import { LoginForm } from '../../components/auth/LoginForm';
-import { RegisterForm } from '../../components/auth/RegisterForm';
+import { CompanyPensionLogo } from '@/components/vbl/icons/CompanyPensionLogo';
+import { Loader2 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 function AuthPageContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [isLogin, setIsLogin] = useState(true);
-  const [loginMode, setLoginMode] = useState<'password' | 'magic-link'>(
-    'password'
-  );
-
-  useEffect(() => {
-    const mode = searchParams?.get('mode');
-    if (mode === 'magic-link') {
-      setLoginMode('magic-link');
-    }
-  }, [searchParams]);
 
   const handleSuccess = () => {
     router.push('/dashboard');
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
-      style={{
-        backgroundImage: `radial-gradient(circle, #e5e7eb 1px, transparent 1px)`,
-        backgroundSize: '20px 20px',
-      }}
-    >
-      <div className="max-w-md w-full space-y-8">
-        {isLogin ? (
-          <LoginForm
-            onSuccess={handleSuccess}
-            onSwitchToRegister={() => setIsLogin(false)}
-            initialMode={loginMode}
-          />
-        ) : (
-          <RegisterForm
-            onSuccess={handleSuccess}
-            onSwitchToLogin={() => setIsLogin(true)}
-          />
-        )}
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-[1000px] bg-white rounded-2xl shadow-xl overflow-hidden">
+        {/* Dark Green Header */}
+        <div className="px-8 py-6" style={{ backgroundColor: '#163300' }}>
+          <div className="flex items-center justify-center">
+            <CompanyPensionLogo />
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="p-8">
+          <LoginForm onSuccess={handleSuccess} />
+        </div>
       </div>
     </div>
   );
@@ -57,8 +39,8 @@ export default function AuthPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">Loading...</div>
+        <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+          <Loader2 className="animate-spin h-8 w-8 text-[#163300]" />
         </div>
       }
     >

@@ -48,9 +48,16 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
         // Auto-fill OCR data if available
         if (result.ocr) {
           updateIdentity({
-            fullName: result.ocr.fullName || `${result.ocr.firstName || ''} ${result.ocr.lastName || ''}`.trim(),
+            fullName: `${result.ocr.firstName || ''} ${result.ocr.lastName || ''}`.trim(),
+            firstName: result.ocr.firstName || '',
+            lastName: result.ocr.lastName || '',
             dateOfBirth: result.ocr.dateOfBirth || '',
             gender: (result.ocr.gender?.toLowerCase() as 'male' | 'female' | 'other') || '',
+            passportNumber: result.ocr.passportNumber || '',
+            nationality: result.ocr.nationality || '',
+            placeOfBirth: result.ocr.placeOfBirth || '',
+            passportIssueDate: result.ocr.passportIssueDate || '',
+            passportExpiryDate: result.ocr.passportExpiryDate || '',
           });
         }
 
@@ -229,7 +236,15 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
           <input
             type="text"
             value={data.identity.fullName}
-            onChange={(e) => updateIdentity({ fullName: e.target.value })}
+            onChange={(e) => {
+              const fullName = e.target.value;
+              const parts = fullName.trim().split(/\s+/);
+              updateIdentity({
+                fullName,
+                firstName: parts[0] || '',
+                lastName: parts.slice(1).join(' ') || '',
+              });
+            }}
             placeholder="John Smith"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
           />

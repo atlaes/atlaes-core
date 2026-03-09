@@ -4,8 +4,7 @@ import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { requestMagicLink, verifyMagicLink } from '@/lib/onboarding-api';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { apiClient } from '@/lib/api';
 
 interface CreateAccountProps {
   onNext: () => void;
@@ -58,15 +57,25 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
   const handleGoogleAuth = async () => {
     setIsSubmitting(true);
     setError(null);
-    // Redirect to backend Google OAuth flow
-    window.location.href = `${API_BASE_URL}/api/auth/google/authorize`;
+    try {
+      const { data } = await apiClient.get('/auth/google/authorize');
+      window.location.href = data.authUrl;
+    } catch {
+      setError('Google sign-in is not available');
+      setIsSubmitting(false);
+    }
   };
 
   const handleAppleAuth = async () => {
     setIsSubmitting(true);
     setError(null);
-    // Redirect to backend Apple Sign In flow
-    window.location.href = `${API_BASE_URL}/api/auth/apple/authorize`;
+    try {
+      const { data } = await apiClient.get('/auth/apple/authorize');
+      window.location.href = data.authUrl;
+    } catch {
+      setError('Apple sign-in is not available');
+      setIsSubmitting(false);
+    }
   };
 
   return (

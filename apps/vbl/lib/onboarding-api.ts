@@ -42,14 +42,18 @@ export interface DocumentUploadResponse {
     createdAt: string;
   };
   ocr: {
-    fullName: string;
     firstName: string;
     lastName: string;
     dateOfBirth: string;
     gender: string;
+    placeOfBirth: string;
     nationality: string;
     passportNumber: string;
-    expiryDate: string;
+    passportIssueDate: string;
+    passportExpiryDate: string;
+    issuingCountry: string;
+    mrz1?: string;
+    mrz2?: string;
   } | null;
 }
 
@@ -144,5 +148,20 @@ export async function submitClaim(
   claimId: string
 ): Promise<ClaimResponse & { message: string }> {
   const { data } = await apiClient.post(`/claims/${claimId}/submit`);
+  return data;
+}
+
+export async function markStepComplete(
+  claimId: string,
+  stepName: string
+): Promise<ClaimResponse> {
+  const { data } = await apiClient.put(`/claims/${claimId}/steps/${stepName}`, {
+    completed: true,
+  });
+  return data;
+}
+
+export async function getUserClaims() {
+  const { data } = await apiClient.get('/claims');
   return data;
 }

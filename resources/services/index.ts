@@ -15,6 +15,7 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
       : 'https://staging.vbl.atlaes.de',
     JWT_SECRET: 'a-proper-32-char-minimum-secret-for-staging-env',
     NODE_ENV: 'production',
+    MINDEE_API: process.env.MINDEE_API ?? '',
   },
   loadBalancer: {
     domain:

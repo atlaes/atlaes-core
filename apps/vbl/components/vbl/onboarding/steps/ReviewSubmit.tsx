@@ -9,6 +9,7 @@ import {
   attachDocument,
   attachSignatureToClaim,
   submitClaim,
+  markStepComplete,
 } from '@/lib/onboarding-api';
 
 const GENDER_LABELS: Record<string, string> = {
@@ -95,16 +96,21 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
       updateData({ claimId });
 
       // 2. Update claim with all collected data
-      // Split fullName into first/last for the backend schema
-      const nameParts = data.identity.fullName.trim().split(/\s+/);
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
+      // Prefer OCR-extracted first/last over splitting fullName
+      const firstName = data.identity.firstName || data.identity.fullName.trim().split(/\s+/)[0] || '';
+      const lastName = data.identity.lastName || data.identity.fullName.trim().split(/\s+/).slice(1).join(' ') || '';
 
       await updateClaim(claimId, {
+        claimType: 'own_refund',
         firstName,
         lastName,
-        dateOfBirth: data.identity.dateOfBirth,
-        gender: data.identity.gender,
+        dateOfBirth: data.identity.dateOfBirth || undefined,
+        gender: data.identity.gender || undefined,
+        passportNumber: data.identity.passportNumber || undefined,
+        nationality: data.identity.nationality || undefined,
+        placeOfBirth: data.identity.placeOfBirth || undefined,
+        passportIssueDate: data.identity.passportIssueDate || undefined,
+        passportExpiryDate: data.identity.passportExpiryDate || undefined,
         currentAddressLine1: data.address.streetAndNumber,
         currentPostalCode: data.address.postalCode,
         currentCity: data.address.city,
@@ -123,7 +129,17 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
         await attachSignatureToClaim(claimId, data.signatureId);
       }
 
-      // 5. Submit claim
+      // 5. Mark VBL-relevant steps as complete
+      await Promise.all([
+        markStepComplete(claimId, 'claimType'),
+        markStepComplete(claimId, 'passportUpload'),
+        markStepComplete(claimId, 'currentAddress'),
+        markStepComplete(claimId, 'signDocuments'),
+        markStepComplete(claimId, 'reviewInformation'),
+        markStepComplete(claimId, 'finalConfirmation'),
+      ]);
+
+      // 6. Submit claim
       const submitResult = await submitClaim(claimId);
 
       // Update success data with real submission info
