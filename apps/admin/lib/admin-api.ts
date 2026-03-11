@@ -8,6 +8,7 @@ export interface ClaimListItem {
   claimType: string | null;
   applicantName: string | null;
   applicantEmail: string | null;
+  paymentStatus: string | null;
   submittedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -61,6 +62,8 @@ export interface ClaimDetail {
   confirmationAccuracyAccepted: boolean | null;
   confirmationAuthorizationAccepted: boolean | null;
   paymentStatus: string | null;
+  stripePaymentId: string | null;
+  paidAt: string | null;
   serviceFee: string | null;
   submittedAt: string | null;
   createdAt: string;

@@ -19,6 +19,7 @@ import {
   MapPin,
   Building,
   CreditCard,
+  DollarSign,
   Clock,
   MessageSquare,
   Send,
@@ -304,6 +305,34 @@ export default function ClaimDetailPage() {
           </InfoGrid>
         </Section>
       )}
+
+      {/* Payment */}
+      <Section title="Payment" icon={<DollarSign className="h-4 w-4" />}>
+        <InfoGrid>
+          <InfoItem
+            label="Payment Status"
+            value={claim.paymentStatus}
+          />
+          <InfoItem label="Amount" value="€199.00" />
+          <InfoItem label="Paid At" value={formatDate(claim.paidAt)} />
+          <InfoItem label="Service Fee" value={claim.serviceFee ? `€${claim.serviceFee}` : null} />
+        </InfoGrid>
+        {claim.stripePaymentId && (
+          <div className="mt-3">
+            <dt className="text-xs text-gray-500">Stripe Payment ID</dt>
+            <dd className="text-sm">
+              <a
+                href={`https://dashboard.stripe.com/payments/${claim.stripePaymentId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-brand-dark underline hover:text-opacity-80"
+              >
+                {claim.stripePaymentId}
+              </a>
+            </dd>
+          </div>
+        )}
+      </Section>
 
       {/* Documents */}
       {documents.length > 0 && (

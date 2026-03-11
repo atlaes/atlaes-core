@@ -145,6 +145,8 @@ export interface Claim {
 
   // Payment
   paymentStatus: string | null;
+  stripePaymentId: string | null;
+  paidAt: Date | null;
   serviceFee: string | null;
 
   // Submission
@@ -236,6 +238,8 @@ function mapRowToClaim(row: any): Claim {
     confirmationAccuracyAccepted: row.confirmationAccuracyAccepted,
     confirmationAuthorizationAccepted: row.confirmationAuthorizationAccepted,
     paymentStatus: row.paymentStatus,
+    stripePaymentId: row.stripePaymentId,
+    paidAt: row.paidAt,
     serviceFee: row.serviceFee,
     submittedAt: row.submittedAt,
     createdAt: row.createdAt,
@@ -923,6 +927,7 @@ export class ClaimsApplicationService {
           firstName: claimsTable.firstName,
           lastName: claimsTable.lastName,
           submittedAt: claimsTable.submittedAt,
+          paymentStatus: claimsTable.paymentStatus,
           createdAt: claimsTable.createdAt,
           updatedAt: claimsTable.updatedAt,
           userEmail: users.email,
@@ -950,6 +955,7 @@ export class ClaimsApplicationService {
               ? `${row.profileFirstName} ${row.profileLastName}`
               : null,
         applicantEmail: row.userEmail,
+        paymentStatus: row.paymentStatus,
         submittedAt: row.submittedAt,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
