@@ -422,19 +422,23 @@ auth.post(
           skipPasswordHash: true, // Skip password hashing for magic link users
         });
 
-        // Auto-assign admin role for allowed domains
-        const ADMIN_DOMAINS = ['atlaes.de', 'alibuas.com'];
-        const emailDomain = email.split('@')[1]?.toLowerCase();
-        if (emailDomain && ADMIN_DOMAINS.includes(emailDomain)) {
-          await db
-            .update(users)
-            .set({ role: 'admin' })
-            .where(eq(users.id, user.id));
-          user = { ...user, role: 'admin' };
-          logger.info(`Auto-assigned admin role to ${email}`);
-        }
-
         logger.info(`New user created via magic link: ${user.email}`);
+      }
+
+      // Auto-assign admin role for allowed domains
+      const ADMIN_DOMAINS = ['atlaes.de', 'alibuas.com'];
+      const emailDomain = email.split('@')[1]?.toLowerCase();
+      if (
+        emailDomain &&
+        ADMIN_DOMAINS.includes(emailDomain) &&
+        user.role !== 'admin'
+      ) {
+        await db
+          .update(users)
+          .set({ role: 'admin' })
+          .where(eq(users.id, user.id));
+        user = { ...user, role: 'admin' };
+        logger.info(`Auto-assigned admin role to ${email}`);
       }
 
       // Generate authentication tokens
