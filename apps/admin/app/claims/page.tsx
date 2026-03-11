@@ -43,6 +43,25 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function PaymentBadge({ status }: { status: string | null }) {
+  if (!status) return <span className="text-sm text-gray-400">—</span>;
+
+  const styles: Record<string, string> = {
+    pending: 'bg-amber-100 text-amber-700',
+    paid: 'bg-green-100 text-green-700',
+    failed: 'bg-red-100 text-red-700',
+    refunded: 'bg-purple-100 text-purple-700',
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-700'}`}
+    >
+      {status}
+    </span>
+  );
+}
+
 function formatDate(dateStr: string | null) {
   if (!dateStr) return '—';
   return new Date(dateStr).toLocaleDateString('en-GB', {
@@ -194,6 +213,9 @@ export default function ClaimsPage() {
                     Status
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Payment
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Submitted
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -219,6 +241,9 @@ export default function ClaimsPage() {
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm">
                       <StatusBadge status={claim.status} />
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm">
+                      <PaymentBadge status={claim.paymentStatus} />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
                       {formatDate(claim.submittedAt)}
