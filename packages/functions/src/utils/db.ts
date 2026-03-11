@@ -10,6 +10,16 @@ const client = postgres(connectionString, { max: 10 });
 // Create the database instance
 export const db = drizzle(client, { schema });
 
+// Run pending schema migrations (safe to call repeatedly)
+export async function runStartupMigrations() {
+  try {
+    await client`ALTER TABLE shared.users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'`;
+    console.log('Startup migrations: schema verified');
+  } catch (error) {
+    console.error('Startup migrations failed:', error);
+  }
+}
+
 // Health check function
 export async function checkDatabaseConnection() {
   try {

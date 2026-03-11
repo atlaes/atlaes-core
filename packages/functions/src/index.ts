@@ -62,6 +62,10 @@ app.notFound((c) => {
   );
 });
 
+// Run startup migrations before starting server
+import { runStartupMigrations } from './utils/db';
+runStartupMigrations();
+
 // Start server (both development and production)
 const port = env.PORT || 3001;
 logger.info(`Starting server on port ${port}`);
