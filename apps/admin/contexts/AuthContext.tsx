@@ -101,6 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setError(null);
       const response = await apiClient.post('/auth/magic-link/request', {
         email,
+        callbackUrl: window.location.origin,
       });
       return { magicLink: response.data.magicLink };
     } catch (error: any) {

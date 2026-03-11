@@ -253,8 +253,21 @@ auth.get('/test-env', async (c) => {
 });
 
 // Extended magic link request schema with optional GPR session data
+const ALLOWED_ORIGINS = [
+  'https://vbl.atlaes.de',
+  'https://staging.vbl.atlaes.de',
+  'https://admin.atlaes.de',
+  'https://staging.admin.atlaes.de',
+  'https://gpr.atlaes.de',
+  'https://staging.gpr.atlaes.de',
+  'http://localhost:3000',
+  'http://localhost:3002',
+  'http://localhost:3003',
+];
+
 const extendedMagicLinkRequestSchema = z.object({
   email: z.string().email(),
+  callbackUrl: z.string().url().optional(),
   redirectUrl: z.string().startsWith('/').max(200).optional(),
   gprSessionData: z
     .object({
@@ -311,7 +324,8 @@ auth.post(
   zValidator('json', extendedMagicLinkRequestSchema),
   async (c) => {
     try {
-      const { email, redirectUrl, gprSessionData } = c.req.valid('json');
+      const { email, callbackUrl, redirectUrl, gprSessionData } =
+        c.req.valid('json');
 
       // Debug: Check if JWT_SECRET is available
       logger.info('JWT_SECRET available:', !!getJwtSecret());
@@ -340,7 +354,14 @@ auth.post(
 
       // Generate magic link token (works for both existing and new users)
       const token = AuthService.generateMagicLinkToken(email);
-      const baseMagicLinkUrl = AuthService.generateMagicLinkUrl(token, env.FRONTEND_URL);
+      const baseUrl =
+        callbackUrl && ALLOWED_ORIGINS.includes(callbackUrl)
+          ? callbackUrl
+          : env.FRONTEND_URL;
+      const baseMagicLinkUrl = AuthService.generateMagicLinkUrl(
+        token,
+        baseUrl
+      );
       const magicLinkUrl = redirectUrl
         ? `${baseMagicLinkUrl}&redirect=${encodeURIComponent(redirectUrl)}`
         : baseMagicLinkUrl;
