@@ -16,6 +16,9 @@ import { UserService } from '../services/user';
 import { authMiddleware } from '../middleware/auth';
 import { GPRApplicationService } from '../services/gpr-application';
 import { sendMagicLinkEmail } from '../services/email';
+import { db } from '../utils/db';
+import { users } from '../drizzle/schema/shared';
+import { eq } from 'drizzle-orm';
 
 const auth = new Hono();
 
@@ -420,6 +423,22 @@ auth.post(
         });
 
         logger.info(`New user created via magic link: ${user.email}`);
+      }
+
+      // Auto-assign admin role for allowed domains
+      const ADMIN_DOMAINS = ['atlaes.de', 'alibuas.com'];
+      const emailDomain = email.split('@')[1]?.toLowerCase();
+      if (
+        emailDomain &&
+        ADMIN_DOMAINS.includes(emailDomain) &&
+        user.role !== 'admin'
+      ) {
+        await db
+          .update(users)
+          .set({ role: 'admin' })
+          .where(eq(users.id, user.id));
+        user = { ...user, role: 'admin' };
+        logger.info(`Auto-assigned admin role to ${email}`);
       }
 
       // Generate authentication tokens
