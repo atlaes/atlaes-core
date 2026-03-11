@@ -95,18 +95,93 @@ export async function uploadSignature(
 // Claims
 // ============================================================
 
+export interface Claim {
+  id: string;
+  userId: string;
+  status:
+    | 'draft'
+    | 'ready'
+    | 'submitted'
+    | 'processing'
+    | 'completed'
+    | 'rejected';
+  workflowState: string;
+  completedSteps: Record<string, boolean>;
+  claimType?: string;
+  // Personal
+  firstName?: string;
+  lastName?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  nationality?: string;
+  passportNumber?: string;
+  placeOfBirth?: string;
+  passportIssueDate?: string;
+  passportExpiryDate?: string;
+  // Address
+  currentAddressLine1?: string;
+  currentAddressLine2?: string;
+  currentCity?: string;
+  currentPostalCode?: string;
+  currentCountry?: string;
+  // German Address
+  germanStreet?: string;
+  germanPostalCode?: string;
+  germanCity?: string;
+  moveOutDate?: string;
+  // Bank
+  iban?: string;
+  accountHolderName?: string;
+  bankName?: string;
+  preferredCurrency?: string;
+  // Membership
+  svNummer?: string;
+  // Signature
+  signatureId?: string;
+  signatureCompletedAt?: string;
+  // Payment
+  paymentStatus?: string;
+  stripePaymentId?: string;
+  paidAt?: string;
+  // Timestamps
+  createdAt: string;
+  updatedAt: string;
+  submittedAt?: string;
+}
+
+export interface ClaimDocument {
+  id: string;
+  claimId: string;
+  documentId: string;
+  documentRole: string;
+  createdAt: string | null;
+  document?: {
+    id: string;
+    fileName: string;
+    fileType: string;
+    s3Key: string;
+    status: string | null;
+  };
+}
+
+export interface WorkflowHistoryEntry {
+  id: string;
+  claimId: string;
+  state: string;
+  previousState: string | null;
+  triggeredBy: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string | null;
+}
+
 export interface ClaimResponse {
   success: boolean;
-  claim: {
-    id: string;
-    userId: string;
-    status: string;
-    workflowState: string;
-    createdAt: string;
-    updatedAt: string;
-    submittedAt?: string;
-    [key: string]: unknown;
-  };
+  claim: Claim;
+}
+
+export async function getClaim(claimId: string): Promise<ClaimResponse> {
+  const { data } = await apiClient.get(`/claims/${claimId}`);
+  return data;
 }
 
 export async function createClaim(): Promise<ClaimResponse> {
@@ -161,7 +236,60 @@ export async function markStepComplete(
   return data;
 }
 
-export async function getUserClaims() {
+export async function getUserClaims(): Promise<{
+  success: boolean;
+  claims: Claim[];
+}> {
   const { data } = await apiClient.get('/claims');
+  return data;
+}
+
+export async function getClaimDocuments(
+  claimId: string
+): Promise<{ success: boolean; documents: ClaimDocument[] }> {
+  const { data } = await apiClient.get(`/claims/${claimId}/documents`);
+  return data;
+}
+
+export async function getClaimWorkflowHistory(
+  claimId: string
+): Promise<{ success: boolean; history: WorkflowHistoryEntry[] }> {
+  const { data } = await apiClient.get(
+    `/claims/${claimId}/workflow/history`
+  );
+  return data;
+}
+
+// ============================================================
+// Payments
+// ============================================================
+
+export interface CheckoutSessionResponse {
+  success: boolean;
+  url: string;
+  sessionId: string;
+}
+
+export interface VerifyPaymentResponse {
+  success: boolean;
+  claimId: string;
+  paymentStatus: string;
+}
+
+export async function createCheckoutSession(
+  claimId: string
+): Promise<CheckoutSessionResponse> {
+  const { data } = await apiClient.post('/payments/create-checkout-session', {
+    claimId,
+  });
+  return data;
+}
+
+export async function verifyPaymentSession(
+  sessionId: string
+): Promise<VerifyPaymentResponse> {
+  const { data } = await apiClient.post('/payments/verify-session', {
+    sessionId,
+  });
   return data;
 }

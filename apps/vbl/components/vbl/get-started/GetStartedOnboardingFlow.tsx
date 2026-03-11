@@ -1,10 +1,18 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useOnboarding, SUBMIT_DETAILS_SUBSTEPS, SubmitDetailsSubStep } from '@/contexts/OnboardingContext';
 import { useEligibility } from '@/contexts/EligibilityContext';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  getClaim,
+  updateClaim,
+  attachDocument,
+  attachSignatureToClaim,
+  markStepComplete,
+  verifyPaymentSession,
+} from '@/lib/onboarding-api';
 import { GetStartedLayout } from './GetStartedLayout';
 import { CreateAccount } from '@/components/vbl/onboarding/steps/CreateAccount';
 import { Payment } from '@/components/vbl/onboarding/steps/Payment';
@@ -19,6 +27,7 @@ import { DRVUpsellModal } from '@/components/vbl/onboarding/DRVUpsellModal';
 
 export function GetStartedOnboardingFlow() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const { data: eligibilityData } = useEligibility();
   const {
@@ -29,6 +38,7 @@ export function GetStartedOnboardingFlow() {
     setCurrentStep,
     setCurrentSubStep,
     updateSuccessData,
+    loadFromClaim,
   } = useOnboarding();
 
   // Auto-advance past CreateAccount when user is already authenticated
@@ -51,6 +61,56 @@ export function GetStartedOnboardingFlow() {
     }
   }, [data.pensionType, eligibilityData.employmentType, updateData]);
 
+  // Resume draft claim on mount
+  useEffect(() => {
+    const resumeDraft = async () => {
+      if (!user || data.claimId) return;
+
+      const storedClaimId = localStorage.getItem('vbl_draft_claimId');
+      if (!storedClaimId) return;
+
+      try {
+        const result = await getClaim(storedClaimId);
+        if (result.success && result.claim.status === 'draft') {
+          loadFromClaim(result.claim);
+        } else {
+          localStorage.removeItem('vbl_draft_claimId');
+        }
+      } catch {
+        localStorage.removeItem('vbl_draft_claimId');
+      }
+    };
+    resumeDraft();
+  }, [user, data.claimId, loadFromClaim]);
+
+  // Handle payment return from Stripe
+  useEffect(() => {
+    const handlePaymentReturn = async () => {
+      const payment = searchParams?.get('payment');
+      const sessionId = searchParams?.get('session_id');
+      if (payment !== 'success' || !sessionId || !user) return;
+
+      try {
+        const result = await verifyPaymentSession(sessionId);
+        if (result.success && result.paymentStatus === 'paid') {
+          updateData({
+            paymentCompleted: true,
+            claimId: result.claimId,
+          });
+          localStorage.setItem('vbl_draft_claimId', result.claimId);
+          setCurrentStep(3);
+          setCurrentSubStep('identity');
+        }
+      } catch (err) {
+        console.error('Payment verification failed:', err);
+      }
+
+      // Clean URL params
+      window.history.replaceState({}, '', '/get-started');
+    };
+    handlePaymentReturn();
+  }, [searchParams, user, updateData, setCurrentStep, setCurrentSubStep]);
+
   // Success screen and DRV modal state
   const [showSuccess, setShowSuccess] = useState(false);
   const [showDRVModal, setShowDRVModal] = useState(false);
@@ -71,11 +131,85 @@ export function GetStartedOnboardingFlow() {
     setCurrentSubStep('identity');
   };
 
-  const handleSubStepNext = () => {
+  const advanceSubStep = () => {
     const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === currentSubStep);
     if (currentIndex < SUBMIT_DETAILS_SUBSTEPS.length - 1) {
       setCurrentSubStep(SUBMIT_DETAILS_SUBSTEPS[currentIndex + 1].id);
     }
+  };
+
+  const saveAndAdvance = async () => {
+    const claimId = data.claimId;
+    if (!claimId) {
+      advanceSubStep();
+      return;
+    }
+
+    try {
+      switch (currentSubStep) {
+        case 'identity': {
+          const firstName =
+            data.identity.firstName ||
+            data.identity.fullName.trim().split(/\s+/)[0] ||
+            '';
+          const lastName =
+            data.identity.lastName ||
+            data.identity.fullName.trim().split(/\s+/).slice(1).join(' ') ||
+            '';
+          await updateClaim(claimId, {
+            claimType: 'own_refund',
+            firstName,
+            lastName,
+            dateOfBirth: data.identity.dateOfBirth || undefined,
+            gender: data.identity.gender || undefined,
+            passportNumber: data.identity.passportNumber || undefined,
+            nationality: data.identity.nationality || undefined,
+            placeOfBirth: data.identity.placeOfBirth || undefined,
+            passportIssueDate: data.identity.passportIssueDate || undefined,
+            passportExpiryDate: data.identity.passportExpiryDate || undefined,
+          });
+          if (data.documentId) {
+            await attachDocument(claimId, data.documentId, 'passport');
+          }
+          await markStepComplete(claimId, 'claimType');
+          await markStepComplete(claimId, 'passportUpload');
+          break;
+        }
+        case 'membership':
+          await updateClaim(claimId, {
+            svNummer: data.membership.membershipNumber || undefined,
+          });
+          await markStepComplete(claimId, 'germanSocialInsurance');
+          break;
+        case 'address':
+          await updateClaim(claimId, {
+            currentAddressLine1: data.address.streetAndNumber,
+            currentPostalCode: data.address.postalCode,
+            currentCity: data.address.city,
+            currentCountry: data.address.country,
+          });
+          await markStepComplete(claimId, 'currentAddress');
+          break;
+        case 'bank-details':
+          await updateClaim(claimId, {
+            iban: data.bankDetails.iban || undefined,
+            accountHolderName: data.bankDetails.accountHolder || undefined,
+          });
+          await markStepComplete(claimId, 'bankDetails');
+          break;
+        case 'signature':
+          if (data.signatureId) {
+            await attachSignatureToClaim(claimId, data.signatureId);
+          }
+          await markStepComplete(claimId, 'signDocuments');
+          break;
+      }
+    } catch (err) {
+      console.error('Failed to save step data:', err);
+      // Non-blocking — still advance. Data is in context for retry at submit.
+    }
+
+    advanceSubStep();
   };
 
   const handleBack = () => {
@@ -159,15 +293,15 @@ export function GetStartedOnboardingFlow() {
   const renderSubStep = () => {
     switch (currentSubStep) {
       case 'identity':
-        return <Identity onNext={handleSubStepNext} />;
+        return <Identity onNext={saveAndAdvance} />;
       case 'membership':
-        return <Membership onNext={handleSubStepNext} />;
+        return <Membership onNext={saveAndAdvance} />;
       case 'address':
-        return <Address onNext={handleSubStepNext} />;
+        return <Address onNext={saveAndAdvance} />;
       case 'bank-details':
-        return <BankDetails onNext={handleSubStepNext} />;
+        return <BankDetails onNext={saveAndAdvance} />;
       case 'signature':
-        return <Signature onNext={handleSubStepNext} />;
+        return <Signature onNext={saveAndAdvance} />;
       case 'review':
         return (
           <ReviewSubmit

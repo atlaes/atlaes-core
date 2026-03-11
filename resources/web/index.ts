@@ -20,6 +20,8 @@ export const atlaesWebsite = new sst.aws.StaticSite('AtlaesWebsite', {
   path: 'apps/vbl',
   environment: {
     NEXT_PUBLIC_API_URL: $app.stage === 'production' ? 'https://api.atlaes.de' : 'https://staging.api.atlaes.de',
+    STRIPE_SECRET_KEY: $app.stage === 'production' ? 'to be in secrete' : 'sk_test_51SRpwnD86goZexmM9XSBC97ERit2aUg4XOg0TGNvag9Zhzugx7NyChKTU0AubwFyrvIHtveGkd6AnjyytKpVlQWB00s9zr78UR',
+    STRIPE_PUBLISHABLE_KEY: $app.stage === 'production' ? 'to be in secrete' : 'pk_test_51SRpwnD86goZexmM9tsfY1Zxlbi5W608FPL1syOFOiV2yjFco2tDyg9NwGA264oCvHuga92qWLy7CKeCvB9tjcDe00zZYwuPZQ',
   },
   domain:
   $app.stage === 'production'
@@ -38,7 +40,20 @@ export const atlaesWebsite = new sst.aws.StaticSite('AtlaesWebsite', {
 //       : 'staging.gpr.atlaes.de',
 // });
 
- 
+export const adminApp = new sst.aws.Nextjs('AdminApp', {
+  path: 'apps/admin',
+  environment: {
+    NEXT_PUBLIC_API_URL:
+      $app.stage === 'production'
+        ? 'https://api.atlaes.de'
+        : 'https://staging.api.atlaes.de',
+    STRIPE_SECRET_KEY: $app.stage === 'production' ? 'to be in secrete' : 'sk_test_51SRpwnD86goZexmM9XSBC97ERit2aUg4XOg0TGNvag9Zhzugx7NyChKTU0AubwFyrvIHtveGkd6AnjyytKpVlQWB00s9zr78UR',
+    STRIPE_PUBLISHABLE_KEY: $app.stage === 'production' ? 'to be in secrete' : 'pk_test_51SRpwnD86goZexmM9tsfY1Zxlbi5W608FPL1syOFOiV2yjFco2tDyg9NwGA264oCvHuga92qWLy7CKeCvB9tjcDe00zZYwuPZQ',
 
-
+  },
+  domain:
+    $app.stage === 'production'
+      ? 'admin.atlaes.de'
+      : 'staging.admin.atlaes.de',
+});
 

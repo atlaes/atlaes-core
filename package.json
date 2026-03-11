@@ -31,6 +31,8 @@
     "vbl:dev": "pnpm --filter vbl dev",
     "gpr:build": "pnpm --filter gpr build",
     "gpr:dev": "pnpm --filter gpr dev",
+    "admin:dev": "pnpm --filter admin dev",
+    "admin:build": "pnpm --filter admin build",
     "dev:all": "concurrently \"pnpm docker:up\" \"pnpm sst:dev\" \"pnpm web:dev\" \"pnpm vbl:dev\" \"pnpm gpr:dev\""
   },
   "devDependencies": {

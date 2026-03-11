@@ -105,7 +105,7 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="w-full max-w-[1000px] bg-white rounded-2xl shadow-xl overflow-hidden">
         {/* Dark Green Header */}
-        <div className="px-8 pt-6" style={{ backgroundColor: '#163300' }}>
+        <div className="px-4 sm:px-8 pt-4 sm:pt-6" style={{ backgroundColor: '#163300' }}>
           {/* Logo */}
           <div className="flex items-center justify-center gap-3 mb-6">
             <CompanyPensionLogo />
@@ -136,7 +136,7 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
                       )}
                     </div>
                     <span
-                      className={`text-sm font-medium ${
+                      className={`text-sm font-medium hidden sm:inline ${
                         isStepActive(step.id) || isStepCompleted(step.id)
                           ? 'text-[#9FE870]'
                           : 'text-white'
@@ -165,7 +165,7 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
                 {/* Connector Line */}
                 {index < MAIN_STEPS.length - 1 && (
                   <div
-                    className={`w-20 h-0.5 mx-4 mb-3 ${
+                    className={`w-6 sm:w-20 h-0.5 mx-1.5 sm:mx-4 mb-3 ${
                       isStepCompleted(step.id + 1) || isStepActive(step.id + 1)
                         ? 'bg-[#9FE870]'
                         : 'bg-white/50'
@@ -175,10 +175,17 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
               </React.Fragment>
             ))}
           </div>
+
+          {/* Active step label - mobile only */}
+          <div className="text-center -mt-1 mb-2 sm:hidden">
+            <span className="text-base text-white font-semibold">
+              {MAIN_STEPS.find((s) => isStepActive(s.id))?.label}
+            </span>
+          </div>
         </div>
 
         {/* Content Area */}
-        <div className="p-8">
+        <div className="p-4 sm:p-8">
           {/* Back Button */}
           {showBack && onBack && (
             <button
@@ -201,7 +208,7 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
                   <React.Fragment key={subStep.id}>
                     {index > 0 && <div className="w-px bg-gray-200" />}
                     <div
-                      className={`flex items-center gap-2 px-4 py-3 flex-1 justify-center transition-colors ${
+                      className={`flex items-center gap-2 px-2 sm:px-4 py-2 sm:py-3 flex-1 justify-center transition-colors ${
                         isActive ? 'bg-gray-50' : ''
                       }`}
                     >
@@ -211,7 +218,7 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
                         isCompleted={isCompleted}
                       />
                       <span
-                        className={`text-sm font-medium whitespace-nowrap ${
+                        className={`text-sm font-medium whitespace-nowrap hidden sm:inline ${
                           isActive
                             ? 'text-[#163300]'
                             : isCompleted

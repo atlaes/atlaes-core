@@ -13,10 +13,15 @@ function GetStartedFlow() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
 
-  // Skip eligibility for authenticated users arriving via magic link redirect
+  // Skip eligibility for authenticated users arriving via magic link or resuming a draft
   useEffect(() => {
-    if (user && !eligibilityConfirmed && searchParams?.get('fromAuth') === '1') {
-      confirmEligibility();
+    if (user && !eligibilityConfirmed) {
+      const isFromAuth = searchParams?.get('fromAuth') === '1';
+      const isPaymentReturn = searchParams?.get('payment') === 'success';
+      const hasExistingDraft = !!localStorage.getItem('vbl_draft_claimId');
+      if (isFromAuth || isPaymentReturn || hasExistingDraft) {
+        confirmEligibility();
+      }
     }
   }, [user, eligibilityConfirmed, searchParams, confirmEligibility]);
 

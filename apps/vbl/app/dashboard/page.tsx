@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getUserClaims } from '@/lib/onboarding-api';
+import { getUserClaims, Claim } from '@/lib/onboarding-api';
 import { CompanyPensionLogo } from '@/components/vbl/icons/CompanyPensionLogo';
 import {
   Loader2,
@@ -16,21 +16,18 @@ import {
   Plus,
   ArrowRight,
   CheckCircle,
+  Eye,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-interface Claim {
-  id: string;
-  status: string;
-  workflowState: string;
-  completedSteps: string[];
-  firstName?: string;
-  lastName?: string;
-  createdAt: string;
-  updatedAt: string;
-  submittedAt?: string;
+function getCompletedCount(
+  steps: Record<string, boolean> | string[] | undefined
+): number {
+  if (!steps) return 0;
+  if (Array.isArray(steps)) return steps.length;
+  return Object.values(steps).filter(Boolean).length;
 }
 
 const STATUS_CONFIG: Record<
@@ -202,9 +199,9 @@ export default function DashboardPage() {
                 {claims.map((claim) => {
                   const statusConfig =
                     STATUS_CONFIG[claim.status] || STATUS_CONFIG.draft;
-                  const completedCount = Array.isArray(claim.completedSteps)
-                    ? claim.completedSteps.length
-                    : 0;
+                  const completedCount = getCompletedCount(
+                    claim.completedSteps
+                  );
                   const progressPercent = Math.round(
                     (completedCount / TOTAL_STEPS) * 100
                   );
@@ -212,11 +209,22 @@ export default function DashboardPage() {
                     claim.firstName && claim.lastName
                       ? `${claim.firstName} ${claim.lastName}`
                       : 'Untitled Application';
+                  const isDraft = claim.status === 'draft';
+                  const dateLabel =
+                    claim.submittedAt
+                      ? `Submitted ${formatDate(claim.submittedAt)}`
+                      : `Created ${formatDate(claim.createdAt)}`;
+                  const subtitle = isDraft && claim.currentCountry
+                    ? `${dateLabel} · ${claim.currentCountry}`
+                    : dateLabel;
 
                   return (
                     <div
                       key={claim.id}
-                      className="border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors"
+                      onClick={() =>
+                        router.push(`/dashboard/claims/${claim.id}`)
+                      }
+                      className="border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors cursor-pointer"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div>
@@ -224,7 +232,7 @@ export default function DashboardPage() {
                             {displayName}
                           </h3>
                           <p className="text-sm text-gray-500 mt-0.5">
-                            Created {formatDate(claim.createdAt)}
+                            {subtitle}
                           </p>
                         </div>
                         <span
@@ -235,34 +243,55 @@ export default function DashboardPage() {
                         </span>
                       </div>
 
-                      {/* Progress Bar */}
-                      <div className="mb-3">
-                        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                          <span>Progress</span>
-                          <span>
-                            {completedCount}/{TOTAL_STEPS} steps
-                          </span>
+                      {/* Progress Bar (drafts & ready only) */}
+                      {(isDraft || claim.status === 'ready') && (
+                        <div className="mb-3">
+                          <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                            <span>Progress</span>
+                            <span>
+                              {completedCount}/{TOTAL_STEPS} steps
+                            </span>
+                          </div>
+                          <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-[#9FE870] rounded-full transition-all"
+                              style={{ width: `${progressPercent}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-[#9FE870] rounded-full transition-all"
-                            style={{ width: `${progressPercent}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* CTA for draft claims */}
-                      {claim.status === 'draft' && (
-                        <button
-                          onClick={() =>
-                            router.push('/get-started')
-                          }
-                          className="flex items-center gap-1 text-sm font-medium text-[#163300] hover:opacity-70 transition-opacity"
-                        >
-                          Continue Application
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
                       )}
+
+                      {/* Actions row */}
+                      <div className="flex items-center gap-4">
+                        {isDraft && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              localStorage.setItem(
+                                'vbl_draft_claimId',
+                                claim.id
+                              );
+                              router.push('/get-started');
+                            }}
+                            className="flex items-center gap-1 text-sm font-medium text-[#163300] hover:opacity-70 transition-opacity"
+                          >
+                            Continue Application
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(
+                              `/dashboard/claims/${claim.id}`
+                            );
+                          }}
+                          className="flex items-center gap-1 text-sm text-gray-500 hover:text-[#163300] transition-colors ml-auto"
+                        >
+                          <Eye className="w-3 h-3" />
+                          View Details
+                        </button>
+                      </div>
                     </div>
                   );
                 })}

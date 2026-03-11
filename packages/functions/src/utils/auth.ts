@@ -62,6 +62,7 @@ export interface TokenPayload {
   userId: string;
   email: string;
   emailVerified: boolean;
+  role: string;
   iat?: number;
   exp?: number;
 }
@@ -172,6 +173,7 @@ export class AuthService {
         userId: payload.userId,
         email: payload.email,
         emailVerified: payload.emailVerified,
+        role: payload.role || 'user',
       };
 
       return jwt.sign(newAccessTokenPayload, getJwtSecret(), {
@@ -198,6 +200,7 @@ export class AuthService {
         userId: payload.userId,
         email: payload.email,
         emailVerified: payload.emailVerified,
+        role: payload.role || 'user',
       };
 
       const accessToken = jwt.sign(newAccessTokenPayload, getJwtSecret(), {
@@ -208,6 +211,7 @@ export class AuthService {
         userId: payload.userId,
         email: payload.email,
         emailVerified: payload.emailVerified,
+        role: payload.role || 'user',
       };
 
       const newRefreshToken = jwt.sign(refreshTokenPayload, getJwtSecret(), {

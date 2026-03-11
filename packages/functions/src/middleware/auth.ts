@@ -7,6 +7,7 @@ export interface AuthUser {
   id: string;
   email: string;
   emailVerified: boolean;
+  role: string;
 }
 
 export interface AuthContext {
@@ -45,6 +46,7 @@ export const authMiddleware = async (c: Context, next: Next) => {
       id: decoded.userId,
       email: decoded.email,
       emailVerified: decoded.emailVerified || false,
+      role: decoded.role || 'user',
     });
 
     await next();
@@ -79,6 +81,7 @@ export const optionalAuthMiddleware = async (c: Context, next: Next) => {
             id: decoded.userId,
             email: decoded.email,
             emailVerified: decoded.emailVerified || false,
+            role: decoded.role || 'user',
           });
         }
       }

@@ -54,6 +54,9 @@ const envSchema = z.object({
   // SES email
   SES_FROM_EMAIL: z.string().optional().default('noreply@atlaes.de'),
   SES_REGION: z.string().optional().default('eu-central-1'),
+  // Stripe
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

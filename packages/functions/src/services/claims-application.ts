@@ -1,4 +1,4 @@
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, count, desc } from 'drizzle-orm';
 import { db } from '../utils/db';
 import {
   claimsTable,
@@ -10,7 +10,7 @@ import {
   ClaimDocumentRole,
   CertifyingAuthority,
 } from '../drizzle/schema/claims';
-import { auditLogs, documents } from '../drizzle/schema/shared';
+import { auditLogs, documents, users, profiles } from '../drizzle/schema/shared';
 import { logger } from '../utils/logger';
 
 // Types for completed steps tracking
@@ -885,15 +885,379 @@ export class ClaimsApplicationService {
     }
   }
 
-  // ==================== ADMIN (FUTURE) ====================
+  // ==================== ADMIN ====================
 
   /**
-   * Process a submitted claim (admin/system function)
+   * Get all claims with optional status filter and pagination (admin only)
    */
-  static async processSubmission(claimId: string): Promise<void> {
-    // This would be called by admin or system to process the claim
-    // Implementation depends on business requirements
-    logger.info(`Processing claim submission: ${claimId}`);
-    // TODO: Implement claim processing logic
+  static async getAllClaims(filters: {
+    status?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{ claims: any[]; total: number; page: number; limit: number }> {
+    try {
+      const page = filters.page || 1;
+      const limit = filters.limit || 20;
+      const offset = (page - 1) * limit;
+
+      // Build where clause
+      const whereClause = filters.status
+        ? eq(claimsTable.status, filters.status)
+        : undefined;
+
+      // Get total count
+      const [countResult] = await db
+        .select({ value: count() })
+        .from(claimsTable)
+        .where(whereClause);
+      const total = countResult?.value || 0;
+
+      // Get claims with user info
+      const result = await db
+        .select({
+          id: claimsTable.id,
+          userId: claimsTable.userId,
+          status: claimsTable.status,
+          workflowState: claimsTable.workflowState,
+          claimType: claimsTable.claimType,
+          firstName: claimsTable.firstName,
+          lastName: claimsTable.lastName,
+          submittedAt: claimsTable.submittedAt,
+          createdAt: claimsTable.createdAt,
+          updatedAt: claimsTable.updatedAt,
+          userEmail: users.email,
+          profileFirstName: profiles.firstName,
+          profileLastName: profiles.lastName,
+        })
+        .from(claimsTable)
+        .leftJoin(users, eq(claimsTable.userId, users.id))
+        .leftJoin(profiles, eq(profiles.userId, users.id))
+        .where(whereClause)
+        .orderBy(desc(claimsTable.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      const claims = result.map((row) => ({
+        id: row.id,
+        userId: row.userId,
+        status: row.status,
+        workflowState: row.workflowState,
+        claimType: row.claimType,
+        applicantName:
+          row.firstName && row.lastName
+            ? `${row.firstName} ${row.lastName}`
+            : row.profileFirstName && row.profileLastName
+              ? `${row.profileFirstName} ${row.profileLastName}`
+              : null,
+        applicantEmail: row.userEmail,
+        submittedAt: row.submittedAt,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      }));
+
+      return { claims, total, page, limit };
+    } catch (error) {
+      logger.error('Error getting all claims:', error);
+      throw new Error('Failed to get claims');
+    }
+  }
+
+  /**
+   * Get a claim by ID without ownership check (admin only)
+   */
+  static async getClaimAsAdmin(claimId: string): Promise<Claim | null> {
+    try {
+      const result = await db
+        .select()
+        .from(claimsTable)
+        .where(eq(claimsTable.id, claimId))
+        .limit(1);
+
+      if (result.length === 0) {
+        return null;
+      }
+
+      return mapRowToClaim(result[0]);
+    } catch (error) {
+      logger.error('Error getting claim as admin:', error);
+      throw new Error('Failed to get claim');
+    }
+  }
+
+  /**
+   * Get user info for a claim (admin only)
+   */
+  static async getClaimUserInfo(
+    claimId: string
+  ): Promise<{ email: string; firstName: string | null; lastName: string | null } | null> {
+    try {
+      const result = await db
+        .select({
+          email: users.email,
+          firstName: profiles.firstName,
+          lastName: profiles.lastName,
+        })
+        .from(claimsTable)
+        .innerJoin(users, eq(claimsTable.userId, users.id))
+        .leftJoin(profiles, eq(profiles.userId, users.id))
+        .where(eq(claimsTable.id, claimId))
+        .limit(1);
+
+      return result[0] || null;
+    } catch (error) {
+      logger.error('Error getting claim user info:', error);
+      throw new Error('Failed to get claim user info');
+    }
+  }
+
+  // Valid status transitions for admin
+  private static readonly VALID_TRANSITIONS: Record<string, string[]> = {
+    submitted: ['processing'],
+    processing: ['completed', 'rejected'],
+  };
+
+  /**
+   * Update claim status with forward-only transitions (admin only)
+   */
+  static async updateClaimStatus(
+    claimId: string,
+    newStatus: string,
+    adminUserId: string,
+    note?: string
+  ): Promise<Claim> {
+    try {
+      const claim = await this.getClaimAsAdmin(claimId);
+      if (!claim) {
+        throw new Error('Claim not found');
+      }
+
+      const currentStatus = claim.status;
+      const allowedTransitions = this.VALID_TRANSITIONS[currentStatus] || [];
+
+      if (!allowedTransitions.includes(newStatus)) {
+        throw new Error(
+          `Invalid transition: cannot move from '${currentStatus}' to '${newStatus}'. Allowed: ${allowedTransitions.join(', ') || 'none'}`
+        );
+      }
+
+      const result = await db.transaction(async (tx: any) => {
+        // Update claim status and workflow state
+        const [updatedClaim] = await tx
+          .update(claimsTable)
+          .set({
+            status: newStatus,
+            workflowState: newStatus,
+            workflowHistory: sql`${claimsTable.workflowHistory} || ${JSON.stringify([
+              {
+                state: newStatus,
+                previousState: currentStatus,
+                timestamp: new Date().toISOString(),
+                triggeredBy: 'admin',
+                note: note || `Status changed to ${newStatus}`,
+              },
+            ])}::jsonb`,
+            updatedAt: new Date(),
+          })
+          .where(eq(claimsTable.id, claimId))
+          .returning();
+
+        // Record workflow state
+        await tx.insert(claimWorkflowStates).values({
+          claimId,
+          state: newStatus,
+          previousState: currentStatus,
+          triggeredBy: 'admin',
+          metadata: { adminUserId, note, action: 'status_update' },
+        });
+
+        // Audit log
+        await tx.insert(auditLogs).values({
+          userId: adminUserId,
+          action: 'claim_status_updated',
+          resource: 'claim',
+          resourceId: claimId,
+          details: {
+            previousStatus: currentStatus,
+            newStatus,
+            note,
+          },
+        });
+
+        return updatedClaim;
+      });
+
+      logger.info(`Claim ${claimId} status updated: ${currentStatus} -> ${newStatus} by admin ${adminUserId}`);
+      return mapRowToClaim(result);
+    } catch (error) {
+      logger.error('Error updating claim status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add an admin note to a claim
+   */
+  static async addAdminNote(claimId: string, adminUserId: string, note: string): Promise<void> {
+    try {
+      const claim = await this.getClaimAsAdmin(claimId);
+      if (!claim) {
+        throw new Error('Claim not found');
+      }
+
+      await db.transaction(async (tx: any) => {
+        await tx.insert(claimWorkflowStates).values({
+          claimId,
+          state: claim.workflowState,
+          previousState: claim.workflowState,
+          triggeredBy: 'admin',
+          metadata: { note, type: 'admin_note', adminUserId },
+        });
+
+        await tx.insert(auditLogs).values({
+          userId: adminUserId,
+          action: 'admin_note_added',
+          resource: 'claim',
+          resourceId: claimId,
+          details: { note },
+        });
+      });
+
+      logger.info(`Admin note added to claim ${claimId} by ${adminUserId}`);
+    } catch (error) {
+      logger.error('Error adding admin note:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get claim documents without ownership check (admin only)
+   */
+  static async getClaimDocumentsAsAdmin(claimId: string): Promise<ClaimDocument[]> {
+    try {
+      const result = await db
+        .select({
+          id: claimDocuments.id,
+          claimId: claimDocuments.claimId,
+          documentId: claimDocuments.documentId,
+          documentRole: claimDocuments.documentRole,
+          createdAt: claimDocuments.createdAt,
+          document: {
+            id: documents.id,
+            fileName: documents.fileName,
+            fileType: documents.fileType,
+            s3Key: documents.s3Key,
+            status: documents.status,
+          },
+        })
+        .from(claimDocuments)
+        .leftJoin(documents, eq(claimDocuments.documentId, documents.id))
+        .where(eq(claimDocuments.claimId, claimId));
+
+      return result.map((row) => ({
+        id: row.id,
+        claimId: row.claimId,
+        documentId: row.documentId,
+        documentRole: row.documentRole as ClaimDocumentRole,
+        createdAt: row.createdAt,
+        document: row.document
+          ? {
+              id: row.document.id,
+              fileName: row.document.fileName,
+              fileType: row.document.fileType,
+              s3Key: row.document.s3Key,
+              status: row.document.status,
+            }
+          : undefined,
+      }));
+    } catch (error) {
+      logger.error('Error getting claim documents as admin:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get workflow history without ownership check (admin only)
+   */
+  static async getWorkflowHistoryAsAdmin(claimId: string): Promise<WorkflowStateEntry[]> {
+    try {
+      const result = await db
+        .select()
+        .from(claimWorkflowStates)
+        .where(eq(claimWorkflowStates.claimId, claimId))
+        .orderBy(desc(claimWorkflowStates.createdAt));
+
+      return result.map((row) => ({
+        id: row.id,
+        claimId: row.claimId,
+        state: row.state,
+        previousState: row.previousState,
+        triggeredBy: row.triggeredBy,
+        metadata: row.metadata as Record<string, unknown> | null,
+        createdAt: row.createdAt,
+      }));
+    } catch (error) {
+      logger.error('Error getting workflow history as admin:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get claim statistics (admin only)
+   */
+  static async getClaimStats(): Promise<Record<string, number>> {
+    try {
+      const result = await db
+        .select({
+          status: claimsTable.status,
+          value: count(),
+        })
+        .from(claimsTable)
+        .groupBy(claimsTable.status);
+
+      const stats: Record<string, number> = {
+        total: 0,
+        draft: 0,
+        ready: 0,
+        submitted: 0,
+        processing: 0,
+        completed: 0,
+        rejected: 0,
+      };
+
+      for (const row of result) {
+        const status = row.status || 'draft';
+        stats[status] = row.value;
+        stats.total += row.value;
+      }
+
+      return stats;
+    } catch (error) {
+      logger.error('Error getting claim stats:', error);
+      throw new Error('Failed to get claim stats');
+    }
+  }
+
+  /**
+   * Get a document's S3 key for download (admin only)
+   */
+  static async getDocumentForDownload(
+    documentId: string
+  ): Promise<{ s3Key: string; fileName: string; fileType: string } | null> {
+    try {
+      const [doc] = await db
+        .select({
+          s3Key: documents.s3Key,
+          fileName: documents.fileName,
+          fileType: documents.fileType,
+        })
+        .from(documents)
+        .where(eq(documents.id, documentId))
+        .limit(1);
+
+      return doc || null;
+    } catch (error) {
+      logger.error('Error getting document for download:', error);
+      throw new Error('Failed to get document');
+    }
   }
 }
