@@ -12,6 +12,7 @@ export const users = shared.table('users', {
   authProviderId: varchar('auth_provider_id', { length: 255 }),
   mfaEnabled: boolean('mfa_enabled').default(false),
   mfaSecret: varchar('mfa_secret', { length: 255 }),
+  role: varchar('role', { length: 20 }).default('user'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),

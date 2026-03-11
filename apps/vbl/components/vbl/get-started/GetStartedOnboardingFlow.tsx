@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useOnboarding, SUBMIT_DETAILS_SUBSTEPS, SubmitDetailsSubStep } from '@/contexts/OnboardingContext';
 import { useEligibility } from '@/contexts/EligibilityContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,6 +11,7 @@ import {
   attachDocument,
   attachSignatureToClaim,
   markStepComplete,
+  verifyPaymentSession,
 } from '@/lib/onboarding-api';
 import { GetStartedLayout } from './GetStartedLayout';
 import { CreateAccount } from '@/components/vbl/onboarding/steps/CreateAccount';
@@ -26,6 +27,7 @@ import { DRVUpsellModal } from '@/components/vbl/onboarding/DRVUpsellModal';
 
 export function GetStartedOnboardingFlow() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const { data: eligibilityData } = useEligibility();
   const {
@@ -80,6 +82,34 @@ export function GetStartedOnboardingFlow() {
     };
     resumeDraft();
   }, [user, data.claimId, loadFromClaim]);
+
+  // Handle payment return from Stripe
+  useEffect(() => {
+    const handlePaymentReturn = async () => {
+      const payment = searchParams?.get('payment');
+      const sessionId = searchParams?.get('session_id');
+      if (payment !== 'success' || !sessionId || !user) return;
+
+      try {
+        const result = await verifyPaymentSession(sessionId);
+        if (result.success && result.paymentStatus === 'paid') {
+          updateData({
+            paymentCompleted: true,
+            claimId: result.claimId,
+          });
+          localStorage.setItem('vbl_draft_claimId', result.claimId);
+          setCurrentStep(3);
+          setCurrentSubStep('identity');
+        }
+      } catch (err) {
+        console.error('Payment verification failed:', err);
+      }
+
+      // Clean URL params
+      window.history.replaceState({}, '', '/get-started');
+    };
+    handlePaymentReturn();
+  }, [searchParams, user, updateData, setCurrentStep, setCurrentSubStep]);
 
   // Success screen and DRV modal state
   const [showSuccess, setShowSuccess] = useState(false);

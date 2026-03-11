@@ -16,6 +16,8 @@ import gpr from './routes/gpr';
 import claims from './routes/claims';
 import documentsRouter from './routes/documents';
 import signaturesRouter from './routes/signatures';
+import admin from './routes/admin';
+import payments from './routes/payments';
 
 const app = new Hono();
 
@@ -35,6 +37,8 @@ app.route('/api/gpr', gpr);
 app.route('/api/claims', claims);
 app.route('/api/documents', documentsRouter);
 app.route('/api/signatures', signaturesRouter);
+app.route('/api/admin', admin);
+app.route('/api/payments', payments);
 
 // Root endpoint
 app.get('/', (c) => {

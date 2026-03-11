@@ -317,11 +317,12 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const loadFromClaim = useCallback((claim: Record<string, any>) => {
     const str = (v: unknown) => (typeof v === 'string' ? v : '');
     const fullName = [str(claim.firstName), str(claim.lastName)].filter(Boolean).join(' ');
+    const isPaid = claim.paymentStatus === 'paid';
 
     setData((prev) => ({
       ...prev,
       claimId: str(claim.id),
-      paymentCompleted: true,
+      paymentCompleted: isPaid,
       identity: {
         ...prev.identity,
         fullName,
@@ -351,6 +352,12 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         accountHolder: str(claim.accountHolderName),
       },
     }));
+
+    // If payment is not completed, stay on payment step
+    if (!isPaid) {
+      setCurrentStep(2);
+      return;
+    }
 
     // Determine which substep to resume at based on completedSteps
     const steps = (claim.completedSteps as Record<string, boolean>) || {};

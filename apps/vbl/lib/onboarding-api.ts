@@ -139,6 +139,10 @@ export interface Claim {
   // Signature
   signatureId?: string;
   signatureCompletedAt?: string;
+  // Payment
+  paymentStatus?: string;
+  stripePaymentId?: string;
+  paidAt?: string;
   // Timestamps
   createdAt: string;
   updatedAt: string;
@@ -253,5 +257,39 @@ export async function getClaimWorkflowHistory(
   const { data } = await apiClient.get(
     `/claims/${claimId}/workflow/history`
   );
+  return data;
+}
+
+// ============================================================
+// Payments
+// ============================================================
+
+export interface CheckoutSessionResponse {
+  success: boolean;
+  url: string;
+  sessionId: string;
+}
+
+export interface VerifyPaymentResponse {
+  success: boolean;
+  claimId: string;
+  paymentStatus: string;
+}
+
+export async function createCheckoutSession(
+  claimId: string
+): Promise<CheckoutSessionResponse> {
+  const { data } = await apiClient.post('/payments/create-checkout-session', {
+    claimId,
+  });
+  return data;
+}
+
+export async function verifyPaymentSession(
+  sessionId: string
+): Promise<VerifyPaymentResponse> {
+  const { data } = await apiClient.post('/payments/verify-session', {
+    sessionId,
+  });
   return data;
 }

@@ -17,8 +17,9 @@ function GetStartedFlow() {
   useEffect(() => {
     if (user && !eligibilityConfirmed) {
       const isFromAuth = searchParams?.get('fromAuth') === '1';
+      const isPaymentReturn = searchParams?.get('payment') === 'success';
       const hasExistingDraft = !!localStorage.getItem('vbl_draft_claimId');
-      if (isFromAuth || hasExistingDraft) {
+      if (isFromAuth || isPaymentReturn || hasExistingDraft) {
         confirmEligibility();
       }
     }

@@ -48,6 +48,7 @@ auth.post('/register', zValidator('json', registrationSchema), async (c) => {
       userId: user.id,
       email: user.email,
       emailVerified: user.emailVerified,
+      role: user.role || 'user',
     });
 
     logger.info(`User registered successfully: ${user.email}`);
@@ -88,6 +89,7 @@ auth.post('/login', zValidator('json', loginSchema), async (c) => {
       userId: user.id,
       email: user.email,
       emailVerified: user.emailVerified,
+      role: user.role || 'user',
     });
 
     logger.info(`User logged in successfully: ${user.email}`);
@@ -404,6 +406,7 @@ auth.post(
         userId: user.id,
         email: user.email,
         emailVerified: user.emailVerified,
+        role: user.role || 'user',
       });
 
       // Migrate any pending GPR session to application
@@ -517,6 +520,7 @@ auth.post(
         userId: user.id,
         email: user.email,
         emailVerified: user.emailVerified,
+        role: user.role || 'user',
       });
 
       logger.info(`User logged in via Google OAuth: ${user.email}`);
@@ -587,6 +591,7 @@ auth.post(
         userId: user.id,
         email: user.email,
         emailVerified: user.emailVerified,
+        role: user.role || 'user',
       });
 
       logger.info(`User logged in via Google OAuth: ${user.email}`);
@@ -707,6 +712,7 @@ auth.post(
         userId: user.id,
         email: user.email,
         emailVerified: user.emailVerified,
+        role: user.role || 'user',
       });
 
       logger.info(`User logged in via Apple Sign-In: ${user.email}`);

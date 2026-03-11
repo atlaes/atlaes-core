@@ -1,40 +1,40 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CreditCard, Check } from 'lucide-react';
+import { CreditCard, Check, AlertCircle } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { createClaim } from '@/lib/onboarding-api';
+import { createClaim, createCheckoutSession } from '@/lib/onboarding-api';
 
 interface PaymentProps {
   onNext: () => void;
 }
 
 export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
-  const { updateData } = useOnboarding();
+  const { data, updateData } = useOnboarding();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handlePayment = async () => {
     setIsProcessing(true);
+    setError(null);
     try {
-      // In real implementation, this would integrate with Stripe/payment provider
-      // Simulate payment processing
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Create claim if we don't have one yet
+      let claimId = data.claimId;
+      if (!claimId) {
+        const claimResult = await createClaim();
+        claimId = claimResult.claim.id;
+        updateData({ claimId });
+        localStorage.setItem('vbl_draft_claimId', claimId);
+      }
 
-      // Create the claim immediately after payment so subsequent steps can save incrementally
-      const claimResult = await createClaim();
-      const claimId = claimResult.claim.id;
-
-      updateData({
-        paymentCompleted: true,
-        paymentReference: `PAY-${Date.now()}`,
-        claimId,
-      });
-
-      // Persist claimId for resume across page refreshes
-      localStorage.setItem('vbl_draft_claimId', claimId);
-
-      onNext();
-    } finally {
+      // Create Stripe Checkout Session and redirect
+      const { url } = await createCheckoutSession(claimId);
+      window.location.href = url;
+    } catch (err) {
+      console.error('Payment initiation failed:', err);
+      setError(
+        'Unable to start payment. Please try again or contact support.'
+      );
       setIsProcessing(false);
     }
   };
@@ -105,6 +105,14 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
           <span>Your payment is secured with 256-bit SSL encryption.</span>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="flex items-center gap-2 text-red-600 text-sm mb-4 p-3 bg-red-50 rounded-lg">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* Payment Button */}
         <button
           onClick={handlePayment}
@@ -114,7 +122,7 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
           {isProcessing ? (
             <>
               <div className="w-5 h-5 border-2 border-[#163300] border-t-transparent rounded-full animate-spin" />
-              Processing...
+              Redirecting to payment...
             </>
           ) : (
             <>

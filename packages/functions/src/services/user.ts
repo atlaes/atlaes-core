@@ -30,6 +30,7 @@ export interface UserWithProfile {
   emailVerified: boolean;
   authProvider: string | null;
   mfaEnabled: boolean;
+  role: string | null;
   passwordHash?: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -130,6 +131,7 @@ export class UserService {
           passwordHash: users.passwordHash,
           authProvider: users.authProvider,
           mfaEnabled: users.mfaEnabled,
+          role: users.role,
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
           profile: {
@@ -165,6 +167,7 @@ export class UserService {
           emailVerified: users.emailVerified,
           authProvider: users.authProvider,
           mfaEnabled: users.mfaEnabled,
+          role: users.role,
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
           profile: {
@@ -245,6 +248,7 @@ export class UserService {
             emailVerified: users.emailVerified,
             authProvider: users.authProvider,
             mfaEnabled: users.mfaEnabled,
+            role: users.role,
             createdAt: users.createdAt,
             updatedAt: users.updatedAt,
             profile: {
@@ -400,6 +404,7 @@ export class UserService {
           emailVerified: users.emailVerified,
           authProvider: users.authProvider,
           mfaEnabled: users.mfaEnabled,
+          role: users.role,
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
           profile: {

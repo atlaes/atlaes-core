@@ -22,9 +22,13 @@ export const corsMiddleware = cors({
       'https://staging.vbl.atlaes.de',
       'https://staging.atlaes.de',
       'https://staging.api.atlaes.de',
+      // Admin portal
+      'https://admin.atlaes.de',
+      'https://staging.admin.atlaes.de',
       // Local development - allow localhost for testing with staging API
       'http://localhost:3000',
       'http://localhost:3001',
+      'http://localhost:3003',
       'http://127.0.0.1:3000',
     ];
 
