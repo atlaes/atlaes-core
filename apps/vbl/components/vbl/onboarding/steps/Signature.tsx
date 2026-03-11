@@ -3,7 +3,10 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { ArrowRight, Pencil, Upload, Undo2, Redo2, Trash2, Loader2 } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { uploadSignature as uploadSignatureApi } from '@/lib/onboarding-api';
+import {
+  uploadSignature as uploadSignatureApi,
+  attachSignatureToClaim,
+} from '@/lib/onboarding-api';
 
 interface SignatureProps {
   onNext: () => void;
@@ -226,6 +229,9 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
     try {
       const result = await uploadSignatureApi(sigData);
       updateData({ signatureId: result.signature.id });
+      if (data.claimId) {
+        await attachSignatureToClaim(data.claimId, result.signature.id);
+      }
       onNext();
     } catch (err) {
       console.error('Signature upload error:', err);
@@ -233,7 +239,7 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
     } finally {
       setIsUploading(false);
     }
-  }, [data.signature.signatureData, updateData, onNext]);
+  }, [data.claimId, data.signature.signatureData, updateData, onNext]);
 
   const canProceed =
     data.signature.signatureData !== undefined || data.signature.signatureFile !== null;
