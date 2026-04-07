@@ -85,7 +85,7 @@ test.describe('Eligibility Edge Cases', () => {
     test('Back from pension scheme → provider', async ({ page }) => {
       await navigateToGetStarted(page);
       await selectEmploymentType(page, 'Public sector');
-      await selectFederalState(page, 'Berlin');
+      await selectFederalState(page, 'Berlin (West)');
       await selectPensionProvider(page, 'VBL');
       await expect(
         page.getByRole('heading', {
@@ -106,7 +106,7 @@ test.describe('Eligibility Edge Cases', () => {
     }) => {
       await navigateToGetStarted(page);
       await selectEmploymentType(page, 'Public sector');
-      await selectFederalState(page, 'Berlin');
+      await selectFederalState(page, 'Berlin (West)');
       await selectPensionProvider(page, 'VBL');
       await selectPensionScheme(page, 'VBLklassik');
       await expect(

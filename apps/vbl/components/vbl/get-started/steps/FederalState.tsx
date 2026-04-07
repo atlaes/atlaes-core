@@ -7,7 +7,8 @@ import { useEligibility } from '@/contexts/EligibilityContext';
 const GERMAN_FEDERAL_STATES = [
   'Baden-Württemberg',
   'Bavaria',
-  'Berlin',
+  'Berlin (West)',
+  'Berlin (East)',
   'Brandenburg',
   'Bremen',
   'Hamburg',

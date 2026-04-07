@@ -6,6 +6,10 @@
 
 declare module "sst" {
   export interface Resource {
+    "AdminApp": {
+      "type": "sst.aws.Nextjs"
+      "url": string
+    }
     "AtlaesBackend": {
       "service": string
       "type": "sst.aws.Service"
@@ -35,6 +39,10 @@ declare module "sst" {
     "AtlaesWebsite": {
       "type": "sst.aws.StaticSite"
       "url": string
+    }
+    "StripeWebhookHandler": {
+      "name": string
+      "type": "sst.aws.Function"
     }
     "VBLApp": {
       "type": "sst.aws.Nextjs"

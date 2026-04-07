@@ -19,7 +19,7 @@ const STEPS: StepConfig[] = [
   {
     id: 1,
     title: 'Job details',
-    description: 'Enter the start/end months and salary periods for each job',
+    description: 'Enter employment dates, salary, and sector for each job.',
   },
   {
     id: 2,

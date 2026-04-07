@@ -34,6 +34,7 @@ export default $config({
     const { bucket } = await import('./resources/storage');
     await import('./resources/email');
     await import('./resources/services');
+    await import('./resources/events');
     }
 
     return {

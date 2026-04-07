@@ -2,6 +2,11 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 export interface JobData {
   startMonth: string;
   startYear: string;
@@ -10,6 +15,7 @@ export interface JobData {
   employmentType: '' | 'Stage/Performing Arts' | 'Private sector' | 'Public Sector' | 'Orchestra';
   averageMonthlyGrossSalary: string;
   germanFederalState: string;
+  companyPension: string;
   supplementaryPensions: string[];
   customPensionName: string;
 }
@@ -70,6 +76,7 @@ const createEmptyJob = (): JobData => ({
   employmentType: '',
   averageMonthlyGrossSalary: '',
   germanFederalState: '',
+  companyPension: '',
   supplementaryPensions: [],
   customPensionName: '',
 });
@@ -176,21 +183,35 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
         return false;
       }
 
-      // Private sector with "Others" requires custom pension name
-      if (job.employmentType === 'Private sector') {
-        if (job.supplementaryPensions.includes('Others')) {
-          return job.customPensionName.trim() !== '';
+      // End date must not be earlier than start date
+      if (hasDateFields) {
+        const startIdx = MONTHS.indexOf(job.startMonth);
+        const endIdx = MONTHS.indexOf(job.endMonth);
+        const startVal = parseInt(job.startYear) * 12 + startIdx;
+        const endVal = parseInt(job.endYear) * 12 + endIdx;
+        if (endVal < startVal) return false;
+      }
+
+      // Public Sector: requires state + company pension; if VBL, needs plan
+      if (job.employmentType === 'Public Sector') {
+        if (job.germanFederalState === '') return false;
+        if (job.companyPension === '') return false;
+        if (job.companyPension === 'VBL') {
+          return job.supplementaryPensions.length > 0;
         }
-        // Private sector can proceed with or without pension selection
         return true;
       }
 
-      // Public Sector requires german federal state
-      if (job.employmentType === 'Public Sector') {
-        if (job.germanFederalState === '') return false;
+      // Private sector: requires company pension; if Others, needs name
+      if (job.employmentType === 'Private sector') {
+        if (job.companyPension === '') return false;
+        if (job.companyPension === 'Others') {
+          return job.customPensionName.trim() !== '';
+        }
+        return true;
       }
 
-      // Non-private sector requires at least one pension selected
+      // Stage/Orchestra: auto-set, always valid
       return job.supplementaryPensions.length > 0;
     }
 

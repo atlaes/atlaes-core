@@ -29,7 +29,7 @@ export function GetStartedOnboardingFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const { data: eligibilityData } = useEligibility();
+  const { data: eligibilityData, reset: resetEligibility } = useEligibility();
   const {
     data,
     updateData,
@@ -50,7 +50,7 @@ export function GetStartedOnboardingFlow() {
     }
   }, [user, currentStep, updateData, setCurrentStep]);
 
-  // Set pension type from eligibility data on mount
+  // Set pension type and provider from eligibility data on mount
   useEffect(() => {
     if (data.pensionType === '') {
       const pensionType =
@@ -60,6 +60,24 @@ export function GetStartedOnboardingFlow() {
       updateData({ pensionType });
     }
   }, [data.pensionType, eligibilityData.employmentType, updateData]);
+
+  // Carry over pension provider from eligibility to membership
+  useEffect(() => {
+    if (eligibilityData.pensionProvider && data.membership.pensionProvider === '') {
+      const provider = eligibilityData.pensionProvider;
+      // Map eligibility provider to membership provider value
+      let mappedProvider = provider;
+      if (provider === 'VBL' && eligibilityData.vblPlan) {
+        mappedProvider = 'VBL';
+      }
+      updateData({
+        membership: {
+          ...data.membership,
+          pensionProvider: mappedProvider as any,
+        },
+      });
+    }
+  }, [eligibilityData.pensionProvider, eligibilityData.vblPlan, data.membership, updateData]);
 
   // Resume draft claim on mount
   useEffect(() => {
@@ -214,16 +232,27 @@ export function GetStartedOnboardingFlow() {
 
   const handleBack = () => {
     if (currentStep === 1) {
-      // Don't go back past Create Account — eligibility is already confirmed
+      // Go back to eligibility flow
+      resetEligibility();
       return;
     } else if (currentStep === 2) {
-      setCurrentStep(1);
+      // Skip back to eligibility if user is already authenticated (step 1 auto-advances)
+      if (user) {
+        resetEligibility();
+      } else {
+        setCurrentStep(1);
+      }
     } else if (currentStep === 3) {
       const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === currentSubStep);
       if (currentIndex > 0) {
         setCurrentSubStep(SUBMIT_DETAILS_SUBSTEPS[currentIndex - 1].id);
       } else {
-        setCurrentStep(2);
+        // Don't go back to Payment if already paid — go to eligibility instead
+        if (data.paymentCompleted) {
+          resetEligibility();
+        } else {
+          setCurrentStep(2);
+        }
       }
     }
   };
@@ -316,7 +345,7 @@ export function GetStartedOnboardingFlow() {
 
   return (
     <GetStartedLayout
-      showBack={currentStep > 1}
+      showBack={true}
       onBack={handleBack}
       activeStep={activeStep}
       currentSubStep={currentStep === 3 ? currentSubStep : undefined}

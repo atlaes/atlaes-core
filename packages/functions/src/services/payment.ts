@@ -61,9 +61,9 @@ export class PaymentService {
           price_data: {
             currency: CURRENCY,
             product_data: {
-              name: 'VBL Pension Refund – Refundable Deposit',
+              name: 'Company Pension Deposit',
               description:
-                'Refundable deposit for VBL supplementary pension refund service. Fully refunded if no refund is granted.',
+                'Deposit for Company Pension claim processing and review. Credited toward the service fee.',
             },
             unit_amount: DEPOSIT_AMOUNT_CENTS,
           },

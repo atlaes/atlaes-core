@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ChevronDown, AlertCircle, Info, Check } from 'lucide-react';
+import { ChevronDown, Info, Check } from 'lucide-react';
 import { StepContainer } from '../StepContainer';
 import { useVBLCalculator, JobData } from '../../../hooks/useVBLCalculator';
 
@@ -16,16 +16,17 @@ const YEARS = Array.from(
 ).reverse();
 
 const EMPLOYMENT_TYPES = [
-  'Stage/Performing Arts',
-  'Private sector',
   'Public Sector',
+  'Private sector',
+  'Stage/Performing Arts',
   'Orchestra',
 ] as const;
 
 const GERMAN_FEDERAL_STATES = [
   'Baden-Württemberg',
   'Bavaria',
-  'Berlin',
+  'Berlin (West)',
+  'Berlin (East)',
   'Brandenburg',
   'Bremen',
   'Hamburg',
@@ -41,25 +42,28 @@ const GERMAN_FEDERAL_STATES = [
   'Thuringia',
 ] as const;
 
-const SALARY_OPTIONS = [
-  '1,000 - 2,000',
-  '2,000 - 3,000',
-  '3,000 - 4,000',
-  '4,000 - 5,000',
-  '5,000 - 6,000',
-  '6,000 - 7,000',
-  '7,000 - 8,000',
-  '8,000 - 10,000',
-  '10,000+',
-] as const;
-
-// Pension providers available based on employment type
-const PENSION_PROVIDERS_BY_TYPE: Record<string, { providers: string[]; multiSelect: boolean; autoSelect?: string }> = {
-  'Stage/Performing Arts': { providers: ['VddB'], multiSelect: false, autoSelect: 'VddB' },
-  'Orchestra': { providers: ['VddKO'], multiSelect: false, autoSelect: 'VddKO' },
-  'Public Sector': { providers: ['VBLklassik', 'VBLextra', 'ZVK'], multiSelect: true },
-  'Private sector': { providers: ['VddKO', 'Others'], multiSelect: false },
+const PUBLIC_PENSION_BY_STATE: Record<string, string[]> = {
+  'Baden-Württemberg': ['VBL', 'ZVK Baden-Württemberg'],
+  'Bavaria': ['VBL', 'Bayerische ZVK'],
+  'Berlin (West)': ['VBL'],
+  'Berlin (East)': ['VBL'],
+  'Brandenburg': ['VBL', 'ZVK Brandenburg'],
+  'Bremen': ['VBL'],
+  'Hamburg': ['VBL'],
+  'Hesse': ['VBL', 'ZVK Darmstadt', 'ZVK Frankfurt am Main', 'KVK Kassel / Kurhessen-Waldeck', 'ZVK Wiesbaden'],
+  'Lower Saxony': ['VBL', 'ZVK Hannover'],
+  'Mecklenburg-Vorpommern': ['VBL', 'Kommunale Zusatzversorgungskasse Mecklenburg-Vorpommern'],
+  'North Rhine-Westphalia': ['VBL', 'ZVK Köln', 'Rheinische Zusatzversorgung', 'KVW Westfalen-Lippe'],
+  'Rhineland-Palatinate': ['VBL', 'Rheinische Zusatzversorgungskasse (Rheinprovinz)', 'Bayerische ZVK (Pfalz)', 'ZVK Darmstadt (Rheinhessen)', 'ZVK Wiesbaden (Montabaur)'],
+  'Saarland': ['VBL', 'RZVK Saarland'],
+  'Saxony': ['VBL', 'ZVK Sachsen'],
+  'Saxony-Anhalt': ['VBL', 'ZVK Sachsen-Anhalt'],
+  'Schleswig-Holstein': ['VBL'],
+  'Thuringia': ['VBL', 'ZVK Thüringen'],
 };
+
+const PRIVATE_PENSION_OPTIONS = ['Allianz', 'Axa', 'BVV', 'Swiss Life', 'Others'];
+const VBL_PLAN_OPTIONS = ['VBLklassik', 'VBLextra'];
 
 interface SelectProps {
   label: string;
@@ -114,98 +118,24 @@ const TextInput: React.FC<TextInputProps> = ({ label, value, onChange, placehold
 
 interface InfoBannerProps {
   children: React.ReactNode;
-  variant?: 'info' | 'warning';
 }
 
-const InfoBanner: React.FC<InfoBannerProps> = ({ children, variant = 'info' }) => (
+const InfoBanner: React.FC<InfoBannerProps> = ({ children }) => (
   <div
-    className={`flex items-start gap-3 p-4 rounded-lg border ${
-      variant === 'warning'
-        ? 'bg-amber-50 border-amber-200'
-        : 'bg-blue-50 border-blue-200'
-    }`}
+    className="flex items-start gap-3 p-4 rounded-lg"
+    style={{ backgroundColor: 'rgba(159, 232, 112, 0.1)' }}
   >
-    <Info
-      className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-        variant === 'warning' ? 'text-amber-600' : 'text-blue-600'
-      }`}
-    />
-    <p
-      className={`text-sm ${
-        variant === 'warning' ? 'text-amber-800' : 'text-blue-800'
-      }`}
+    <div
+      className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+      style={{ backgroundColor: 'var(--vbl-accent-lime)' }}
     >
+      <span className="text-sm font-semibold" style={{ color: '#163300' }}>i</span>
+    </div>
+    <p className="text-sm text-gray-700">
       {children}
     </p>
   </div>
 );
-
-interface MultiSelectChipsProps {
-  label: string;
-  options: string[];
-  selectedValues: string[];
-  onChange: (values: string[]) => void;
-  showCheckboxes?: boolean;
-}
-
-const MultiSelectChips: React.FC<MultiSelectChipsProps> = ({
-  label,
-  options,
-  selectedValues,
-  onChange,
-  showCheckboxes = false,
-}) => {
-  const toggleOption = (option: string) => {
-    if (selectedValues.includes(option)) {
-      onChange(selectedValues.filter((v) => v !== option));
-    } else {
-      onChange([...selectedValues, option]);
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-2">
-      <label className="text-sm font-medium text-gray-700">{label}</label>
-      <div className="flex flex-wrap gap-2">
-        {options.map((option) => {
-          const isSelected = selectedValues.includes(option);
-          return (
-            <button
-              key={option}
-              type="button"
-              onClick={() => toggleOption(option)}
-              className={`
-                flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200
-                border-2
-                ${isSelected
-                  ? 'border-transparent text-[#163300]'
-                  : 'border-gray-200 text-gray-700 hover:border-[#9FE870]/50 hover:bg-gray-50'
-                }
-              `}
-              style={{
-                fontFamily: 'var(--vbl-font-montserrat)',
-                ...(isSelected && { backgroundColor: '#9FE870' }),
-              }}
-            >
-              {showCheckboxes && (
-                <div
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                    isSelected
-                      ? 'bg-[#163300] border-[#163300]'
-                      : 'border-gray-400 bg-white'
-                  }`}
-                >
-                  {isSelected && <Check className="w-3 h-3 text-white" />}
-                </div>
-              )}
-              {option}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
 
 interface SingleSelectChipsProps {
   label: string;
@@ -264,51 +194,72 @@ export const JobDetails: React.FC = () => {
 
   const isPrivateSector = job.employmentType === 'Private sector';
   const isPublicSector = job.employmentType === 'Public Sector';
-  const isStageOrOrchestra = job.employmentType === 'Stage/Performing Arts' || job.employmentType === 'Orchestra';
+  const isStage = job.employmentType === 'Stage/Performing Arts';
+  const isOrchestra = job.employmentType === 'Orchestra';
+  const isStageOrOrchestra = isStage || isOrchestra;
 
-  const pensionConfig = job.employmentType ? PENSION_PROVIDERS_BY_TYPE[job.employmentType] : null;
-  const showOthersInput = isPrivateSector && job.supplementaryPensions.includes('Others');
+  // Date validation: end date must not be before start date
+  const hasAllDates = job.startMonth && job.startYear && job.endMonth && job.endYear;
+  const isDateInvalid = hasAllDates && (() => {
+    const startIdx = MONTHS.indexOf(job.startMonth);
+    const endIdx = MONTHS.indexOf(job.endMonth);
+    const startVal = parseInt(job.startYear) * 12 + startIdx;
+    const endVal = parseInt(job.endYear) * 12 + endIdx;
+    return endVal < startVal;
+  })();
+
+  const publicPensionOptions = isPublicSector && job.germanFederalState
+    ? PUBLIC_PENSION_BY_STATE[job.germanFederalState] || []
+    : [];
+
+  const showVBLPlanToggle = isPublicSector && job.companyPension === 'VBL';
+  const showOthersInput = isPrivateSector && job.companyPension === 'Others';
 
   const handleFieldChange = (field: keyof JobData, value: string | string[]) => {
     const updates: Partial<JobData> = { [field]: value };
 
-    // When employment type changes, reset dependent fields and auto-select if applicable
     if (field === 'employmentType') {
-      const newConfig = PENSION_PROVIDERS_BY_TYPE[value as string];
       updates.germanFederalState = '';
+      updates.companyPension = '';
       updates.customPensionName = '';
+      updates.supplementaryPensions = [];
 
-      // Auto-select pension for Stage/Performing Arts and Orchestra
-      if (newConfig?.autoSelect) {
-        updates.supplementaryPensions = [newConfig.autoSelect];
-      } else {
-        updates.supplementaryPensions = [];
+      if (value === 'Stage/Performing Arts') {
+        updates.companyPension = 'VddB';
+        updates.supplementaryPensions = ['VddB'];
+      } else if (value === 'Orchestra') {
+        updates.companyPension = 'VddKO';
+        updates.supplementaryPensions = ['VddKO'];
       }
     }
 
-    // Clear custom pension name if Others is deselected
-    if (field === 'supplementaryPensions') {
-      const pensions = value as string[];
-      if (!pensions.includes('Others')) {
-        updates.customPensionName = '';
+    if (field === 'germanFederalState') {
+      updates.companyPension = '';
+      updates.supplementaryPensions = [];
+    }
+
+    if (field === 'companyPension') {
+      updates.customPensionName = '';
+      if (value === 'VBL') {
+        updates.supplementaryPensions = [];
+      } else if (value && value !== 'Others') {
+        updates.supplementaryPensions = [value as string];
+      } else {
+        updates.supplementaryPensions = [];
       }
     }
 
     updateJob(currentJobIndex, updates);
   };
 
-  const handlePensionChange = (values: string[]) => {
-    handleFieldChange('supplementaryPensions', values);
-  };
-
-  const handleSinglePensionChange = (value: string) => {
-    handleFieldChange('supplementaryPensions', [value]);
+  const handleVBLPlanChange = (plan: string) => {
+    updateJob(currentJobIndex, { supplementaryPensions: [plan] });
   };
 
   return (
     <StepContainer
       title={`Job ${currentJobIndex + 1} of ${totalJobs}`}
-      description="Enter the start/end months, salary, and sector."
+      description="Enter the employment period and details for this job."
     >
       <div className="space-y-6">
         {/* Start of employment */}
@@ -353,33 +304,36 @@ export const JobDetails: React.FC = () => {
           </div>
         </div>
 
-        {/* Info banner about dates */}
-        <InfoBanner>
-          If you&apos;re unsure about exact months, provide your best estimate. We&apos;ll verify the details later.
-        </InfoBanner>
+        {/* Date validation error */}
+        {isDateInvalid && (
+          <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-red-50 border border-red-200">
+            <p className="text-sm text-red-700 font-medium">
+              End date cannot be earlier than start date.
+            </p>
+          </div>
+        )}
 
-        {/* Average Monthly Gross Salary */}
-        <Select
-          label="Average monthly gross salary (€)"
+        {/* Average Monthly Gross Salary — free text input */}
+        <TextInput
+          label="Average gross monthly salary during this job (&euro;)"
           value={job.averageMonthlyGrossSalary || ''}
           onChange={(value) => handleFieldChange('averageMonthlyGrossSalary', value)}
-          options={SALARY_OPTIONS}
-          placeholder="E.g., 3,500"
+          placeholder="E.g., 3500"
         />
 
-        {/* Employment Type */}
+        {/* Type of employer */}
         <Select
-          label="Employment Type"
+          label="Type of employer"
           value={job.employmentType || ''}
           onChange={(value) => handleFieldChange('employmentType', value)}
           options={EMPLOYMENT_TYPES}
-          placeholder="Select Employment Type"
+          placeholder="Company pension sector"
         />
 
         {/* German Federal State (Public Sector only) */}
         {isPublicSector && (
           <Select
-            label="German Federal State"
+            label="German federal state (where your employer was based)"
             value={job.germanFederalState || ''}
             onChange={(value) => handleFieldChange('germanFederalState', value)}
             options={GERMAN_FEDERAL_STATES}
@@ -387,67 +341,89 @@ export const JobDetails: React.FC = () => {
           />
         )}
 
-        {/* Private sector warning */}
-        {isPrivateSector && (
-          <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-lg border border-amber-200">
-            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-amber-800">
-              Private sector employers rarely offer supplementary pension schemes. If you&apos;re unsure, you likely don&apos;t have one.
-            </p>
-          </div>
+        {/* Company pension — Public Sector (state-dependent dropdown) */}
+        {isPublicSector && job.germanFederalState && (
+          <Select
+            label="Company pension"
+            value={job.companyPension || ''}
+            onChange={(value) => handleFieldChange('companyPension', value)}
+            options={publicPensionOptions}
+            placeholder="Select company pension"
+          />
         )}
 
-        {/* Pension provider selection - varies by employment type */}
-        {pensionConfig && (
+        {/* VBL plan toggle (VBLklassik / VBLextra) */}
+        {showVBLPlanToggle && (
+          <SingleSelectChips
+            label="Which VBL plan do you have?"
+            options={VBL_PLAN_OPTIONS}
+            selectedValue={job.supplementaryPensions[0] || ''}
+            onChange={handleVBLPlanChange}
+          />
+        )}
+
+        {/* Company pension — Private sector dropdown */}
+        {isPrivateSector && (
           <>
-            {/* Stage/Orchestra: Auto-selected, shown as disabled chip */}
-            {isStageOrOrchestra && (
-              <SingleSelectChips
-                label="Supplementary pension provider"
-                options={pensionConfig.providers}
-                selectedValue={job.supplementaryPensions[0] || ''}
-                onChange={handleSinglePensionChange}
-                disabled={true}
-              />
-            )}
-
-            {/* Public Sector: Multi-select with checkboxes */}
-            {isPublicSector && (
-              <MultiSelectChips
-                label="Supplementary pension provider(s)"
-                options={pensionConfig.providers}
-                selectedValues={job.supplementaryPensions}
-                onChange={handlePensionChange}
-                showCheckboxes={true}
-              />
-            )}
-
-            {/* Private sector: Single select for VddKO or Others */}
-            {isPrivateSector && (
-              <SingleSelectChips
-                label="Supplementary pension provider (if applicable)"
-                options={pensionConfig.providers}
-                selectedValue={job.supplementaryPensions[0] || ''}
-                onChange={handleSinglePensionChange}
-              />
-            )}
+            <Select
+              label="Company pension"
+              value={job.companyPension || ''}
+              onChange={(value) => handleFieldChange('companyPension', value)}
+              options={PRIVATE_PENSION_OPTIONS}
+              placeholder="Select company pension"
+            />
+            <InfoBanner>
+              Private supplementary pensions usually do not allow a direct refund. A lump-sum settlement (Abfindung) may be possible depending on the scheme.
+            </InfoBanner>
           </>
         )}
 
-        {/* Custom pension name input (Private sector + Others selected) */}
+        {/* Custom pension name input (Private sector + Others) */}
         {showOthersInput && (
           <TextInput
-            label="Pension provider name"
+            label="Name of company pension"
             value={job.customPensionName || ''}
             onChange={(value) => handleFieldChange('customPensionName', value)}
             placeholder="Enter the name of your pension provider"
           />
         )}
 
-        {/* Bottom info banner */}
-        <InfoBanner>
-          You don&apos;t need documents right now. We&apos;ll help you gather them in the next steps.
-        </InfoBanner>
+        {/* Stage/Performing Arts — read-only display */}
+        {isStage && (
+          <>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">Company pension</label>
+              <div
+                className="w-full px-4 py-3 rounded-lg text-gray-700 font-medium"
+                style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)', fontFamily: 'var(--vbl-font-montserrat)' }}
+              >
+                VddB
+              </div>
+            </div>
+            <InfoBanner>
+              This scheme applies to stage and performing arts employment.
+            </InfoBanner>
+          </>
+        )}
+
+        {/* Orchestra — read-only display */}
+        {isOrchestra && (
+          <>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">Company pension</label>
+              <div
+                className="w-full px-4 py-3 rounded-lg text-gray-700 font-medium"
+                style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)', fontFamily: 'var(--vbl-font-montserrat)' }}
+              >
+                VddKO
+              </div>
+            </div>
+            <InfoBanner>
+              This scheme applies to orchestra employment.
+            </InfoBanner>
+          </>
+        )}
+
       </div>
     </StepContainer>
   );

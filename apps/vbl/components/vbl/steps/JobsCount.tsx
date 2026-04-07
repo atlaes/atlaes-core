@@ -16,7 +16,7 @@ export const JobsCount: React.FC = () => {
   return (
     <StepContainer
       title="How many jobs did you have in Germany?"
-      description="Please count each period where you were employed in Germany and paid into the German state pension system."
+      description="Please count each job you held in Germany that included a company pension."
       showBackButton={false}
     >
       {/* Info banner */}

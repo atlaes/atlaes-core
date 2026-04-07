@@ -226,20 +226,31 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
 
     setIsUploading(true);
     setUploadError(null);
+
+    // If signature was already uploaded (e.g., retry after attach failure), reuse the ID
+    let signatureId = data.signatureId;
+
     try {
-      const result = await uploadSignatureApi(sigData);
-      updateData({ signatureId: result.signature.id });
+      if (!signatureId) {
+        const result = await uploadSignatureApi(sigData);
+        signatureId = result.signature.id;
+        updateData({ signatureId });
+      }
+
       if (data.claimId) {
-        await attachSignatureToClaim(data.claimId, result.signature.id);
+        await attachSignatureToClaim(data.claimId, signatureId);
       }
       onNext();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Signature upload error:', err);
-      setUploadError('Failed to upload signature. Please try again.');
+      const detail = err?.response?.data?.error || err?.message || '';
+      setUploadError(
+        `Failed to save signature${detail ? `: ${detail}` : ''}. Please try again.`
+      );
     } finally {
       setIsUploading(false);
     }
-  }, [data.claimId, data.signature.signatureData, updateData, onNext]);
+  }, [data.claimId, data.signatureId, data.signature.signatureData, updateData, onNext]);
 
   const canProceed =
     data.signature.signatureData !== undefined || data.signature.signatureFile !== null;
@@ -284,7 +295,7 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       {mode === 'draw' && (
         <>
           <div
-            className="border-2 border-dashed border-gray-300 rounded-xl overflow-hidden bg-white"
+            className="relative border-2 border-dashed border-gray-300 rounded-xl overflow-hidden bg-white"
             style={{ touchAction: 'none' }}
           >
             <canvas

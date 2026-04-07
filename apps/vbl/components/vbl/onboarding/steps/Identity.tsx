@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { ArrowRight, Upload, X, Calendar, ChevronDown, Info, Loader2 } from 'lucide-react';
+import { ArrowRight, Upload, X, ChevronDown, Info, Loader2 } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { uploadDocument } from '@/lib/onboarding-api';
 
@@ -250,44 +250,78 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
           />
         </div>
 
-        {/* Date of Birth and Gender - Side by Side */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date of birth
-            </label>
-            <div className="relative">
-              <input
-                type="date"
-                value={data.identity.dateOfBirth}
-                onChange={(e) => updateIdentity({ dateOfBirth: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-              />
-              <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-            </div>
+        {/* Date of Birth */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Date of birth
+          </label>
+          <div className="grid grid-cols-3 gap-3">
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={2}
+              value={data.identity.dateOfBirth ? data.identity.dateOfBirth.split('-')[2]?.replace(/^0/, '') || '' : ''}
+              onChange={(e) => {
+                const day = e.target.value.replace(/\D/g, '').slice(0, 2);
+                const parts = (data.identity.dateOfBirth || '--').split('-');
+                const newDate = `${parts[0] || ''}-${parts[1] || ''}-${day.padStart(2, '0')}`;
+                updateIdentity({ dateOfBirth: newDate });
+              }}
+              placeholder="Day"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none text-center"
+            />
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={2}
+              value={data.identity.dateOfBirth ? data.identity.dateOfBirth.split('-')[1]?.replace(/^0/, '') || '' : ''}
+              onChange={(e) => {
+                const month = e.target.value.replace(/\D/g, '').slice(0, 2);
+                const parts = (data.identity.dateOfBirth || '--').split('-');
+                const newDate = `${parts[0] || ''}-${month.padStart(2, '0')}-${parts[2] || ''}`;
+                updateIdentity({ dateOfBirth: newDate });
+              }}
+              placeholder="Month"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none text-center"
+            />
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={4}
+              value={data.identity.dateOfBirth ? data.identity.dateOfBirth.split('-')[0] || '' : ''}
+              onChange={(e) => {
+                const year = e.target.value.replace(/\D/g, '').slice(0, 4);
+                const parts = (data.identity.dateOfBirth || '--').split('-');
+                const newDate = `${year}-${parts[1] || ''}-${parts[2] || ''}`;
+                updateIdentity({ dateOfBirth: newDate });
+              }}
+              placeholder="Year"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none text-center"
+            />
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Gender
-            </label>
-            <div className="relative">
-              <select
-                value={data.identity.gender}
-                onChange={(e) =>
-                  updateIdentity({
-                    gender: e.target.value as 'male' | 'female' | 'other' | '',
-                  })
-                }
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white"
-              >
-                <option value="">Select</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-            </div>
+        {/* Gender */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Gender
+          </label>
+          <div className="relative">
+            <select
+              value={data.identity.gender}
+              onChange={(e) =>
+                updateIdentity({
+                  gender: e.target.value as 'male' | 'female' | 'other' | '',
+                })
+              }
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white"
+            >
+              <option value="">Select</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
           </div>
         </div>
       </div>

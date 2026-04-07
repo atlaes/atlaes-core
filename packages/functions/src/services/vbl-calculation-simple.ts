@@ -51,6 +51,12 @@ export class VBLSimpleCalculationService {
   // Stage/Orchestra pension providers
   private static readonly STAGE_ORCHESTRA_PROVIDERS = ['VddB', 'VddKO'];
 
+  // Map frontend state names to contributions.json state names
+  private static readonly STATE_NAME_MAP: Record<string, string> = {
+    'Mecklenburg-Vorpommern': 'Mecklenburg-Western Pomerania',
+    'Rhineland-Palatinate': 'Rheinland-Palatinate',
+  };
+
   /**
    * Get pension providers from job (handles both legacy and new format)
    */
@@ -291,7 +297,8 @@ export class VBLSimpleCalculationService {
    * Get job location (uses new germanFederalState or legacy location field)
    */
   private static getJobLocation(job: VBLSimpleCalculationInput['jobs'][0]): string {
-    return job.germanFederalState || job.location || 'West Germany';
+    const state = job.germanFederalState || job.location || 'West Germany';
+    return this.STATE_NAME_MAP[state] || state;
   }
 
   /**
@@ -379,15 +386,38 @@ export class VBLSimpleCalculationService {
       isStageOrchestra: input.jobs.some((job) => this.isStageOrchestraJob(job)),
       hasOccupationalDisability: false, // Default for Stage/Orchestra calculations
       // Build periods array for accurate calculation
-      periods: input.jobs.map((job) => ({
-        startDate: this.formatDateToYYYYMMDD(job.startDate),
-        endDate: this.formatDateToYYYYMMDD(job.endDate),
-        state: this.getJobLocation(job),
-        grossMonthlySalary: this.getJobSalary(job),
-        publicSector:
-          job.employmentType.toLowerCase().includes('public') ||
-          job.employmentType.toLowerCase().includes('öffentlich'),
-      })),
+      periods: input.jobs.map((job) => {
+        const pensions = this.getPensionProviders(job);
+        const isVddKO =
+          job.employmentType === 'Orchestra' ||
+          pensions.includes('VddKO');
+        const isVddB =
+          job.employmentType === 'Stage/Performing Arts' ||
+          pensions.includes('VddB');
+
+        // Determine user-facing provider name for breakdown display
+        const providerName = isVddKO
+          ? 'VddKO'
+          : isVddB
+            ? 'VddB'
+            : (pensions[0] || job.customPensionName || 'VBL');
+
+        return {
+          startDate: this.formatDateToYYYYMMDD(job.startDate),
+          endDate: this.formatDateToYYYYMMDD(job.endDate),
+          state: this.getJobLocation(job),
+          grossMonthlySalary: this.getJobSalary(job),
+          publicSector:
+            job.employmentType.toLowerCase().includes('public') ||
+            job.employmentType.toLowerCase().includes('öffentlich'),
+          institution: isVddKO
+            ? 'vddko' as const
+            : isVddB
+              ? 'vddb' as const
+              : undefined,
+          providerName,
+        };
+      }),
     };
 
     return fullInput;
