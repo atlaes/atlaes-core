@@ -14,6 +14,13 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Auto-skip if payment is already completed
+  React.useEffect(() => {
+    if (data.paymentCompleted) {
+      onNext();
+    }
+  }, [data.paymentCompleted, onNext]);
+
   const handlePayment = async () => {
     setIsProcessing(true);
     setError(null);

@@ -19,7 +19,7 @@ const STEPS: StepConfig[] = [
   {
     id: 1,
     title: 'Job details',
-    description: 'Enter the start/end months and salary periods for each job',
+    description: 'Enter employment dates, salary, and sector for each job.',
   },
   {
     id: 2,
@@ -29,7 +29,7 @@ const STEPS: StepConfig[] = [
 ];
 
 export const Sidebar: React.FC = () => {
-  const { currentStep, currentJobIndex, formData, completedSteps, setCurrentStep, setCurrentJobIndex } = useVBLCalculator();
+  const { currentStep, currentJobIndex, formData, completedSteps, setCurrentStep, setCurrentJobIndex, setCurrentJobSubStep } = useVBLCalculator();
 
   const isStepComplete = (stepId: number): boolean => {
     return completedSteps.has(stepId);
@@ -48,6 +48,9 @@ export const Sidebar: React.FC = () => {
       setCurrentStep(stepId);
       if (stepId === 1) {
         setCurrentJobIndex(0);
+        // Always land on the main job form when jumping via the sidebar —
+        // the optional private sub-step is only reached linearly via Next.
+        setCurrentJobSubStep('main');
       }
     }
   };

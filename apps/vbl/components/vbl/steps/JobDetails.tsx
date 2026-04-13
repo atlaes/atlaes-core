@@ -1,31 +1,35 @@
 'use client';
 
 import React from 'react';
-import { ChevronDown, AlertCircle, Info, Check } from 'lucide-react';
+import { ChevronDown, Info, Check } from 'lucide-react';
 import { StepContainer } from '../StepContainer';
 import { useVBLCalculator, JobData } from '../../../hooks/useVBLCalculator';
+import { PrivateOptionalDetails } from './PrivateOptionalDetails';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+// Client feedback #2: calculator only supports 2004+ (no historical rates before that).
+const EARLIEST_YEAR = 2004;
 const YEARS = Array.from(
-  { length: new Date().getFullYear() - 1960 + 1 },
-  (_, i) => (1960 + i).toString()
+  { length: new Date().getFullYear() - EARLIEST_YEAR + 1 },
+  (_, i) => (EARLIEST_YEAR + i).toString()
 ).reverse();
 
 const EMPLOYMENT_TYPES = [
-  'Stage/Performing Arts',
-  'Private sector',
   'Public Sector',
+  'Stage/Performing Arts',
   'Orchestra',
+  'Private sector',
 ] as const;
 
 const GERMAN_FEDERAL_STATES = [
   'Baden-Württemberg',
   'Bavaria',
-  'Berlin',
+  'Berlin (West)',
+  'Berlin (East)',
   'Brandenburg',
   'Bremen',
   'Hamburg',
@@ -41,25 +45,28 @@ const GERMAN_FEDERAL_STATES = [
   'Thuringia',
 ] as const;
 
-const SALARY_OPTIONS = [
-  '1,000 - 2,000',
-  '2,000 - 3,000',
-  '3,000 - 4,000',
-  '4,000 - 5,000',
-  '5,000 - 6,000',
-  '6,000 - 7,000',
-  '7,000 - 8,000',
-  '8,000 - 10,000',
-  '10,000+',
-] as const;
-
-// Pension providers available based on employment type
-const PENSION_PROVIDERS_BY_TYPE: Record<string, { providers: string[]; multiSelect: boolean; autoSelect?: string }> = {
-  'Stage/Performing Arts': { providers: ['VddB'], multiSelect: false, autoSelect: 'VddB' },
-  'Orchestra': { providers: ['VddKO'], multiSelect: false, autoSelect: 'VddKO' },
-  'Public Sector': { providers: ['VBLklassik', 'VBLextra', 'ZVK'], multiSelect: true },
-  'Private sector': { providers: ['VddKO', 'Others'], multiSelect: false },
+const PUBLIC_PENSION_BY_STATE: Record<string, string[]> = {
+  'Baden-Württemberg': ['VBL', 'ZVK Baden-Württemberg'],
+  'Bavaria': ['VBL', 'Bayerische ZVK'],
+  'Berlin (West)': ['VBL'],
+  'Berlin (East)': ['VBL'],
+  'Brandenburg': ['VBL', 'ZVK Brandenburg'],
+  'Bremen': ['VBL'],
+  'Hamburg': ['VBL'],
+  'Hesse': ['VBL', 'ZVK Darmstadt', 'ZVK Frankfurt am Main', 'KVK Kassel / Kurhessen-Waldeck', 'ZVK Wiesbaden'],
+  'Lower Saxony': ['VBL', 'ZVK Hannover'],
+  'Mecklenburg-Vorpommern': ['VBL', 'Kommunale Zusatzversorgungskasse Mecklenburg-Vorpommern'],
+  'North Rhine-Westphalia': ['VBL', 'ZVK Köln', 'Rheinische Zusatzversorgung', 'KVW Westfalen-Lippe'],
+  'Rhineland-Palatinate': ['VBL', 'Rheinische Zusatzversorgungskasse (Rheinprovinz)', 'Bayerische ZVK (Pfalz)', 'ZVK Darmstadt (Rheinhessen)', 'ZVK Wiesbaden (Montabaur)'],
+  'Saarland': ['VBL', 'RZVK Saarland'],
+  'Saxony': ['VBL', 'ZVK Sachsen'],
+  'Saxony-Anhalt': ['VBL', 'ZVK Sachsen-Anhalt'],
+  'Schleswig-Holstein': ['VBL'],
+  'Thuringia': ['VBL', 'ZVK Thüringen'],
 };
+
+const PRIVATE_PENSION_OPTIONS = ['Allianz', 'Axa', 'BVV', 'Swiss Life', 'Others'];
+const VBL_PLAN_OPTIONS = ['VBLklassik', 'VBLextra'];
 
 interface SelectProps {
   label: string;
@@ -112,100 +119,44 @@ const TextInput: React.FC<TextInputProps> = ({ label, value, onChange, placehold
   </div>
 );
 
+// Numeric-only input (client feedback #1). Strips non-digits on change so
+// users can still paste "3.500,00" or "3,500" and get the clean integer back.
+const NumberInput: React.FC<TextInputProps> = ({ label, value, onChange, placeholder }) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-sm font-medium text-gray-700">{label}</label>
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={value}
+      onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ''))}
+      placeholder={placeholder}
+      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/20 transition-all duration-200 text-gray-700"
+      style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+    />
+  </div>
+);
+
 interface InfoBannerProps {
   children: React.ReactNode;
-  variant?: 'info' | 'warning';
 }
 
-const InfoBanner: React.FC<InfoBannerProps> = ({ children, variant = 'info' }) => (
+const InfoBanner: React.FC<InfoBannerProps> = ({ children }) => (
   <div
-    className={`flex items-start gap-3 p-4 rounded-lg border ${
-      variant === 'warning'
-        ? 'bg-amber-50 border-amber-200'
-        : 'bg-blue-50 border-blue-200'
-    }`}
+    className="flex items-start gap-3 p-4 rounded-lg"
+    style={{ backgroundColor: 'rgba(159, 232, 112, 0.1)' }}
   >
-    <Info
-      className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-        variant === 'warning' ? 'text-amber-600' : 'text-blue-600'
-      }`}
-    />
-    <p
-      className={`text-sm ${
-        variant === 'warning' ? 'text-amber-800' : 'text-blue-800'
-      }`}
+    <div
+      className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+      style={{ backgroundColor: 'var(--vbl-accent-lime)' }}
     >
+      <span className="text-sm font-semibold" style={{ color: '#163300' }}>i</span>
+    </div>
+    <p className="text-sm text-gray-700">
       {children}
     </p>
   </div>
 );
-
-interface MultiSelectChipsProps {
-  label: string;
-  options: string[];
-  selectedValues: string[];
-  onChange: (values: string[]) => void;
-  showCheckboxes?: boolean;
-}
-
-const MultiSelectChips: React.FC<MultiSelectChipsProps> = ({
-  label,
-  options,
-  selectedValues,
-  onChange,
-  showCheckboxes = false,
-}) => {
-  const toggleOption = (option: string) => {
-    if (selectedValues.includes(option)) {
-      onChange(selectedValues.filter((v) => v !== option));
-    } else {
-      onChange([...selectedValues, option]);
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-2">
-      <label className="text-sm font-medium text-gray-700">{label}</label>
-      <div className="flex flex-wrap gap-2">
-        {options.map((option) => {
-          const isSelected = selectedValues.includes(option);
-          return (
-            <button
-              key={option}
-              type="button"
-              onClick={() => toggleOption(option)}
-              className={`
-                flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200
-                border-2
-                ${isSelected
-                  ? 'border-transparent text-[#163300]'
-                  : 'border-gray-200 text-gray-700 hover:border-[#9FE870]/50 hover:bg-gray-50'
-                }
-              `}
-              style={{
-                fontFamily: 'var(--vbl-font-montserrat)',
-                ...(isSelected && { backgroundColor: '#9FE870' }),
-              }}
-            >
-              {showCheckboxes && (
-                <div
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                    isSelected
-                      ? 'bg-[#163300] border-[#163300]'
-                      : 'border-gray-400 bg-white'
-                  }`}
-                >
-                  {isSelected && <Check className="w-3 h-3 text-white" />}
-                </div>
-              )}
-              {option}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
 
 interface SingleSelectChipsProps {
   label: string;
@@ -258,57 +209,90 @@ const SingleSelectChips: React.FC<SingleSelectChipsProps> = ({
 };
 
 export const JobDetails: React.FC = () => {
-  const { formData, updateJob, currentJobIndex } = useVBLCalculator();
+  const { formData, updateJob, currentJobIndex, currentJobSubStep } = useVBLCalculator();
   const job = formData.jobs[currentJobIndex] || {} as JobData;
   const totalJobs = formData.numberOfJobs;
 
+  // Figma: for private-sector jobs that answered "no"/"not_sure" on the
+  // DRV-refunded question, Job Details splits into a second sub-step showing
+  // only the 4 optional financial-detail fields.
+  if (currentJobSubStep === 'optional') {
+    return <PrivateOptionalDetails />;
+  }
+
   const isPrivateSector = job.employmentType === 'Private sector';
   const isPublicSector = job.employmentType === 'Public Sector';
-  const isStageOrOrchestra = job.employmentType === 'Stage/Performing Arts' || job.employmentType === 'Orchestra';
+  const isStage = job.employmentType === 'Stage/Performing Arts';
+  const isOrchestra = job.employmentType === 'Orchestra';
+  const isStageOrOrchestra = isStage || isOrchestra;
 
-  const pensionConfig = job.employmentType ? PENSION_PROVIDERS_BY_TYPE[job.employmentType] : null;
-  const showOthersInput = isPrivateSector && job.supplementaryPensions.includes('Others');
+  // Date validation: end date must not be before start date
+  const hasAllDates = job.startMonth && job.startYear && job.endMonth && job.endYear;
+  const isDateInvalid = hasAllDates && (() => {
+    const startIdx = MONTHS.indexOf(job.startMonth);
+    const endIdx = MONTHS.indexOf(job.endMonth);
+    const startVal = parseInt(job.startYear) * 12 + startIdx;
+    const endVal = parseInt(job.endYear) * 12 + endIdx;
+    return endVal < startVal;
+  })();
+
+  const publicPensionOptions = isPublicSector && job.germanFederalState
+    ? PUBLIC_PENSION_BY_STATE[job.germanFederalState] || []
+    : [];
+
+  const showVBLPlanToggle = isPublicSector && job.companyPension === 'VBL';
+  const showOthersInput = isPrivateSector && job.companyPension === 'Others';
 
   const handleFieldChange = (field: keyof JobData, value: string | string[]) => {
     const updates: Partial<JobData> = { [field]: value };
 
-    // When employment type changes, reset dependent fields and auto-select if applicable
     if (field === 'employmentType') {
-      const newConfig = PENSION_PROVIDERS_BY_TYPE[value as string];
       updates.germanFederalState = '';
+      updates.companyPension = '';
       updates.customPensionName = '';
+      updates.supplementaryPensions = [];
 
-      // Auto-select pension for Stage/Performing Arts and Orchestra
-      if (newConfig?.autoSelect) {
-        updates.supplementaryPensions = [newConfig.autoSelect];
-      } else {
+      if (value === 'Stage/Performing Arts') {
+        updates.companyPension = 'VddB';
+        updates.supplementaryPensions = ['VddB'];
+      } else if (value === 'Orchestra') {
+        updates.companyPension = 'VddKO';
+        updates.supplementaryPensions = ['VddKO'];
+      }
+    }
+
+    if (field === 'germanFederalState') {
+      // Only reset the pension selection for public sector (where the
+      // available providers depend on the state). Stage/Orchestra have a
+      // fixed provider (VddB/VddKO) that must not be cleared.
+      if (job.employmentType === 'Public Sector') {
+        updates.companyPension = '';
         updates.supplementaryPensions = [];
       }
     }
 
-    // Clear custom pension name if Others is deselected
-    if (field === 'supplementaryPensions') {
-      const pensions = value as string[];
-      if (!pensions.includes('Others')) {
-        updates.customPensionName = '';
+    if (field === 'companyPension') {
+      updates.customPensionName = '';
+      if (value === 'VBL') {
+        updates.supplementaryPensions = [];
+      } else if (value && value !== 'Others') {
+        updates.supplementaryPensions = [value as string];
+      } else {
+        updates.supplementaryPensions = [];
       }
     }
 
     updateJob(currentJobIndex, updates);
   };
 
-  const handlePensionChange = (values: string[]) => {
-    handleFieldChange('supplementaryPensions', values);
-  };
-
-  const handleSinglePensionChange = (value: string) => {
-    handleFieldChange('supplementaryPensions', [value]);
+  const handleVBLPlanChange = (plan: string) => {
+    updateJob(currentJobIndex, { supplementaryPensions: [plan] });
   };
 
   return (
     <StepContainer
       title={`Job ${currentJobIndex + 1} of ${totalJobs}`}
-      description="Enter the start/end months, salary, and sector."
+      description="Enter the employment period and details for this job."
     >
       <div className="space-y-6">
         {/* Start of employment */}
@@ -316,18 +300,18 @@ export const JobDetails: React.FC = () => {
           <p className="text-sm font-semibold text-gray-800 mb-3">Start of employment</p>
           <div className="grid grid-cols-2 gap-4">
             <Select
-              label="Start Month"
+              label="Start month"
               value={job.startMonth || ''}
               onChange={(value) => handleFieldChange('startMonth', value)}
               options={MONTHS}
-              placeholder="Select Start Month"
+              placeholder="Select start month"
             />
             <Select
-              label="Start Year"
+              label="Start year"
               value={job.startYear || ''}
               onChange={(value) => handleFieldChange('startYear', value)}
               options={YEARS}
-              placeholder="Select Start Year"
+              placeholder="Select start year"
             />
           </div>
         </div>
@@ -337,49 +321,54 @@ export const JobDetails: React.FC = () => {
           <p className="text-sm font-semibold text-gray-800 mb-3">End of employment</p>
           <div className="grid grid-cols-2 gap-4">
             <Select
-              label="End Month"
+              label="End month"
               value={job.endMonth || ''}
               onChange={(value) => handleFieldChange('endMonth', value)}
               options={MONTHS}
-              placeholder="Select End Month"
+              placeholder="Select end month"
             />
             <Select
-              label="End Year"
+              label="End year"
               value={job.endYear || ''}
               onChange={(value) => handleFieldChange('endYear', value)}
               options={YEARS}
-              placeholder="Select End Year"
+              placeholder="Select end year"
             />
           </div>
         </div>
 
-        {/* Info banner about dates */}
-        <InfoBanner>
-          If you&apos;re unsure about exact months, provide your best estimate. We&apos;ll verify the details later.
-        </InfoBanner>
+        {/* Date validation error */}
+        {isDateInvalid && (
+          <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-red-50 border border-red-200">
+            <p className="text-sm text-red-700 font-medium">
+              End date cannot be earlier than start date.
+            </p>
+          </div>
+        )}
 
-        {/* Average Monthly Gross Salary */}
-        <Select
-          label="Average monthly gross salary (€)"
+        {/* Average Monthly Gross Salary — numeric-only input (client #1) */}
+        <NumberInput
+          label="Average monthly gross salary (&euro;)"
           value={job.averageMonthlyGrossSalary || ''}
           onChange={(value) => handleFieldChange('averageMonthlyGrossSalary', value)}
-          options={SALARY_OPTIONS}
-          placeholder="E.g., 3,500"
+          placeholder="E.g., 3500"
         />
 
-        {/* Employment Type */}
+        {/* Type of employer */}
         <Select
-          label="Employment Type"
+          label="Company pension sector"
           value={job.employmentType || ''}
           onChange={(value) => handleFieldChange('employmentType', value)}
           options={EMPLOYMENT_TYPES}
-          placeholder="Select Employment Type"
+          placeholder="Select sector"
         />
 
-        {/* German Federal State (Public Sector only) */}
-        {isPublicSector && (
+        {/* German Federal State.
+            Client #5: Stage/Orchestra also needs the federal state question to
+            apply the correct east/west BBG cap (different pre-2025). */}
+        {(isPublicSector || isStageOrOrchestra) && (
           <Select
-            label="German Federal State"
+            label="German federal state (where your employer was based)"
             value={job.germanFederalState || ''}
             onChange={(value) => handleFieldChange('germanFederalState', value)}
             options={GERMAN_FEDERAL_STATES}
@@ -387,67 +376,111 @@ export const JobDetails: React.FC = () => {
           />
         )}
 
-        {/* Private sector warning */}
-        {isPrivateSector && (
-          <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-lg border border-amber-200">
-            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-amber-800">
-              Private sector employers rarely offer supplementary pension schemes. If you&apos;re unsure, you likely don&apos;t have one.
-            </p>
-          </div>
-        )}
-
-        {/* Pension provider selection - varies by employment type */}
-        {pensionConfig && (
-          <>
-            {/* Stage/Orchestra: Auto-selected, shown as disabled chip */}
-            {isStageOrOrchestra && (
-              <SingleSelectChips
-                label="Supplementary pension provider"
-                options={pensionConfig.providers}
-                selectedValue={job.supplementaryPensions[0] || ''}
-                onChange={handleSinglePensionChange}
-                disabled={true}
-              />
-            )}
-
-            {/* Public Sector: Multi-select with checkboxes */}
-            {isPublicSector && (
-              <MultiSelectChips
-                label="Supplementary pension provider(s)"
-                options={pensionConfig.providers}
-                selectedValues={job.supplementaryPensions}
-                onChange={handlePensionChange}
-                showCheckboxes={true}
-              />
-            )}
-
-            {/* Private sector: Single select for VddKO or Others */}
-            {isPrivateSector && (
-              <SingleSelectChips
-                label="Supplementary pension provider (if applicable)"
-                options={pensionConfig.providers}
-                selectedValue={job.supplementaryPensions[0] || ''}
-                onChange={handleSinglePensionChange}
-              />
-            )}
-          </>
-        )}
-
-        {/* Custom pension name input (Private sector + Others selected) */}
-        {showOthersInput && (
-          <TextInput
-            label="Pension provider name"
-            value={job.customPensionName || ''}
-            onChange={(value) => handleFieldChange('customPensionName', value)}
-            placeholder="Enter the name of your pension provider"
+        {/* Company pension — Public Sector (state-dependent dropdown) */}
+        {isPublicSector && job.germanFederalState && (
+          <Select
+            label="Company pension"
+            value={job.companyPension || ''}
+            onChange={(value) => handleFieldChange('companyPension', value)}
+            options={publicPensionOptions}
+            placeholder="Select company pension"
           />
         )}
 
-        {/* Bottom info banner */}
-        <InfoBanner>
-          You don&apos;t need documents right now. We&apos;ll help you gather them in the next steps.
-        </InfoBanner>
+        {/* VBL plan toggle (VBLklassik / VBLextra) */}
+        {showVBLPlanToggle && (
+          <SingleSelectChips
+            label="Which VBL plan do you have?"
+            options={VBL_PLAN_OPTIONS}
+            selectedValue={job.supplementaryPensions[0] || ''}
+            onChange={handleVBLPlanChange}
+          />
+        )}
+
+        {/* Company pension — Private sector dropdown */}
+        {isPrivateSector && (
+          <>
+            <Select
+              label="Company pension"
+              value={job.companyPension || ''}
+              onChange={(value) => handleFieldChange('companyPension', value)}
+              options={PRIVATE_PENSION_OPTIONS}
+              placeholder="Select company pension"
+            />
+            <InfoBanner>
+              Private-sector company pensions require individual review. A lump-sum settlement (Abfindung) may be possible depending on the scheme.
+            </InfoBanner>
+          </>
+        )}
+
+        {/* Custom pension name input (Private sector + Others) */}
+        {showOthersInput && (
+          <TextInput
+            label="Name of company pension plan"
+            value={job.customPensionName || ''}
+            onChange={(value) => handleFieldChange('customPensionName', value)}
+            placeholder="Enter the name of your company pension plan"
+          />
+        )}
+
+        {/* Figma: private-sector DRV statutory-refund question. "no" or
+            "not_sure" routes the user into the optional financial-details
+            sub-step after they hit Next. */}
+        {isPrivateSector && job.companyPension && (
+          <SingleSelectChips
+            label="Have your German statutory pension contributions already been refunded?"
+            options={['Yes', 'No', 'Not sure']}
+            selectedValue={(() => {
+              if (job.statutoryPensionRefunded === 'yes') return 'Yes';
+              if (job.statutoryPensionRefunded === 'no') return 'No';
+              if (job.statutoryPensionRefunded === 'not_sure') return 'Not sure';
+              return '';
+            })()}
+            onChange={(label) =>
+              handleFieldChange(
+                'statutoryPensionRefunded',
+                label === 'Yes' ? 'yes' : label === 'No' ? 'no' : 'not_sure'
+              )
+            }
+          />
+        )}
+
+        {/* Stage/Performing Arts — read-only display */}
+        {isStage && (
+          <>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">Company pension</label>
+              <div
+                className="w-full px-4 py-3 rounded-lg text-gray-700 font-medium"
+                style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)', fontFamily: 'var(--vbl-font-montserrat)' }}
+              >
+                VddB
+              </div>
+            </div>
+            <InfoBanner>
+              This scheme applies to stage and performing arts employment.
+            </InfoBanner>
+          </>
+        )}
+
+        {/* Orchestra — read-only display */}
+        {isOrchestra && (
+          <>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">Company pension</label>
+              <div
+                className="w-full px-4 py-3 rounded-lg text-gray-700 font-medium"
+                style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)', fontFamily: 'var(--vbl-font-montserrat)' }}
+              >
+                VddKO
+              </div>
+            </div>
+            <InfoBanner>
+              This scheme applies to orchestra employment.
+            </InfoBanner>
+          </>
+        )}
+
       </div>
     </StepContainer>
   );

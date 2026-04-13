@@ -10,6 +10,7 @@ import { PensionProvider } from './steps/PensionProvider';
 import { PensionScheme } from './steps/PensionScheme';
 import { ContributionPeriod } from './steps/ContributionPeriod';
 import { ContributionDuration } from './steps/ContributionDuration';
+import { EUContinuation } from './steps/EUContinuation';
 import { StagePensionDetails } from './steps/StagePensionDetails';
 import { StageContributionDuration } from './steps/StageContributionDuration';
 import { EmploymentEndDate } from './steps/EmploymentEndDate';
@@ -21,6 +22,7 @@ const STEP_COMPONENTS: Record<string, React.FC> = {
   federal_state: FederalState,
   pension_provider: PensionProvider,
   pension_scheme: PensionScheme,
+  eu_continuation: EUContinuation,
   contribution_period: ContributionPeriod,
   contribution_duration: ContributionDuration,
   // Stage steps

@@ -23,13 +23,42 @@ interface OnboardingFlowProps {
 
 export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps) {
   const router = useRouter();
-  const { data, updateData, currentStep, currentSubStep, setCurrentStep, setCurrentSubStep, updateSuccessData } = useOnboarding();
+  const {
+    data,
+    updateData,
+    updateMembership,
+    currentStep,
+    currentSubStep,
+    setCurrentStep,
+    setCurrentSubStep,
+    editingFromReview,
+    setEditingFromReview,
+    updateSuccessData,
+  } = useOnboarding();
 
-  // Track if user has completed pension type selection (pre-step)
-  // Skip if arriving from the /get-started eligibility flow
+  // Track if user has completed pension type selection (pre-step).
+  // Client #8: only show it when the calculator detected multiple claim
+  // types (e.g., the user has both public and private sector jobs that
+  // create separate claims). A single-type user has nothing to choose.
+  const [detectedClaimTypes, setDetectedClaimTypes] = useState<string[]>([]);
   const [showPensionTypeSelection, setShowPensionTypeSelection] = useState(
     () => {
       if (typeof window !== 'undefined') {
+        const calc = sessionStorage.getItem('calculator-selection');
+        if (calc) {
+          try {
+            const parsed = JSON.parse(calc) as { claimTypes?: string[] };
+            const types = parsed.claimTypes ?? [];
+            // Only show when user has mixed sectors creating separate claims:
+            // a public/stage pension claim AND a private pension claim.
+            const hasPublicOrStage =
+              types.includes('public') || types.includes('stage');
+            const hasPrivate = types.includes('private');
+            return hasPublicOrStage && hasPrivate;
+          } catch {
+            // fall through to eligibility check
+          }
+        }
         const eligibilityResult = sessionStorage.getItem('eligibility-result');
         if (eligibilityResult) return false;
       }
@@ -52,6 +81,30 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
       sessionStorage.removeItem('eligibility-result');
     }
   }, [updateData]);
+
+  // Client #12: carry the pension provider chosen in the calculator into
+  // the onboarding Membership step so the user cannot re-pick a different
+  // provider during claim filing. Also captures detected claim types for
+  // the dynamic pension-type selection screen (client #8).
+  useEffect(() => {
+    const stored = sessionStorage.getItem('calculator-selection');
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored) as {
+        pensionProvider?: string;
+        claimTypes?: string[];
+      };
+      if (parsed.pensionProvider) {
+        updateMembership({ pensionProvider: parsed.pensionProvider });
+      }
+      if (parsed.claimTypes) {
+        setDetectedClaimTypes(parsed.claimTypes);
+      }
+    } catch {
+      // Ignore parsing errors
+    }
+    sessionStorage.removeItem('calculator-selection');
+  }, [updateMembership]);
 
   // Success screen and DRV modal state
   const [showSuccess, setShowSuccess] = useState(false);
@@ -77,6 +130,14 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
   };
 
   const handleSubStepNext = () => {
+    // Client #16: if the user is editing a field they jumped to from the
+    // review screen, Continue should return them to review, not walk through
+    // every remaining step again.
+    if (editingFromReview) {
+      setEditingFromReview(false);
+      setCurrentSubStep('review');
+      return;
+    }
     const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === currentSubStep);
     if (currentIndex < SUBMIT_DETAILS_SUBSTEPS.length - 1) {
       setCurrentSubStep(SUBMIT_DETAILS_SUBSTEPS[currentIndex + 1].id);
@@ -107,8 +168,10 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
     setShowSuccess(true);
   };
 
-  // Handle edit section from review
+  // Handle edit section from review. Flags the flow as "editing from review"
+  // so the next Continue routes back to review instead of advancing linearly.
   const handleEditSection = (subStep: SubmitDetailsSubStep) => {
+    setEditingFromReview(true);
     setCurrentSubStep(subStep);
   };
 
@@ -128,13 +191,16 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
     router.push('/dashboard');
   };
 
-  // If pension type not selected yet, show that screen
+  // If pension type not selected yet, show that screen.
+  // Client #8: pass detected claim types so the card labels can render
+  // dynamically ("Public Sector Pension" vs "Stage Pension" vs both).
   if (showPensionTypeSelection) {
     return (
       <PensionTypeSelection
         onNext={handlePensionTypeNext}
         headerTitle={headerTitle}
         headerIcon={headerIcon}
+        claimTypes={detectedClaimTypes}
       />
     );
   }

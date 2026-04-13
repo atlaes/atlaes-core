@@ -129,17 +129,24 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       setIsDrawing(false);
       saveToHistory();
 
-      // Save to context
+      // Save to context. Client #15: clearing signatureId here ensures the
+      // modified drawing is re-uploaded on the next Continue, instead of
+      // attaching the stale (possibly invalidated) server-side ID.
       const canvas = canvasRef.current;
       if (canvas) {
         updateSignature({
           signatureData: canvas.toDataURL(),
           signatureType: 'draw',
         });
+        updateData({ signatureId: undefined });
       }
     }
-  }, [isDrawing, saveToHistory, updateSignature]);
+  }, [isDrawing, saveToHistory, updateSignature, updateData]);
 
+  // Client #15: every mutation to the drawn signature must invalidate the
+  // cached server-side signatureId. Otherwise, if the user uploaded once,
+  // then undid/redid/cleared, a second Continue would attach the stale
+  // (already consumed) ID to the claim and trigger an "Invalid Token" error.
   const handleUndo = useCallback(() => {
     if (historyIndex <= 0) {
       // Clear canvas
@@ -148,6 +155,7 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       if (canvas && context) {
         context.clearRect(0, 0, canvas.width, canvas.height);
         updateSignature({ signatureData: undefined });
+        updateData({ signatureId: undefined });
       }
       setHistoryIndex(-1);
       return;
@@ -162,10 +170,11 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.drawImage(img, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
       updateSignature({ signatureData: history[historyIndex - 1] });
+      updateData({ signatureId: undefined });
     };
     img.src = history[historyIndex - 1];
     setHistoryIndex(historyIndex - 1);
-  }, [history, historyIndex, updateSignature]);
+  }, [history, historyIndex, updateSignature, updateData]);
 
   const handleRedo = useCallback(() => {
     if (historyIndex >= history.length - 1) return;
@@ -179,10 +188,11 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.drawImage(img, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
       updateSignature({ signatureData: history[historyIndex + 1] });
+      updateData({ signatureId: undefined });
     };
     img.src = history[historyIndex + 1];
     setHistoryIndex(historyIndex + 1);
-  }, [history, historyIndex, updateSignature]);
+  }, [history, historyIndex, updateSignature, updateData]);
 
   const handleClear = useCallback(() => {
     const canvas = canvasRef.current;
@@ -193,7 +203,8 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
     setHistory([]);
     setHistoryIndex(-1);
     updateSignature({ signatureData: undefined, signatureType: 'draw' });
-  }, [updateSignature]);
+    updateData({ signatureId: undefined });
+  }, [updateSignature, updateData]);
 
   const handleFileUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -214,10 +225,12 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
           signaturePreview: dataUrl,
           signatureType: 'upload',
         });
+        // Client #15: new upload invalidates any previously issued signatureId.
+        updateData({ signatureId: undefined });
       };
       reader.readAsDataURL(file);
     },
-    [updateSignature]
+    [updateSignature, updateData]
   );
 
   const handleContinue = useCallback(async () => {
@@ -226,20 +239,31 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
 
     setIsUploading(true);
     setUploadError(null);
+
+    // If signature was already uploaded (e.g., retry after attach failure), reuse the ID
+    let signatureId = data.signatureId;
+
     try {
-      const result = await uploadSignatureApi(sigData);
-      updateData({ signatureId: result.signature.id });
+      if (!signatureId) {
+        const result = await uploadSignatureApi(sigData);
+        signatureId = result.signature.id;
+        updateData({ signatureId });
+      }
+
       if (data.claimId) {
-        await attachSignatureToClaim(data.claimId, result.signature.id);
+        await attachSignatureToClaim(data.claimId, signatureId);
       }
       onNext();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Signature upload error:', err);
-      setUploadError('Failed to upload signature. Please try again.');
+      const detail = err?.response?.data?.error || err?.message || '';
+      setUploadError(
+        `Failed to save signature${detail ? `: ${detail}` : ''}. Please try again.`
+      );
     } finally {
       setIsUploading(false);
     }
-  }, [data.claimId, data.signature.signatureData, updateData, onNext]);
+  }, [data.claimId, data.signatureId, data.signature.signatureData, updateData, onNext]);
 
   const canProceed =
     data.signature.signatureData !== undefined || data.signature.signatureFile !== null;
@@ -284,7 +308,7 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       {mode === 'draw' && (
         <>
           <div
-            className="border-2 border-dashed border-gray-300 rounded-xl overflow-hidden bg-white"
+            className="relative border-2 border-dashed border-gray-300 rounded-xl overflow-hidden bg-white"
             style={{ touchAction: 'none' }}
           >
             <canvas
@@ -346,14 +370,17 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
                 className="max-h-32 mx-auto"
               />
               <button
-                onClick={() =>
+                onClick={() => {
                   updateSignature({
                     signatureFile: null,
                     signatureData: undefined,
                     signaturePreview: undefined,
                     signatureType: '',
-                  })
-                }
+                  });
+                  // Client #15: deleting the uploaded signature also clears
+                  // the stale server-side ID so it can't be reused.
+                  updateData({ signatureId: undefined });
+                }}
                 className="absolute -top-2 -right-2 p-1 bg-red-100 rounded-full hover:bg-red-200 transition-colors"
               >
                 <Trash2 className="w-4 h-4 text-red-600" />

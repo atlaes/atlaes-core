@@ -35,6 +35,7 @@ export interface EligibilityData {
   federalState: string;
   pensionProvider: PensionProviderType;
   vblPlan: VBLPlan;
+  euContinuation: 'yes' | 'no' | '';
   consecutiveContribution: 'yes' | 'no' | '';
   contributionDuration: ContributionDurationType;
   // Stage-specific
@@ -56,6 +57,7 @@ export type StepId =
   | 'federal_state'
   | 'pension_provider'
   | 'pension_scheme'
+  | 'eu_continuation'
   | 'contribution_period'
   | 'contribution_duration'
   | 'stage_pension_details'

@@ -41,6 +41,7 @@ export interface VBLCalculationInput {
     grossMonthlySalary: number;
     publicSector?: boolean; // whether this period is public sector
     institution?: 'drv' | 'vblklassik' | 'vddb' | 'vddko'; // optional hint
+    providerName?: string; // user-facing provider name (e.g., "VBL", "ZVK Darmstadt")
   }>;
 }
 
@@ -54,6 +55,8 @@ export interface VBLCalculationResult {
   // Separate amounts for each pension type
   statePension?: number; // DRV (Deutsche Rentenversicherung) refund
   vblKlassik?: number; // VBL supplementary pension refund
+  // Per-provider breakdown (when multiple public sector providers)
+  providerBreakdown?: Array<{ provider: string; amount: number }>;
   calculationDetails: {
     contributionPeriod: number;
     consecutivePeriod?: number;
@@ -332,6 +335,7 @@ export class VBLCalculationService {
 
   /**
    * Calculate refund for Stage/Orchestra (VddB/VddKO)
+   * Rate: 4.5% of gross salary, min 12 months, max 35 months refundable
    */
   private static calculateStageOrchestraRefund(
     input: VBLCalculationInput
@@ -349,19 +353,19 @@ export class VBLCalculationService {
       rulesApplied.push('Minimum 12 months contribution period');
     }
 
-    // Rule 2: Maximum contribution period
+    // Rule 2: Maximum contribution period (max 35 months refundable)
     const employmentEndDate = new Date(input.employmentEnd);
     const isPre2003 = employmentEndDate < new Date('2003-01-01');
 
-    if (!isPre2003 && input.monthsContributed >= 36) {
+    if (!isPre2003 && input.monthsContributed > 35) {
       eligibilityReasons.push(
-        'Maximum contribution period of 36 months for employments ending after 2003'
+        'Maximum contribution period of 35 months for employments ending after 2003'
       );
     } else {
       rulesApplied.push(
         isPre2003
           ? 'Unlimited contribution period (pre-2003)'
-          : 'Maximum 36 months contribution period'
+          : 'Maximum 35 months contribution period'
       );
     }
 
@@ -405,10 +409,15 @@ export class VBLCalculationService {
 
     const isEligible = eligibilityReasons.length === 0;
 
-    // Legacy path (no periods): keep existing behavior but with VAT_RATE=0
-    const baseRefundAmount = isEligible
-      ? this.calculateBaseRefundAmount(input.monthsContributed)
-      : 0;
+    let baseRefundAmount = 0;
+    if (isEligible && input.periods && input.periods.length > 0) {
+      // Period-based calculation using salary × 4.5% rate with yearly caps
+      baseRefundAmount = this.calculateStageFromPeriods(input.periods);
+    } else if (isEligible) {
+      // Legacy fallback (no periods provided)
+      baseRefundAmount = this.calculateBaseRefundAmount(input.monthsContributed);
+    }
+
     const vatAmount = baseRefundAmount * this.VAT_RATE;
     const totalAmount = baseRefundAmount + vatAmount;
 
@@ -416,9 +425,9 @@ export class VBLCalculationService {
       isEligible,
       eligibilityReasons,
       calculationMethod: 'stage_orchestra',
-      baseRefundAmount,
+      baseRefundAmount: Math.round(baseRefundAmount * 100) / 100,
       vatAmount,
-      totalAmount,
+      totalAmount: Math.round(totalAmount * 100) / 100,
       calculationDetails: {
         contributionPeriod: input.monthsContributed,
         ageAtEmploymentEnd: input.currentAge,
@@ -428,6 +437,43 @@ export class VBLCalculationService {
       rulesApplied,
       warnings,
     };
+  }
+
+  /**
+   * Calculate Stage/Orchestra refund from periods using 4.5% rate with yearly salary caps
+   */
+  private static calculateStageFromPeriods(
+    periods: NonNullable<VBLCalculationInput['periods']>
+  ): number {
+    // Load contribution caps/rates
+    let dataPath = path.join(__dirname, 'data', 'contributions.json');
+    if (!fs.existsSync(dataPath)) {
+      dataPath = path.join(__dirname, '..', 'data', 'contributions.json');
+    }
+    let tables: any;
+    try {
+      const raw = fs.readFileSync(dataPath, 'utf-8');
+      tables = JSON.parse(raw);
+    } catch (e) {
+      logger.error('Failed to load contributions table', e as any);
+      throw new Error('Configuration error');
+    }
+
+    const years: Record<string, any> = tables.years ?? {};
+    let totalRefund = 0;
+
+    for (const p of periods) {
+      // Determine pension type key from institution hint or default to vddb
+      const rateKey = p.institution === 'vddko' ? 'vddko' : 'vddb';
+      totalRefund += this.sumPeriodContributionByType(
+        p,
+        years,
+        tables.states?.WEST ?? [],
+        rateKey as any
+      );
+    }
+
+    return totalRefund;
   }
 
   /**
@@ -482,10 +528,17 @@ export class VBLCalculationService {
     }
 
     // Date logic validation
+    // Uses month-level comparison: same month is valid (= 1-month period).
+    // Pension law counts calendar months, so Jan 2025 → Jan 2025 is a legitimate
+    // single-month contribution, not an invalid range.
     if (input.employmentStart && input.employmentEnd) {
       const startDate = new Date(input.employmentStart);
       const endDate = new Date(input.employmentEnd);
-      if (startDate >= endDate) {
+      const startMonthKey =
+        startDate.getUTCFullYear() * 12 + startDate.getUTCMonth();
+      const endMonthKey =
+        endDate.getUTCFullYear() * 12 + endDate.getUTCMonth();
+      if (startMonthKey > endMonthKey) {
         errors.push('Employment start date must be before employment end date');
       }
     }
@@ -636,13 +689,28 @@ export class VBLCalculationService {
 
     let drvRefund = 0;
     let vblRefund = 0;
+    const providerAmounts: Record<string, number> = {};
     if (isEligible) {
       // Calculate both DRV (State Pension) and VBL (Supplementary Pension) separately
       for (const p of periods) {
         drvRefund += this.sumPeriodContributionByType(p, years, westStates, 'drv');
-        vblRefund += this.sumPeriodContributionByType(p, years, westStates, 'vblklassik');
+        const supplementary = this.sumPeriodContributionByType(p, years, westStates, 'vblklassik');
+        vblRefund += supplementary;
+
+        // Track per-provider amounts for breakdown
+        const provider = p.providerName || 'VBL';
+        providerAmounts[provider] = (providerAmounts[provider] || 0) + supplementary;
       }
     }
+
+    // Build provider breakdown (only when multiple providers)
+    const providerEntries = Object.entries(providerAmounts);
+    const providerBreakdown = providerEntries.length > 1
+      ? providerEntries.map(([provider, amount]) => ({
+          provider,
+          amount: Math.round(amount * 100) / 100,
+        }))
+      : undefined;
 
     const baseRefundAmount = vblRefund; // Keep for backward compatibility
     const vatAmount = baseRefundAmount * this.VAT_RATE; // 0
@@ -657,6 +725,7 @@ export class VBLCalculationService {
       totalAmount: Math.round(totalAmount * 100) / 100,
       statePension: Math.round(drvRefund * 100) / 100,
       vblKlassik: Math.round(vblRefund * 100) / 100,
+      providerBreakdown,
       calculationDetails: {
         contributionPeriod: monthsTotal,
         consecutivePeriod: consecutiveMonths,
@@ -671,11 +740,19 @@ export class VBLCalculationService {
     };
   }
 
+  /**
+   * Inclusive calendar-month count between two dates.
+   * Jan 2025 → Dec 2025 = 12 months. Matches how German pension law counts
+   * Umlagemonate (by calendar month, not by elapsed days).
+   */
   private static monthsBetween(start: string, end: string): number {
     const s = new Date(start);
     const e = new Date(end);
-    const ms = e.getTime() - s.getTime();
-    return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24 * 30.44)) + 1); // inclusive approx
+    const months =
+      (e.getUTCFullYear() - s.getUTCFullYear()) * 12 +
+      (e.getUTCMonth() - s.getUTCMonth()) +
+      1;
+    return Math.max(0, months);
   }
 
   /**
@@ -690,33 +767,29 @@ export class VBLCalculationService {
     },
     years: Record<string, any>,
     westStates: string[],
-    pensionType: 'drv' | 'vblklassik'
+    pensionType: 'drv' | 'vblklassik' | 'vddb' | 'vddko'
   ): number {
-    let sum = 0;
-    // Split by year boundaries
+    // Split by calendar-year boundaries using month-level arithmetic.
+    // Each year segment counts inclusive calendar months (e.g. Jan–Dec = 12).
     const s = new Date(period.startDate);
     const e = new Date(period.endDate);
-    let cursor = new Date(
-      Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate())
-    );
-    const end = new Date(
-      Date.UTC(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate())
-    );
+    const startYear = s.getUTCFullYear();
+    const startMonth = s.getUTCMonth(); // 0-11
+    const endYear = e.getUTCFullYear();
+    const endMonth = e.getUTCMonth();
 
-    while (cursor <= end) {
-      const year = cursor.getUTCFullYear();
-      const yearEnd = new Date(Date.UTC(year, 11, 31));
-      const segmentEnd = end < yearEnd ? end : yearEnd;
+    // Client #5: Stage/Orchestra uses east/west cap based on federal state,
+    // same as public sector. The scheme is national but the BBG cap is regional.
+    const isWest = westStates.includes(period.state);
 
-      const months = Math.max(
-        0,
-        Math.floor(
-          (segmentEnd.getTime() - cursor.getTime()) /
-            (1000 * 60 * 60 * 24 * 30.44)
-        ) + 1
-      );
+    let sum = 0;
+    for (let year = startYear; year <= endYear; year++) {
+      const segStart = year === startYear ? startMonth : 0;
+      const segEnd = year === endYear ? endMonth : 11;
+      const months = segEnd - segStart + 1;
+      if (months <= 0) continue;
+
       const yearCfg = years[String(year)] || {};
-      const isWest = westStates.includes(period.state);
       const cap = isWest ? yearCfg.westCap : yearCfg.eastCap;
       const rates = yearCfg.rates || {};
 
@@ -725,9 +798,6 @@ export class VBLCalculationService {
         const rate = rates[pensionType] ?? 0;
         sum += months * cappedGross * rate;
       }
-
-      // move cursor to next year start
-      cursor = new Date(Date.UTC(year + 1, 0, 1));
     }
 
     return sum;

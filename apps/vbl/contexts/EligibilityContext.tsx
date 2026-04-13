@@ -24,6 +24,7 @@ const initialData: EligibilityData = {
   federalState: '',
   pensionProvider: '',
   vblPlan: '',
+  euContinuation: '',
   consecutiveContribution: '',
   contributionDuration: '',
   stageContributionDuration: '',

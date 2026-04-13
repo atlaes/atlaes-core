@@ -81,7 +81,7 @@ test.describe('Public Sector Eligibility', () => {
   // ============================================================
 
   test('VBLextra plan → not eligible', async ({ page }) => {
-    await selectFederalState(page, 'Berlin');
+    await selectFederalState(page, 'Berlin (West)');
     await selectPensionProvider(page, 'VBL');
     await selectPensionScheme(page, 'VBLextra');
     await expectNotEligibleResult(page);

@@ -1,8 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight, ChevronDown, ChevronUp, CreditCard, User, Calendar, Info, ArrowLeft, Phone } from 'lucide-react';
 import { useOnboarding, BankAccountOption } from '@/contexts/OnboardingContext';
+
+// Client #14: lightweight IBAN format validator. Accepts input with spaces
+// (they are stripped), checks country + check digits + length in the ISO
+// 13616 range. This is a structural check, not the full mod-97 verification,
+// which the backend performs on submission.
+const isValidIbanFormat = (raw: string): boolean => {
+  const iban = raw.replace(/\s+/g, '').toUpperCase();
+  if (iban.length < 15 || iban.length > 34) return false;
+  return /^[A-Z]{2}\d{2}[A-Z0-9]+$/.test(iban);
+};
 
 interface BankDetailsProps {
   onNext: () => void;
@@ -36,11 +46,27 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
   const [showOptions, setShowOptions] = useState(false);
   const [phase, setPhase] = useState<BankDetailsPhase>('selection');
 
+  // Client #14: default the account holder to the passport full name on
+  // first visit. The user can still change it (e.g. third-party account).
+  useEffect(() => {
+    if (!data.bankDetails.accountHolder && data.identity.fullName) {
+      updateBankDetails({ accountHolder: data.identity.fullName });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.identity.fullName]);
+
   const selectedOption = BANK_OPTIONS.find((opt) => opt.value === data.bankDetails.accountOption);
+
+  // Client #14: IBAN must pass format validation before the user can continue.
+  // We only enforce the check when an IBAN is actually required for the chosen
+  // option (own IBAN or trusted third-party).
+  const ibanIsValid = isValidIbanFormat(data.bankDetails.iban);
+  const ibanShowsError =
+    data.bankDetails.iban.length >= 4 && !ibanIsValid;
 
   // Determine if user can proceed based on current phase
   const canProceedFromSelection =
-    data.bankDetails.iban !== '' ||
+    (ibanIsValid) ||
     data.bankDetails.accountOption === 'open_free_account' ||
     data.bankDetails.accountOption === 'trusted_third_party' ||
     data.bankDetails.accountOption === 'add_later';
@@ -50,7 +76,7 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
 
   const canProceedFromThirdParty =
     data.bankDetails.accountHolder !== '' &&
-    data.bankDetails.iban !== '' &&
+    ibanIsValid &&
     data.bankDetails.thirdPartyConfirmed;
 
   const handleOptionSelect = (option: BankAccountOption) => {
@@ -198,10 +224,19 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
           <input
             type="text"
             value={data.bankDetails.iban}
-            onChange={(e) => updateBankDetails({ iban: e.target.value })}
+            onChange={(e) =>
+              updateBankDetails({ iban: e.target.value.toUpperCase() })
+            }
             placeholder="Enter the IBAN ..."
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none ${
+              ibanShowsError ? 'border-red-400' : 'border-gray-300'
+            }`}
           />
+          {ibanShowsError && (
+            <p className="mt-1 text-xs text-red-600">
+              Please enter a valid IBAN (starts with two letters, e.g. DE89 …).
+            </p>
+          )}
           {/* Info Banner */}
           <div className="mt-3 bg-[#163300] rounded-lg p-3 flex items-center gap-3">
             <Info className="w-5 h-5 text-[#9FE870] flex-shrink-0" />
@@ -297,11 +332,21 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
           type="text"
           value={data.bankDetails.iban}
           onChange={(e) => {
-            updateBankDetails({ iban: e.target.value, accountOption: 'own_iban' });
+            updateBankDetails({
+              iban: e.target.value.toUpperCase(),
+              accountOption: 'own_iban',
+            });
           }}
           placeholder="Enter the IBAN ..."
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none ${
+            ibanShowsError ? 'border-red-400' : 'border-gray-300'
+          }`}
         />
+        {ibanShowsError && (
+          <p className="mt-1 text-xs text-red-600">
+            Please enter a valid IBAN (starts with two letters, e.g. DE89 …).
+          </p>
+        )}
         {/* Info Banner */}
         <div className="mt-3 bg-[#F0FDE4] rounded-lg p-3 flex items-start gap-3">
           <Info className="w-5 h-5 text-[#163300] flex-shrink-0 mt-0.5" />
