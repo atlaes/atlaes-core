@@ -528,10 +528,17 @@ export class VBLCalculationService {
     }
 
     // Date logic validation
+    // Uses month-level comparison: same month is valid (= 1-month period).
+    // Pension law counts calendar months, so Jan 2025 → Jan 2025 is a legitimate
+    // single-month contribution, not an invalid range.
     if (input.employmentStart && input.employmentEnd) {
       const startDate = new Date(input.employmentStart);
       const endDate = new Date(input.employmentEnd);
-      if (startDate >= endDate) {
+      const startMonthKey =
+        startDate.getUTCFullYear() * 12 + startDate.getUTCMonth();
+      const endMonthKey =
+        endDate.getUTCFullYear() * 12 + endDate.getUTCMonth();
+      if (startMonthKey > endMonthKey) {
         errors.push('Employment start date must be before employment end date');
       }
     }
@@ -733,11 +740,19 @@ export class VBLCalculationService {
     };
   }
 
+  /**
+   * Inclusive calendar-month count between two dates.
+   * Jan 2025 → Dec 2025 = 12 months. Matches how German pension law counts
+   * Umlagemonate (by calendar month, not by elapsed days).
+   */
   private static monthsBetween(start: string, end: string): number {
     const s = new Date(start);
     const e = new Date(end);
-    const ms = e.getTime() - s.getTime();
-    return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24 * 30.44)) + 1); // inclusive approx
+    const months =
+      (e.getUTCFullYear() - s.getUTCFullYear()) * 12 +
+      (e.getUTCMonth() - s.getUTCMonth()) +
+      1;
+    return Math.max(0, months);
   }
 
   /**
@@ -754,34 +769,28 @@ export class VBLCalculationService {
     westStates: string[],
     pensionType: 'drv' | 'vblklassik' | 'vddb' | 'vddko'
   ): number {
-    let sum = 0;
-    // Split by year boundaries
+    // Split by calendar-year boundaries using month-level arithmetic.
+    // Each year segment counts inclusive calendar months (e.g. Jan–Dec = 12).
     const s = new Date(period.startDate);
     const e = new Date(period.endDate);
-    let cursor = new Date(
-      Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate())
-    );
-    const end = new Date(
-      Date.UTC(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate())
-    );
+    const startYear = s.getUTCFullYear();
+    const startMonth = s.getUTCMonth(); // 0-11
+    const endYear = e.getUTCFullYear();
+    const endMonth = e.getUTCMonth();
 
-    while (cursor <= end) {
-      const year = cursor.getUTCFullYear();
-      const yearEnd = new Date(Date.UTC(year, 11, 31));
-      const segmentEnd = end < yearEnd ? end : yearEnd;
+    // Client #5: Stage/Orchestra uses east/west cap based on federal state,
+    // same as public sector. The scheme is national but the BBG cap is regional.
+    const isWest = westStates.includes(period.state);
 
-      const months = Math.max(
-        0,
-        Math.floor(
-          (segmentEnd.getTime() - cursor.getTime()) /
-            (1000 * 60 * 60 * 24 * 30.44)
-        ) + 1
-      );
+    let sum = 0;
+    for (let year = startYear; year <= endYear; year++) {
+      const segStart = year === startYear ? startMonth : 0;
+      const segEnd = year === endYear ? endMonth : 11;
+      const months = segEnd - segStart + 1;
+      if (months <= 0) continue;
+
       const yearCfg = years[String(year)] || {};
-      const isWest = westStates.includes(period.state);
-      // VddB/VddKO are national schemes — always use west cap
-      const isStageOrchestra = pensionType === 'vddb' || pensionType === 'vddko';
-      const cap = (isWest || isStageOrchestra) ? yearCfg.westCap : yearCfg.eastCap;
+      const cap = isWest ? yearCfg.westCap : yearCfg.eastCap;
       const rates = yearCfg.rates || {};
 
       if (cap && rates) {
@@ -789,9 +798,6 @@ export class VBLCalculationService {
         const rate = rates[pensionType] ?? 0;
         sum += months * cappedGross * rate;
       }
-
-      // move cursor to next year start
-      cursor = new Date(Date.UTC(year + 1, 0, 1));
     }
 
     return sum;

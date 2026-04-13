@@ -20,9 +20,10 @@ const MONTHS = [
   'December',
 ];
 
+// Client #2: mirror calculator — earliest supported year is 2004.
 const YEARS = Array.from(
-  { length: new Date().getFullYear() - 1960 + 1 },
-  (_, i) => (1960 + i).toString()
+  { length: new Date().getFullYear() - 2004 + 1 },
+  (_, i) => (2004 + i).toString()
 ).reverse();
 
 export const PrivateContributionDetails: React.FC = () => {
@@ -150,10 +151,13 @@ export const PrivateContributionDetails: React.FC = () => {
         Average monthly contribution{' '}
         <span className="text-gray-400 font-normal">(optional)</span>
       </p>
+      {/* Client #1: numeric-only (strip non-digits on paste/type) */}
       <input
         type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
         value={monthlyAmount}
-        onChange={(e) => setMonthlyAmount(e.target.value)}
+        onChange={(e) => setMonthlyAmount(e.target.value.replace(/[^0-9]/g, ''))}
         placeholder="E.g., 350"
         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/20 transition-all text-gray-700 mb-4"
       />

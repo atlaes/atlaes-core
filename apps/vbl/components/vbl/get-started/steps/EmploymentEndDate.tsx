@@ -19,9 +19,10 @@ const MONTHS = [
   'December',
 ];
 
+// Client #2: mirror calculator — earliest supported year is 2004.
 const YEARS = Array.from(
-  { length: new Date().getFullYear() - 1960 + 1 },
-  (_, i) => (1960 + i).toString()
+  { length: new Date().getFullYear() - 2004 + 1 },
+  (_, i) => (2004 + i).toString()
 ).reverse();
 
 export const EmploymentEndDate: React.FC = () => {

@@ -10,9 +10,11 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+// Client feedback #2: calculator only supports 2004+ (no historical rates before that).
+const EARLIEST_YEAR = 2004;
 const YEARS = Array.from(
-  { length: new Date().getFullYear() - 1960 + 1 },
-  (_, i) => (1960 + i).toString()
+  { length: new Date().getFullYear() - EARLIEST_YEAR + 1 },
+  (_, i) => (EARLIEST_YEAR + i).toString()
 ).reverse();
 
 const EMPLOYMENT_TYPES = [
@@ -109,6 +111,24 @@ const TextInput: React.FC<TextInputProps> = ({ label, value, onChange, placehold
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/20 transition-all duration-200 text-gray-700"
+      style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+    />
+  </div>
+);
+
+// Numeric-only input (client feedback #1). Strips non-digits on change so
+// users can still paste "3.500,00" or "3,500" and get the clean integer back.
+const NumberInput: React.FC<TextInputProps> = ({ label, value, onChange, placeholder }) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-sm font-medium text-gray-700">{label}</label>
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={value}
+      onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ''))}
       placeholder={placeholder}
       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/20 transition-all duration-200 text-gray-700"
       style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
@@ -234,8 +254,13 @@ export const JobDetails: React.FC = () => {
     }
 
     if (field === 'germanFederalState') {
-      updates.companyPension = '';
-      updates.supplementaryPensions = [];
+      // Only reset the pension selection for public sector (where the
+      // available providers depend on the state). Stage/Orchestra have a
+      // fixed provider (VddB/VddKO) that must not be cleared.
+      if (job.employmentType === 'Public Sector') {
+        updates.companyPension = '';
+        updates.supplementaryPensions = [];
+      }
     }
 
     if (field === 'companyPension') {
@@ -313,8 +338,8 @@ export const JobDetails: React.FC = () => {
           </div>
         )}
 
-        {/* Average Monthly Gross Salary — free text input */}
-        <TextInput
+        {/* Average Monthly Gross Salary — numeric-only input (client #1) */}
+        <NumberInput
           label="Average gross monthly salary during this job (&euro;)"
           value={job.averageMonthlyGrossSalary || ''}
           onChange={(value) => handleFieldChange('averageMonthlyGrossSalary', value)}
@@ -330,8 +355,10 @@ export const JobDetails: React.FC = () => {
           placeholder="Company pension sector"
         />
 
-        {/* German Federal State (Public Sector only) */}
-        {isPublicSector && (
+        {/* German Federal State.
+            Client #5: Stage/Orchestra also needs the federal state question to
+            apply the correct east/west BBG cap (different pre-2025). */}
+        {(isPublicSector || isStageOrOrchestra) && (
           <Select
             label="German federal state (where your employer was based)"
             value={job.germanFederalState || ''}
@@ -385,6 +412,28 @@ export const JobDetails: React.FC = () => {
             value={job.customPensionName || ''}
             onChange={(value) => handleFieldChange('customPensionName', value)}
             placeholder="Enter the name of your pension provider"
+          />
+        )}
+
+        {/* Client #19: mirror Entry B — employer-paid question for private sector.
+            "not sure" triggers individual review, same as Entry B. */}
+        {isPrivateSector && job.companyPension && (
+          <SingleSelectChips
+            label="Were contributions paid via your employer?"
+            options={['Yes', 'Not sure']}
+            selectedValue={
+              job.employerPaidContributions === 'yes'
+                ? 'Yes'
+                : job.employerPaidContributions === 'not_sure'
+                  ? 'Not sure'
+                  : ''
+            }
+            onChange={(label) =>
+              handleFieldChange(
+                'employerPaidContributions',
+                label === 'Yes' ? 'yes' : 'not_sure'
+              )
+            }
           />
         )}
 

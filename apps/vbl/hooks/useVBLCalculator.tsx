@@ -18,9 +18,19 @@ export interface JobData {
   companyPension: string;
   supplementaryPensions: string[];
   customPensionName: string;
+  // Client #19: mirror Entry B private-sector question set into the calculator.
+  // Determines whether a private-sector job goes to the review scenario.
+  employerPaidContributions: '' | 'yes' | 'not_sure';
 }
 
-export type ResultScenario = 'eligible' | 'private_review' | 'not_eligible_vesting' | 'vested';
+export type ResultScenario =
+  | 'eligible'
+  | 'private_review'
+  | 'not_eligible_vesting'
+  | 'vested'
+  // Client #17/#18: Stage/Orchestra specific error screens
+  | 'stage_too_short' // contribution period < 12 months
+  | 'stage_waiting'; // within 24-month waiting period after employment end
 
 export interface QualificationData {
   contributionDuration: 'less_than_5' | '5_or_more' | '';
@@ -79,6 +89,7 @@ const createEmptyJob = (): JobData => ({
   companyPension: '',
   supplementaryPensions: [],
   customPensionName: '',
+  employerPaidContributions: '',
 });
 
 const INITIAL_FORM_DATA: VBLFormData = {
@@ -202,9 +213,11 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
         return true;
       }
 
-      // Private sector: requires company pension; if Others, needs name
+      // Private sector: requires company pension + employer-paid answer;
+      // if Others, needs custom name too. Mirrors Entry B contribution details.
       if (job.employmentType === 'Private sector') {
         if (job.companyPension === '') return false;
+        if (job.employerPaidContributions === '') return false;
         if (job.companyPension === 'Others') {
           return job.customPensionName.trim() !== '';
         }

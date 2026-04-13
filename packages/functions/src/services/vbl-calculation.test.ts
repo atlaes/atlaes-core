@@ -326,7 +326,7 @@ describe('VBLCalculationService', () => {
       );
       expect(result.isEligible).toBe(false);
       expect(result.eligibilityReasons).toContain(
-        'Maximum contribution period of 36 months for employments ending after 2003'
+        'Maximum contribution period of 35 months for employments ending after 2003'
       );
     });
 
@@ -340,7 +340,7 @@ describe('VBLCalculationService', () => {
       );
       // Should not have the max contribution period error
       expect(result.eligibilityReasons).not.toContain(
-        'Maximum contribution period of 36 months for employments ending after 2003'
+        'Maximum contribution period of 35 months for employments ending after 2003'
       );
     });
 
@@ -476,6 +476,105 @@ describe('VBLCalculationService', () => {
         })
       );
       expect(result.calculationMethod).toBe('post2018');
+    });
+
+    // ============================================================
+    // Regression: client feedback #4, #6, #7 — month-counting bugs
+    // The frontend sends end dates as "YYYY-MM-01" (first-of-month),
+    // not "YYYY-MM-31". Month counts must use calendar-month arithmetic.
+    // ============================================================
+    it('client case #7: public sector Jan–Dec 2018, 10k salary, West = €1,411.80', async () => {
+      // 2018 westCap=6500, vblklassik=1.81% → 6500 × 12 × 0.0181 = 1411.80
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeInput({
+          employmentStart: '2018-01-01',
+          employmentEnd: '2018-12-01', // first-of-month, as production frontend sends
+          currentAge: 40,
+          periods: [
+            {
+              startDate: '2018-01-01',
+              endDate: '2018-12-01',
+              state: 'Bavaria',
+              grossMonthlySalary: 10000,
+            },
+          ],
+        })
+      );
+      expect(result.isEligible).toBe(true);
+      expect(result.vblKlassik).toBeCloseTo(1411.8, 2);
+    });
+
+    it('client case #6: 1-month period (same start/end month) is valid, not rejected', async () => {
+      // Previously validateInput rejected start === end as "start must be before end"
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeInput({
+          employmentStart: '2020-03-01',
+          employmentEnd: '2020-03-01',
+          periods: [
+            {
+              startDate: '2020-03-01',
+              endDate: '2020-03-01',
+              state: 'Bavaria',
+              grossMonthlySalary: 5000,
+            },
+          ],
+        })
+      );
+      expect(result.isEligible).toBe(true);
+      expect(result.calculationDetails.contributionPeriod).toBe(1);
+      // 2020 westCap=6900 (salary 5000 uncapped) × 1 × 0.0181
+      expect(result.vblKlassik).toBeCloseTo(5000 * 1 * 0.0181, 2);
+    });
+
+    it('client case #2: historical year 2010 now works (5000€ West, Jan–Dec)', async () => {
+      // Previously returned 0 because contributions.json had no entry for 2010.
+      // Now: westCap 5500, drv 9.95%, vblklassik 1.81%.
+      // 5000 × 12 × 0.0181 = 1086.00 (uncapped, salary < westCap)
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeInput({
+          employmentStart: '2010-01-01',
+          employmentEnd: '2010-12-01',
+          currentAge: 45,
+          periods: [
+            {
+              startDate: '2010-01-01',
+              endDate: '2010-12-01',
+              state: 'Bavaria',
+              grossMonthlySalary: 5000,
+            },
+          ],
+        })
+      );
+      expect(result.isEligible).toBe(true);
+      expect(result.vblKlassik).toBeCloseTo(1086, 2);
+      // DRV portion uses 2010's 9.95% rate, not 9.3%
+      expect(result.statePension).toBeCloseTo(5000 * 12 * 0.0995, 2);
+    });
+
+    it('client case #4: Stage/Orchestra Jan–Dec 2025, 1k salary = €540', async () => {
+      // 2025 vddb=4.5% → min(1000, 8050) × 12 × 0.045 = 540
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeStageInput({
+          employmentStart: '2025-01-01',
+          employmentEnd: '2025-12-01', // first-of-month, as production frontend sends
+          currentAge: 40,
+          monthsContributed: 12,
+          hasOccupationalDisability: false,
+          isMandatoryInsuranceRequired: false,
+          periods: [
+            {
+              startDate: '2025-01-01',
+              endDate: '2025-12-01',
+              state: 'Bavaria',
+              grossMonthlySalary: 1000,
+              institution: 'vddb',
+            },
+          ],
+        })
+      );
+      expect(result.isEligible).toBe(true);
+      expect(result.baseRefundAmount).toBeCloseTo(540, 2);
+      expect(result.totalAmount).toBeCloseTo(540, 2);
     });
   });
 

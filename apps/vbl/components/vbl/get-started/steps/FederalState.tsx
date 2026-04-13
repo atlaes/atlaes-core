@@ -27,6 +27,10 @@ const GERMAN_FEDERAL_STATES = [
 export const FederalState: React.FC = () => {
   const { data, goNext } = useEligibility();
   const [selected, setSelected] = useState(data.federalState || '');
+  // Stage/Orchestra is eligible in all states — the field only affects
+  // which BBG contribution cap applies. Public sector, in contrast, has
+  // state-dependent eligibility rules.
+  const isStage = data.employmentType === 'stage_performing_arts';
 
   const handleContinue = () => {
     if (!selected) return;
@@ -40,7 +44,9 @@ export const FederalState: React.FC = () => {
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
-        Eligibility depends on the federal state where your employer was based.
+        {isStage
+          ? 'This determines the contribution cap used for your refund calculation.'
+          : 'Eligibility depends on the federal state where your employer was based.'}
       </p>
 
       <p className="text-sm font-medium text-gray-700 mb-2">

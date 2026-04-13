@@ -16,7 +16,12 @@ const MONTHS = [
 ];
 
 export const stageFlow: FlowConfig = {
+  // Client #5: federal state is asked first so the contribution cap
+  // (west/east BBG) can be applied correctly during the later calculation.
+  // Unlike public sector, east states are NOT ineligible for stage/orchestra —
+  // they just use a different cap.
   steps: [
+    'federal_state',
     'stage_pension_details',
     'stage_contribution_duration',
     'employment_end_date',

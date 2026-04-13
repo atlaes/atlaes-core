@@ -28,8 +28,42 @@ interface CalculationResult {
   };
 }
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+// Inclusive calendar-month count (matches the backend fix for clients #4/#6/#7).
+const jobMonthCount = (job: JobData): number => {
+  const si = MONTH_NAMES.indexOf(job.startMonth);
+  const ei = MONTH_NAMES.indexOf(job.endMonth);
+  if (si < 0 || ei < 0 || !job.startYear || !job.endYear) return 0;
+  const months =
+    (parseInt(job.endYear) - parseInt(job.startYear)) * 12 + (ei - si) + 1;
+  return Math.max(0, months);
+};
+
+// Months since the end of employment — used for 24-month waiting check.
+const monthsSinceEmploymentEnd = (job: JobData): number => {
+  const ei = MONTH_NAMES.indexOf(job.endMonth);
+  if (ei < 0 || !job.endYear) return Infinity;
+  const now = new Date();
+  return (
+    (now.getFullYear() - parseInt(job.endYear)) * 12 +
+    (now.getMonth() - ei)
+  );
+};
+
+const isStageOrOrchestra = (job: JobData): boolean =>
+  job.employmentType === 'Stage/Performing Arts' ||
+  job.employmentType === 'Orchestra';
+
 /**
- * Determine result scenario based on job data (client-side logic)
+ * Determine result scenario based on job data (client-side logic).
+ * Client #19: private-sector scenarios mirror Entry B — individual review is
+ * only triggered when the provider is "Others" or employer-paid is "not sure".
+ * Otherwise the private job proceeds through the standard eligibility path.
+ * Client #17/#18: Stage/Orchestra error screens for <12mo and 24-mo waiting.
  */
 const determineResultScenario = (jobs: JobData[], apiResult?: CalculationResult): ResultScenario => {
   // VBLextra alone → not eligible
@@ -38,11 +72,32 @@ const determineResultScenario = (jobs: JobData[], apiResult?: CalculationResult)
   );
   if (hasVBLextra) return 'not_eligible_vesting';
 
-  // Any private sector job → private review
-  const hasPrivateSector = jobs.some(
+  // Stage/Orchestra gates — mirror Entry B eligibility and waiting rules.
+  const stageJobs = jobs.filter(isStageOrOrchestra);
+  if (stageJobs.length > 0) {
+    // Any stage job with < 12 months → ineligible (Entry B less_than_12 bucket)
+    const hasTooShort = stageJobs.some((job) => jobMonthCount(job) < 12);
+    if (hasTooShort) return 'stage_too_short';
+
+    // Any stage job whose employment ended less than 24 months ago → waiting
+    const hasPendingWait = stageJobs.some(
+      (job) => monthsSinceEmploymentEnd(job) < 24
+    );
+    if (hasPendingWait) return 'stage_waiting';
+  }
+
+  // Private sector: review only if any private job has ambiguous inputs.
+  // Providers we can't map (Others) or an employer-paid status the user is
+  // unsure of both require manual assessment in Entry B, so we mirror that.
+  const privateJobs = jobs.filter(
     (job) => job.employmentType === 'Private sector'
   );
-  if (hasPrivateSector) return 'private_review';
+  const needsPrivateReview = privateJobs.some(
+    (job) =>
+      job.companyPension === 'Others' ||
+      job.employerPaidContributions === 'not_sure'
+  );
+  if (needsPrivateReview) return 'private_review';
 
   // Check API response for vesting status
   if (apiResult?.isVested) return 'vested';
@@ -51,13 +106,8 @@ const determineResultScenario = (jobs: JobData[], apiResult?: CalculationResult)
   return 'eligible';
 };
 
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
-
 const formatDateForAPI = (month: string, year: string): string => {
-  const monthIndex = MONTHS.indexOf(month) + 1;
+  const monthIndex = MONTH_NAMES.indexOf(month) + 1;
   return `${year}-${String(monthIndex).padStart(2, '0')}`;
 };
 
@@ -78,9 +128,17 @@ export const Results: React.FC = () => {
     setIsLoading(true);
     setError('');
 
-    // Check for client-side scenario determination first (before API call)
+    // Check for client-side scenario determination first (before API call).
+    // These scenarios don't need backend calculation — the outcome is purely
+    // based on user inputs and there's no refund amount to show.
     const clientScenario = determineResultScenario(formData.jobs);
-    if (clientScenario === 'private_review' || clientScenario === 'not_eligible_vesting') {
+    const shortCircuitScenarios: ResultScenario[] = [
+      'private_review',
+      'not_eligible_vesting',
+      'stage_too_short',
+      'stage_waiting',
+    ];
+    if (shortCircuitScenarios.includes(clientScenario)) {
       setScenario(clientScenario);
       setIsLoading(false);
       return;
@@ -235,6 +293,103 @@ export const Results: React.FC = () => {
           </p>
 
           {/* Go back button */}
+          <button
+            onClick={handleBackToCalculator}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200"
+            style={{
+              fontFamily: 'var(--vbl-font-montserrat)',
+              backgroundColor: 'var(--vbl-accent-lime)',
+              color: 'var(--vbl-sidebar-dark)',
+            }}
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Go back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Render: Stage/Orchestra — contribution period < 12 months (Client #17/#18)
+  if (scenario === 'stage_too_short') {
+    return (
+      <div className="flex-1 bg-white p-8 flex flex-col justify-center rounded-2xl shadow-lg">
+        <div className="w-full max-w-xl mx-auto text-center">
+          <div className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center mx-auto mb-6">
+            <X className="w-8 h-8 text-white" />
+          </div>
+          <h1
+            className="text-2xl font-bold text-gray-900 mb-4"
+            style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
+          >
+            Not eligible for a supplementary pension refund
+          </h1>
+          <p className="text-gray-600 text-sm mb-8" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
+            Based on the information you provided, a payout is not possible
+            because the minimum contribution period of <strong>12 months</strong> has
+            not been met. Under the applicable scheme rules, contributions below
+            this threshold do not qualify for a payout.
+          </p>
+          <button
+            onClick={handleBackToCalculator}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200"
+            style={{
+              fontFamily: 'var(--vbl-font-montserrat)',
+              backgroundColor: 'var(--vbl-accent-lime)',
+              color: 'var(--vbl-sidebar-dark)',
+            }}
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Go back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Render: Stage/Orchestra — 24-month waiting period (Client #17/#18)
+  if (scenario === 'stage_waiting') {
+    // Find the first stage/orchestra job driving the wait and compute when the
+    // 24 months elapse so we can show the user when they become eligible.
+    const waitingJob = formData.jobs.find(
+      (j) =>
+        (j.employmentType === 'Stage/Performing Arts' ||
+          j.employmentType === 'Orchestra') &&
+        monthsSinceEmploymentEnd(j) < 24
+    );
+    const eligibleDateLabel = (() => {
+      if (!waitingJob) return '';
+      const endIdx = MONTH_NAMES.indexOf(waitingJob.endMonth);
+      const endYear = parseInt(waitingJob.endYear);
+      if (endIdx < 0 || isNaN(endYear)) return '';
+      const eligible = new Date(endYear, endIdx + 24);
+      return eligible.toLocaleDateString('en-GB', {
+        month: 'long',
+        year: 'numeric',
+      });
+    })();
+
+    return (
+      <div className="flex-1 bg-white p-8 flex flex-col justify-center rounded-2xl shadow-lg">
+        <div className="w-full max-w-xl mx-auto text-center">
+          <div className="w-16 h-16 rounded-full bg-amber-500 flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="w-8 h-8 text-white" />
+          </div>
+          <h1
+            className="text-2xl font-bold text-gray-900 mb-4"
+            style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
+          >
+            Your supplementary pension payout is not yet available
+          </h1>
+          <p className="text-gray-600 text-sm mb-4" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
+            For this pension scheme, a <strong>24-month waiting period</strong> must
+            pass after your last contribution before a payout can be requested.
+          </p>
+          {eligibleDateLabel && (
+            <p className="text-gray-800 text-sm mb-8 font-medium" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
+              You will become eligible in <strong>{eligibleDateLabel}</strong>.
+            </p>
+          )}
           <button
             onClick={handleBackToCalculator}
             className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200"
