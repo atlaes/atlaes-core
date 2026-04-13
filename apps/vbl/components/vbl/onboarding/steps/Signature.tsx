@@ -275,7 +275,7 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
-        Your signature will be used to sign your refund claim and authorize representation.
+        Your signature will be used to sign your refund claim and authorize us to receive correspondence from the pension provider on your behalf.
       </p>
 
       {/* Mode Toggle */}

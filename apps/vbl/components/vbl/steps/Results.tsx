@@ -356,6 +356,31 @@ export const Results: React.FC = () => {
       }
     }
 
+    // Figma VBL-30/31/32: when the user has both a supplementary and a
+    // private-sector claim, the onboarding PensionTypeSelection screen shows
+    // both providers as subtitles on the two cards. Extract them separately
+    // across all jobs (not just candidateJobs, which is narrowed by `side`).
+    const publicStageJob = formData.jobs.find(
+      (j) =>
+        (j.employmentType === 'Public Sector' && j.companyPension) ||
+        j.employmentType === 'Stage/Performing Arts' ||
+        j.employmentType === 'Orchestra'
+    );
+    let publicStageProvider = '';
+    if (publicStageJob) {
+      if (publicStageJob.employmentType === 'Stage/Performing Arts') {
+        publicStageProvider = 'VddB';
+      } else if (publicStageJob.employmentType === 'Orchestra') {
+        publicStageProvider = 'VddKO';
+      } else {
+        publicStageProvider = publicStageJob.companyPension || '';
+      }
+    }
+    const privateJob = formData.jobs.find(
+      (j) => j.employmentType === 'Private sector' && j.companyPension
+    );
+    const privateProvider = privateJob?.companyPension || '';
+
     // Client #8: pass the detected claim types for the onboarding pension-type
     // selection screen. When the user explicitly picked a side from the split
     // card, only send that side so onboarding skips the selection screen and
@@ -379,6 +404,8 @@ export const Results: React.FC = () => {
         JSON.stringify({
           pensionProvider: pensionProvider ?? '',
           claimTypes,
+          publicStageProvider,
+          privateProvider,
         })
       );
     }

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, ChevronDown, ChevronUp, CreditCard, User, Calendar, Info, ArrowLeft, Phone } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronUp, CreditCard, User, Info, ArrowLeft } from 'lucide-react';
 import { useOnboarding, BankAccountOption } from '@/contexts/OnboardingContext';
 
 // Client #14: lightweight IBAN format validator. Accepts input with spaces
@@ -25,19 +25,15 @@ const BANK_OPTIONS: { value: BankAccountOption; label: string; icon: React.React
     value: 'open_free_account',
     label: 'Open free EUR account',
     icon: <CreditCard className="w-6 h-6" />,
-    description: 'Applying takes a few minutes. Your IBAN is usually available within 2-3 business days. We\'ll prepare your claim and submit it as soon as your IBAN is added.',
+    description:
+      'Opening a EUR account usually takes only a few minutes. Your IBAN is usually available within 2–3 business days. You can add it later, and your claim will be ready for submission once the IBAN has been provided. You\'ll be guided through the account-opening process with our EUR account partner.',
   },
   {
     value: 'trusted_third_party',
     label: 'Use a trusted third-party account',
     icon: <User className="w-6 h-6" />,
-    description: 'Please make sure you fully trust the account holder. The refund will be paid directly by the pension provider to this account, and the payment cannot be changed once issued.',
-  },
-  {
-    value: 'add_later',
-    label: "I'll add my IBAN in the next days",
-    icon: <Calendar className="w-6 h-6" />,
-    description: 'Applying takes a few minutes. Your IBAN is usually available within 2-3 business days. We\'ll prepare your claim and submit it as soon as your IBAN is added.',
+    description:
+      'Please make sure you fully trust the account holder. The refund will be paid directly by the pension provider to this account, and the payment cannot be changed once issued.',
   },
 ];
 
@@ -68,8 +64,7 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
   const canProceedFromSelection =
     (ibanIsValid) ||
     data.bankDetails.accountOption === 'open_free_account' ||
-    data.bankDetails.accountOption === 'trusted_third_party' ||
-    data.bankDetails.accountOption === 'add_later';
+    data.bankDetails.accountOption === 'trusted_third_party';
 
   const canProceedFromPhoneEntry =
     data.bankDetails.phoneNumber !== '' && data.bankDetails.phoneConsent;
@@ -110,15 +105,13 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
         </h2>
         <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-4" />
         <p className="text-gray-600 text-center mb-8">
-          To receive your supplementary pension refund, the pension provider requires a EUR/SEPA bank account.
-          We can help you open a free EUR account via our banking partner.
-          You'll receive your IBAN shortly and can return here to add it.
+          To receive your company pension refund, the pension provider requires a EUR / SEPA bank account. You can open a free EUR account with our banking partner. Your IBAN is usually available within 2–3 business days, and you can return here to add it to your claim.
         </p>
 
         {/* Mobile Phone Number Input */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Mobile phone number: <span className="text-gray-500">(required)</span>
+            Mobile phone number (required)
           </label>
           <input
             type="tel"
@@ -128,9 +121,9 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
           />
           {/* Info Banner */}
-          <div className="mt-3 bg-[#163300] rounded-lg p-3 flex items-center gap-3">
-            <Info className="w-5 h-5 text-[#9FE870] flex-shrink-0" />
-            <p className="text-sm text-white">
+          <div className="mt-3 bg-[#F0FDE4] rounded-lg p-3 flex items-center gap-3">
+            <Info className="w-5 h-5 text-[#163300] flex-shrink-0" />
+            <p className="text-sm text-[#163300]">
               The bank uses your mobile number to set up and activate your account.
             </p>
           </div>
@@ -191,14 +184,13 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
         </h2>
         <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-4" />
         <p className="text-gray-600 text-center mb-8">
-          You chose to receive the refund via a trusted third-party bank account.
-          The pension provider will pay the refund directly to this account.
+          You chose to receive the refund via a trusted third-party bank account. The pension provider will pay the refund directly to this account.
         </p>
 
         {/* Account Holder Input */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Account holder:*
+            Account holder
           </label>
           <input
             type="text"
@@ -208,10 +200,10 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
           />
           {/* Info Banner */}
-          <div className="mt-3 bg-[#163300] rounded-lg p-3 flex items-center gap-3">
-            <Info className="w-5 h-5 text-[#9FE870] flex-shrink-0" />
-            <p className="text-sm text-white">
-              This must match the name on the bank account.
+          <div className="mt-3 bg-[#F0FDE4] rounded-lg p-3 flex items-center gap-3">
+            <Info className="w-5 h-5 text-[#163300] flex-shrink-0" />
+            <p className="text-sm text-[#163300]">
+              Please enter the account holder name exactly as shown on the bank account.
             </p>
           </div>
         </div>
@@ -219,7 +211,7 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
         {/* IBAN Input */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            EUR / SEPA bank account (IBAN):*
+            EUR / SEPA bank account (IBAN)
           </label>
           <input
             type="text"
@@ -227,7 +219,7 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
             onChange={(e) =>
               updateBankDetails({ iban: e.target.value.toUpperCase() })
             }
-            placeholder="Enter the IBAN ..."
+            placeholder="Enter the IBAN"
             className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none ${
               ibanShowsError ? 'border-red-400' : 'border-gray-300'
             }`}
@@ -238,10 +230,10 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
             </p>
           )}
           {/* Info Banner */}
-          <div className="mt-3 bg-[#163300] rounded-lg p-3 flex items-center gap-3">
-            <Info className="w-5 h-5 text-[#9FE870] flex-shrink-0" />
-            <p className="text-sm text-white">
-              Only EUR/SEPA accounts are accepted.
+          <div className="mt-3 bg-[#F0FDE4] rounded-lg p-3 flex items-center gap-3">
+            <Info className="w-5 h-5 text-[#163300] flex-shrink-0" />
+            <p className="text-sm text-[#163300]">
+              Only EUR / SEPA accounts are accepted.
             </p>
           </div>
         </div>
@@ -351,7 +343,7 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
         <div className="mt-3 bg-[#F0FDE4] rounded-lg p-3 flex items-start gap-3">
           <Info className="w-5 h-5 text-[#163300] flex-shrink-0 mt-0.5" />
           <p className="text-sm text-[#163300]">
-            Supplementary pension refunds are paid directly by the pension provider via SEPA transfer. The account does not need to be in your own name.
+            Refunds are paid directly by the pension provider via SEPA transfer. The account may be in your own name or in the name of a trusted third party.
           </p>
         </div>
       </div>
@@ -385,7 +377,7 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
             </p>
 
             {/* Option Cards */}
-            <div className="grid grid-cols-3 gap-3 mt-4">
+            <div className="grid grid-cols-2 gap-3 mt-4">
               {BANK_OPTIONS.map((option) => {
                 const isSelected = data.bankDetails.accountOption === option.value;
 

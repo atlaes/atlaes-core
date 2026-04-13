@@ -54,22 +54,22 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
-        Pay a refundable deposit to begin processing your supplementary pension refund.
+        Pay the €199 deposit to begin your company pension refund claim.
       </p>
 
       {/* Payment Card */}
       <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6">
-        {/* Deposit Amount */}
-        <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
-          <span className="font-medium text-gray-700">Refundable deposit (minimum fee):</span>
-          <span className="text-3xl font-bold text-[#163300]">€199</span>
+        {/* Deposit Amount — centered pill card per Figma VBL-1 */}
+        <div className="bg-gray-100 rounded-xl py-5 mb-6 text-center">
+          <p className="text-3xl font-bold text-[#163300] leading-none">€199</p>
+          <p className="text-sm text-gray-600 mt-1">deposit (minimum fee)</p>
         </div>
 
         {/* Fee Breakdown List */}
         <div className="space-y-3 mb-6">
           <div className="flex items-start gap-3">
-            <div className="w-5 h-5 rounded-full bg-[#9FE870] flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Check className="w-3 h-3 text-[#163300]" />
+            <div className="w-5 h-5 rounded-full bg-[#163300] flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Check className="w-3 h-3 text-white" />
             </div>
             <p className="text-sm text-gray-700">
               <strong>Service fee:</strong> 9.75% of the refunded amount
@@ -77,32 +77,46 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
           </div>
 
           <div className="flex items-start gap-3">
-            <div className="w-5 h-5 rounded-full bg-[#9FE870] flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Check className="w-3 h-3 text-[#163300]" />
+            <div className="w-5 h-5 rounded-full bg-[#163300] flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Check className="w-3 h-3 text-white" />
             </div>
             <p className="text-sm text-gray-700">
-              <strong>Minimum fee:</strong> €199 (paid upfront as a deposit)
+              <strong>Minimum fee:</strong> €199 is the minimum total fee for our service
             </p>
           </div>
 
           <div className="flex items-start gap-3">
-            <div className="w-5 h-5 rounded-full bg-[#9FE870] flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Check className="w-3 h-3 text-[#163300]" />
+            <div className="w-5 h-5 rounded-full bg-[#163300] flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Check className="w-3 h-3 text-white" />
             </div>
             <p className="text-sm text-gray-700">
-              <strong>Remainder:</strong> Any difference between €199 and the final service fee is payable after the refund is granted
+              <strong>Deposit:</strong> You pay the €199 upfront and it counts toward your final service fee
             </p>
           </div>
 
           <div className="flex items-start gap-3">
-            <div className="w-5 h-5 rounded-full bg-[#9FE870] flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Check className="w-3 h-3 text-[#163300]" />
+            <div className="w-5 h-5 rounded-full bg-[#163300] flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Check className="w-3 h-3 text-white" />
             </div>
             <p className="text-sm text-gray-700">
-              <strong>Money-back guarantee:</strong> The €199 deposit is fully refunded if no refund is granted
+              <strong>Remaining fee:</strong> Any amount above €199 is only due after your refund is approved
+            </p>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <div className="w-5 h-5 rounded-full bg-[#163300] flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Check className="w-3 h-3 text-white" />
+            </div>
+            <p className="text-sm text-gray-700">
+              <strong>Money-back guarantee:</strong> The €199 deposit is fully refunded if the pension authority rejects your claim
             </p>
           </div>
         </div>
+
+        {/* Bank account note */}
+        <p className="text-xs text-gray-500 text-center mb-4">
+          Your refund will be paid directly to your own bank account.
+        </p>
 
         {/* Security Note */}
         <div className="flex items-center gap-2 text-gray-500 text-xs mb-6">

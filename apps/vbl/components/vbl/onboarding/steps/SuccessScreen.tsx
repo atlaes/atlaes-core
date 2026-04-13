@@ -11,6 +11,12 @@ interface SuccessScreenProps {
   onRemindDRV?: () => void;
   drvEligibilityDate?: string; // If provided, user will be eligible in the future
   isDRVEligibleNow?: boolean; // If true, user is immediately eligible
+  // Figma VBL-23/24: mixed-claim continuation block. Shown only when the
+  // user still has a second claim to file (e.g. the just-submitted public
+  // claim is followed by a pending private-sector settlement).
+  otherClaimLabel?: string;
+  otherClaimProvider?: string;
+  onStartOtherClaim?: () => void;
 }
 
 const WHAT_HAPPENS_NEXT = [
@@ -26,7 +32,11 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
   onRemindDRV,
   drvEligibilityDate,
   isDRVEligibleNow = false,
+  otherClaimLabel,
+  otherClaimProvider,
+  onStartOtherClaim,
 }) => {
+  const hasOtherClaim = !!(otherClaimLabel && onStartOtherClaim);
   const { data, updateSuccessData } = useOnboarding();
 
   const handleRemindDRV = () => {
@@ -84,8 +94,31 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
         <ArrowRight className="w-4 h-4" />
       </button>
 
+      {/* Mixed-claim continuation block — Figma VBL-23/24 */}
+      {hasOtherClaim && (
+        <>
+          <div className="border-t border-gray-200 mb-8" />
+          <div className="border border-gray-200 rounded-xl p-6 mb-8 text-center">
+            <h3 className="text-base font-semibold text-[#163300] mb-2">
+              Continue with another supplementary pension
+            </h3>
+            <p className="text-sm text-gray-600 mb-5">
+              These pensions are legally separate and must be claimed one at a time. You can start your next claim now or come back to it later from your dashboard.
+            </p>
+            <button
+              onClick={onStartOtherClaim}
+              className="w-full py-3 px-6 bg-[#9FE870] text-[#163300] font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-[#8AD860] transition-colors"
+            >
+              Continue with {otherClaimLabel}
+              {otherClaimProvider ? ` (${otherClaimProvider})` : ''}
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </>
+      )}
+
       {/* Divider */}
-      {showDRVSection && <div className="border-t border-gray-200 mb-8" />}
+      {showDRVSection && !hasOtherClaim && <div className="border-t border-gray-200 mb-8" />}
 
       {/* DRV Upsell Section */}
       {showDRVSection && (

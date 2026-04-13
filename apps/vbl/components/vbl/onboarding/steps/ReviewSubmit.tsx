@@ -193,7 +193,6 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
               <p className="text-gray-700">
                 {data.bankDetails.accountOption === 'open_free_account' && 'Will open free EUR account'}
                 {data.bankDetails.accountOption === 'trusted_third_party' && 'Using third-party account'}
-                {data.bankDetails.accountOption === 'add_later' && 'Will add IBAN later'}
               </p>
             )}
             <button
@@ -252,7 +251,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
           return (
             <div
               key={section.id}
-              className="border border-[#9FE870] rounded-xl overflow-hidden bg-[#F0FDE4]"
+              className="border border-[#9FE870] rounded-xl overflow-hidden bg-white"
             >
               {/* Section Header */}
               <button
@@ -260,12 +259,12 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
                 className="w-full px-5 py-4 flex items-center justify-between"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-[#9FE870] rounded-lg flex items-center justify-center text-[#163300]">
+                  <div className="w-9 h-9 bg-[#163300] rounded-lg flex items-center justify-center text-[#9FE870]">
                     {section.icon}
                   </div>
                   <span className="font-semibold text-[#163300]">{section.title}</span>
                 </div>
-                <div className="text-[#9FE870]">
+                <div className="text-[#163300]">
                   {isExpanded ? (
                     <ChevronUp className="w-5 h-5" />
                   ) : (
