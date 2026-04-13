@@ -193,7 +193,6 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
               <p className="text-gray-700">
                 {data.bankDetails.accountOption === 'open_free_account' && 'Will open free EUR account'}
                 {data.bankDetails.accountOption === 'trusted_third_party' && 'Using third-party account'}
-                {data.bankDetails.accountOption === 'add_later' && 'Will add IBAN later'}
               </p>
             )}
             <button

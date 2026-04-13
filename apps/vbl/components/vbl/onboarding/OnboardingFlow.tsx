@@ -41,6 +41,10 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
   // types (e.g., the user has both public and private sector jobs that
   // create separate claims). A single-type user has nothing to choose.
   const [detectedClaimTypes, setDetectedClaimTypes] = useState<string[]>([]);
+  // Figma VBL-30/31/32: the card subtitles show the actual providers
+  // carried over from the calculator (e.g. private: BVV/Allianz/Swiss Life).
+  const [detectedPrivateProvider, setDetectedPrivateProvider] = useState('');
+  const [detectedPublicStageProvider, setDetectedPublicStageProvider] = useState('');
   const [showPensionTypeSelection, setShowPensionTypeSelection] = useState(
     () => {
       if (typeof window !== 'undefined') {
@@ -93,12 +97,20 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
       const parsed = JSON.parse(stored) as {
         pensionProvider?: string;
         claimTypes?: string[];
+        privateProvider?: string;
+        publicStageProvider?: string;
       };
       if (parsed.pensionProvider) {
         updateMembership({ pensionProvider: parsed.pensionProvider });
       }
       if (parsed.claimTypes) {
         setDetectedClaimTypes(parsed.claimTypes);
+      }
+      if (parsed.privateProvider) {
+        setDetectedPrivateProvider(parsed.privateProvider);
+      }
+      if (parsed.publicStageProvider) {
+        setDetectedPublicStageProvider(parsed.publicStageProvider);
       }
     } catch {
       // Ignore parsing errors
@@ -191,6 +203,40 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
     router.push('/dashboard');
   };
 
+  // Figma VBL-23/24: mixed-claim continuation. When the user had both a
+  // supplementary and a private-sector claim, SuccessScreen offers a button
+  // to start the still-pending second claim. We infer the pending side by
+  // subtracting the just-submitted `pensionType` from `detectedClaimTypes`.
+  const pendingOtherClaim = (() => {
+    const hasPrivate = detectedClaimTypes.includes('private');
+    const hasPublicOrStage =
+      detectedClaimTypes.includes('public') ||
+      detectedClaimTypes.includes('stage') ||
+      detectedClaimTypes.includes('orchestra');
+    if (data.pensionType === 'public' && hasPrivate) {
+      return {
+        label: 'Private-sector pension',
+        provider: detectedPrivateProvider || 'BVV',
+      };
+    }
+    if (data.pensionType === 'private' && hasPublicOrStage) {
+      return {
+        label: 'Public-sector pension',
+        provider: detectedPublicStageProvider || 'VBLklassik',
+      };
+    }
+    return null;
+  })();
+
+  const handleStartOtherClaim = () => {
+    // Flip the pensionType and re-enter the onboarding flow from step 1.
+    // Most users will still be authenticated so they'll skip CreateAccount.
+    updateData({ pensionType: data.pensionType === 'public' ? 'private' : 'public' });
+    setShowSuccess(false);
+    setCurrentStep(2);
+    setCurrentSubStep('identity');
+  };
+
   // If pension type not selected yet, show that screen.
   // Client #8: pass detected claim types so the card labels can render
   // dynamically ("Public Sector Pension" vs "Stage Pension" vs both).
@@ -201,6 +247,8 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
         headerTitle={headerTitle}
         headerIcon={headerIcon}
         claimTypes={detectedClaimTypes}
+        privateProvider={detectedPrivateProvider}
+        publicStageProvider={detectedPublicStageProvider}
       />
     );
   }
@@ -215,6 +263,9 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
           onRemindDRV={handleRemindDRV}
           drvEligibilityDate={drvEligibilityDate}
           isDRVEligibleNow={isDRVEligibleNow}
+          otherClaimLabel={pendingOtherClaim?.label}
+          otherClaimProvider={pendingOtherClaim?.provider}
+          onStartOtherClaim={pendingOtherClaim ? handleStartOtherClaim : undefined}
         />
         <DRVUpsellModal
           isOpen={showDRVModal}
