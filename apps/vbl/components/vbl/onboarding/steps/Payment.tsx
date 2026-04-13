@@ -114,17 +114,9 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
         </div>
 
         {/* Bank account note */}
-        <p className="text-xs text-gray-500 text-center mb-4">
+        <p className="text-xs text-gray-500 text-center mb-6">
           Your refund will be paid directly to your own bank account.
         </p>
-
-        {/* Security Note */}
-        <div className="flex items-center gap-2 text-gray-500 text-xs mb-6">
-          <div className="w-5 h-5 rounded-full bg-[#9FE870] flex items-center justify-center flex-shrink-0">
-            <Check className="w-3 h-3 text-[#163300]" />
-          </div>
-          <span>Your payment is secured with 256-bit SSL encryption.</span>
-        </div>
 
         {/* Error Message */}
         {error && (

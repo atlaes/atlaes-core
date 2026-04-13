@@ -3,6 +3,8 @@
 import React, { ReactNode } from 'react';
 import { ArrowRight, Info } from 'lucide-react';
 import { CompanyPensionLogo } from '@/components/vbl/icons/CompanyPensionLogo';
+import { PublicSectorCardIcon } from '@/components/vbl/icons/PublicSectorCardIcon';
+import { PrivateSectorCardIcon } from '@/components/vbl/icons/PrivateSectorCardIcon';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 
 interface PensionTypeSelectionProps {
@@ -95,13 +97,7 @@ export const PensionTypeSelection: React.FC<PensionTypeSelectionProps> = ({
                 className="w-full p-4 bg-[#9FE870] rounded-xl flex items-center gap-4 hover:bg-[#8AD860] transition-colors group"
               >
                 <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#163300" strokeWidth="2">
-                    <path d="M3 21h18" />
-                    <path d="M5 21V7l7-4 7 4v14" />
-                    <path d="M9 21v-6h6v6" />
-                    <path d="M10 9h4" />
-                    <path d="M10 12h4" />
-                  </svg>
+                  <PublicSectorCardIcon className="w-7 h-7" />
                 </div>
                 <div className="flex-1 text-left">
                   <p className="font-semibold text-[#163300]">{publicStageLabel}</p>
@@ -115,12 +111,8 @@ export const PensionTypeSelection: React.FC<PensionTypeSelectionProps> = ({
                 onClick={handlePrivateSector}
                 className="w-full p-4 bg-white border border-gray-200 rounded-xl flex items-center gap-4 hover:border-gray-300 transition-colors group"
               >
-                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2">
-                    <rect x="3" y="7" width="18" height="14" rx="2" />
-                    <path d="M3 7l9-4 9 4" />
-                    <path d="M9 21v-6h6v6" />
-                  </svg>
+                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  <PrivateSectorCardIcon className="w-8 h-8" />
                 </div>
                 <div className="flex-1 text-left">
                   <p className="font-semibold text-gray-900">Private-sector settlement claim</p>
