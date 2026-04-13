@@ -19,7 +19,11 @@ export interface OnboardingIdentity {
 }
 
 export interface OnboardingMembership {
-  pensionProvider: 'VBL' | 'ZVK' | 'KVBW' | 'VddB' | 'VddKO' | '';
+  // Client #12: this field accepts any calculator provider label (including
+  // state-specific ZVKs like "Bayerische ZVK" or "ZVK Darmstadt"), so the
+  // value selected in the calculator can be carried over and locked here
+  // without mapping through a narrow enum.
+  pensionProvider: string;
   membershipNumber: string;
 }
 
@@ -112,6 +116,12 @@ interface OnboardingContextType {
   setCurrentStep: (step: 1 | 2 | 3) => void;
   setCurrentSubStep: (subStep: SubmitDetailsSubStep) => void;
 
+  // Client #16: track "editing from review" mode so that when the user
+  // jumps out of the review screen to edit a field, the next Continue
+  // returns them directly to review instead of re-walking the wizard.
+  editingFromReview: boolean;
+  setEditingFromReview: (v: boolean) => void;
+
   // Form data
   data: OnboardingData;
   updateData: (updates: Partial<OnboardingData>) => void;
@@ -182,6 +192,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [currentSubStep, setCurrentSubStep] = useState<SubmitDetailsSubStep>('identity');
   const [data, setData] = useState<OnboardingData>(initialData);
+  const [editingFromReview, setEditingFromReview] = useState(false);
 
   const updateData = useCallback((updates: Partial<OnboardingData>) => {
     setData((prev) => ({ ...prev, ...updates }));
@@ -381,6 +392,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setCurrentStep(1);
     setCurrentSubStep('identity');
     setData(initialData);
+    setEditingFromReview(false);
   }, []);
 
   return (
@@ -390,6 +402,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         currentSubStep,
         setCurrentStep,
         setCurrentSubStep,
+        editingFromReview,
+        setEditingFromReview,
         data,
         updateData,
         updateIdentity,

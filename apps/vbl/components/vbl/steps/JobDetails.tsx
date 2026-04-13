@@ -4,6 +4,7 @@ import React from 'react';
 import { ChevronDown, Info, Check } from 'lucide-react';
 import { StepContainer } from '../StepContainer';
 import { useVBLCalculator, JobData } from '../../../hooks/useVBLCalculator';
+import { PrivateOptionalDetails } from './PrivateOptionalDetails';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -19,9 +20,9 @@ const YEARS = Array.from(
 
 const EMPLOYMENT_TYPES = [
   'Public Sector',
-  'Private sector',
   'Stage/Performing Arts',
   'Orchestra',
+  'Private sector',
 ] as const;
 
 const GERMAN_FEDERAL_STATES = [
@@ -208,9 +209,16 @@ const SingleSelectChips: React.FC<SingleSelectChipsProps> = ({
 };
 
 export const JobDetails: React.FC = () => {
-  const { formData, updateJob, currentJobIndex } = useVBLCalculator();
+  const { formData, updateJob, currentJobIndex, currentJobSubStep } = useVBLCalculator();
   const job = formData.jobs[currentJobIndex] || {} as JobData;
   const totalJobs = formData.numberOfJobs;
+
+  // Figma: for private-sector jobs that answered "no"/"not_sure" on the
+  // DRV-refunded question, Job Details splits into a second sub-step showing
+  // only the 4 optional financial-detail fields.
+  if (currentJobSubStep === 'optional') {
+    return <PrivateOptionalDetails />;
+  }
 
   const isPrivateSector = job.employmentType === 'Private sector';
   const isPublicSector = job.employmentType === 'Public Sector';
@@ -292,18 +300,18 @@ export const JobDetails: React.FC = () => {
           <p className="text-sm font-semibold text-gray-800 mb-3">Start of employment</p>
           <div className="grid grid-cols-2 gap-4">
             <Select
-              label="Start Month"
+              label="Start month"
               value={job.startMonth || ''}
               onChange={(value) => handleFieldChange('startMonth', value)}
               options={MONTHS}
-              placeholder="Select Start Month"
+              placeholder="Select start month"
             />
             <Select
-              label="Start Year"
+              label="Start year"
               value={job.startYear || ''}
               onChange={(value) => handleFieldChange('startYear', value)}
               options={YEARS}
-              placeholder="Select Start Year"
+              placeholder="Select start year"
             />
           </div>
         </div>
@@ -313,18 +321,18 @@ export const JobDetails: React.FC = () => {
           <p className="text-sm font-semibold text-gray-800 mb-3">End of employment</p>
           <div className="grid grid-cols-2 gap-4">
             <Select
-              label="End Month"
+              label="End month"
               value={job.endMonth || ''}
               onChange={(value) => handleFieldChange('endMonth', value)}
               options={MONTHS}
-              placeholder="Select End Month"
+              placeholder="Select end month"
             />
             <Select
-              label="End Year"
+              label="End year"
               value={job.endYear || ''}
               onChange={(value) => handleFieldChange('endYear', value)}
               options={YEARS}
-              placeholder="Select End Year"
+              placeholder="Select end year"
             />
           </div>
         </div>
@@ -340,7 +348,7 @@ export const JobDetails: React.FC = () => {
 
         {/* Average Monthly Gross Salary — numeric-only input (client #1) */}
         <NumberInput
-          label="Average gross monthly salary during this job (&euro;)"
+          label="Average monthly gross salary (&euro;)"
           value={job.averageMonthlyGrossSalary || ''}
           onChange={(value) => handleFieldChange('averageMonthlyGrossSalary', value)}
           placeholder="E.g., 3500"
@@ -348,11 +356,11 @@ export const JobDetails: React.FC = () => {
 
         {/* Type of employer */}
         <Select
-          label="Type of employer"
+          label="Company pension sector"
           value={job.employmentType || ''}
           onChange={(value) => handleFieldChange('employmentType', value)}
           options={EMPLOYMENT_TYPES}
-          placeholder="Company pension sector"
+          placeholder="Select sector"
         />
 
         {/* German Federal State.
@@ -400,7 +408,7 @@ export const JobDetails: React.FC = () => {
               placeholder="Select company pension"
             />
             <InfoBanner>
-              Private supplementary pensions usually do not allow a direct refund. A lump-sum settlement (Abfindung) may be possible depending on the scheme.
+              Private-sector company pensions require individual review. A lump-sum settlement (Abfindung) may be possible depending on the scheme.
             </InfoBanner>
           </>
         )}
@@ -408,30 +416,30 @@ export const JobDetails: React.FC = () => {
         {/* Custom pension name input (Private sector + Others) */}
         {showOthersInput && (
           <TextInput
-            label="Name of company pension"
+            label="Name of company pension plan"
             value={job.customPensionName || ''}
             onChange={(value) => handleFieldChange('customPensionName', value)}
-            placeholder="Enter the name of your pension provider"
+            placeholder="Enter the name of your company pension plan"
           />
         )}
 
-        {/* Client #19: mirror Entry B — employer-paid question for private sector.
-            "not sure" triggers individual review, same as Entry B. */}
+        {/* Figma: private-sector DRV statutory-refund question. "no" or
+            "not_sure" routes the user into the optional financial-details
+            sub-step after they hit Next. */}
         {isPrivateSector && job.companyPension && (
           <SingleSelectChips
-            label="Were contributions paid via your employer?"
-            options={['Yes', 'Not sure']}
-            selectedValue={
-              job.employerPaidContributions === 'yes'
-                ? 'Yes'
-                : job.employerPaidContributions === 'not_sure'
-                  ? 'Not sure'
-                  : ''
-            }
+            label="Have your German statutory pension contributions already been refunded?"
+            options={['Yes', 'No', 'Not sure']}
+            selectedValue={(() => {
+              if (job.statutoryPensionRefunded === 'yes') return 'Yes';
+              if (job.statutoryPensionRefunded === 'no') return 'No';
+              if (job.statutoryPensionRefunded === 'not_sure') return 'Not sure';
+              return '';
+            })()}
             onChange={(label) =>
               handleFieldChange(
-                'employerPaidContributions',
-                label === 'Yes' ? 'yes' : 'not_sure'
+                'statutoryPensionRefunded',
+                label === 'Yes' ? 'yes' : label === 'No' ? 'no' : 'not_sure'
               )
             }
           />

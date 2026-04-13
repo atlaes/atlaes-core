@@ -1,27 +1,32 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import { COUNTRIES } from '@/lib/countries';
+import { useGooglePlacesAutocomplete } from '@/hooks/useGooglePlacesAutocomplete';
 
 interface AddressProps {
   onNext: () => void;
 }
 
-const COUNTRIES = [
-  { value: 'DE', label: 'Germany' },
-  { value: 'AT', label: 'Austria' },
-  { value: 'CH', label: 'Switzerland' },
-  { value: 'NL', label: 'Netherlands' },
-  { value: 'BE', label: 'Belgium' },
-  { value: 'FR', label: 'France' },
-  { value: 'GB', label: 'United Kingdom' },
-  { value: 'US', label: 'United States' },
-  { value: 'OTHER', label: 'Other' },
-];
-
 export const Address: React.FC<AddressProps> = ({ onNext }) => {
   const { data, updateAddress } = useOnboarding();
+  const streetInputRef = useRef<HTMLInputElement>(null);
+
+  // Client #13: when the user picks a Google Places suggestion, fill in all
+  // four fields from the structured address components. No-ops silently if
+  // the Maps SDK is not configured (NEXT_PUBLIC_GOOGLE_MAPS_API_KEY missing).
+  useGooglePlacesAutocomplete(streetInputRef, {
+    onPlaceSelected: (place) => {
+      updateAddress({
+        streetAndNumber: place.streetAndNumber,
+        postalCode: place.postalCode,
+        city: place.city,
+        country: place.countryCode || data.address.country,
+      });
+    },
+  });
 
   const canProceed =
     data.address.streetAndNumber !== '' &&
@@ -47,10 +52,12 @@ export const Address: React.FC<AddressProps> = ({ onNext }) => {
             Street and house number
           </label>
           <input
+            ref={streetInputRef}
             type="text"
             value={data.address.streetAndNumber}
             onChange={(e) => updateAddress({ streetAndNumber: e.target.value })}
-            placeholder="Street and house number"
+            placeholder="Start typing to search…"
+            autoComplete="off"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
           />
         </div>
@@ -84,7 +91,7 @@ export const Address: React.FC<AddressProps> = ({ onNext }) => {
           </div>
         </div>
 
-        {/* Country */}
+        {/* Country — Client #13: full ISO 3166 list */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Country
