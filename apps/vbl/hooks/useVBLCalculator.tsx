@@ -18,19 +18,39 @@ export interface JobData {
   companyPension: string;
   supplementaryPensions: string[];
   customPensionName: string;
-  // Client #19: mirror Entry B private-sector question set into the calculator.
-  // Determines whether a private-sector job goes to the review scenario.
-  employerPaidContributions: '' | 'yes' | 'not_sure';
+  // Figma: private-sector jobs ask whether the user's German statutory
+  // pension contributions (DRV) have already been refunded. "no" and
+  // "not_sure" both branch into the optional financial-details sub-step
+  // below, which can change the final result scenario.
+  statutoryPensionRefunded: '' | 'yes' | 'no' | 'not_sure';
+  // Optional financial details shown on the second private-sector sub-step
+  // when the user answered "no" or "not_sure" on the DRV question.
+  projectedMonthlyPension: string;
+  capitalAmount: string;
+  contractValue: string;
+  estimatedMonthlyContribution: string;
 }
 
 export type ResultScenario =
   | 'eligible'
-  | 'private_review'
+  // Figma screens 11/12/13: three private-sector result variants. The
+  // decision table that picks between them is PROVISIONAL pending client
+  // confirmation — see `determineResultScenario` in Results.tsx for the
+  // current assignment rules. `private_review` is kept as an alias that
+  // routes to the "individual assessment required" variant.
+  | 'private_may_be_possible' // Figma screen 11 — green check
+  | 'private_individual_assessment' // Figma screen 12 — clock (catch-all)
+  | 'private_appears_unlikely' // Figma screen 13 — warning
+  | 'private_review' // legacy alias for `private_individual_assessment`
   | 'not_eligible_vesting'
   | 'vested'
   // Client #17/#18: Stage/Orchestra specific error screens
   | 'stage_too_short' // contribution period < 12 months
-  | 'stage_waiting'; // within 24-month waiting period after employment end
+  | 'stage_waiting' // within 24-month waiting period after employment end
+  // Figma screens 21/22: split-card layout shown when the user has BOTH
+  // public/stage/orchestra jobs AND private-sector jobs. Each side is
+  // resolved independently and displayed side-by-side.
+  | 'mixed_result';
 
 export interface QualificationData {
   contributionDuration: 'less_than_5' | '5_or_more' | '';
@@ -60,14 +80,22 @@ export interface VBLFormData {
   calculationResult?: CalculationResult;
 }
 
+// Within the Job Details step, private-sector jobs have two sub-screens:
+// - 'main': the shared job form (dates, sector, salary, provider, DRV Q)
+// - 'optional': the 4 optional financial fields shown when the DRV answer
+//   is "no" or "not_sure". All other sectors only ever see 'main'.
+export type JobSubStep = 'main' | 'optional';
+
 interface VBLCalculatorContextType {
   formData: VBLFormData;
   updateFormData: (data: Partial<VBLFormData>) => void;
   updateJob: (index: number, job: Partial<JobData>) => void;
   currentStep: number;
   currentJobIndex: number;
+  currentJobSubStep: JobSubStep;
   setCurrentStep: (step: number) => void;
   setCurrentJobIndex: (index: number) => void;
+  setCurrentJobSubStep: (subStep: JobSubStep) => void;
   completedSteps: Set<number>;
   markStepComplete: (step: number) => void;
   goToNextStep: () => void;
@@ -89,7 +117,11 @@ const createEmptyJob = (): JobData => ({
   companyPension: '',
   supplementaryPensions: [],
   customPensionName: '',
-  employerPaidContributions: '',
+  statutoryPensionRefunded: '',
+  projectedMonthlyPension: '',
+  capitalAmount: '',
+  contractValue: '',
+  estimatedMonthlyContribution: '',
 });
 
 const INITIAL_FORM_DATA: VBLFormData = {
@@ -100,10 +132,22 @@ const INITIAL_FORM_DATA: VBLFormData = {
   currentAge: 0,
 };
 
+// A private-sector job has a second sub-step (optional financial fields)
+// when the user answered "no" or "not_sure" to the DRV question. All other
+// sectors and private jobs with "yes" skip straight past sub-step 'optional'.
+const jobHasOptionalSubStep = (job: JobData | undefined): boolean => {
+  if (!job || job.employmentType !== 'Private sector') return false;
+  return (
+    job.statutoryPensionRefunded === 'no' ||
+    job.statutoryPensionRefunded === 'not_sure'
+  );
+};
+
 export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [formData, setFormData] = useState<VBLFormData>(INITIAL_FORM_DATA);
   const [currentStep, setCurrentStep] = useState(0);
   const [currentJobIndex, setCurrentJobIndex] = useState(0);
+  const [currentJobSubStep, setCurrentJobSubStep] = useState<JobSubStep>('main');
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
   const updateFormData = (data: Partial<VBLFormData>) => {
@@ -149,9 +193,20 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
       markStepComplete(0);
       setCurrentStep(1);
       setCurrentJobIndex(0);
-    } else if (currentStep === 1) {
+      setCurrentJobSubStep('main');
+      return;
+    }
+    if (currentStep === 1) {
+      const job = formData.jobs[currentJobIndex];
+      // Private + "no"/"not_sure" → jump to the optional-fields sub-step
+      // before advancing jobs. Every other case skips straight ahead.
+      if (currentJobSubStep === 'main' && jobHasOptionalSubStep(job)) {
+        setCurrentJobSubStep('optional');
+        return;
+      }
       if (currentJobIndex < formData.numberOfJobs - 1) {
         setCurrentJobIndex(currentJobIndex + 1);
+        setCurrentJobSubStep('main');
       } else {
         markStepComplete(1);
         setCurrentStep(2);
@@ -161,11 +216,26 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
 
   const goToPreviousStep = () => {
     if (currentStep === 2) {
+      // Return into the last job — its optional sub-step if applicable,
+      // else its main form.
+      const lastIndex = formData.numberOfJobs - 1;
+      const lastJob = formData.jobs[lastIndex];
       setCurrentStep(1);
-      setCurrentJobIndex(formData.numberOfJobs - 1);
-    } else if (currentStep === 1) {
+      setCurrentJobIndex(lastIndex);
+      setCurrentJobSubStep(jobHasOptionalSubStep(lastJob) ? 'optional' : 'main');
+      return;
+    }
+    if (currentStep === 1) {
+      if (currentJobSubStep === 'optional') {
+        setCurrentJobSubStep('main');
+        return;
+      }
       if (currentJobIndex > 0) {
-        setCurrentJobIndex(currentJobIndex - 1);
+        const prevIndex = currentJobIndex - 1;
+        const prevJob = formData.jobs[prevIndex];
+        setCurrentJobIndex(prevIndex);
+        // Walk backwards into the previous job's last visible sub-step.
+        setCurrentJobSubStep(jobHasOptionalSubStep(prevJob) ? 'optional' : 'main');
       } else {
         setCurrentStep(0);
       }
@@ -180,6 +250,11 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
     if (currentStep === 1) {
       const job = formData.jobs[currentJobIndex];
       if (!job) return false;
+
+      // Optional sub-step: all 4 financial fields are optional, so the user
+      // may always continue. The main form's validation still had to pass
+      // for the user to have reached this sub-step in the first place.
+      if (currentJobSubStep === 'optional') return true;
 
       const hasDateFields =
         job.startMonth !== '' &&
@@ -213,11 +288,11 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
         return true;
       }
 
-      // Private sector: requires company pension + employer-paid answer;
-      // if Others, needs custom name too. Mirrors Entry B contribution details.
+      // Private sector: requires company pension + DRV-refunded answer;
+      // if Others, needs custom name too.
       if (job.employmentType === 'Private sector') {
         if (job.companyPension === '') return false;
-        if (job.employerPaidContributions === '') return false;
+        if (job.statutoryPensionRefunded === '') return false;
         if (job.companyPension === 'Others') {
           return job.customPensionName.trim() !== '';
         }
@@ -235,6 +310,7 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
     setFormData(INITIAL_FORM_DATA);
     setCurrentStep(0);
     setCurrentJobIndex(0);
+    setCurrentJobSubStep('main');
     setCompletedSteps(new Set());
   };
 
@@ -246,8 +322,10 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
         updateJob,
         currentStep,
         currentJobIndex,
+        currentJobSubStep,
         setCurrentStep,
         setCurrentJobIndex,
+        setCurrentJobSubStep,
         completedSteps,
         markStepComplete,
         goToNextStep,
