@@ -60,6 +60,9 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Selected company pension
           </label>
+          {/* Client #12: when the provider is carried over from the calculator
+              or eligibility flow, show it as locked display — the user cannot
+              change it here because it's tied to the claim they're filing. */}
           {isProviderPreset ? (
             <div
               className="w-full px-4 py-3 rounded-lg text-gray-700 font-medium"
@@ -72,9 +75,7 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
               <select
                 value={data.membership.pensionProvider}
                 onChange={(e) =>
-                  updateMembership({
-                    pensionProvider: e.target.value as typeof data.membership.pensionProvider,
-                  })
+                  updateMembership({ pensionProvider: e.target.value })
                 }
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white"
               >

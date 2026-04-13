@@ -215,6 +215,50 @@ export const Results: React.FC = () => {
   };
 
   const handleStartClaim = () => {
+    // Client #12: carry the calculator's selected pension provider into the
+    // onboarding flow so the Membership step can lock it. Uses the first
+    // job with a concrete provider — Stage/Orchestra map to VddB/VddKO,
+    // Public Sector uses its companyPension selection verbatim.
+    const relevantJob = formData.jobs.find(
+      (j) =>
+        (j.employmentType === 'Public Sector' && j.companyPension) ||
+        j.employmentType === 'Stage/Performing Arts' ||
+        j.employmentType === 'Orchestra'
+    );
+    let pensionProvider: string | undefined;
+    if (relevantJob) {
+      if (relevantJob.employmentType === 'Stage/Performing Arts') {
+        pensionProvider = 'VddB';
+      } else if (relevantJob.employmentType === 'Orchestra') {
+        pensionProvider = 'VddKO';
+      } else {
+        pensionProvider = relevantJob.companyPension || undefined;
+      }
+    }
+    // Client #8: also pass the detected claim types so the onboarding
+    // pension-type selection screen can skip itself (when there's only one
+    // type) or render dynamic wording (when there are multiple).
+    const sectors = new Set<string>();
+    formData.jobs.forEach((j) => {
+      if (j.employmentType === 'Public Sector') sectors.add('public');
+      else if (
+        j.employmentType === 'Stage/Performing Arts' ||
+        j.employmentType === 'Orchestra'
+      )
+        sectors.add('stage');
+      else if (j.employmentType === 'Private sector') sectors.add('private');
+    });
+    const claimTypes = Array.from(sectors);
+
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(
+        'calculator-selection',
+        JSON.stringify({
+          pensionProvider: pensionProvider ?? '',
+          claimTypes,
+        })
+      );
+    }
     router.push('/calculator/onboarding');
   };
 

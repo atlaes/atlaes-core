@@ -90,7 +90,13 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
   headerIcon,
 }) => {
   const router = useRouter();
-  const { currentStep, currentSubStep } = useOnboarding();
+  const {
+    currentStep,
+    currentSubStep,
+    setCurrentSubStep,
+    canProceedFromSubStep,
+    setEditingFromReview,
+  } = useOnboarding();
 
   const handleBack = () => {
     if (onBack) {
@@ -103,13 +109,23 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
   const isStepCompleted = (stepId: number) => stepId < currentStep;
   const isStepActive = (stepId: number) => stepId === currentStep;
 
-  const isSubStepCompleted = (subStepId: SubmitDetailsSubStep) => {
-    const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === currentSubStep);
-    const stepIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === subStepId);
-    return stepIndex < currentIndex;
-  };
+  // Client #16: a sub-step is "completed" when its data is actually valid,
+  // not just when its index is below the current one. This way, moving
+  // backwards (e.g. editing a previous section) does not uncheck later
+  // steps that the user had already filled in.
+  const isSubStepCompleted = (subStepId: SubmitDetailsSubStep) =>
+    subStepId !== currentSubStep && canProceedFromSubStep(subStepId);
 
   const isSubStepActive = (subStepId: SubmitDetailsSubStep) => subStepId === currentSubStep;
+
+  // Client #16: jumping to a completed step from the header counts as an
+  // edit from review when you are already at the review screen, so any
+  // subsequent Continue should bring you back to review.
+  const handleSubStepClick = (subStepId: SubmitDetailsSubStep) => {
+    if (!isSubStepCompleted(subStepId)) return;
+    if (currentSubStep === 'review') setEditingFromReview(true);
+    setCurrentSubStep(subStepId);
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -207,20 +223,26 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
             </button>
           )}
 
-          {/* Sub-step Tabs (only for Step 3) */}
+          {/* Sub-step Tabs (only for Step 3).
+              Client #16: completed steps are clickable so the user can jump
+              back to any section without unchecking later steps. */}
           {currentStep === 3 && (
             <div className="flex items-stretch mb-8 rounded-[5px] overflow-hidden" style={{ border: '0.84px solid #E5E7EB' }}>
               {SUBMIT_DETAILS_SUBSTEPS.map((subStep, index) => {
                 const isActive = isSubStepActive(subStep.id);
                 const isCompleted = isSubStepCompleted(subStep.id);
+                const isClickable = isCompleted && !isActive;
 
                 return (
                   <React.Fragment key={subStep.id}>
                     {index > 0 && <div className="w-px bg-gray-200" />}
-                    <div
+                    <button
+                      type="button"
+                      disabled={!isClickable}
+                      onClick={() => handleSubStepClick(subStep.id)}
                       className={`flex items-center gap-2 px-4 py-3 flex-1 justify-center transition-colors ${
                         isActive ? 'bg-gray-50' : ''
-                      }`}
+                      } ${isClickable ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'}`}
                     >
                       <SubStepIcon
                         icon={subStep.icon}
@@ -238,7 +260,7 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
                       >
                         {subStep.label}
                       </span>
-                    </div>
+                    </button>
                   </React.Fragment>
                 );
               })}

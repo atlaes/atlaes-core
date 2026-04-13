@@ -9,14 +9,31 @@ interface PensionTypeSelectionProps {
   onNext: () => void;
   headerTitle?: string;
   headerIcon?: ReactNode;
+  // Client #8: the calculator passes which sectors the user actually has,
+  // so the card labels and subtitles can describe the user's own situation
+  // instead of showing a generic "Public/Stage vs Private" split.
+  claimTypes?: string[];
 }
 
 export const PensionTypeSelection: React.FC<PensionTypeSelectionProps> = ({
   onNext,
   headerTitle,
   headerIcon,
+  claimTypes = [],
 }) => {
   const { updateData } = useOnboarding();
+
+  const hasPublic = claimTypes.includes('public');
+  const hasStage = claimTypes.includes('stage');
+  const hasPrivate = claimTypes.includes('private');
+
+  // Dynamic left-card label based on what the user actually has.
+  const publicStageLabel = (() => {
+    if (hasPublic && hasStage) return 'Public Sector & Stage Pension';
+    if (hasStage) return 'Stage / Orchestra Pension';
+    return 'Public Sector Pension';
+  })();
+  const publicStageSubtitle = hasStage && !hasPublic ? 'VddB / VddKO' : 'VBLklassik';
 
   const handlePublicSector = () => {
     updateData({ pensionType: 'public' });
@@ -74,8 +91,8 @@ export const PensionTypeSelection: React.FC<PensionTypeSelectionProps> = ({
                   </svg>
                 </div>
                 <div className="flex-1 text-left">
-                  <p className="font-semibold text-[#163300]">Public Sector/Stage Pension</p>
-                  <p className="text-sm text-[#163300]/70">VBLklassik</p>
+                  <p className="font-semibold text-[#163300]">{publicStageLabel}</p>
+                  <p className="text-sm text-[#163300]/70">{publicStageSubtitle}</p>
                 </div>
                 <ArrowRight className="w-6 h-6 text-[#163300]" />
               </button>
