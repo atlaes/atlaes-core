@@ -629,7 +629,11 @@ export class VBLCalculationService {
       (acc, p) => acc + this.monthsBetween(p.startDate, p.endDate),
       0
     );
-    const consecutiveMonths = monthsTotal; // Placeholder: real consecutive detection can be added later
+    // Use the caller-supplied consecutive count (the simple service computes
+    // it correctly in calculateConsecutiveMonths). Fall back to monthsTotal
+    // only when no caller provided a value (legacy direct-call path).
+    const consecutiveMonths =
+      input.consecutiveMonthsContributed ?? monthsTotal;
 
     // Eligibility checks (supplementary flavor for this route)
     if (!input.hasLeftPublicSector) {

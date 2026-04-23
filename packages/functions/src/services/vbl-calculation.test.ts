@@ -693,5 +693,37 @@ describe('VBLCalculationService', () => {
         'Total contribution period must be less than 60 months'
       );
     });
+
+    it('post-2018 claim with 50 total months but only 30 consecutive is eligible', async () => {
+      // Exposes the line-628 bug: calculateFromPeriods overwrites the
+      // caller's consecutiveMonthsContributed with monthsTotal, causing a
+      // user with a 30-month stretch plus a separate 20-month stretch to
+      // fail the 36-consecutive gate even though they never had 36 in a row.
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeInput({
+          employmentStart: '2018-01-01',
+          employmentEnd: '2023-06-30',
+          monthsContributed: 50,
+          consecutiveMonthsContributed: 30,
+          periods: [
+            {
+              startDate: '2018-01-01',
+              endDate: '2019-08-31', // 20 months
+              state: 'Bavaria',
+              grossMonthlySalary: 4000,
+            },
+            {
+              startDate: '2021-01-01',
+              endDate: '2023-06-30', // 30 months, last consecutive stretch
+              state: 'Bavaria',
+              grossMonthlySalary: 4000,
+            },
+          ],
+        })
+      );
+
+      expect(result.isEligible).toBe(true);
+      expect(result.isVested).toBeFalsy();
+    });
   });
 });
