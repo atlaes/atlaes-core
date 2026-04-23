@@ -90,7 +90,7 @@ const resolvePrivateVariant = (privateJobs: JobData[]): PrivateVariant => {
 
   // If ANY private job has provider=Others, force individual review —
   // we can't evaluate a scheme we haven't mapped.
-  if (privateJobs.some((job) => job.companyPension === 'Others')) {
+  if (privateJobs.some((job) => job.companyPension === 'Other (enter manually)')) {
     return 'private_individual_assessment';
   }
 
@@ -805,7 +805,7 @@ export const Results: React.FC = () => {
   }
 
   // Render: Private variant — "A lump-sum settlement may be possible"
-  // (Figma screen 11). Green check, "Proceed with review" CTA.
+  // (Figma screen 11). Green check, "Continue" CTA.
   if (scenario === 'private_may_be_possible') {
     return (
       <div className="flex-1 bg-white p-8 flex flex-col justify-center rounded-2xl shadow-lg">
@@ -845,7 +845,7 @@ export const Results: React.FC = () => {
               color: 'var(--vbl-sidebar-dark)',
             }}
           >
-            Proceed with review
+            Continue
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -854,7 +854,7 @@ export const Results: React.FC = () => {
   }
 
   // Render: Private variant — "Individual assessment required" (Figma
-  // screen 12). Clock icon, same "Proceed with review" CTA. Also the
+  // screen 12). Clock icon, "Proceed with review" CTA. Also the
   // fallback render for the legacy `private_review` alias.
   if (scenario === 'private_individual_assessment' || scenario === 'private_review') {
     return (

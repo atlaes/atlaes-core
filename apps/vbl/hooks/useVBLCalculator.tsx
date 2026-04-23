@@ -293,7 +293,7 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
       if (job.employmentType === 'Private sector') {
         if (job.companyPension === '') return false;
         if (job.statutoryPensionRefunded === '') return false;
-        if (job.companyPension === 'Others') {
+        if (job.companyPension === 'Other (enter manually)') {
           return job.customPensionName.trim() !== '';
         }
         return true;
