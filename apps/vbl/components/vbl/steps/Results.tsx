@@ -907,50 +907,45 @@ export const Results: React.FC = () => {
     );
   }
 
-  // Render: Private variant — "A lump-sum settlement appears unlikely"
-  // (Figma screen 13). Warning triangle, "Continue to paid review" CTA.
+  // Render: Private variant — "A lump-sum settlement is not possible"
+  // (Figma screen 13). Dead-end: no paid-review conversion. Client-approved
+  // product decision 2026-04-23 — spec: docs/superpowers/specs/2026-04-23-vbl-calculator-visual-alignment-design.md
   if (scenario === 'private_appears_unlikely') {
     return (
       <div className="flex-1 bg-white p-8 flex flex-col justify-center rounded-2xl shadow-lg">
         <div className="w-full max-w-xl mx-auto text-center">
-          <div
-            className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
-            style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)' }}
-          >
-            <div
-              className="w-14 h-14 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: 'var(--vbl-sidebar-dark)' }}
-            >
-              <AlertCircle className="w-8 h-8" style={{ color: '#9FE870' }} />
-            </div>
+          <div className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center mx-auto mb-6">
+            <X className="w-8 h-8 text-white" />
           </div>
           <h1
-            className="text-2xl font-bold text-gray-900 mb-4"
+            className="text-2xl font-bold text-gray-900 mb-6"
             style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
           >
-            A lump-sum settlement appears unlikely
+            A lump-sum settlement is not possible
           </h1>
-          <p className="text-gray-600 text-sm mb-6" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
-            Based on the information you provided, a lump-sum settlement (Abfindung) appears
-            unlikely under the standard small-benefit rules.
+          <p className="text-gray-600 text-sm mb-8" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
+            Based on the information you provided, your company pension does
+            not appear to qualify for a lump-sum settlement under the
+            applicable standard rules.
           </p>
-          <div className="rounded-xl p-4 mb-8 border border-gray-200 bg-gray-50">
-            <p className="text-sm font-semibold text-gray-800">
-              Some cases may still require individual review depending on the pension provider
-              and scheme details.
-            </p>
-          </div>
           <button
-            onClick={() => handleStartClaim('private')}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200"
+            onClick={handleBackToCalculator}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 mb-4"
             style={{
               fontFamily: 'var(--vbl-font-montserrat)',
               backgroundColor: 'var(--vbl-accent-lime)',
               color: 'var(--vbl-sidebar-dark)',
             }}
           >
-            Continue to paid review
-            <ChevronRight className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4" />
+            Back to calculator
+          </button>
+          <button
+            onClick={handleReturnHome}
+            className="text-sm text-gray-700 underline hover:text-gray-900 transition-colors"
+            style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+          >
+            Return to homepage
           </button>
         </div>
       </div>
