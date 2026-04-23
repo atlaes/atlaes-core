@@ -55,7 +55,7 @@ const monthsSinceEmploymentEnd = (job: JobData): number => {
 };
 
 const isStageOrOrchestra = (job: JobData): boolean =>
-  job.employmentType === 'Stage/Performing Arts' ||
+  job.employmentType === 'Stage / Performing Arts' ||
   job.employmentType === 'Orchestra';
 
 // PROVISIONAL — pending client confirmation of the exact decision table.
@@ -120,8 +120,8 @@ const determineResultScenario = (jobs: JobData[], apiResult?: CalculationResult)
   // other scenarios only apply when the user has a single claim type.
   const hasPublicOrStage = jobs.some(
     (job) =>
-      job.employmentType === 'Public Sector' ||
-      job.employmentType === 'Stage/Performing Arts' ||
+      job.employmentType === 'Public sector' ||
+      job.employmentType === 'Stage / Performing Arts' ||
       job.employmentType === 'Orchestra'
   );
   const hasPrivate = jobs.some((job) => job.employmentType === 'Private sector');
@@ -174,8 +174,8 @@ type PublicSideOutcome =
 const resolvePublicSide = (jobs: JobData[]): PublicSideOutcome => {
   const publicAndStageJobs = jobs.filter(
     (job) =>
-      job.employmentType === 'Public Sector' ||
-      job.employmentType === 'Stage/Performing Arts' ||
+      job.employmentType === 'Public sector' ||
+      job.employmentType === 'Stage / Performing Arts' ||
       job.employmentType === 'Orchestra'
   );
   if (publicAndStageJobs.some((j) => j.supplementaryPensions.includes('VBLextra'))) {
@@ -330,8 +330,8 @@ export const Results: React.FC = () => {
       side === 'public'
         ? formData.jobs.filter(
             (j) =>
-              j.employmentType === 'Public Sector' ||
-              j.employmentType === 'Stage/Performing Arts' ||
+              j.employmentType === 'Public sector' ||
+              j.employmentType === 'Stage / Performing Arts' ||
               j.employmentType === 'Orchestra'
           )
         : side === 'private'
@@ -340,14 +340,14 @@ export const Results: React.FC = () => {
 
     const relevantJob = candidateJobs.find(
       (j) =>
-        (j.employmentType === 'Public Sector' && j.companyPension) ||
-        j.employmentType === 'Stage/Performing Arts' ||
+        (j.employmentType === 'Public sector' && j.companyPension) ||
+        j.employmentType === 'Stage / Performing Arts' ||
         j.employmentType === 'Orchestra' ||
         (j.employmentType === 'Private sector' && j.companyPension)
     );
     let pensionProvider: string | undefined;
     if (relevantJob) {
-      if (relevantJob.employmentType === 'Stage/Performing Arts') {
+      if (relevantJob.employmentType === 'Stage / Performing Arts') {
         pensionProvider = 'VddB';
       } else if (relevantJob.employmentType === 'Orchestra') {
         pensionProvider = 'VddKO';
@@ -363,9 +363,9 @@ export const Results: React.FC = () => {
     const sectors = new Set<string>();
     const sectorSourceJobs = side === 'auto' ? formData.jobs : candidateJobs;
     sectorSourceJobs.forEach((j) => {
-      if (j.employmentType === 'Public Sector') sectors.add('public');
+      if (j.employmentType === 'Public sector') sectors.add('public');
       else if (
-        j.employmentType === 'Stage/Performing Arts' ||
+        j.employmentType === 'Stage / Performing Arts' ||
         j.employmentType === 'Orchestra'
       )
         sectors.add('stage');
@@ -543,7 +543,7 @@ export const Results: React.FC = () => {
     // 24 months elapse so we can show the user when they become eligible.
     const waitingJob = formData.jobs.find(
       (j) =>
-        (j.employmentType === 'Stage/Performing Arts' ||
+        (j.employmentType === 'Stage / Performing Arts' ||
           j.employmentType === 'Orchestra') &&
         monthsSinceEmploymentEnd(j) < 24
     );
@@ -1005,7 +1005,7 @@ export const Results: React.FC = () => {
   // Show transferred balances info only for public sector with 2+ jobs
   // and different company pension providers (e.g., VBL + ZVK)
   const publicSectorJobs = formData.jobs.filter(
-    (job) => job.employmentType === 'Public Sector'
+    (job) => job.employmentType === 'Public sector'
   );
   const uniqueProviders = new Set(
     publicSectorJobs.map((job) => job.companyPension).filter(Boolean)

@@ -19,8 +19,8 @@ const YEARS = Array.from(
 ).reverse();
 
 const EMPLOYMENT_TYPES = [
-  'Public Sector',
-  'Stage/Performing Arts',
+  'Public sector',
+  'Stage / Performing Arts',
   'Orchestra',
   'Private sector',
 ] as const;
@@ -221,8 +221,8 @@ export const JobDetails: React.FC = () => {
   }
 
   const isPrivateSector = job.employmentType === 'Private sector';
-  const isPublicSector = job.employmentType === 'Public Sector';
-  const isStage = job.employmentType === 'Stage/Performing Arts';
+  const isPublicSector = job.employmentType === 'Public sector';
+  const isStage = job.employmentType === 'Stage / Performing Arts';
   const isOrchestra = job.employmentType === 'Orchestra';
   const isStageOrOrchestra = isStage || isOrchestra;
 
@@ -252,7 +252,7 @@ export const JobDetails: React.FC = () => {
       updates.customPensionName = '';
       updates.supplementaryPensions = [];
 
-      if (value === 'Stage/Performing Arts') {
+      if (value === 'Stage / Performing Arts') {
         updates.companyPension = 'VddB';
         updates.supplementaryPensions = ['VddB'];
       } else if (value === 'Orchestra') {
@@ -265,7 +265,7 @@ export const JobDetails: React.FC = () => {
       // Only reset the pension selection for public sector (where the
       // available providers depend on the state). Stage/Orchestra have a
       // fixed provider (VddB/VddKO) that must not be cleared.
-      if (job.employmentType === 'Public Sector') {
+      if (job.employmentType === 'Public sector') {
         updates.companyPension = '';
         updates.supplementaryPensions = [];
       }
