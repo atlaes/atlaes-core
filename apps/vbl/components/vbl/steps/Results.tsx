@@ -964,7 +964,9 @@ export const Results: React.FC = () => {
   }
 
   // Render: Private variant — "Individual assessment required" (Figma
-  // screen 12). Clock icon, "Proceed with review" CTA. Also the
+  // screen 12). Clock icon, "Proceed with review" CTA — this scenario
+  // still routes to the paid-review funnel (unlike private_appears_unlikely
+  // which became a dead-end in the 2026-04-23 design update). Also the
   // fallback render for the legacy `private_review` alias.
   if (
     scenario === 'private_individual_assessment' ||
