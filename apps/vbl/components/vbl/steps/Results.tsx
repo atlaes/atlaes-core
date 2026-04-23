@@ -1025,6 +1025,35 @@ export const Results: React.FC = () => {
           </p>
         </div>
 
+        {/* Section header — matches Figma frame 23 */}
+        <div className="flex flex-col items-center mb-6">
+          <div
+            className="w-14 h-14 rounded-lg flex items-center justify-center mb-3"
+            style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)' }}
+          >
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#163300"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 21h18" />
+              <path d="M5 21V7l7-4 7 4v14" />
+              <path d="M9 21v-6h6v6" />
+            </svg>
+          </div>
+          <p
+            className="font-semibold text-gray-900"
+            style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
+          >
+            Public / Stage / Orchestra refund claim
+          </p>
+        </div>
+
         {/* Total Refund Box */}
         <div
           className="rounded-xl p-6 mb-6 flex items-center justify-center gap-3"
@@ -1057,6 +1086,21 @@ export const Results: React.FC = () => {
             ))}
           </div>
         )}
+
+        {/* Always-visible info note per Figma frame 23 */}
+        <div className="flex items-start gap-3 rounded-xl p-4 mb-4 border border-gray-200">
+          <div
+            className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+            style={{ backgroundColor: 'var(--vbl-sidebar-dark)' }}
+          >
+            <span className="text-xs font-bold text-white">i</span>
+          </div>
+          <p className="text-sm text-gray-700 leading-relaxed">
+            This estimate only includes the company pensions that appear
+            refundable based on the information provided. One or more other
+            pensions are not included.
+          </p>
+        </div>
 
         {/* Info box about transfers — only for public sector 2+ jobs with different providers */}
         {showTransferredBalancesInfo && (
