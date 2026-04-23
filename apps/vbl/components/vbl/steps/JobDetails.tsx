@@ -459,7 +459,7 @@ export const JobDetails: React.FC = () => {
               <label className="text-sm font-medium text-gray-700">Company pension provider</label>
               <div
                 className="w-full px-4 py-3 rounded-lg text-gray-700 font-medium"
-                style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)', fontFamily: 'var(--vbl-font-montserrat)' }}
+                style={{ backgroundColor: '#F3F4F6', fontFamily: 'var(--vbl-font-montserrat)' }}
               >
                 VddB
               </div>
@@ -477,7 +477,7 @@ export const JobDetails: React.FC = () => {
               <label className="text-sm font-medium text-gray-700">Company pension provider</label>
               <div
                 className="w-full px-4 py-3 rounded-lg text-gray-700 font-medium"
-                style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)', fontFamily: 'var(--vbl-font-montserrat)' }}
+                style={{ backgroundColor: '#F3F4F6', fontFamily: 'var(--vbl-font-montserrat)' }}
               >
                 VddKO
               </div>
