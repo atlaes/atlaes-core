@@ -625,4 +625,46 @@ describe('VBLCalculationService', () => {
       expect(result.calculationMethod).toBe('pre2018');
     });
   });
+
+  // ============================================================
+  // Vesting Logic (Pre/Post-2018 Classification)
+  // ============================================================
+  describe('vesting logic (pre/post-2018 classification)', () => {
+    it('mixed-year claim with post-2018 period triggers 36-month consecutive gate', async () => {
+      // This exposes the single-date bug: sortedJobs[last by start] can be a
+      // pre-2018 job even when another job ends post-2018. The classifier
+      // must look at ALL period end dates.
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeInput({
+          // employmentEnd mirrors what the simple service computes: latest by
+          // start-date sort. Here the later-starting job ends pre-2018, but
+          // an earlier-starting job ends post-2018.
+          employmentStart: '2015-01-01',
+          employmentEnd: '2017-12-31',
+          monthsContributed: 50,
+          consecutiveMonthsContributed: 37,
+          periods: [
+            {
+              startDate: '2015-01-01',
+              endDate: '2019-01-31', // 37 months, post-2018
+              state: 'Bavaria',
+              grossMonthlySalary: 4000,
+            },
+            {
+              startDate: '2016-01-01',
+              endDate: '2017-12-31', // 13 months, pre-2018 (ignored by sort-last)
+              state: 'Bavaria',
+              grossMonthlySalary: 4000,
+            },
+          ],
+        })
+      );
+
+      // Claim has a post-2018 period, consecutive >= 36 → ineligible.
+      expect(result.isEligible).toBe(false);
+      expect(result.eligibilityReasons).toContain(
+        'Consecutive contribution period must be less than 36 months'
+      );
+    });
+  });
 });

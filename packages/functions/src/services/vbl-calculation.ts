@@ -648,10 +648,16 @@ export class VBLCalculationService {
       rulesApplied.push('All periods in West Germany');
     }
 
-    // Pre/Post 2018 logic based on employmentEnd
-    const employmentEndDate = new Date(input.employmentEnd);
-    const isPost2018 = employmentEndDate >= new Date('2018-01-01');
-    if (isPost2018) {
+    // Whole-claim pre/post-2018 classification per client rule (spec:
+    // docs/superpowers/specs/2026-04-23-vbl-vesting-logic-fix-design.md).
+    // A claim is "post-2018" if ANY period ends on or after 2018-01-01.
+    // Pre-2018 claims skip the 36-month consecutive gate entirely.
+    const post2018Cutoff = new Date('2018-01-01');
+    const isPost2018Claim = periods.some(
+      (p) => new Date(p.endDate) >= post2018Cutoff
+    );
+
+    if (isPost2018Claim) {
       if (consecutiveMonths >= 36) {
         eligibilityReasons.push(
           'Consecutive contribution period must be less than 36 months'
@@ -662,10 +668,10 @@ export class VBLCalculationService {
         );
       }
     }
+    // Pre-2018 claims: 36-month gate skipped per client rule.
+
     if (monthsTotal >= 60) {
-      eligibilityReasons.push(
-        'Total contribution period must be less than 60 months'
-      );
+      eligibilityReasons.push('Total contribution period must be less than 60 months');
     } else {
       rulesApplied.push('Total contribution period less than 60 months');
     }
@@ -723,7 +729,7 @@ export class VBLCalculationService {
     return {
       isEligible,
       eligibilityReasons,
-      calculationMethod: isPost2018 ? 'post2018' : 'pre2018',
+      calculationMethod: isPost2018Claim ? 'post2018' : 'pre2018',
       baseRefundAmount: Math.round(baseRefundAmount * 100) / 100,
       vatAmount,
       totalAmount: Math.round(totalAmount * 100) / 100,
