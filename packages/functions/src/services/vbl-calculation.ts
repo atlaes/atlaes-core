@@ -55,6 +55,10 @@ export interface VBLCalculationResult {
   // Separate amounts for each pension type
   statePension?: number; // DRV (Deutsche Rentenversicherung) refund
   vblKlassik?: number; // VBL supplementary pension refund
+  // True when ineligibility is due to the ≥60-month total-contribution gate.
+  // Frontend uses this to render the Figma "vested" Results screen instead
+  // of the generic not-eligible screen.
+  isVested?: boolean;
   // Per-provider breakdown (when multiple public sector providers)
   providerBreakdown?: Array<{ provider: string; amount: number }>;
   calculationDetails: {
