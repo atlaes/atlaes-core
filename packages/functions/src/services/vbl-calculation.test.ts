@@ -725,5 +725,98 @@ describe('VBLCalculationService', () => {
       expect(result.isEligible).toBe(true);
       expect(result.isVested).toBeFalsy();
     });
+
+    it('pre-2018 40-month claim is eligible (no 36-month gate)', async () => {
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeInput({
+          employmentStart: '2014-01-01',
+          employmentEnd: '2017-04-30',
+          monthsContributed: 40,
+          consecutiveMonthsContributed: 40,
+          periods: [
+            {
+              startDate: '2014-01-01',
+              endDate: '2017-04-30',
+              state: 'Bavaria',
+              grossMonthlySalary: 4000,
+            },
+          ],
+        })
+      );
+      expect(result.isEligible).toBe(true);
+      expect(result.isVested).toBeFalsy();
+    });
+
+    it('post-2018 35-consecutive-month claim is eligible', async () => {
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeInput({
+          employmentStart: '2020-01-01',
+          employmentEnd: '2022-11-30',
+          monthsContributed: 35,
+          consecutiveMonthsContributed: 35,
+          periods: [
+            {
+              startDate: '2020-01-01',
+              endDate: '2022-11-30',
+              state: 'Bavaria',
+              grossMonthlySalary: 4000,
+            },
+          ],
+        })
+      );
+      expect(result.isEligible).toBe(true);
+      expect(result.isVested).toBeFalsy();
+    });
+
+    it('post-2018 38-consecutive-month claim is ineligible but not vested', async () => {
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeInput({
+          employmentStart: '2020-01-01',
+          employmentEnd: '2023-02-28',
+          monthsContributed: 38,
+          consecutiveMonthsContributed: 38,
+          periods: [
+            {
+              startDate: '2020-01-01',
+              endDate: '2023-02-28',
+              state: 'Bavaria',
+              grossMonthlySalary: 4000,
+            },
+          ],
+        })
+      );
+      expect(result.isEligible).toBe(false);
+      expect(result.isVested).toBeFalsy();
+      expect(result.eligibilityReasons).toContain(
+        'Consecutive contribution period must be less than 36 months'
+      );
+    });
+
+    it('mixed-year claim with total ≥60 emits isVested=true', async () => {
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeInput({
+          employmentStart: '2014-01-01',
+          employmentEnd: '2021-12-31',
+          monthsContributed: 72,
+          consecutiveMonthsContributed: 24,
+          periods: [
+            {
+              startDate: '2014-01-01',
+              endDate: '2017-12-31', // 48 months pre-2018
+              state: 'Bavaria',
+              grossMonthlySalary: 4000,
+            },
+            {
+              startDate: '2020-01-01',
+              endDate: '2021-12-31', // 24 months post-2018
+              state: 'Bavaria',
+              grossMonthlySalary: 4000,
+            },
+          ],
+        })
+      );
+      expect(result.isEligible).toBe(false);
+      expect(result.isVested).toBe(true);
+    });
   });
 });
