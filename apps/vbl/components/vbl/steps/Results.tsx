@@ -405,13 +405,13 @@ export const Results: React.FC = () => {
     // across all jobs (not just candidateJobs, which is narrowed by `side`).
     const publicStageJob = formData.jobs.find(
       (j) =>
-        (j.employmentType === 'Public Sector' && j.companyPension) ||
-        j.employmentType === 'Stage/Performing Arts' ||
+        (j.employmentType === 'Public sector' && j.companyPension) ||
+        j.employmentType === 'Stage / Performing Arts' ||
         j.employmentType === 'Orchestra'
     );
     let publicStageProvider = '';
     if (publicStageJob) {
-      if (publicStageJob.employmentType === 'Stage/Performing Arts') {
+      if (publicStageJob.employmentType === 'Stage / Performing Arts') {
         publicStageProvider = 'VddB';
       } else if (publicStageJob.employmentType === 'Orchestra') {
         publicStageProvider = 'VddKO';
