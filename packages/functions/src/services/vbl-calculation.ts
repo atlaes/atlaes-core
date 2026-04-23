@@ -55,6 +55,10 @@ export interface VBLCalculationResult {
   // Separate amounts for each pension type
   statePension?: number; // DRV (Deutsche Rentenversicherung) refund
   vblKlassik?: number; // VBL supplementary pension refund
+  // True when ineligibility is due to the ≥60-month total-contribution gate.
+  // Frontend uses this to render the Figma "vested" Results screen instead
+  // of the generic not-eligible screen.
+  isVested?: boolean;
   // Per-provider breakdown (when multiple public sector providers)
   providerBreakdown?: Array<{ provider: string; amount: number }>;
   calculationDetails: {
@@ -625,7 +629,11 @@ export class VBLCalculationService {
       (acc, p) => acc + this.monthsBetween(p.startDate, p.endDate),
       0
     );
-    const consecutiveMonths = monthsTotal; // Placeholder: real consecutive detection can be added later
+    // Use the caller-supplied consecutive count (the simple service computes
+    // it correctly in calculateConsecutiveMonths). Fall back to monthsTotal
+    // only when no caller provided a value (legacy direct-call path).
+    const consecutiveMonths =
+      input.consecutiveMonthsContributed ?? monthsTotal;
 
     // Eligibility checks (supplementary flavor for this route)
     if (!input.hasLeftPublicSector) {
@@ -644,10 +652,16 @@ export class VBLCalculationService {
       rulesApplied.push('All periods in West Germany');
     }
 
-    // Pre/Post 2018 logic based on employmentEnd
-    const employmentEndDate = new Date(input.employmentEnd);
-    const isPost2018 = employmentEndDate >= new Date('2018-01-01');
-    if (isPost2018) {
+    // Whole-claim pre/post-2018 classification per client rule (spec:
+    // docs/superpowers/specs/2026-04-23-vbl-vesting-logic-fix-design.md).
+    // A claim is "post-2018" if ANY period ends on or after 2018-01-01.
+    // Pre-2018 claims skip the 36-month consecutive gate entirely.
+    const post2018Cutoff = new Date('2018-01-01');
+    const isPost2018Claim = periods.some(
+      (p) => new Date(p.endDate) >= post2018Cutoff
+    );
+
+    if (isPost2018Claim) {
       if (consecutiveMonths >= 36) {
         eligibilityReasons.push(
           'Consecutive contribution period must be less than 36 months'
@@ -658,10 +672,12 @@ export class VBLCalculationService {
         );
       }
     }
+    // Pre-2018 claims: 36-month gate skipped per client rule.
+
+    let vestedByTotal = false;
     if (monthsTotal >= 60) {
-      eligibilityReasons.push(
-        'Total contribution period must be less than 60 months'
-      );
+      eligibilityReasons.push('Total contribution period must be less than 60 months');
+      vestedByTotal = true;
     } else {
       rulesApplied.push('Total contribution period less than 60 months');
     }
@@ -718,8 +734,9 @@ export class VBLCalculationService {
 
     return {
       isEligible,
+      isVested: vestedByTotal && !isEligible,
       eligibilityReasons,
-      calculationMethod: isPost2018 ? 'post2018' : 'pre2018',
+      calculationMethod: isPost2018Claim ? 'post2018' : 'pre2018',
       baseRefundAmount: Math.round(baseRefundAmount * 100) / 100,
       vatAmount,
       totalAmount: Math.round(totalAmount * 100) / 100,

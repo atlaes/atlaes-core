@@ -19,8 +19,8 @@ const YEARS = Array.from(
 ).reverse();
 
 const EMPLOYMENT_TYPES = [
-  'Public Sector',
-  'Stage/Performing Arts',
+  'Public sector',
+  'Stage / Performing Arts',
   'Orchestra',
   'Private sector',
 ] as const;
@@ -65,7 +65,13 @@ const PUBLIC_PENSION_BY_STATE: Record<string, string[]> = {
   'Thuringia': ['VBL', 'ZVK Thüringen'],
 };
 
-const PRIVATE_PENSION_OPTIONS = ['Allianz', 'Axa', 'BVV', 'Swiss Life', 'Others'];
+const PRIVATE_PENSION_OPTIONS = [
+  'Allianz',
+  'Axa',
+  'BVV',
+  'Swiss Life',
+  'Other (enter manually)',
+];
 const VBL_PLAN_OPTIONS = ['VBLklassik', 'VBLextra'];
 
 interface SelectProps {
@@ -221,8 +227,8 @@ export const JobDetails: React.FC = () => {
   }
 
   const isPrivateSector = job.employmentType === 'Private sector';
-  const isPublicSector = job.employmentType === 'Public Sector';
-  const isStage = job.employmentType === 'Stage/Performing Arts';
+  const isPublicSector = job.employmentType === 'Public sector';
+  const isStage = job.employmentType === 'Stage / Performing Arts';
   const isOrchestra = job.employmentType === 'Orchestra';
   const isStageOrOrchestra = isStage || isOrchestra;
 
@@ -241,7 +247,7 @@ export const JobDetails: React.FC = () => {
     : [];
 
   const showVBLPlanToggle = isPublicSector && job.companyPension === 'VBL';
-  const showOthersInput = isPrivateSector && job.companyPension === 'Others';
+  const showOthersInput = isPrivateSector && job.companyPension === 'Other (enter manually)';
 
   const handleFieldChange = (field: keyof JobData, value: string | string[]) => {
     const updates: Partial<JobData> = { [field]: value };
@@ -252,7 +258,7 @@ export const JobDetails: React.FC = () => {
       updates.customPensionName = '';
       updates.supplementaryPensions = [];
 
-      if (value === 'Stage/Performing Arts') {
+      if (value === 'Stage / Performing Arts') {
         updates.companyPension = 'VddB';
         updates.supplementaryPensions = ['VddB'];
       } else if (value === 'Orchestra') {
@@ -265,7 +271,7 @@ export const JobDetails: React.FC = () => {
       // Only reset the pension selection for public sector (where the
       // available providers depend on the state). Stage/Orchestra have a
       // fixed provider (VddB/VddKO) that must not be cleared.
-      if (job.employmentType === 'Public Sector') {
+      if (job.employmentType === 'Public sector') {
         updates.companyPension = '';
         updates.supplementaryPensions = [];
       }
@@ -275,7 +281,7 @@ export const JobDetails: React.FC = () => {
       updates.customPensionName = '';
       if (value === 'VBL') {
         updates.supplementaryPensions = [];
-      } else if (value && value !== 'Others') {
+      } else if (value && value !== 'Other (enter manually)') {
         updates.supplementaryPensions = [value as string];
       } else {
         updates.supplementaryPensions = [];
@@ -346,7 +352,8 @@ export const JobDetails: React.FC = () => {
           </div>
         )}
 
-        {/* Average Monthly Gross Salary — numeric-only input (client #1) */}
+        {/* Salary label matches Figma frames 3/5/7/8. Frame 2's wording variant
+            ('Average gross monthly salary during this job') is a design outlier. */}
         <NumberInput
           label="Average monthly gross salary (&euro;)"
           value={job.averageMonthlyGrossSalary || ''}
@@ -379,7 +386,7 @@ export const JobDetails: React.FC = () => {
         {/* Company pension — Public Sector (state-dependent dropdown) */}
         {isPublicSector && job.germanFederalState && (
           <Select
-            label="Company pension"
+            label="Company pension provider"
             value={job.companyPension || ''}
             onChange={(value) => handleFieldChange('companyPension', value)}
             options={publicPensionOptions}
@@ -401,7 +408,7 @@ export const JobDetails: React.FC = () => {
         {isPrivateSector && (
           <>
             <Select
-              label="Company pension"
+              label="Company pension provider"
               value={job.companyPension || ''}
               onChange={(value) => handleFieldChange('companyPension', value)}
               options={PRIVATE_PENSION_OPTIONS}
@@ -413,7 +420,7 @@ export const JobDetails: React.FC = () => {
           </>
         )}
 
-        {/* Custom pension name input (Private sector + Others) */}
+        {/* Custom pension name input (Private sector + Other (enter manually)) */}
         {showOthersInput && (
           <TextInput
             label="Name of company pension plan"
@@ -449,10 +456,10 @@ export const JobDetails: React.FC = () => {
         {isStage && (
           <>
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Company pension</label>
+              <label className="text-sm font-medium text-gray-700">Company pension provider</label>
               <div
                 className="w-full px-4 py-3 rounded-lg text-gray-700 font-medium"
-                style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)', fontFamily: 'var(--vbl-font-montserrat)' }}
+                style={{ backgroundColor: '#F3F4F6', fontFamily: 'var(--vbl-font-montserrat)' }}
               >
                 VddB
               </div>
@@ -467,10 +474,10 @@ export const JobDetails: React.FC = () => {
         {isOrchestra && (
           <>
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Company pension</label>
+              <label className="text-sm font-medium text-gray-700">Company pension provider</label>
               <div
                 className="w-full px-4 py-3 rounded-lg text-gray-700 font-medium"
-                style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)', fontFamily: 'var(--vbl-font-montserrat)' }}
+                style={{ backgroundColor: '#F3F4F6', fontFamily: 'var(--vbl-font-montserrat)' }}
               >
                 VddKO
               </div>

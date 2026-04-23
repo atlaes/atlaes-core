@@ -12,7 +12,7 @@ export interface JobData {
   startYear: string;
   endMonth: string;
   endYear: string;
-  employmentType: '' | 'Stage/Performing Arts' | 'Private sector' | 'Public Sector' | 'Orchestra';
+  employmentType: '' | 'Stage / Performing Arts' | 'Private sector' | 'Public sector' | 'Orchestra';
   averageMonthlyGrossSalary: string;
   germanFederalState: string;
   companyPension: string;
@@ -279,7 +279,7 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
       }
 
       // Public Sector: requires state + company pension; if VBL, needs plan
-      if (job.employmentType === 'Public Sector') {
+      if (job.employmentType === 'Public sector') {
         if (job.germanFederalState === '') return false;
         if (job.companyPension === '') return false;
         if (job.companyPension === 'VBL') {
@@ -293,7 +293,7 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
       if (job.employmentType === 'Private sector') {
         if (job.companyPension === '') return false;
         if (job.statutoryPensionRefunded === '') return false;
-        if (job.companyPension === 'Others') {
+        if (job.companyPension === 'Other (enter manually)') {
           return job.customPensionName.trim() !== '';
         }
         return true;
