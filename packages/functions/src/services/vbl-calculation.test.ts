@@ -666,5 +666,32 @@ describe('VBLCalculationService', () => {
         'Consecutive contribution period must be less than 36 months'
       );
     });
+
+    it('pre-2018 65-month claim emits isVested=true', async () => {
+      // Karl's case: all jobs pre-2018, aggregate ≥60 months → vested,
+      // not refundable. Frontend should render Figma "vested" screen.
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeInput({
+          employmentStart: '2012-01-01',
+          employmentEnd: '2017-05-31',
+          monthsContributed: 65,
+          consecutiveMonthsContributed: 65,
+          periods: [
+            {
+              startDate: '2012-01-01',
+              endDate: '2017-05-31',
+              state: 'Bavaria',
+              grossMonthlySalary: 4000,
+            },
+          ],
+        })
+      );
+
+      expect(result.isEligible).toBe(false);
+      expect(result.isVested).toBe(true);
+      expect(result.eligibilityReasons).toContain(
+        'Total contribution period must be less than 60 months'
+      );
+    });
   });
 });

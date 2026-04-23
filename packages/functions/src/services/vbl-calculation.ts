@@ -670,8 +670,10 @@ export class VBLCalculationService {
     }
     // Pre-2018 claims: 36-month gate skipped per client rule.
 
+    let vestedByTotal = false;
     if (monthsTotal >= 60) {
       eligibilityReasons.push('Total contribution period must be less than 60 months');
+      vestedByTotal = true;
     } else {
       rulesApplied.push('Total contribution period less than 60 months');
     }
@@ -728,6 +730,7 @@ export class VBLCalculationService {
 
     return {
       isEligible,
+      isVested: vestedByTotal && !isEligible,
       eligibilityReasons,
       calculationMethod: isPost2018Claim ? 'post2018' : 'pre2018',
       baseRefundAmount: Math.round(baseRefundAmount * 100) / 100,
