@@ -1,10 +1,8 @@
 {
-  "id": "d5d62c36-2549-43c1-9f78-420b0b3ec622",
-  "prevId": "89992591-88bb-40e5-8cde-573a62cd856d",
-  "version": "5",
-  "dialect": "pg",
+  "version": "7",
+  "dialect": "postgresql",
   "tables": {
-    "claim_documents": {
+    "claims.claim_documents": {
       "name": "claim_documents",
       "schema": "claims",
       "columns": {
@@ -46,36 +44,36 @@
         "claim_documents_claim_id_claims_id_fk": {
           "name": "claim_documents_claim_id_claims_id_fk",
           "tableFrom": "claim_documents",
-          "tableTo": "claims",
-          "schemaTo": "claims",
           "columnsFrom": [
             "claim_id"
           ],
+          "tableTo": "claims",
+          "schemaTo": "claims",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "claim_documents_document_id_documents_id_fk": {
           "name": "claim_documents_document_id_documents_id_fk",
           "tableFrom": "claim_documents",
-          "tableTo": "documents",
-          "schemaTo": "shared",
           "columnsFrom": [
             "document_id"
           ],
+          "tableTo": "documents",
+          "schemaTo": "shared",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "claim_workflow_states": {
+    "claims.claim_workflow_states": {
       "name": "claim_workflow_states",
       "schema": "claims",
       "columns": {
@@ -129,22 +127,22 @@
         "claim_workflow_states_claim_id_claims_id_fk": {
           "name": "claim_workflow_states_claim_id_claims_id_fk",
           "tableFrom": "claim_workflow_states",
-          "tableTo": "claims",
-          "schemaTo": "claims",
           "columnsFrom": [
             "claim_id"
           ],
+          "tableTo": "claims",
+          "schemaTo": "claims",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "claims": {
+    "claims.claims": {
       "name": "claims",
       "schema": "claims",
       "columns": {
@@ -501,50 +499,50 @@
         "claims_user_id_users_id_fk": {
           "name": "claims_user_id_users_id_fk",
           "tableFrom": "claims",
-          "tableTo": "users",
-          "schemaTo": "shared",
           "columnsFrom": [
             "user_id"
           ],
+          "tableTo": "users",
+          "schemaTo": "shared",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "claims_application_id_applications_id_fk": {
           "name": "claims_application_id_applications_id_fk",
           "tableFrom": "claims",
-          "tableTo": "applications",
-          "schemaTo": "gpr",
           "columnsFrom": [
             "application_id"
           ],
+          "tableTo": "applications",
+          "schemaTo": "gpr",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "claims_signature_id_signatures_id_fk": {
           "name": "claims_signature_id_signatures_id_fk",
           "tableFrom": "claims",
-          "tableTo": "signatures",
-          "schemaTo": "shared",
           "columnsFrom": [
             "signature_id"
           ],
+          "tableTo": "signatures",
+          "schemaTo": "shared",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "applications": {
+    "vbl.applications": {
       "name": "applications",
       "schema": "vbl",
       "columns": {
@@ -705,22 +703,22 @@
         "applications_user_id_users_id_fk": {
           "name": "applications_user_id_users_id_fk",
           "tableFrom": "applications",
-          "tableTo": "users",
-          "schemaTo": "shared",
           "columnsFrom": [
             "user_id"
           ],
+          "tableTo": "users",
+          "schemaTo": "shared",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "calculation_logs": {
+    "vbl.calculation_logs": {
       "name": "calculation_logs",
       "schema": "vbl",
       "columns": {
@@ -768,22 +766,22 @@
         "calculation_logs_application_id_applications_id_fk": {
           "name": "calculation_logs_application_id_applications_id_fk",
           "tableFrom": "calculation_logs",
-          "tableTo": "applications",
-          "schemaTo": "vbl",
           "columnsFrom": [
             "application_id"
           ],
+          "tableTo": "applications",
+          "schemaTo": "vbl",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "pending_sessions": {
+    "gpr.pending_sessions": {
       "name": "pending_sessions",
       "schema": "gpr",
       "columns": {
@@ -899,14 +897,14 @@
       "uniqueConstraints": {
         "pending_sessions_email_unique": {
           "name": "pending_sessions_email_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "email"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       }
     },
-    "workflow_states": {
+    "vbl.workflow_states": {
       "name": "workflow_states",
       "schema": "vbl",
       "columns": {
@@ -960,22 +958,22 @@
         "workflow_states_application_id_applications_id_fk": {
           "name": "workflow_states_application_id_applications_id_fk",
           "tableFrom": "workflow_states",
-          "tableTo": "applications",
-          "schemaTo": "vbl",
           "columnsFrom": [
             "application_id"
           ],
+          "tableTo": "applications",
+          "schemaTo": "vbl",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "audit_logs": {
+    "shared.audit_logs": {
       "name": "audit_logs",
       "schema": "shared",
       "columns": {
@@ -1041,22 +1039,22 @@
         "audit_logs_user_id_users_id_fk": {
           "name": "audit_logs_user_id_users_id_fk",
           "tableFrom": "audit_logs",
-          "tableTo": "users",
-          "schemaTo": "shared",
           "columnsFrom": [
             "user_id"
           ],
+          "tableTo": "users",
+          "schemaTo": "shared",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "documents": {
+    "shared.documents": {
       "name": "documents",
       "schema": "shared",
       "columns": {
@@ -1148,22 +1146,22 @@
         "documents_user_id_users_id_fk": {
           "name": "documents_user_id_users_id_fk",
           "tableFrom": "documents",
-          "tableTo": "users",
-          "schemaTo": "shared",
           "columnsFrom": [
             "user_id"
           ],
+          "tableTo": "users",
+          "schemaTo": "shared",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "profiles": {
+    "shared.profiles": {
       "name": "profiles",
       "schema": "shared",
       "columns": {
@@ -1267,22 +1265,22 @@
         "profiles_user_id_users_id_fk": {
           "name": "profiles_user_id_users_id_fk",
           "tableFrom": "profiles",
-          "tableTo": "users",
-          "schemaTo": "shared",
           "columnsFrom": [
             "user_id"
           ],
+          "tableTo": "users",
+          "schemaTo": "shared",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "signatures": {
+    "shared.signatures": {
       "name": "signatures",
       "schema": "shared",
       "columns": {
@@ -1331,22 +1329,22 @@
         "signatures_user_id_users_id_fk": {
           "name": "signatures_user_id_users_id_fk",
           "tableFrom": "signatures",
-          "tableTo": "users",
-          "schemaTo": "shared",
           "columnsFrom": [
             "user_id"
           ],
+          "tableTo": "users",
+          "schemaTo": "shared",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "users": {
+    "shared.users": {
       "name": "users",
       "schema": "shared",
       "columns": {
@@ -1428,10 +1426,10 @@
       "uniqueConstraints": {
         "users_email_unique": {
           "name": "users_email_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "email"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       }
     }
@@ -1444,8 +1442,10 @@
     "vbl": "vbl"
   },
   "_meta": {
-    "columns": {},
     "schemas": {},
-    "tables": {}
-  }
+    "tables": {},
+    "columns": {}
+  },
+  "id": "d5d62c36-2549-43c1-9f78-420b0b3ec622",
+  "prevId": "89992591-88bb-40e5-8cde-573a62cd856d"
 }
