@@ -1,6 +1,6 @@
-CREATE SCHEMA "shared";
+CREATE SCHEMA IF NOT EXISTS "shared";
 --> statement-breakpoint
-CREATE SCHEMA "vbl";
+CREATE SCHEMA IF NOT EXISTS "vbl";
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "shared"."audit_logs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
