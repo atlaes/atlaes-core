@@ -33,6 +33,16 @@ try {
     });
   }
 
+  // Copy Drizzle migrations into dist so the runtime migration runner can
+  // find them inside the Docker image. The migrator needs both the .sql
+  // files and the meta/ subdirectory (journal + snapshots), hence recursive.
+  const srcMigrationsPath = path.join(__dirname, 'src', 'drizzle', 'migrations');
+  const distMigrationsPath = path.join(distPath, 'migrations');
+  if (fs.existsSync(srcMigrationsPath)) {
+    fs.cpSync(srcMigrationsPath, distMigrationsPath, { recursive: true });
+    console.log('Copied migrations directory to dist/migrations/');
+  }
+
   console.log('Build completed successfully!');
 } catch (error) {
   console.error('Build failed:', error);
