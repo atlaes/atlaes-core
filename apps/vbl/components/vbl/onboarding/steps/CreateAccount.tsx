@@ -5,6 +5,7 @@ import { ArrowRight, Mail } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { requestMagicLink, verifyMagicLink } from '@/lib/onboarding-api';
 import { apiClient } from '@/lib/api';
+import { linkEmailToPendingCalculatorSession } from '@/lib/vbl-pending-calculator-sessions-api';
 
 interface CreateAccountProps {
   onNext: () => void;
@@ -25,6 +26,18 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
     setError(null);
     try {
       const result = await requestMagicLink(email, '/get-started?fromAuth=1');
+
+      // Link the email to the calculator's pending session so a future visit
+      // by this email could resume the draft. Fire-and-forget — failure here
+      // is not user-visible and the magic-link flow is the source of truth.
+      if (typeof window !== 'undefined') {
+        const token = sessionStorage.getItem('vbl-pending-calculator-session-token');
+        if (token) {
+          linkEmailToPendingCalculatorSession(token, email).catch((err) => {
+            console.warn('Failed to link email to pending calculator session', err);
+          });
+        }
+      }
 
       // In dev mode, the API returns the magic link URL so we can auto-verify
       if (result.magicLink) {
