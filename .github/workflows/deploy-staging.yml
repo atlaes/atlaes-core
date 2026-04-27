@@ -50,3 +50,14 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: eu-central-1
           MINDEE_API: ${{ secrets.MINDEE_API }}
+
+      - name: Run database migrations
+        env:
+          ADMIN_MIGRATION_TOKEN: ${{ secrets.ADMIN_MIGRATION_TOKEN }}
+        run: |
+          curl -fsSL --max-time 120 -X POST \
+            "https://staging.api.atlaes.de/api/migrations/run" \
+            -H "x-admin-token: $ADMIN_MIGRATION_TOKEN" \
+            -H "content-type: application/json" \
+            | tee /tmp/migrate-resp.json
+          grep -q '"success":true' /tmp/migrate-resp.json
