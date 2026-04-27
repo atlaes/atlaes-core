@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import apiClient from '../../../lib/api';
+import { createPendingCalculatorSession } from '@/lib/vbl-pending-calculator-sessions-api';
 
 interface CalculationResult {
   isEligible: boolean;
@@ -361,7 +362,7 @@ export const Results: React.FC = () => {
   // gets written to sessionStorage for the onboarding flow to consume.
   type StartClaimSide = 'public' | 'private' | 'auto';
 
-  const handleStartClaim = (side: StartClaimSide = 'auto') => {
+  const handleStartClaim = async (side: StartClaimSide = 'auto') => {
     // Client #12: carry the calculator's selected pension provider into the
     // onboarding flow so the Membership step can lock it. Uses the first
     // job with a concrete provider — Stage/Orchestra map to VddB/VddKO,
@@ -441,18 +442,47 @@ export const Results: React.FC = () => {
     });
     const claimTypes = Array.from(sectors);
 
+    const calculatorSelection = {
+      pensionProvider: pensionProvider ?? '',
+      claimTypes,
+      publicStageProvider,
+      privateProvider,
+    };
+
+    // Always write sessionStorage so onboarding has a fallback if the
+    // POST below fails (e.g., backend unreachable). Onboarding still works,
+    // just without the richer server-side hydration.
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem(
-        'calculator-selection',
-        JSON.stringify({
-          pensionProvider: pensionProvider ?? '',
-          claimTypes,
-          publicStageProvider,
-          privateProvider,
-        })
-      );
+      sessionStorage.setItem('calculator-selection', JSON.stringify(calculatorSelection));
     }
-    router.push('/calculator/onboarding');
+
+    // Persist full calculator state server-side so onboarding can hydrate
+    // OnboardingContext with jobs, calculationResult, scenario, etc.
+    // Soft-fail: if this fails we still proceed to onboarding using the
+    // sessionStorage fallback above.
+    let sessionToken: string | null = null;
+    try {
+      const result = await createPendingCalculatorSession({
+        jobs: formData.jobs,
+        calculationResult: formData.calculationResult ?? null,
+        scenario: scenario ?? undefined,
+        dateOfBirth: formData.dateOfBirth || undefined,
+        currentAge: formData.currentAge,
+        userType: formData.userType,
+        pensionProvider: pensionProvider ?? undefined,
+        claimTypes,
+        publicStageProvider: publicStageProvider || undefined,
+        privateProvider: privateProvider || undefined,
+      });
+      sessionToken = result.token;
+    } catch (err) {
+      console.warn('Failed to create VBL pending calculator session — proceeding with sessionStorage only', err);
+    }
+
+    const target = sessionToken
+      ? `/calculator/onboarding?session=${encodeURIComponent(sessionToken)}`
+      : '/calculator/onboarding';
+    router.push(target);
   };
 
   const handleBack = () => {
