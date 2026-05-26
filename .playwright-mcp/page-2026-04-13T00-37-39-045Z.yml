@@ -1,0 +1,50 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]: "1"
+          - generic [ref=e13]: Eligibility
+        - generic [ref=e18]:
+          - generic [ref=e19]: "2"
+          - generic [ref=e20]: Create Account
+        - generic [ref=e23]:
+          - generic [ref=e24]: "3"
+          - generic [ref=e25]: Start Claim
+        - generic [ref=e28]:
+          - generic [ref=e29]: "4"
+          - generic [ref=e30]: Submit Details
+    - generic [ref=e31]:
+      - button "Back" [ref=e64] [cursor=pointer]:
+        - img [ref=e65]
+        - text: Back
+      - generic [ref=e67]:
+        - heading "Where was your employer located?" [level=2] [ref=e68]
+        - paragraph [ref=e70]: This determines the contribution cap used for your refund calculation.
+        - paragraph [ref=e71]: German federal state
+        - generic [ref=e72]:
+          - combobox [ref=e73] [cursor=pointer]:
+            - option "Select federal state"
+            - option "Baden-Württemberg"
+            - option "Bavaria" [selected]
+            - option "Berlin (West)"
+            - option "Berlin (East)"
+            - option "Brandenburg"
+            - option "Bremen"
+            - option "Hamburg"
+            - option "Hesse"
+            - option "Lower Saxony"
+            - option "Mecklenburg-Vorpommern"
+            - option "North Rhine-Westphalia"
+            - option "Rhineland-Palatinate"
+            - option "Saarland"
+            - option "Saxony"
+            - option "Saxony-Anhalt"
+            - option "Schleswig-Holstein"
+            - option "Thuringia"
+          - img
+        - button "Continue" [ref=e74] [cursor=pointer]:
+          - text: Continue
+          - img [ref=e75]
+  - alert [ref=e61]

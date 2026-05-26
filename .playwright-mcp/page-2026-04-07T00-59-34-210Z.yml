@@ -1,0 +1,26 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]: "1"
+          - generic [ref=e13]: Eligibility
+        - generic [ref=e18]:
+          - generic [ref=e19]: "2"
+          - generic [ref=e20]: Create Account
+        - generic [ref=e23]:
+          - generic [ref=e24]: "3"
+          - generic [ref=e25]: Start Claim
+        - generic [ref=e28]:
+          - generic [ref=e29]: "4"
+          - generic [ref=e30]: Submit Details
+    - generic [ref=e101]:
+      - img [ref=e104]
+      - heading "Not eligible for a supplementary pension refund" [level=2] [ref=e107]
+      - paragraph [ref=e108]: Based on your information, your supplementary pension is vested. Because you have contributions to VBLextra, any earlier VBLklassik contributions are preserved as a future pension entitlement and cannot be paid out as a lump sum.
+      - paragraph [ref=e109]: Your pension remains credited to you and may be paid later as a regular pension benefit when you reach the German retirement age.
+      - button "Go back" [ref=e110] [cursor=pointer]:
+        - img [ref=e111]
+        - text: Go back
+  - alert [ref=e61]
