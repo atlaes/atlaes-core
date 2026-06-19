@@ -52,7 +52,7 @@ const envSchema = z.object({
   // Frontend URL for OAuth callbacks and magic links
   FRONTEND_URL: z.string().optional().default('http://localhost:3000'),
   // SES email
-  SES_FROM_EMAIL: z.string().optional().default('noreply@atlaes.de'),
+  SES_FROM_EMAIL: z.string().optional().default('noreply@companypension.de'),
   SES_REGION: z.string().optional().default('eu-central-1'),
   // Stripe
   STRIPE_SECRET_KEY: z.string().optional(),

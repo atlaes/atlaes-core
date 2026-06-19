@@ -79,33 +79,18 @@ test.describe('Private Sector Eligibility', () => {
     await expectReviewResult(page);
   });
 
-  test('Known provider (BVV) + not sure → review', async ({ page }) => {
+  test('Not sure is not offered in the bAV contribution details flow', async ({
+    page,
+  }) => {
     await selectEmploymentType(page, 'Private Sector');
     await selectPrivatePensionProvider(page, 'BVV');
-    await fillPrivateContributionDetails(page, {
-      startMonth: 'April',
-      startYear: '2018',
-      endMonth: 'October',
-      endYear: '2020',
-      employerPaid: 'Not sure',
-    });
-    await expectReviewResult(page);
-  });
 
-  test('Other provider + not sure → review', async ({ page }) => {
-    await selectEmploymentType(page, 'Private Sector');
-    await selectPrivatePensionProvider(page, 'Other', 'UnknownPension');
-    await fillPrivateContributionDetails(page, {
-      startMonth: 'May',
-      startYear: '2016',
-      endMonth: 'November',
-      endYear: '2018',
-      employerPaid: 'Not sure',
-    });
-    await expectReviewResult(page);
     await expect(
-      page.getByText(/review your case individually/)
-    ).toBeVisible();
+      page.getByRole('heading', { name: 'Contribution details' })
+    ).toBeVisible({ timeout: 5_000 });
+    await expect(
+      page.getByRole('button', { name: 'Not sure' })
+    ).toHaveCount(0);
   });
 
   // ============================================================

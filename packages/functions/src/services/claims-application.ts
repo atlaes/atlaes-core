@@ -247,6 +247,36 @@ function mapRowToClaim(row: any): Claim {
   };
 }
 
+function calculateAge(dateOfBirth: string, now = new Date()): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateOfBirth);
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const birthDate = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    birthDate.getUTCFullYear() !== year ||
+    birthDate.getUTCMonth() !== month - 1 ||
+    birthDate.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  let age = today.getUTCFullYear() - year;
+  const birthdayThisYear = new Date(Date.UTC(today.getUTCFullYear(), month - 1, day));
+
+  if (today < birthdayThisYear) {
+    age -= 1;
+  }
+
+  return age;
+}
+
 export class ClaimsApplicationService {
   /**
    * Create a new claim for a user
@@ -772,6 +802,16 @@ export class ClaimsApplicationService {
       if (!claim.firstName) errors.push('First name is required');
       if (!claim.lastName) errors.push('Last name is required');
       if (!claim.dateOfBirth) errors.push('Date of birth is required');
+      if (claim.dateOfBirth) {
+        const age = calculateAge(claim.dateOfBirth);
+        if (age === null) {
+          errors.push('Date of birth is invalid');
+        } else if (age < 18) {
+          errors.push('Applicant must be at least 18 years old');
+        }
+      }
+      if (!claim.nationality) errors.push('Nationality is required');
+      if (!claim.placeOfBirth) errors.push('Place of birth is required');
       if (!claim.passportNumber) errors.push('Passport number is required');
       if (!claim.currentAddressLine1) errors.push('Current address is required');
       if (!claim.currentCity) errors.push('Current city is required');

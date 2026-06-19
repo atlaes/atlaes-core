@@ -5,11 +5,11 @@ import {
   selectFederalState,
   selectPensionProvider,
   selectPensionScheme,
+  selectEUContinuation,
+  selectEmploymentEndDate,
   selectStagePensionDetails,
   selectStageContributionDuration,
   selectPrivatePensionProvider,
-  selectContributionPeriod,
-  monthsAgo,
 } from './helpers';
 
 test.describe('Eligibility Edge Cases', () => {
@@ -101,7 +101,7 @@ test.describe('Eligibility Edge Cases', () => {
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from contribution period → scheme (VBL)', async ({
+    test('Back from contribution period → employment end date (VBL)', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
@@ -109,6 +109,8 @@ test.describe('Eligibility Edge Cases', () => {
       await selectFederalState(page, 'Berlin (West)');
       await selectPensionProvider(page, 'VBL');
       await selectPensionScheme(page, 'VBLklassik');
+      await selectEUContinuation(page, 'Yes');
+      await selectEmploymentEndDate(page, 'January', '2017');
       await expect(
         page.getByRole('heading', { name: 'Contribution period' })
       ).toBeVisible({ timeout: 5_000 });
@@ -116,21 +118,21 @@ test.describe('Eligibility Edge Cases', () => {
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
         page.getByRole('heading', {
-          name: 'Select your pension scheme',
+          name: 'When did your employment end?',
         })
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from contribution period → provider (non-VBL, scheme skipped)', async ({
+    test('Back from EU continuation → provider (non-VBL, scheme skipped)', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
       await selectEmploymentType(page, 'Public sector');
       await selectFederalState(page, 'Hesse');
-      await selectPensionProvider(page, 'ZVK');
-      // Pension scheme was skipped, so back should go to provider
+      await selectPensionProvider(page, 'ZVK Darmstadt');
+      // Pension scheme is skipped for non-VBL, so EU continuation follows provider.
       await expect(
-        page.getByRole('heading', { name: 'Contribution period' })
+        page.getByRole('heading', { name: 'Public-sector employment' })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
@@ -147,7 +149,7 @@ test.describe('Eligibility Edge Cases', () => {
   // ============================================================
 
   test.describe('Stage Back Navigation', () => {
-    test('Back from stage details → employment type', async ({
+    test('Back from stage details → federal state', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
@@ -155,6 +157,7 @@ test.describe('Eligibility Edge Cases', () => {
         page,
         'Stage / Performing Arts/ Orchestra'
       );
+      await selectFederalState(page, 'Berlin (West)');
       await expect(
         page.getByRole('heading', {
           name: 'Stage / Orchestra pension details',
@@ -164,7 +167,7 @@ test.describe('Eligibility Edge Cases', () => {
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
         page.getByRole('heading', {
-          name: "Let's check your eligibility",
+          name: 'Where was your employer located?',
         })
       ).toBeVisible({ timeout: 5_000 });
     });
@@ -175,6 +178,7 @@ test.describe('Eligibility Edge Cases', () => {
         page,
         'Stage / Performing Arts/ Orchestra'
       );
+      await selectFederalState(page, 'Berlin (West)');
       await selectStagePensionDetails(page, 'VddB');
       await expect(
         page.getByRole('heading', {
@@ -196,6 +200,7 @@ test.describe('Eligibility Edge Cases', () => {
         page,
         'Stage / Performing Arts/ Orchestra'
       );
+      await selectFederalState(page, 'Berlin (West)');
       await selectStagePensionDetails(page, 'VddB');
       await selectStageContributionDuration(page, '12 to 35 months');
       await expect(
@@ -297,11 +302,11 @@ test.describe('Eligibility Edge Cases', () => {
         )
       ).not.toBeVisible();
 
-      // Continue with Stage selected → should go to stage details
+      // Continue with Stage selected → should go to federal state first
       await page.getByRole('button', { name: 'Continue' }).click();
       await expect(
         page.getByRole('heading', {
-          name: 'Stage / Orchestra pension details',
+          name: 'Where was your employer located?',
         })
       ).toBeVisible({ timeout: 5_000 });
     });

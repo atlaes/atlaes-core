@@ -170,7 +170,6 @@ export const PrivateContributionDetails: React.FC = () => {
         {(
           [
             { value: 'yes', label: 'Yes' },
-            { value: 'not_sure', label: 'Not sure' },
           ] as const
         ).map(({ value, label }) => {
           const isSelected = employerPaid === value;

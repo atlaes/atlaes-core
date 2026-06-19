@@ -54,7 +54,7 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
-        Pay the €199 deposit to begin your company pension refund claim.
+        Pay €199 deposit to begin your company pension refund claim.
       </p>
 
       {/* Payment Card */}
@@ -108,7 +108,7 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
               <Check className="w-3 h-3 text-white" />
             </div>
             <p className="text-sm text-gray-700">
-              <strong>Money-back guarantee:</strong> The €199 deposit is fully refunded if the pension authority rejects your claim
+              <strong>Money-back guarantee:</strong> Your €199 deposit is fully refunded if the pension authority rejects your claim
             </p>
           </div>
         </div>
@@ -116,6 +116,9 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
         {/* Bank account note */}
         <p className="text-xs text-gray-500 text-center mb-6">
           Your refund will be paid directly to your own bank account.
+        </p>
+        <p className="text-xs text-gray-500 text-center mb-6">
+          Secure payment via Stripe.
         </p>
 
         {/* Error Message */}

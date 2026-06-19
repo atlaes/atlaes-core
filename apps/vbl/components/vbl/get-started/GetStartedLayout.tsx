@@ -14,10 +14,10 @@ interface GetStartedLayoutProps {
 }
 
 const MAIN_STEPS = [
-  { id: 1, label: 'Eligibility' },
-  { id: 2, label: 'Create Account' },
-  { id: 3, label: 'Start Claim' },
-  { id: 4, label: 'Submit Details' },
+  { id: 1, label: 'Check' },
+  { id: 2, label: 'Secure Claim' },
+  { id: 3, label: 'Complete Details' },
+  { id: 4, label: 'Sign and Submit' },
 ] as const;
 
 // Icon components for sub-steps (copied from OnboardingLayout)
@@ -197,8 +197,8 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
             </button>
           )}
 
-          {/* Sub-step Tabs (only for Step 4 - Submit Details) */}
-          {activeStep === 4 && currentSubStep && (
+          {/* Sub-step Tabs for Complete Details / Sign and Submit */}
+          {activeStep >= 3 && currentSubStep && (
             <div className="flex items-stretch mb-8 rounded-[5px] overflow-hidden" style={{ border: '0.84px solid #E5E7EB' }}>
               {SUBMIT_DETAILS_SUBSTEPS.map((subStep, index) => {
                 const isActive = isSubStepActive(subStep.id);

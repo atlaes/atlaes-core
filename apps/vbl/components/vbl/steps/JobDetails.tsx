@@ -1,10 +1,11 @@
 'use client';
 
 import React from 'react';
-import { ChevronDown, Info, Check } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { StepContainer } from '../StepContainer';
 import { useVBLCalculator, JobData } from '../../../hooks/useVBLCalculator';
 import { PrivateOptionalDetails } from './PrivateOptionalDetails';
+import { PUBLIC_PENSION_PROVIDERS_BY_STATE } from '../company-pension-providers';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -44,26 +45,6 @@ const GERMAN_FEDERAL_STATES = [
   'Schleswig-Holstein',
   'Thuringia',
 ] as const;
-
-const PUBLIC_PENSION_BY_STATE: Record<string, string[]> = {
-  'Baden-Württemberg': ['VBL', 'ZVK Baden-Württemberg'],
-  'Bavaria': ['VBL', 'Bayerische ZVK'],
-  'Berlin (West)': ['VBL'],
-  'Berlin (East)': ['VBL'],
-  'Brandenburg': ['VBL', 'ZVK Brandenburg'],
-  'Bremen': ['VBL'],
-  'Hamburg': ['VBL'],
-  'Hesse': ['VBL', 'ZVK Darmstadt', 'ZVK Frankfurt am Main', 'KVK Kassel / Kurhessen-Waldeck', 'ZVK Wiesbaden'],
-  'Lower Saxony': ['VBL', 'ZVK Hannover'],
-  'Mecklenburg-Vorpommern': ['VBL', 'Kommunale Zusatzversorgungskasse Mecklenburg-Vorpommern'],
-  'North Rhine-Westphalia': ['VBL', 'ZVK Köln', 'Rheinische Zusatzversorgung', 'KVW Westfalen-Lippe'],
-  'Rhineland-Palatinate': ['VBL', 'Rheinische Zusatzversorgungskasse (Rheinprovinz)', 'Bayerische ZVK (Pfalz)', 'ZVK Darmstadt (Rheinhessen)', 'ZVK Wiesbaden (Montabaur)'],
-  'Saarland': ['VBL', 'RZVK Saarland'],
-  'Saxony': ['VBL', 'ZVK Sachsen'],
-  'Saxony-Anhalt': ['VBL', 'ZVK Sachsen-Anhalt'],
-  'Schleswig-Holstein': ['VBL'],
-  'Thuringia': ['VBL', 'ZVK Thüringen'],
-};
 
 const PRIVATE_PENSION_OPTIONS = [
   'Allianz',
@@ -219,9 +200,8 @@ export const JobDetails: React.FC = () => {
   const job = formData.jobs[currentJobIndex] || {} as JobData;
   const totalJobs = formData.numberOfJobs;
 
-  // Figma: for private-sector jobs that answered "no"/"not_sure" on the
-  // DRV-refunded question, Job Details splits into a second sub-step showing
-  // only the 4 optional financial-detail fields.
+  // For private-sector jobs that answered "no" on the DRV-refunded question,
+  // Job Details splits into a second sub-step showing the statement options.
   if (currentJobSubStep === 'optional') {
     return <PrivateOptionalDetails />;
   }
@@ -243,7 +223,7 @@ export const JobDetails: React.FC = () => {
   })();
 
   const publicPensionOptions = isPublicSector && job.germanFederalState
-    ? PUBLIC_PENSION_BY_STATE[job.germanFederalState] || []
+    ? PUBLIC_PENSION_PROVIDERS_BY_STATE[job.germanFederalState] || []
     : [];
 
   const showVBLPlanToggle = isPublicSector && job.companyPension === 'VBL';
@@ -286,6 +266,12 @@ export const JobDetails: React.FC = () => {
       } else {
         updates.supplementaryPensions = [];
       }
+    }
+
+    if (field === 'statutoryPensionRefunded') {
+      updates.privateStatementChoice = '';
+      updates.projectedMonthlyPension = '';
+      updates.capitalAmount = '';
     }
 
     updateJob(currentJobIndex, updates);
@@ -430,23 +416,21 @@ export const JobDetails: React.FC = () => {
           />
         )}
 
-        {/* Figma: private-sector DRV statutory-refund question. "no" or
-            "not_sure" routes the user into the optional financial-details
-            sub-step after they hit Next. */}
+        {/* Private-sector DRV statutory-refund question. "No" routes the user
+            into the optional financial-details sub-step after they hit Next. */}
         {isPrivateSector && job.companyPension && (
           <SingleSelectChips
             label="Have your German statutory pension contributions already been refunded?"
-            options={['Yes', 'No', 'Not sure']}
+            options={['Yes', 'No']}
             selectedValue={(() => {
               if (job.statutoryPensionRefunded === 'yes') return 'Yes';
               if (job.statutoryPensionRefunded === 'no') return 'No';
-              if (job.statutoryPensionRefunded === 'not_sure') return 'Not sure';
               return '';
             })()}
             onChange={(label) =>
               handleFieldChange(
                 'statutoryPensionRefunded',
-                label === 'Yes' ? 'yes' : label === 'No' ? 'no' : 'not_sure'
+                label === 'Yes' ? 'yes' : 'no'
               )
             }
           />

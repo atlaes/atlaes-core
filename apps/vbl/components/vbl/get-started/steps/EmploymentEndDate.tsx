@@ -29,9 +29,18 @@ export const EmploymentEndDate: React.FC = () => {
   const { data, goNext } = useEligibility();
   const [month, setMonth] = useState(data.employmentEndMonth || '');
   const [year, setYear] = useState(data.employmentEndYear || '');
+  const selectedMonthIndex = MONTHS.indexOf(month);
+  const selectedYear = Number(year);
+  const now = new Date();
+  const isFutureDate =
+    selectedMonthIndex >= 0 &&
+    Number.isFinite(selectedYear) &&
+    (selectedYear > now.getFullYear() ||
+      (selectedYear === now.getFullYear() &&
+        selectedMonthIndex > now.getMonth()));
 
   const handleContinue = () => {
-    if (!month || !year) return;
+    if (!month || !year || isFutureDate) return;
     goNext({ employmentEndMonth: month, employmentEndYear: year });
   };
 
@@ -80,9 +89,15 @@ export const EmploymentEndDate: React.FC = () => {
         </div>
       </div>
 
+      {isFutureDate && (
+        <p className="mb-6 text-sm font-medium text-red-700" aria-live="polite">
+          Employment end date cannot be in the future.
+        </p>
+      )}
+
       <button
         onClick={handleContinue}
-        disabled={!month || !year}
+        disabled={!month || !year || isFutureDate}
         className="w-full py-3 px-6 bg-[#9FE870] text-[#163300] font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-[#8AD860] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Continue
