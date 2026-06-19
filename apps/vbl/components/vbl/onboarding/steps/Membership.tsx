@@ -20,13 +20,11 @@ const PENSION_PROVIDERS = [
 export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
   const { data, updateMembership, canProceedFromSubStep } = useOnboarding();
 
-  // Stage / orchestra (VddB, VddKO) uses an extended sub-form — Figma VBL-4/5.
+  // Stage / orchestra (VddB, VddKO) needs membership number plus an extended
+  // employment details form on the same step.
   const isStageProvider =
     data.membership.pensionProvider === 'VddB' ||
     data.membership.pensionProvider === 'VddKO';
-  if (isStageProvider) {
-    return <StageMembershipDetails onNext={onNext} />;
-  }
 
   // Pension provider is pre-selected from eligibility flow
   const isProviderPreset = data.membership.pensionProvider !== '';
@@ -120,6 +118,12 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
             </p>
           </div>
         </div>
+
+        {isStageProvider && (
+          <div className="border-t border-gray-200 pt-6">
+            <StageMembershipDetails embedded />
+          </div>
+        )}
       </div>
 
       {/* Continue Button */}

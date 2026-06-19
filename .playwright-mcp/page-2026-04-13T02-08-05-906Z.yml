@@ -1,0 +1,45 @@
+- generic [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - button "1 Number of jobs Count each employment period in Germany" [ref=e10] [cursor=pointer]:
+          - generic [ref=e12]: "1"
+          - generic [ref=e13]:
+            - generic [ref=e14]: Number of jobs
+            - generic [ref=e15]: Count each employment period in Germany
+        - button "2 Job details Enter employment dates, salary, and sector for each job." [disabled] [ref=e16]:
+          - generic [ref=e17]: "2"
+          - generic [ref=e18]:
+            - generic [ref=e19]: Job details
+            - generic [ref=e20]: Enter employment dates, salary, and sector for each job.
+        - button "3 Refund estimate See your estimated refund" [disabled] [ref=e21]:
+          - generic [ref=e22]: "3"
+          - generic [ref=e23]:
+            - generic [ref=e24]: Refund estimate
+            - generic [ref=e25]: See your estimated refund
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - paragraph [ref=e29]: Need help?
+          - paragraph [ref=e30]: Our assistant is here for you.
+        - img "Chat" [ref=e32]
+    - generic [ref=e34]:
+      - generic [ref=e35]:
+        - heading "How many jobs did you have in Germany?" [level=1] [ref=e36]
+        - paragraph [ref=e37]: Please count each job you held in Germany that included a company pension.
+      - generic [ref=e38]:
+        - generic [ref=e39]:
+          - generic [ref=e41]: i
+          - paragraph [ref=e42]: This takes about 2–3 minutes. No documents needed at this stage.
+        - generic [ref=e43]:
+          - generic [ref=e44]: Number of jobs
+          - generic [ref=e45]:
+            - button "1 Job" [ref=e46] [cursor=pointer]
+            - button "2 Jobs" [active] [ref=e47] [cursor=pointer]
+            - button "3 Jobs" [ref=e48] [cursor=pointer]
+            - button "4 Jobs" [ref=e49] [cursor=pointer]
+            - button "5 Jobs" [ref=e50] [cursor=pointer]
+      - button "Next" [ref=e52] [cursor=pointer]:
+        - text: Next
+        - img [ref=e53]
+  - alert [ref=e55]

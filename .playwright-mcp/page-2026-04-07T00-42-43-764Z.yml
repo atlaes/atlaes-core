@@ -1,0 +1,42 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - button "Number of jobs Count each employment period in Germany" [ref=e56] [cursor=pointer]:
+          - img [ref=e57]
+          - generic [ref=e13]:
+            - generic [ref=e14]: Number of jobs
+            - generic [ref=e15]: Count each employment period in Germany
+        - button "Job details(1/1) Enter employment dates, salary, and sector for each job." [ref=e118] [cursor=pointer]:
+          - img [ref=e119]
+          - generic [ref=e18]:
+            - generic [ref=e19]: Job details(1/1)
+            - generic [ref=e20]: Enter employment dates, salary, and sector for each job.
+        - button "3 Refund estimate See your estimated refund" [ref=e21] [cursor=pointer]:
+          - generic [ref=e22]: "3"
+          - generic [ref=e23]:
+            - generic [ref=e24]: Refund estimate
+            - generic [ref=e25]: See your estimated refund
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - paragraph [ref=e29]: Need help?
+          - paragraph [ref=e30]: Our assistant is here for you.
+        - img "Chat" [ref=e32]
+    - generic [ref=e123]:
+      - img [ref=e125]
+      - heading "Not eligible for a supplementary pension refund" [level=1] [ref=e128]
+      - paragraph [ref=e129]:
+        - text: Based on your information, your supplementary pension is
+        - strong [ref=e130]: vested
+        - text: . When contributions to
+        - strong [ref=e131]: VBLextra
+        - text: exist, any VBLklassik contributions are preserved as a
+        - strong [ref=e132]: future pension entitlement
+        - text: and cannot be refunded as a lump sum. This means your pension remains credited to you and may be paid out later as a
+        - strong [ref=e133]: regular pension benefit
+        - text: when you reach the German retirement age.
+      - button "Go back" [ref=e134] [cursor=pointer]:
+        - img [ref=e135]
+        - text: Go back
+  - alert [ref=e55]

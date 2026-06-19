@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   navigateToGetStarted,
   selectEmploymentType,
+  selectFederalState,
   selectStagePensionDetails,
   selectStageContributionDuration,
   selectEmploymentEndDate,
@@ -15,6 +16,7 @@ test.describe('Stage / Performing Arts Eligibility', () => {
   test.beforeEach(async ({ page }) => {
     await navigateToGetStarted(page);
     await selectEmploymentType(page, 'Stage / Performing Arts/ Orchestra');
+    await selectFederalState(page, 'Berlin (West)');
   });
 
   // ============================================================

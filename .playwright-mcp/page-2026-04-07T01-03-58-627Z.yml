@@ -1,0 +1,26 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]: "1"
+          - generic [ref=e13]: Eligibility
+        - generic [ref=e18]:
+          - generic [ref=e19]: "2"
+          - generic [ref=e20]: Create Account
+        - generic [ref=e23]:
+          - generic [ref=e24]: "3"
+          - generic [ref=e25]: Start Claim
+        - generic [ref=e28]:
+          - generic [ref=e29]: "4"
+          - generic [ref=e30]: Submit Details
+    - generic [ref=e135]:
+      - img [ref=e138]
+      - heading "Not eligible for a supplementary pension refund" [level=2] [ref=e141]
+      - paragraph [ref=e142]: Based on the information you provided, a payout of your supplementary pension contributions is not possible.
+      - paragraph [ref=e143]: Your pension is vested under the applicable scheme rules and must remain with the pension provider. You may claim a regular pension benefit once you reach the German retirement age.
+      - button "Go back" [ref=e144] [cursor=pointer]:
+        - img [ref=e145]
+        - text: Go back
+  - alert [ref=e61]

@@ -34,10 +34,10 @@ export async function sendMagicLinkEmail(
   try {
     await sesClient.send(
       new SendEmailCommand({
-        Source: `ATLAES <${FROM_EMAIL}>`,
+        Source: `CompanyPension <${FROM_EMAIL}>`,
         Destination: { ToAddresses: [to] },
         Message: {
-          Subject: { Data: 'Sign in to your account', Charset: 'UTF-8' },
+          Subject: { Data: 'Your secure CompanyPension sign-in link', Charset: 'UTF-8' },
           Body: {
             Html: { Data: html, Charset: 'UTF-8' },
             Text: { Data: plainText, Charset: 'UTF-8' },
@@ -55,16 +55,22 @@ export async function sendMagicLinkEmail(
 
 function generateMagicLinkEmailText(magicLinkUrl: string): string {
   return [
-    'Sign in to your account',
+    'Sign in to your secure claim',
     '',
-    'Click the link below to sign in:',
+    'Click the button below to continue your CompanyPension claim. No password is needed.',
+    '',
+    'Open secure claim:',
     magicLinkUrl,
     '',
-    'This link expires in 15 minutes.',
+    'This secure link expires in 15 minutes.',
     '',
-    "If you didn't request this email, you can safely ignore it.",
+    'If the button does not work, copy and paste this link into your browser:',
+    magicLinkUrl,
     '',
-    'ATLAES GmbH',
+    'If you did not request this email, you can safely ignore it.',
+    '',
+    'CompanyPension is operated by ATLAES GmbH.',
+    '© ATLAES GmbH',
   ].join('\n');
 }
 
@@ -78,7 +84,7 @@ export function generateMagicLinkEmailHtml(magicLinkUrl: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign in to your account</title>
+  <title>Your secure CompanyPension sign-in link</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
@@ -88,32 +94,31 @@ export function generateMagicLinkEmailHtml(magicLinkUrl: string): string {
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
           <tr>
             <td style="background-color:#163300;padding:24px 32px;border-radius:12px 12px 0 0;">
-              <span style="color:#9FE870;font-size:20px;font-weight:700;letter-spacing:0.5px;">ATLAES</span>
-              <span style="color:#ffffff;font-size:14px;margin-left:12px;">Company Pension</span>
+              <span style="color:#9FE870;font-size:20px;font-weight:700;letter-spacing:0.5px;">CompanyPension</span>
             </td>
           </tr>
           <!-- Body -->
           <tr>
             <td style="background-color:#ffffff;padding:40px 32px;">
-              <h1 style="margin:0 0 16px;font-size:24px;color:#163300;">Sign in to your account</h1>
+              <h1 style="margin:0 0 16px;font-size:24px;color:#163300;">Sign in to your secure claim</h1>
               <p style="margin:0 0 24px;font-size:16px;line-height:1.5;color:#3f3f46;">
-                Click the button below to securely sign in. No password needed.
+                Click the button below to continue your CompanyPension claim. No password is needed.
               </p>
               <!-- CTA Button -->
               <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
                 <tr>
                   <td style="background-color:#9FE870;border-radius:8px;">
                     <a href="${magicLinkUrl}" target="_blank" style="display:inline-block;padding:14px 32px;font-size:16px;font-weight:600;color:#163300;text-decoration:none;">
-                      Sign In to Your Account
+                      Open secure claim
                     </a>
                   </td>
                 </tr>
               </table>
               <p style="margin:0 0 24px;font-size:13px;color:#71717a;">
-                This link expires in 15 minutes.
+                This secure link expires in 15 minutes.
               </p>
               <p style="margin:0 0 8px;font-size:13px;color:#a1a1aa;">
-                If the button doesn't work, copy and paste this link into your browser:
+                If the button does not work, copy and paste this link into your browser:
               </p>
               <p style="margin:0;font-size:13px;color:#9FE870;word-break:break-all;">
                 ${magicLinkUrl}
@@ -124,7 +129,10 @@ export function generateMagicLinkEmailHtml(magicLinkUrl: string): string {
           <tr>
             <td style="background-color:#fafafa;padding:24px 32px;border-radius:0 0 12px 12px;border-top:1px solid #e4e4e7;">
               <p style="margin:0 0 8px;font-size:12px;color:#a1a1aa;">
-                If you didn't request this email, you can safely ignore it.
+                If you did not request this email, you can safely ignore it.
+              </p>
+              <p style="margin:0 0 8px;font-size:12px;color:#a1a1aa;">
+                CompanyPension is operated by ATLAES GmbH.
               </p>
               <p style="margin:0;font-size:12px;color:#a1a1aa;">
                 &copy; ATLAES GmbH

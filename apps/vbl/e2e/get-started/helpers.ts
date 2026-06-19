@@ -41,7 +41,7 @@ export async function selectFederalState(page: Page, state: string) {
 
 export async function selectPensionProvider(
   page: Page,
-  provider: 'VBL' | 'ZVK' | 'VddB' | 'VddKO'
+  provider: string
 ) {
   await expect(
     page.getByRole('heading', {
@@ -49,6 +49,17 @@ export async function selectPensionProvider(
     })
   ).toBeVisible({ timeout: 5_000 });
   await page.locator('select').selectOption(provider);
+  await page.getByRole('button', { name: 'Continue' }).click();
+}
+
+export async function selectEUContinuation(
+  page: Page,
+  continuing: 'Yes' | 'No'
+) {
+  await expect(
+    page.getByRole('heading', { name: 'Public-sector employment' })
+  ).toBeVisible({ timeout: 5_000 });
+  await page.getByRole('button', { name: continuing, exact: true }).click();
   await page.getByRole('button', { name: 'Continue' }).click();
 }
 
@@ -156,7 +167,7 @@ export async function fillPrivateContributionDetails(
     startYear: string;
     endMonth: string;
     endYear: string;
-    employerPaid: 'Yes' | 'Not sure';
+    employerPaid: 'Yes';
     monthlyAmount?: string;
   }
 ) {
@@ -236,6 +247,8 @@ export async function navigatePublicSectorToEligible(page: Page) {
   await selectFederalState(page, 'North Rhine-Westphalia');
   await selectPensionProvider(page, 'VBL');
   await selectPensionScheme(page, 'VBLklassik');
+  await selectEUContinuation(page, 'Yes');
+  await selectEmploymentEndDate(page, 'January', '2017');
   await selectContributionPeriod(page, 'No');
   await selectContributionDuration(page, 'Less than 36 months');
   await expectEligibleResult(page);
@@ -244,6 +257,7 @@ export async function navigatePublicSectorToEligible(page: Page) {
 export async function navigateStageToEligible(page: Page) {
   await navigateToGetStarted(page);
   await selectEmploymentType(page, 'Stage / Performing Arts/ Orchestra');
+  await selectFederalState(page, 'Berlin (West)');
   await selectStagePensionDetails(page, 'VddB');
   await selectStageContributionDuration(page, '12 to 35 months');
   // Use a date far enough in the past to avoid the 24-month wait
@@ -310,13 +324,34 @@ export async function completeIdentityUpload(page: Page) {
   if ((await fullNameInput.inputValue()) === '') {
     await fullNameInput.fill('Test User');
   }
-  const dobInput = page.locator('input[type="date"]');
-  if ((await dobInput.inputValue()) === '') {
-    await dobInput.fill('1990-01-15');
+  const dayInput = page.getByPlaceholder('Day');
+  if ((await dayInput.inputValue()) === '') {
+    await dayInput.fill('15');
   }
-  const genderSelect = page.locator('select').first();
+  const yearInput = page.getByPlaceholder('Year');
+  if ((await yearInput.inputValue()) === '') {
+    await yearInput.fill('1990');
+  }
+  const selects = page.locator('select');
+  const birthMonthSelect = selects.first();
+  if ((await birthMonthSelect.inputValue()) === '') {
+    await birthMonthSelect.selectOption('January');
+  }
+  const genderSelect = selects.nth(1);
   if ((await genderSelect.inputValue()) === '') {
     await genderSelect.selectOption('male');
+  }
+  const passportNumberInput = page.getByPlaceholder('Enter document number');
+  if ((await passportNumberInput.inputValue()) === '') {
+    await passportNumberInput.fill('P1234567');
+  }
+  const nationalityInput = page.getByPlaceholder('e.g. Australian');
+  if ((await nationalityInput.inputValue()) === '') {
+    await nationalityInput.fill('Australian');
+  }
+  const placeOfBirthInput = page.getByPlaceholder('e.g. Sydney');
+  if ((await placeOfBirthInput.inputValue()) === '') {
+    await placeOfBirthInput.fill('Sydney');
   }
   await page.getByRole('button', { name: /Continue/i }).click();
 }
@@ -325,7 +360,11 @@ export async function completeMembership(page: Page) {
   await expect(
     page.getByRole('heading', { name: 'Pension membership details' })
   ).toBeVisible({ timeout: 5_000 });
-  await page.locator('select').first().selectOption('VBL');
+  const providerSelect = page.locator('select').first();
+  if ((await providerSelect.count()) > 0) {
+    await providerSelect.selectOption('VBL');
+  }
+  await page.getByPlaceholder(/membership number/i).fill('VBL123456');
   await page.getByRole('button', { name: /Continue/i }).click();
 }
 

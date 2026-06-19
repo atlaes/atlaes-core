@@ -3,14 +3,15 @@
 import React from 'react';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import { DatePartsInput } from '../DatePartsInput';
 
 interface StageMembershipDetailsProps {
-  onNext: () => void;
+  onNext?: () => void;
+  embedded?: boolean;
 }
 
-// Stage / orchestra (VddB / VddKO) extended sub-form — Figma VBL-4/5.
-// Rendered inline inside the Membership step when pensionProvider is
-// VddB or VddKO, replacing the simple membership-number input.
+// Stage / orchestra (VddB / VddKO) extended sub-form. It can render inline
+// below the membership-number input or standalone in legacy flow paths.
 const REASONS_FOR_LEAVING = [
   { value: 'contract_ended', label: 'Contract ended / not renewed' },
   { value: 'health', label: 'Health reasons / injury' },
@@ -22,20 +23,25 @@ const REASONS_FOR_LEAVING = [
 
 export const StageMembershipDetails: React.FC<StageMembershipDetailsProps> = ({
   onNext,
+  embedded = false,
 }) => {
   const { data, updateStageDetails, canProceedFromSubStep } = useOnboarding();
   const s = data.membership.stageDetails;
   const canProceed = canProceedFromSubStep('membership');
 
   return (
-    <div className="max-w-lg mx-auto">
-      <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-        Stage / orchestra employment details
-      </h2>
-      <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
-      <p className="text-gray-600 text-center mb-8">
-        Please provide details about your last stage or orchestra employment in Germany.
-      </p>
+    <div className={embedded ? '' : 'max-w-lg mx-auto'}>
+      {!embedded && (
+        <>
+          <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
+            Stage / orchestra employment details
+          </h2>
+          <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
+          <p className="text-gray-600 text-center mb-8">
+            Please provide details about your last stage or orchestra employment in Germany.
+          </p>
+        </>
+      )}
 
       {/* Section 1 — Last employment */}
       <div className="mb-6">
@@ -68,16 +74,12 @@ export const StageMembershipDetails: React.FC<StageMembershipDetailsProps> = ({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              When did this employment end?
-            </label>
-            <input
-              type="date"
+            <DatePartsInput
+              label="When did this employment end?"
               value={s.employmentEndDate}
-              onChange={(e) =>
-                updateStageDetails({ employmentEndDate: e.target.value })
+              onChange={(value) =>
+                updateStageDetails({ employmentEndDate: value })
               }
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
             />
           </div>
         </div>
@@ -185,19 +187,20 @@ export const StageMembershipDetails: React.FC<StageMembershipDetailsProps> = ({
         </div>
       </div>
 
-      {/* Continue Button */}
-      <button
-        onClick={onNext}
-        disabled={!canProceed}
-        className={`w-full py-4 px-6 font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors ${
-          canProceed
-            ? 'bg-[#9FE870] text-[#163300] hover:bg-[#8AD860]'
-            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-        }`}
-      >
-        Continue
-        <ArrowRight className="w-4 h-4" />
-      </button>
+      {!embedded && onNext && (
+        <button
+          onClick={onNext}
+          disabled={!canProceed}
+          className={`w-full py-4 px-6 font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors ${
+            canProceed
+              ? 'bg-[#9FE870] text-[#163300] hover:bg-[#8AD860]'
+              : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+          }`}
+        >
+          Continue
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 };

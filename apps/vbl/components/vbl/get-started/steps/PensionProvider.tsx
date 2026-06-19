@@ -1,22 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 import { useEligibility } from '@/contexts/EligibilityContext';
 import { PensionProviderType } from '@/components/vbl/get-started/flows';
-
-const PENSION_PROVIDERS: { id: PensionProviderType; label: string }[] = [
-  { id: 'VBL', label: 'VBL' },
-  { id: 'ZVK', label: 'ZVK' },
-  { id: 'VddB', label: 'VddB' },
-  { id: 'VddKO', label: 'VddKO' },
-];
+import { PUBLIC_PENSION_PROVIDERS_BY_STATE } from '@/components/vbl/company-pension-providers';
 
 export const PensionProvider: React.FC = () => {
   const { data, goNext } = useEligibility();
   const [selected, setSelected] = useState<PensionProviderType>(
     data.pensionProvider || ''
   );
+  const providers = useMemo(
+    () => PUBLIC_PENSION_PROVIDERS_BY_STATE[data.federalState] || [],
+    [data.federalState]
+  );
+
+  useEffect(() => {
+    if (selected && !providers.includes(selected)) {
+      setSelected('');
+    }
+  }, [providers, selected]);
 
   const handleContinue = () => {
     if (!selected) return;
@@ -46,9 +50,9 @@ export const PensionProvider: React.FC = () => {
           className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg appearance-none cursor-pointer focus:outline-none focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/20 transition-all text-gray-700"
         >
           <option value="">Select company pension</option>
-          {PENSION_PROVIDERS.map((provider) => (
-            <option key={provider.id} value={provider.id}>
-              {provider.label}
+          {providers.map((provider) => (
+            <option key={provider} value={provider}>
+              {provider}
             </option>
           ))}
         </select>

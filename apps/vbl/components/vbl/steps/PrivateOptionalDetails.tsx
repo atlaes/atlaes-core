@@ -26,6 +26,7 @@ const OPTIONS: RadioOption[] = [
 // Treating either stored value as selection is safe because updateJob clears
 // the other when switching radios (see handleChoiceChange below).
 function deriveChoice(job: JobData): StatementChoice | null {
+  if (job.privateStatementChoice) return job.privateStatementChoice;
   if (job.projectedMonthlyPension) return 'projected';
   if (job.capitalAmount) return 'capital';
   return null; // null = unselected (not the same as 'none')
@@ -63,11 +64,8 @@ const OptionalNumberInput: React.FC<OptionalNumberInputProps> = ({
 // Private-sector optional sub-step. Figma screen 20: radio-select which
 // statement value the user has, revealing a single input below. The
 // "I can't find either" option reveals nothing and just lets the user
-// proceed. State is still persisted via the existing JobData fields
-// (projectedMonthlyPension, capitalAmount) — those are the only two
-// the client asks about. contractValue and estimatedMonthlyContribution
-// remain on the JobData type for backend compatibility but are not set
-// by this screen.
+// proceed. The radio choice is stored explicitly so "I can't find either"
+// remains distinguishable from an unanswered screen.
 export const PrivateOptionalDetails: React.FC = () => {
   const { formData, updateJob, currentJobIndex } = useVBLCalculator();
   const job = formData.jobs[currentJobIndex] || ({} as JobData);
@@ -80,11 +78,18 @@ export const PrivateOptionalDetails: React.FC = () => {
   const handleChoiceChange = (choice: StatementChoice) => {
     setSelection(choice);
     if (choice === 'projected') {
-      updateJob(currentJobIndex, { capitalAmount: '' });
+      updateJob(currentJobIndex, {
+        privateStatementChoice: choice,
+        capitalAmount: '',
+      });
     } else if (choice === 'capital') {
-      updateJob(currentJobIndex, { projectedMonthlyPension: '' });
+      updateJob(currentJobIndex, {
+        privateStatementChoice: choice,
+        projectedMonthlyPension: '',
+      });
     } else {
       updateJob(currentJobIndex, {
+        privateStatementChoice: choice,
         projectedMonthlyPension: '',
         capitalAmount: '',
       });
@@ -134,7 +139,10 @@ export const PrivateOptionalDetails: React.FC = () => {
             label="Enter Projected monthly pension at retirement"
             value={job.projectedMonthlyPension || ''}
             onChange={(v) =>
-              updateJob(currentJobIndex, { projectedMonthlyPension: v })
+              updateJob(currentJobIndex, {
+                privateStatementChoice: 'projected',
+                projectedMonthlyPension: v,
+              })
             }
             placeholder="E.g., 45"
           />
@@ -144,7 +152,12 @@ export const PrivateOptionalDetails: React.FC = () => {
           <OptionalNumberInput
             label="Enter Capital amount / Capital benefit"
             value={job.capitalAmount || ''}
-            onChange={(v) => updateJob(currentJobIndex, { capitalAmount: v })}
+            onChange={(v) =>
+              updateJob(currentJobIndex, {
+                privateStatementChoice: 'capital',
+                capitalAmount: v,
+              })
+            }
             placeholder="E.g., 6500"
           />
         )}

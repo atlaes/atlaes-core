@@ -214,6 +214,31 @@ const initialData: OnboardingData = {
 
 const OnboardingContext = createContext<OnboardingContextType | null>(null);
 
+function isAtLeast18(dateOfBirth: string): boolean {
+  if (!dateOfBirth) return false;
+  const birthDate = new Date(`${dateOfBirth}T00:00:00Z`);
+  if (Number.isNaN(birthDate.getTime())) return false;
+
+  const today = new Date();
+  let age = today.getUTCFullYear() - birthDate.getUTCFullYear();
+  const birthdayThisYear = new Date(
+    Date.UTC(
+      today.getUTCFullYear(),
+      birthDate.getUTCMonth(),
+      birthDate.getUTCDate()
+    )
+  );
+  const todayUtc = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+  );
+
+  if (todayUtc < birthdayThisYear) {
+    age -= 1;
+  }
+
+  return age >= 18;
+}
+
 export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [currentSubStep, setCurrentSubStep] = useState<SubmitDetailsSubStep>('identity');
@@ -287,12 +312,18 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         return (
           data.identity.fullName !== '' &&
           data.identity.dateOfBirth !== '' &&
+          isAtLeast18(data.identity.dateOfBirth) &&
+          data.identity.gender !== '' &&
+          data.identity.passportNumber.trim() !== '' &&
+          data.identity.nationality.trim() !== '' &&
+          data.identity.placeOfBirth.trim() !== '' &&
           data.membership.pensionProvider !== '' &&
+          data.membership.membershipNumber.trim() !== '' &&
           data.address.streetAndNumber !== '' &&
           data.address.city !== '' &&
           data.address.country !== '' &&
           (data.bankDetails.iban !== '' || data.bankDetails.accountOption !== 'own_iban') &&
-          (data.signature.signatureData !== undefined || data.signature.signatureFile !== null)
+          (!!data.signature.signatureData || !!data.signature.signatureFile)
         );
       default:
         return false;
@@ -305,12 +336,17 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         return (
           data.identity.fullName !== '' &&
           data.identity.dateOfBirth !== '' &&
-          data.identity.gender !== ''
+          isAtLeast18(data.identity.dateOfBirth) &&
+          data.identity.gender !== '' &&
+          data.identity.passportNumber.trim() !== '' &&
+          data.identity.nationality.trim() !== '' &&
+          data.identity.placeOfBirth.trim() !== ''
         );
       case 'membership': {
         if (data.membership.pensionProvider === '') return false;
+        if (data.membership.membershipNumber.trim() === '') return false;
         // Stage / orchestra providers (VddB, VddKO) require the extended
-        // sub-form. Other providers only need a provider selection.
+        // sub-form in addition to the membership number.
         const isStage =
           data.membership.pensionProvider === 'VddB' ||
           data.membership.pensionProvider === 'VddKO';

@@ -1,0 +1,28 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]: "1"
+          - generic [ref=e13]: Eligibility
+        - generic [ref=e18]:
+          - generic [ref=e19]: "2"
+          - generic [ref=e20]: Create Account
+        - generic [ref=e23]:
+          - generic [ref=e24]: "3"
+          - generic [ref=e25]: Start Claim
+        - generic [ref=e28]:
+          - generic [ref=e29]: "4"
+          - generic [ref=e30]: Submit Details
+    - generic [ref=e122]:
+      - img [ref=e125]
+      - heading "No lump-sum settlement possible" [level=2] [ref=e128]
+      - paragraph [ref=e129]: Based on the information you provided, a lump-sum settlement (Abfindung) of your company pension is not possible.
+      - paragraph [ref=e130]: Your projected monthly pension (€60.00) is above the legal small-benefit threshold of €59.33 per month, so a lump-sum settlement is not possible for this pension.
+      - button "Go back" [ref=e131] [cursor=pointer]:
+        - img [ref=e132]
+        - text: Go back
+      - link "Return to homepage" [ref=e134] [cursor=pointer]:
+        - /url: /
+  - alert [ref=e60]
