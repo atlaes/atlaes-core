@@ -3,13 +3,14 @@
 import React from 'react';
 import { ArrowRight, ChevronDown, Info } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import { StageMembershipDetails } from './StageMembershipDetails';
 
 interface MembershipProps {
   onNext: () => void;
 }
 
 const PENSION_PROVIDERS = [
-  { value: 'VBL', label: 'VBLklassik', shortLabel: 'VBL' },
+  { value: 'VBL', label: 'VBL', shortLabel: 'VBL' },
   { value: 'ZVK', label: 'ZVK', shortLabel: 'ZVK' },
   { value: 'KVBW', label: 'KVBW', shortLabel: 'KVBW' },
   { value: 'VddB', label: 'VddB', shortLabel: 'VddB' },
@@ -17,11 +18,17 @@ const PENSION_PROVIDERS = [
 ] as const;
 
 export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
-  const { data, updateMembership } = useOnboarding();
+  const { data, updateMembership, canProceedFromSubStep } = useOnboarding();
+
+  // Stage / orchestra (VddB, VddKO) needs membership number plus an extended
+  // employment details form on the same step.
+  const isStageProvider =
+    data.membership.pensionProvider === 'VddB' ||
+    data.membership.pensionProvider === 'VddKO';
 
   // Pension provider is pre-selected from eligibility flow
   const isProviderPreset = data.membership.pensionProvider !== '';
-  const canProceed = data.membership.pensionProvider !== '';
+  const canProceed = canProceedFromSubStep('membership');
 
   // Get the selected provider for dynamic labeling
   const selectedProvider = PENSION_PROVIDERS.find(
@@ -40,7 +47,7 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
     : 'Enter your membership number';
 
   const helperText = providerLabel
-    ? `You can find this number on letters or statements relating to your ${providerLabel} pension.`
+    ? `You can find this number on letters or statements from ${providerLabel}.`
     : 'You can find this number on letters or statements from your pension provider.';
 
   return (
@@ -50,7 +57,7 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
-        Enter your company pension scheme membership information.
+        Enter your supplementary pension scheme membership information.
       </p>
 
       {/* Form Fields */}
@@ -58,7 +65,7 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
         {/* Pension Provider — read-only if pre-selected from eligibility */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Selected company pension
+            Supplementary pension:
           </label>
           {/* Client #12: when the provider is carried over from the calculator
               or eligibility flow, show it as locked display — the user cannot
@@ -95,7 +102,6 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             {membershipNumberLabel}
-            <span className="text-gray-400 font-normal ml-1">(optional)</span>
           </label>
           <input
             type="text"
@@ -112,6 +118,12 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
             </p>
           </div>
         </div>
+
+        {isStageProvider && (
+          <div className="border-t border-gray-200 pt-6">
+            <StageMembershipDetails embedded />
+          </div>
+        )}
       </div>
 
       {/* Continue Button */}

@@ -3,13 +3,18 @@ import { postgres } from '../database';
 import { bucket } from '../storage';
 import { email } from '../email';
 
+// Migration runner token. Gates POST /api/migrations/run, which CI/CD
+// invokes after each staging deploy. Set per-stage via:
+//   AWS_PROFILE=atlaes npx sst secret set AdminMigrationToken <value> --stage <stage>
+const adminMigrationToken = new sst.Secret('AdminMigrationToken');
+
 export const backend = new sst.aws.Service('AtlaesBackend', {
   cluster,
   image: {
     context: 'packages/functions',
     dockerfile: 'Dockerfile',
   },
-  link: [postgres, bucket, email],
+  link: [postgres, bucket, email, adminMigrationToken],
   environment: {
     FRONTEND_URL: $app.stage === 'production'
       ? 'https://vbl.atlaes.de'
@@ -22,6 +27,7 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
       ? ''
       : 'sk_test_51SRpwnD86goZexmM9XSBC97ERit2aUg4XOg0TGNvag9Zhzugx7NyChKTU0AubwFyrvIHtveGkd6AnjyytKpVlQWB00s9zr78UR',
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET ?? '',
+    ADMIN_MIGRATION_TOKEN: adminMigrationToken.value,
   },
   loadBalancer: {
     domain:

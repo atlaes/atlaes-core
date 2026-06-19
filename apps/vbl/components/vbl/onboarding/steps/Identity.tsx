@@ -1,15 +1,41 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { ArrowRight, Upload, X, ChevronDown, Info, Loader2 } from 'lucide-react';
+import React, { useState, useCallback, useRef } from 'react';
+import { ArrowRight, X, ChevronDown, Info, Loader2, AlertCircle } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { uploadDocument } from '@/lib/onboarding-api';
+import { DatePartsInput } from '../DatePartsInput';
 
 interface IdentityProps {
   onNext: () => void;
 }
 
 type IdentityPhase = 'upload' | 'processing' | 'confirm';
+
+function isAtLeast18(dateOfBirth: string): boolean {
+  if (!dateOfBirth) return false;
+  const birthDate = new Date(`${dateOfBirth}T00:00:00Z`);
+  if (Number.isNaN(birthDate.getTime())) return false;
+
+  const today = new Date();
+  let age = today.getUTCFullYear() - birthDate.getUTCFullYear();
+  const birthdayThisYear = new Date(
+    Date.UTC(
+      today.getUTCFullYear(),
+      birthDate.getUTCMonth(),
+      birthDate.getUTCDate()
+    )
+  );
+
+  if (
+    new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())) <
+    birthdayThisYear
+  ) {
+    age -= 1;
+  }
+
+  return age >= 18;
+}
 
 export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
   const { data, updateData, updateIdentity } = useOnboarding();
@@ -18,14 +44,21 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
   );
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Figma VBL-16: inline error state on the upload dropzone when the user
+  // picks an unsupported file type. Persists until the next file is chosen.
+  const [fileTypeError, setFileTypeError] = useState<string | null>(null);
 
   const handleFileSelect = useCallback(
     async (file: File) => {
       // Validate file type
       if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
-        alert('Please upload an image or PDF file');
+        setFileTypeError(
+          'This file format is not supported. Please upload a valid document.'
+        );
         return;
       }
+      setFileTypeError(null);
 
       // Create preview URL
       const previewUrl = URL.createObjectURL(file);
@@ -59,6 +92,10 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
             passportIssueDate: result.ocr.passportIssueDate || '',
             passportExpiryDate: result.ocr.passportExpiryDate || '',
           });
+        } else {
+          setUploadError(
+            'We could not read this file as a passport or ID. Please upload a clearer passport or ID, or enter the details manually.'
+          );
         }
 
         setPhase('confirm');
@@ -112,7 +149,13 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
   const canProceed =
     data.identity.fullName !== '' &&
     data.identity.dateOfBirth !== '' &&
-    data.identity.gender !== '';
+    isAtLeast18(data.identity.dateOfBirth) &&
+    data.identity.gender !== '' &&
+    data.identity.passportNumber.trim() !== '' &&
+    data.identity.nationality.trim() !== '' &&
+    data.identity.placeOfBirth.trim() !== '';
+  const isUnder18 =
+    data.identity.dateOfBirth !== '' && !isAtLeast18(data.identity.dateOfBirth);
 
   if (phase === 'processing') {
     return (
@@ -145,11 +188,22 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
 
         {/* Upload Area */}
         <div
+          role="button"
+          tabIndex={0}
+          onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
-          className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors ${
-            isDragging
+          className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors cursor-pointer ${
+            fileTypeError
+              ? 'border-red-400 bg-red-50'
+              : isDragging
               ? 'border-[#9FE870] bg-[#F0FDE4]'
               : 'border-gray-300 hover:border-gray-400'
           }`}
@@ -162,18 +216,27 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
           </svg>
           <p className="text-gray-600 mb-2">
             Drag & drop your file here or{' '}
-            <label className="text-[#163300] font-medium cursor-pointer hover:underline">
+            <span className="text-[#163300] font-medium hover:underline">
               browse
-              <input
-                type="file"
-                accept="image/*,application/pdf"
-                onChange={handleInputChange}
-                className="hidden"
-              />
-            </label>
+            </span>
           </p>
           <p className="text-sm text-gray-400">Supports: JPG, PNG, PDF</p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,application/pdf"
+            onChange={handleInputChange}
+            className="hidden"
+          />
         </div>
+
+        {/* File Type Error Banner */}
+        {fileTypeError && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <p className="text-sm text-red-700">{fileTypeError}</p>
+          </div>
+        )}
 
         {/* Continue Button */}
         <button
@@ -250,78 +313,86 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
           />
         </div>
 
-        {/* Date of Birth */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Date of birth
-          </label>
-          <div className="grid grid-cols-3 gap-3">
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={2}
-              value={data.identity.dateOfBirth ? data.identity.dateOfBirth.split('-')[2]?.replace(/^0/, '') || '' : ''}
-              onChange={(e) => {
-                const day = e.target.value.replace(/\D/g, '').slice(0, 2);
-                const parts = (data.identity.dateOfBirth || '--').split('-');
-                const newDate = `${parts[0] || ''}-${parts[1] || ''}-${day.padStart(2, '0')}`;
-                updateIdentity({ dateOfBirth: newDate });
-              }}
-              placeholder="Day"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none text-center"
-            />
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={2}
-              value={data.identity.dateOfBirth ? data.identity.dateOfBirth.split('-')[1]?.replace(/^0/, '') || '' : ''}
-              onChange={(e) => {
-                const month = e.target.value.replace(/\D/g, '').slice(0, 2);
-                const parts = (data.identity.dateOfBirth || '--').split('-');
-                const newDate = `${parts[0] || ''}-${month.padStart(2, '0')}-${parts[2] || ''}`;
-                updateIdentity({ dateOfBirth: newDate });
-              }}
-              placeholder="Month"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none text-center"
-            />
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={4}
-              value={data.identity.dateOfBirth ? data.identity.dateOfBirth.split('-')[0] || '' : ''}
-              onChange={(e) => {
-                const year = e.target.value.replace(/\D/g, '').slice(0, 4);
-                const parts = (data.identity.dateOfBirth || '--').split('-');
-                const newDate = `${year}-${parts[1] || ''}-${parts[2] || ''}`;
-                updateIdentity({ dateOfBirth: newDate });
-              }}
-              placeholder="Year"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none text-center"
-            />
+        {/* Date of birth + Gender */}
+        <div className="space-y-4">
+          <DatePartsInput
+            label="Date of birth"
+            value={data.identity.dateOfBirth}
+            onChange={(value) => updateIdentity({ dateOfBirth: value })}
+            helperText="Use the date of birth shown on your passport."
+          />
+          {isUnder18 && (
+            <p className="text-sm font-medium text-red-700">
+              You must be at least 18 years old to submit this claim.
+            </p>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Gender
+            </label>
+            <div className="relative">
+              <select
+                value={data.identity.gender}
+                onChange={(e) =>
+                  updateIdentity({
+                    gender: e.target.value as 'male' | 'female' | 'other' | '',
+                  })
+                }
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white"
+              >
+                <option value="">Select</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            </div>
           </div>
         </div>
 
-        {/* Gender */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Gender
+            Passport or ID number
           </label>
-          <div className="relative">
-            <select
-              value={data.identity.gender}
+          <input
+            type="text"
+            value={data.identity.passportNumber}
+            onChange={(e) =>
+              updateIdentity({ passportNumber: e.target.value })
+            }
+            placeholder="Enter document number"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nationality
+            </label>
+            <input
+              type="text"
+              value={data.identity.nationality}
               onChange={(e) =>
-                updateIdentity({
-                  gender: e.target.value as 'male' | 'female' | 'other' | '',
-                })
+                updateIdentity({ nationality: e.target.value })
               }
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white"
-            >
-              <option value="">Select</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+              placeholder="e.g. Australian"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Place of birth
+            </label>
+            <input
+              type="text"
+              value={data.identity.placeOfBirth}
+              onChange={(e) =>
+                updateIdentity({ placeOfBirth: e.target.value })
+              }
+              placeholder="e.g. Sydney"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+            />
           </div>
         </div>
       </div>

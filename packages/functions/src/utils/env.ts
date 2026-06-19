@@ -52,14 +52,34 @@ const envSchema = z.object({
   // Frontend URL for OAuth callbacks and magic links
   FRONTEND_URL: z.string().optional().default('http://localhost:3000'),
   // SES email
-  SES_FROM_EMAIL: z.string().optional().default('noreply@atlaes.de'),
+  SES_FROM_EMAIL: z.string().optional().default('noreply@companypension.de'),
   SES_REGION: z.string().optional().default('eu-central-1'),
   // Stripe
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  // Admin token gating the /api/migrations/run endpoint.
+  // CI/CD posts this header after each staging deploy. Rotates via SST secret.
+  // Local dev keeps a known default; production requires a real value (guarded below).
+  ADMIN_MIGRATION_TOKEN: z
+    .string()
+    .min(32)
+    .default('dev-migration-token-not-for-production-use-only'),
 });
 
 export const env = envSchema.parse(process.env);
+
+// Hard guard: refuse to boot in production with the dev default token.
+// Prevents an accidental staging/prod deploy from shipping a publicly-known
+// migration token.
+if (
+  env.NODE_ENV === 'production' &&
+  env.ADMIN_MIGRATION_TOKEN === 'dev-migration-token-not-for-production-use-only'
+) {
+  throw new Error(
+    'ADMIN_MIGRATION_TOKEN must be set to a real secret in production (>=32 chars). ' +
+      'Set it via: AWS_PROFILE=atlaes npx sst secret set AdminMigrationToken <value> --stage <stage>'
+  );
+}
 
 export type Env = z.infer<typeof envSchema>;
 

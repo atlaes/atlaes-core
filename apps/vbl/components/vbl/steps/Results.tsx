@@ -2,9 +2,22 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useVBLCalculator, JobData, RefundBreakdown, ResultScenario } from '../../../hooks/useVBLCalculator';
-import { Loader2, AlertCircle, Check, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import {
+  useVBLCalculator,
+  JobData,
+  RefundBreakdown,
+  ResultScenario,
+} from '../../../hooks/useVBLCalculator';
+import {
+  Loader2,
+  AlertCircle,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  X,
+} from 'lucide-react';
 import apiClient from '../../../lib/api';
+import { createPendingCalculatorSession } from '@/lib/vbl-pending-calculator-sessions-api';
 
 interface CalculationResult {
   isEligible: boolean;
@@ -29,8 +42,18 @@ interface CalculationResult {
 }
 
 const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 // Inclusive calendar-month count (matches the backend fix for clients #4/#6/#7).
@@ -49,13 +72,12 @@ const monthsSinceEmploymentEnd = (job: JobData): number => {
   if (ei < 0 || !job.endYear) return Infinity;
   const now = new Date();
   return (
-    (now.getFullYear() - parseInt(job.endYear)) * 12 +
-    (now.getMonth() - ei)
+    (now.getFullYear() - parseInt(job.endYear)) * 12 + (now.getMonth() - ei)
   );
 };
 
 const isStageOrOrchestra = (job: JobData): boolean =>
-  job.employmentType === 'Stage/Performing Arts' ||
+  job.employmentType === 'Stage / Performing Arts' ||
   job.employmentType === 'Orchestra';
 
 // PROVISIONAL — pending client confirmation of the exact decision table.
@@ -69,8 +91,10 @@ const isStageOrOrchestra = (job: JobData): boolean =>
 //      to apply to the company pension)
 //   3. DRV === "no" AND at least one financial field filled → may_be_possible
 //      (the user is still in the scheme and we have enough hints to estimate)
-//   4. DRV === "not_sure" OR DRV === "no" with no financial fields → individual_assessment
-//      (catch-all: we don't have enough info to rule either way)
+//   4. DRV === "no" AND "I can't find either" selected → appears_unlikely
+//      (client QA: this should be a rejection result)
+//   5. DRV === "not_sure" OR DRV === "no" with no statement choice → individual_assessment
+//      (legacy/catch-all: we don't have enough info to rule either way)
 //
 // These rules are QA-material only until the client confirms. See
 // docs/client-feedback-status.md for the 6 open questions about this.
@@ -90,21 +114,32 @@ const resolvePrivateVariant = (privateJobs: JobData[]): PrivateVariant => {
 
   // If ANY private job has provider=Others, force individual review —
   // we can't evaluate a scheme we haven't mapped.
-  if (privateJobs.some((job) => job.companyPension === 'Others')) {
+  if (
+    privateJobs.some((job) => job.companyPension === 'Other (enter manually)')
+  ) {
     return 'private_individual_assessment';
   }
 
   // Most pessimistic variant wins across multiple private jobs.
   const variants = privateJobs.map((job): PrivateVariant => {
-    if (job.statutoryPensionRefunded === 'yes') return 'private_appears_unlikely';
+    if (job.statutoryPensionRefunded === 'yes')
+      return 'private_appears_unlikely';
     if (job.statutoryPensionRefunded === 'no' && hasAnyFinancialField(job)) {
       return 'private_may_be_possible';
+    }
+    if (
+      job.statutoryPensionRefunded === 'no' &&
+      job.privateStatementChoice === 'none'
+    ) {
+      return 'private_appears_unlikely';
     }
     return 'private_individual_assessment';
   });
 
-  if (variants.includes('private_appears_unlikely')) return 'private_appears_unlikely';
-  if (variants.includes('private_individual_assessment')) return 'private_individual_assessment';
+  if (variants.includes('private_appears_unlikely'))
+    return 'private_appears_unlikely';
+  if (variants.includes('private_individual_assessment'))
+    return 'private_individual_assessment';
   return 'private_may_be_possible';
 };
 
@@ -113,23 +148,28 @@ const resolvePrivateVariant = (privateJobs: JobData[]): PrivateVariant => {
  * Client #17/#18: Stage/Orchestra error screens for <12mo and 24-mo waiting.
  * Figma screens 21/22: split-card layout for mixed public+private jobs.
  */
-const determineResultScenario = (jobs: JobData[], apiResult?: CalculationResult): ResultScenario => {
+const determineResultScenario = (
+  jobs: JobData[],
+  apiResult?: CalculationResult
+): ResultScenario => {
   // Mixed claim types — user has BOTH a public/stage/orchestra job AND a
   // private-sector job. Render the Figma split-card layout that resolves
   // each side independently. This check comes first because most of the
   // other scenarios only apply when the user has a single claim type.
   const hasPublicOrStage = jobs.some(
     (job) =>
-      job.employmentType === 'Public Sector' ||
-      job.employmentType === 'Stage/Performing Arts' ||
+      job.employmentType === 'Public sector' ||
+      job.employmentType === 'Stage / Performing Arts' ||
       job.employmentType === 'Orchestra'
   );
-  const hasPrivate = jobs.some((job) => job.employmentType === 'Private sector');
+  const hasPrivate = jobs.some(
+    (job) => job.employmentType === 'Private sector'
+  );
   if (hasPublicOrStage && hasPrivate) return 'mixed_result';
 
   // VBLextra alone → not eligible
-  const hasVBLextra = jobs.some(
-    (job) => job.supplementaryPensions.includes('VBLextra')
+  const hasVBLextra = jobs.some((job) =>
+    job.supplementaryPensions.includes('VBLextra')
   );
   if (hasVBLextra) return 'not_eligible_vesting';
 
@@ -174,11 +214,13 @@ type PublicSideOutcome =
 const resolvePublicSide = (jobs: JobData[]): PublicSideOutcome => {
   const publicAndStageJobs = jobs.filter(
     (job) =>
-      job.employmentType === 'Public Sector' ||
-      job.employmentType === 'Stage/Performing Arts' ||
+      job.employmentType === 'Public sector' ||
+      job.employmentType === 'Stage / Performing Arts' ||
       job.employmentType === 'Orchestra'
   );
-  if (publicAndStageJobs.some((j) => j.supplementaryPensions.includes('VBLextra'))) {
+  if (
+    publicAndStageJobs.some((j) => j.supplementaryPensions.includes('VBLextra'))
+  ) {
     return { kind: 'not_eligible_vesting' };
   }
   const stageJobs = publicAndStageJobs.filter(isStageOrOrchestra);
@@ -208,7 +250,13 @@ const formatDateForAPI = (month: string, year: string): string => {
 
 export const Results: React.FC = () => {
   const router = useRouter();
-  const { formData, updateFormData, goToPreviousStep, resetForm, setCurrentStep } = useVBLCalculator();
+  const {
+    formData,
+    updateFormData,
+    goToPreviousStep,
+    resetForm,
+    setCurrentStep,
+  } = useVBLCalculator();
   const [result, setResult] = useState<CalculationResult | null>(null);
   const [totalRefund, setTotalRefund] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -245,7 +293,11 @@ export const Results: React.FC = () => {
     try {
       const payload = {
         jobs: formData.jobs
-          .filter((job) => job.employmentType !== 'Private sector' || job.supplementaryPensions.length > 0)
+          .filter(
+            (job) =>
+              job.employmentType !== 'Private sector' ||
+              job.supplementaryPensions.length > 0
+          )
           .map((job) => ({
             employmentType: job.employmentType,
             supplementaryPensions: job.supplementaryPensions,
@@ -318,7 +370,7 @@ export const Results: React.FC = () => {
   // gets written to sessionStorage for the onboarding flow to consume.
   type StartClaimSide = 'public' | 'private' | 'auto';
 
-  const handleStartClaim = (side: StartClaimSide = 'auto') => {
+  const handleStartClaim = async (side: StartClaimSide = 'auto') => {
     // Client #12: carry the calculator's selected pension provider into the
     // onboarding flow so the Membership step can lock it. Uses the first
     // job with a concrete provider — Stage/Orchestra map to VddB/VddKO,
@@ -330,8 +382,8 @@ export const Results: React.FC = () => {
       side === 'public'
         ? formData.jobs.filter(
             (j) =>
-              j.employmentType === 'Public Sector' ||
-              j.employmentType === 'Stage/Performing Arts' ||
+              j.employmentType === 'Public sector' ||
+              j.employmentType === 'Stage / Performing Arts' ||
               j.employmentType === 'Orchestra'
           )
         : side === 'private'
@@ -340,14 +392,14 @@ export const Results: React.FC = () => {
 
     const relevantJob = candidateJobs.find(
       (j) =>
-        (j.employmentType === 'Public Sector' && j.companyPension) ||
-        j.employmentType === 'Stage/Performing Arts' ||
+        (j.employmentType === 'Public sector' && j.companyPension) ||
+        j.employmentType === 'Stage / Performing Arts' ||
         j.employmentType === 'Orchestra' ||
         (j.employmentType === 'Private sector' && j.companyPension)
     );
     let pensionProvider: string | undefined;
     if (relevantJob) {
-      if (relevantJob.employmentType === 'Stage/Performing Arts') {
+      if (relevantJob.employmentType === 'Stage / Performing Arts') {
         pensionProvider = 'VddB';
       } else if (relevantJob.employmentType === 'Orchestra') {
         pensionProvider = 'VddKO';
@@ -356,6 +408,31 @@ export const Results: React.FC = () => {
       }
     }
 
+    // Figma VBL-30/31/32: when the user has both a supplementary and a
+    // private-sector claim, the onboarding PensionTypeSelection screen shows
+    // both providers as subtitles on the two cards. Extract them separately
+    // across all jobs (not just candidateJobs, which is narrowed by `side`).
+    const publicStageJob = formData.jobs.find(
+      (j) =>
+        (j.employmentType === 'Public sector' && j.companyPension) ||
+        j.employmentType === 'Stage / Performing Arts' ||
+        j.employmentType === 'Orchestra'
+    );
+    let publicStageProvider = '';
+    if (publicStageJob) {
+      if (publicStageJob.employmentType === 'Stage / Performing Arts') {
+        publicStageProvider = 'VddB';
+      } else if (publicStageJob.employmentType === 'Orchestra') {
+        publicStageProvider = 'VddKO';
+      } else {
+        publicStageProvider = publicStageJob.companyPension || '';
+      }
+    }
+    const privateJob = formData.jobs.find(
+      (j) => j.employmentType === 'Private sector' && j.companyPension
+    );
+    const privateProvider = privateJob?.companyPension || '';
+
     // Client #8: pass the detected claim types for the onboarding pension-type
     // selection screen. When the user explicitly picked a side from the split
     // card, only send that side so onboarding skips the selection screen and
@@ -363,9 +440,9 @@ export const Results: React.FC = () => {
     const sectors = new Set<string>();
     const sectorSourceJobs = side === 'auto' ? formData.jobs : candidateJobs;
     sectorSourceJobs.forEach((j) => {
-      if (j.employmentType === 'Public Sector') sectors.add('public');
+      if (j.employmentType === 'Public sector') sectors.add('public');
       else if (
-        j.employmentType === 'Stage/Performing Arts' ||
+        j.employmentType === 'Stage / Performing Arts' ||
         j.employmentType === 'Orchestra'
       )
         sectors.add('stage');
@@ -373,16 +450,47 @@ export const Results: React.FC = () => {
     });
     const claimTypes = Array.from(sectors);
 
+    const calculatorSelection = {
+      pensionProvider: pensionProvider ?? '',
+      claimTypes,
+      publicStageProvider,
+      privateProvider,
+    };
+
+    // Always write sessionStorage so onboarding has a fallback if the
+    // POST below fails (e.g., backend unreachable). Onboarding still works,
+    // just without the richer server-side hydration.
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem(
-        'calculator-selection',
-        JSON.stringify({
-          pensionProvider: pensionProvider ?? '',
-          claimTypes,
-        })
-      );
+      sessionStorage.setItem('calculator-selection', JSON.stringify(calculatorSelection));
     }
-    router.push('/calculator/onboarding');
+
+    // Persist full calculator state server-side so onboarding can hydrate
+    // OnboardingContext with jobs, calculationResult, scenario, etc.
+    // Soft-fail: if this fails we still proceed to onboarding using the
+    // sessionStorage fallback above.
+    let sessionToken: string | null = null;
+    try {
+      const result = await createPendingCalculatorSession({
+        jobs: formData.jobs,
+        calculationResult: formData.calculationResult ?? null,
+        scenario: scenario ?? undefined,
+        dateOfBirth: formData.dateOfBirth || undefined,
+        currentAge: formData.currentAge,
+        userType: formData.userType,
+        pensionProvider: pensionProvider ?? undefined,
+        claimTypes,
+        publicStageProvider: publicStageProvider || undefined,
+        privateProvider: privateProvider || undefined,
+      });
+      sessionToken = result.token;
+    } catch (err) {
+      console.warn('Failed to create VBL pending calculator session — proceeding with sessionStorage only', err);
+    }
+
+    const target = sessionToken
+      ? `/calculator/onboarding?session=${encodeURIComponent(sessionToken)}`
+      : '/calculator/onboarding';
+    router.push(target);
   };
 
   const handleBack = () => {
@@ -403,9 +511,16 @@ export const Results: React.FC = () => {
     return (
       <div className="flex-1 bg-white p-8 flex flex-col justify-center rounded-2xl shadow-lg">
         <div className="w-full max-w-xl mx-auto text-center">
-          <Loader2 className="w-16 h-16 animate-spin mb-4 mx-auto" style={{ color: 'var(--vbl-accent-lime)' }} />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Calculating Your Refund</h2>
-          <p className="text-gray-500">Please wait while we process your information...</p>
+          <Loader2
+            className="w-16 h-16 animate-spin mb-4 mx-auto"
+            style={{ color: 'var(--vbl-accent-lime)' }}
+          />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">
+            Calculating Your Refund
+          </h2>
+          <p className="text-gray-500">
+            Please wait while we process your information...
+          </p>
         </div>
       </div>
     );
@@ -417,7 +532,9 @@ export const Results: React.FC = () => {
       <div className="flex-1 bg-white p-8 flex flex-col justify-center rounded-2xl shadow-lg">
         <div className="w-full max-w-xl mx-auto text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mb-4 mx-auto" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Calculation Error</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">
+            Calculation Error
+          </h2>
           <p className="text-red-600 mb-6">{error}</p>
           <button
             onClick={calculateRefund}
@@ -442,10 +559,8 @@ export const Results: React.FC = () => {
     return (
       <div className="flex-1 bg-white p-8 flex flex-col justify-center rounded-2xl shadow-lg">
         <div className="w-full max-w-xl mx-auto text-center">
-          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-6">
-            <div className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center">
-              <X className="w-7 h-7 text-white" />
-            </div>
+          <div className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center mx-auto mb-6">
+            <X className="w-8 h-8 text-white" />
           </div>
 
           <h1
@@ -455,18 +570,33 @@ export const Results: React.FC = () => {
             Company pension payout not possible
           </h1>
 
-          <p className="text-gray-600 text-sm mb-2" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
-            Based on your information, your company pension includes <strong>VBLextra.</strong>
+          <p
+            className="text-gray-600 text-sm mb-2"
+            style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+          >
+            Based on your information, your company pension includes{' '}
+            <strong>VBLextra.</strong>
           </p>
-          <p className="text-gray-600 text-sm mb-2" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
+          <p
+            className="text-gray-600 text-sm mb-2"
+            style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+          >
             In this case, a <strong>lump sum payout is not possible.</strong>
           </p>
-          <p className="text-gray-600 text-sm mb-2" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
-            Your pension remains credited to you as a <strong>future pension entitlement.</strong>
+          <p
+            className="text-gray-600 text-sm mb-2"
+            style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+          >
+            Your pension remains credited to you as a{' '}
+            <strong>future pension entitlement.</strong>
           </p>
-          <p className="text-gray-600 text-sm mb-8" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
-            This means your pension stays in the scheme and may be paid later as a{' '}
-            <strong>regular pension benefit</strong> when you reach the applicable retirement age.
+          <p
+            className="text-gray-600 text-sm mb-8"
+            style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+          >
+            This means your pension stays in the scheme and may be paid later as
+            a <strong>regular pension benefit</strong> when you reach the
+            applicable retirement age.
           </p>
 
           <button
@@ -498,10 +628,8 @@ export const Results: React.FC = () => {
     return (
       <div className="flex-1 bg-white p-8 flex flex-col justify-center rounded-2xl shadow-lg">
         <div className="w-full max-w-xl mx-auto text-center">
-          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-6">
-            <div className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center">
-              <X className="w-7 h-7 text-white" />
-            </div>
+          <div className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center mx-auto mb-6">
+            <X className="w-8 h-8 text-white" />
           </div>
           <h1
             className="text-2xl font-bold text-gray-900 mb-6"
@@ -509,9 +637,13 @@ export const Results: React.FC = () => {
           >
             Company pension refund not possible
           </h1>
-          <p className="text-gray-600 text-sm mb-8" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
-            Based on the information you provided, a refund is not possible because
-            the minimum contribution period of 12 months has not been met.
+          <p
+            className="text-gray-600 text-sm mb-8"
+            style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+          >
+            Based on the information you provided, a refund is not possible
+            because the minimum contribution period of 12 months has not been
+            met.
           </p>
           <button
             onClick={handleBackToCalculator}
@@ -543,7 +675,7 @@ export const Results: React.FC = () => {
     // 24 months elapse so we can show the user when they become eligible.
     const waitingJob = formData.jobs.find(
       (j) =>
-        (j.employmentType === 'Stage/Performing Arts' ||
+        (j.employmentType === 'Stage / Performing Arts' ||
           j.employmentType === 'Orchestra') &&
         monthsSinceEmploymentEnd(j) < 24
     );
@@ -571,12 +703,19 @@ export const Results: React.FC = () => {
           >
             Your supplementary pension payout is not yet available
           </h1>
-          <p className="text-gray-600 text-sm mb-4" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
-            For this pension scheme, a <strong>24-month waiting period</strong> must
-            pass after your last contribution before a payout can be requested.
+          <p
+            className="text-gray-600 text-sm mb-4"
+            style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+          >
+            For this pension scheme, a <strong>24-month waiting period</strong>{' '}
+            must pass after your last contribution before a payout can be
+            requested.
           </p>
           {eligibleDateLabel && (
-            <p className="text-gray-800 text-sm mb-8 font-medium" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
+            <p
+              className="text-gray-800 text-sm mb-8 font-medium"
+              style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+            >
               You will become eligible in <strong>{eligibleDateLabel}</strong>.
             </p>
           )}
@@ -652,21 +791,33 @@ export const Results: React.FC = () => {
                   className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
                   style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)' }}
                 >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#163300" strokeWidth="2">
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#163300"
+                    strokeWidth="2"
+                  >
                     <path d="M3 21h18" />
                     <path d="M5 21V7l7-4 7 4v14" />
                     <path d="M9 21v-6h6v6" />
                   </svg>
                 </div>
                 <p className="font-semibold text-gray-900 leading-tight">
-                  Public / Stage / Orchestra<br />Refund Claim
+                  Public / Stage / Orchestra
+                  <br />
+                  Refund Claim
                 </p>
               </div>
 
               {publicSide.kind === 'eligible' ? (
                 <div
                   className="rounded-xl p-5 flex items-center justify-center gap-3 mb-4"
-                  style={{ backgroundColor: 'var(--vbl-accent-lime)', color: 'var(--vbl-sidebar-dark)' }}
+                  style={{
+                    backgroundColor: 'var(--vbl-accent-lime)',
+                    color: 'var(--vbl-sidebar-dark)',
+                  }}
                 >
                   <div
                     className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
@@ -675,8 +826,13 @@ export const Results: React.FC = () => {
                     <Check className="w-4 h-4 text-white" />
                   </div>
                   <div className="text-center">
-                    <p className="text-xs font-medium opacity-90">Total company pension refund</p>
-                    <p className="text-2xl font-bold" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
+                    <p className="text-xs font-medium opacity-90">
+                      Total company pension refund
+                    </p>
+                    <p
+                      className="text-2xl font-bold"
+                      style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+                    >
                       &euro;{formatCurrency(publicAmount)}
                     </p>
                   </div>
@@ -716,14 +872,23 @@ export const Results: React.FC = () => {
                   className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
                   style={{ backgroundColor: 'rgba(107, 114, 128, 0.1)' }}
                 >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2">
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#6B7280"
+                    strokeWidth="2"
+                  >
                     <rect x="3" y="7" width="18" height="14" rx="2" />
                     <path d="M3 7l9-4 9 4" />
                     <path d="M9 21v-6h6v6" />
                   </svg>
                 </div>
                 <p className="font-semibold text-gray-900 leading-tight">
-                  Private Sector<br />Settlement Claim
+                  Private Sector
+                  <br />
+                  Settlement Claim
                 </p>
               </div>
 
@@ -805,10 +970,13 @@ export const Results: React.FC = () => {
   }
 
   // Render: Private variant — "A lump-sum settlement may be possible"
-  // (Figma screen 11). Green check, "Proceed with review" CTA.
+  // (Figma screen 11). Green check, "Continue" CTA.
   if (scenario === 'private_may_be_possible') {
     return (
-      <div className="flex-1 bg-white p-8 flex flex-col justify-center rounded-2xl shadow-lg">
+      <div
+        className="flex-1 p-8 flex flex-col justify-center rounded-2xl shadow-lg"
+        style={{ backgroundColor: 'rgba(159, 232, 112, 0.12)' }}
+      >
         <div className="w-full max-w-xl mx-auto text-center">
           <div
             className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
@@ -827,13 +995,20 @@ export const Results: React.FC = () => {
           >
             A lump-sum settlement may be possible
           </h1>
-          <p className="text-gray-600 text-sm mb-6" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
-            Based on the information you provided, a lump-sum settlement (Abfindung) of your
-            company pension may be possible.
+          <p
+            className="text-gray-600 text-sm mb-6"
+            style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+          >
+            Based on the information you provided, a lump-sum settlement
+            (Abfindung) of your company pension may be possible.
           </p>
-          <div className="rounded-xl p-4 mb-8 border border-gray-200 bg-gray-50">
+          <div
+            className="rounded-xl p-4 mb-8"
+            style={{ backgroundColor: 'rgba(159, 232, 112, 0.25)' }}
+          >
             <p className="text-sm font-semibold text-gray-800">
-              Final eligibility depends on confirmation by the pension provider and the applicable scheme rules.
+              Final eligibility depends on confirmation by the pension provider
+              and the applicable scheme rules.
             </p>
           </div>
           <button
@@ -845,7 +1020,7 @@ export const Results: React.FC = () => {
               color: 'var(--vbl-sidebar-dark)',
             }}
           >
-            Proceed with review
+            Continue
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -854,9 +1029,14 @@ export const Results: React.FC = () => {
   }
 
   // Render: Private variant — "Individual assessment required" (Figma
-  // screen 12). Clock icon, same "Proceed with review" CTA. Also the
+  // screen 12). Clock icon, "Proceed with review" CTA — this scenario
+  // still routes to the paid-review funnel (unlike private_appears_unlikely
+  // which became a dead-end in the 2026-04-23 design update). Also the
   // fallback render for the legacy `private_review` alias.
-  if (scenario === 'private_individual_assessment' || scenario === 'private_review') {
+  if (
+    scenario === 'private_individual_assessment' ||
+    scenario === 'private_review'
+  ) {
     return (
       <div className="flex-1 bg-white p-8 flex flex-col justify-center rounded-2xl shadow-lg">
         <div className="w-full max-w-xl mx-auto text-center">
@@ -868,7 +1048,16 @@ export const Results: React.FC = () => {
               className="w-14 h-14 rounded-full flex items-center justify-center"
               style={{ backgroundColor: 'var(--vbl-sidebar-dark)' }}
             >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9FE870" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="28"
+                height="28"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#9FE870"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
@@ -880,14 +1069,19 @@ export const Results: React.FC = () => {
           >
             Individual assessment required
           </h1>
-          <p className="text-gray-600 text-sm mb-6" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
-            Based on the information you provided, an individual review is needed to determine
-            the available next steps for your company pension claim.
+          <p
+            className="text-gray-600 text-sm mb-6"
+            style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+          >
+            Based on the information you provided, an individual review is
+            needed to determine the available next steps for your company
+            pension claim.
           </p>
           <div className="rounded-xl p-4 mb-8 border border-gray-200 bg-gray-50">
             <p className="text-sm font-semibold text-gray-800">
-              This review includes checking the pension provider information, scheme details, and
-              whether a lump-sum settlement (Abfindung) may be possible.
+              This review includes checking the pension provider information,
+              scheme details, and whether a lump-sum settlement (Abfindung) may
+              be possible.
             </p>
           </div>
           <button
@@ -907,50 +1101,48 @@ export const Results: React.FC = () => {
     );
   }
 
-  // Render: Private variant — "A lump-sum settlement appears unlikely"
-  // (Figma screen 13). Warning triangle, "Continue to paid review" CTA.
+  // Render: Private variant — "A lump-sum settlement is not possible"
+  // (Figma screen 13). Dead-end: no paid-review conversion. Client-approved
+  // product decision 2026-04-23 — spec: docs/superpowers/specs/2026-04-23-vbl-calculator-visual-alignment-design.md
   if (scenario === 'private_appears_unlikely') {
     return (
       <div className="flex-1 bg-white p-8 flex flex-col justify-center rounded-2xl shadow-lg">
         <div className="w-full max-w-xl mx-auto text-center">
-          <div
-            className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
-            style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)' }}
-          >
-            <div
-              className="w-14 h-14 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: 'var(--vbl-sidebar-dark)' }}
-            >
-              <AlertCircle className="w-8 h-8" style={{ color: '#9FE870' }} />
-            </div>
+          <div className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center mx-auto mb-6">
+            <X className="w-8 h-8 text-white" />
           </div>
           <h1
-            className="text-2xl font-bold text-gray-900 mb-4"
+            className="text-2xl font-bold text-gray-900 mb-6"
             style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
           >
-            A lump-sum settlement appears unlikely
+            A lump-sum settlement is not possible
           </h1>
-          <p className="text-gray-600 text-sm mb-6" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
-            Based on the information you provided, a lump-sum settlement (Abfindung) appears
-            unlikely under the standard small-benefit rules.
+          <p
+            className="text-gray-600 text-sm mb-8"
+            style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+          >
+            Based on the information you provided, your company pension does not
+            appear to qualify for a lump-sum settlement under the applicable
+            standard rules.
           </p>
-          <div className="rounded-xl p-4 mb-8 border border-gray-200 bg-gray-50">
-            <p className="text-sm font-semibold text-gray-800">
-              Some cases may still require individual review depending on the pension provider
-              and scheme details.
-            </p>
-          </div>
           <button
-            onClick={() => handleStartClaim('private')}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200"
+            onClick={handleBackToCalculator}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 mb-4"
             style={{
               fontFamily: 'var(--vbl-font-montserrat)',
               backgroundColor: 'var(--vbl-accent-lime)',
               color: 'var(--vbl-sidebar-dark)',
             }}
           >
-            Continue to paid review
-            <ChevronRight className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4" />
+            Back to calculator
+          </button>
+          <button
+            onClick={handleReturnHome}
+            className="text-sm text-gray-700 underline hover:text-gray-900 transition-colors"
+            style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+          >
+            Return to homepage
           </button>
         </div>
       </div>
@@ -962,10 +1154,8 @@ export const Results: React.FC = () => {
     return (
       <div className="flex-1 bg-white p-8 flex flex-col justify-center rounded-2xl shadow-lg">
         <div className="w-full max-w-xl mx-auto text-center">
-          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-6">
-            <div className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center">
-              <X className="w-7 h-7 text-white" />
-            </div>
+          <div className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center mx-auto mb-6">
+            <X className="w-8 h-8 text-white" />
           </div>
           <h1
             className="text-2xl font-bold text-gray-900 mb-6"
@@ -973,10 +1163,13 @@ export const Results: React.FC = () => {
           >
             Company pension refund not possible
           </h1>
-          <p className="text-gray-600 text-sm mb-8" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
-            Based on the information you provided, your company pension is vested under
-            the applicable scheme rules. A refund is not possible and the pension remains
-            preserved for retirement.
+          <p
+            className="text-gray-600 text-sm mb-8"
+            style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+          >
+            Based on the information you provided, your company pension is
+            vested under the applicable scheme rules. A refund is not possible
+            and the pension remains preserved for retirement.
           </p>
           <button
             onClick={handleBackToCalculator}
@@ -1005,7 +1198,7 @@ export const Results: React.FC = () => {
   // Show transferred balances info only for public sector with 2+ jobs
   // and different company pension providers (e.g., VBL + ZVK)
   const publicSectorJobs = formData.jobs.filter(
-    (job) => job.employmentType === 'Public Sector'
+    (job) => job.employmentType === 'Public sector'
   );
   const uniqueProviders = new Set(
     publicSectorJobs.map((job) => job.companyPension).filter(Boolean)
@@ -1025,15 +1218,51 @@ export const Results: React.FC = () => {
           >
             Your Company Pension Estimate
           </h1>
-          <p className="text-gray-500 mt-2 text-sm" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
-            Based on your employment history, here&apos;s your estimated company pension refund.
+          <p
+            className="text-gray-500 mt-2 text-sm"
+            style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+          >
+            Based on your employment history, here&apos;s your estimated company
+            pension refund.
+          </p>
+        </div>
+
+        {/* Section header — matches Figma frame 23 */}
+        <div className="flex flex-col items-center mb-6">
+          <div
+            className="w-14 h-14 rounded-lg flex items-center justify-center mb-3"
+            style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)' }}
+          >
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#163300"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 21h18" />
+              <path d="M5 21V7l7-4 7 4v14" />
+              <path d="M9 21v-6h6v6" />
+            </svg>
+          </div>
+          <p
+            className="font-semibold text-gray-900"
+            style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
+          >
+            Public / Stage / Orchestra refund claim
           </p>
         </div>
 
         {/* Total Refund Box */}
         <div
           className="rounded-xl p-6 mb-6 flex items-center justify-center gap-3"
-          style={{ backgroundColor: 'var(--vbl-accent-lime)', color: 'var(--vbl-sidebar-dark)' }}
+          style={{
+            backgroundColor: 'var(--vbl-accent-lime)',
+            color: 'var(--vbl-sidebar-dark)',
+          }}
         >
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center"
@@ -1042,8 +1271,13 @@ export const Results: React.FC = () => {
             <Check className="w-5 h-5 text-white" />
           </div>
           <div className="text-center">
-            <p className="text-sm font-medium opacity-90">Total company pension refund</p>
-            <p className="text-4xl font-bold mt-1" style={{ fontFamily: 'var(--vbl-font-montserrat)' }}>
+            <p className="text-sm font-medium opacity-90">
+              Total company pension refund
+            </p>
+            <p
+              className="text-4xl font-bold mt-1"
+              style={{ fontFamily: 'var(--vbl-font-montserrat)' }}
+            >
               &euro;{formatCurrency(totalRefund || result?.vblKlassik || 0)}
             </p>
           </div>
@@ -1053,8 +1287,13 @@ export const Results: React.FC = () => {
         {result?.providerBreakdown && result.providerBreakdown.length > 1 && (
           <div className="rounded-xl p-4 mb-6 border border-gray-200">
             {result.providerBreakdown.map((item) => (
-              <div key={item.provider} className="flex items-center justify-between py-2">
-                <span className="text-sm font-medium text-gray-700">{item.provider}</span>
+              <div
+                key={item.provider}
+                className="flex items-center justify-between py-2"
+              >
+                <span className="text-sm font-medium text-gray-700">
+                  {item.provider}
+                </span>
                 <span className="text-sm font-semibold text-gray-900">
                   &euro;{formatCurrency(item.amount)}
                 </span>
@@ -1063,15 +1302,34 @@ export const Results: React.FC = () => {
           </div>
         )}
 
+        {/* Always-visible info note per Figma frame 23 */}
+        <div className="flex items-start gap-3 rounded-xl p-4 mb-4 border border-gray-200">
+          <div
+            className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+            style={{ backgroundColor: 'var(--vbl-sidebar-dark)' }}
+          >
+            <span className="text-xs font-bold text-white">i</span>
+          </div>
+          <p className="text-sm text-gray-700 leading-relaxed">
+            This estimate only includes the company pensions that appear
+            refundable based on the information provided. One or more other
+            pensions are not included.
+          </p>
+        </div>
+
         {/* Info box about transfers — only for public sector 2+ jobs with different providers */}
         {showTransferredBalancesInfo && (
           <div
             className="rounded-xl p-4 mb-8 border"
-            style={{ backgroundColor: 'rgba(159, 232, 112, 0.1)', borderColor: 'rgba(159, 232, 112, 0.3)' }}
+            style={{
+              backgroundColor: 'rgba(159, 232, 112, 0.1)',
+              borderColor: 'rgba(159, 232, 112, 0.3)',
+            }}
           >
             <p className="text-sm text-gray-700">
-              If you changed jobs within the public sector, earlier company pension balances may have been
-              transferred to your last pension scheme. Your estimate already includes this.
+              If you changed jobs within the public sector, earlier company
+              pension balances may have been transferred to your last pension
+              scheme. Your estimate already includes this.
             </p>
           </div>
         )}

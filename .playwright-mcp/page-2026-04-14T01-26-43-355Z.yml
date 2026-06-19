@@ -1,0 +1,33 @@
+- generic [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]: "1"
+          - generic [ref=e13]: Eligibility
+        - generic [ref=e18]:
+          - generic [ref=e19]: "2"
+          - generic [ref=e20]: Create Account
+        - generic [ref=e23]:
+          - generic [ref=e24]: "3"
+          - generic [ref=e25]: Start Claim
+        - generic [ref=e28]:
+          - generic [ref=e29]: "4"
+          - generic [ref=e30]: Submit Details
+    - generic [ref=e31]:
+      - button "Back" [ref=e63] [cursor=pointer]:
+        - img [ref=e64]
+        - text: Back
+      - generic [ref=e100]:
+        - heading "Public-sector employment" [level=2] [ref=e101]
+        - paragraph [ref=e103]: This helps us determine your eligibility for a refund.
+        - paragraph [ref=e104]: Are you currently continuing to work in the public sector in the EU, EEA, UK, or Switzerland?
+        - generic [ref=e105]:
+          - button "Yes — EU, EEA, or UK" [ref=e106] [cursor=pointer]
+          - button "Yes — Switzerland" [active] [ref=e107] [cursor=pointer]
+          - button "No" [ref=e108] [cursor=pointer]
+        - button "Continue" [ref=e109] [cursor=pointer]:
+          - text: Continue
+          - img [ref=e110]
+  - alert [ref=e60]

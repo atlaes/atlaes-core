@@ -3,9 +3,9 @@ import type { Config } from 'drizzle-kit';
 export default {
   schema: './src/drizzle/schema/*',
   out: './src/drizzle/migrations',
-  driver: 'pg',
+  dialect: 'postgresql',
   dbCredentials: {
-    connectionString: process.env.DATABASE_URL ||
+    url: process.env.DATABASE_URL ||
       'postgresql://vbl_user:vbl_password@localhost:5432/vbl_development',
   },
   schemaFilter: ['public', 'shared', 'gpr', 'claims', 'vbl'],

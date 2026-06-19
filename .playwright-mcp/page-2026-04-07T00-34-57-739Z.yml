@@ -1,0 +1,30 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - link "OpenLumin OpenLumin" [ref=e4] [cursor=pointer]:
+      - /url: /
+      - img "OpenLumin" [ref=e6]
+      - generic [ref=e7]: OpenLumin
+    - generic [ref=e10]:
+      - generic [ref=e11]:
+        - heading "Welcome back" [level=1] [ref=e12]
+        - paragraph [ref=e13]: Sign in to continue your research
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - generic [ref=e16]: Email
+          - textbox "Email" [active] [ref=e17]:
+            - /placeholder: you@church.org
+        - generic [ref=e18]:
+          - generic [ref=e19]: Password
+          - textbox "Password" [ref=e20]:
+            - /placeholder: Your password
+        - button "Sign In" [ref=e21] [cursor=pointer]
+        - link "Forgot password?" [ref=e23] [cursor=pointer]:
+          - /url: /forgot-password
+      - paragraph [ref=e24]:
+        - text: Don't have an account?
+        - link "Create one" [ref=e25] [cursor=pointer]:
+          - /url: /sign-up?callbackUrl=%2Fcalculator
+    - paragraph [ref=e27]: Evidence-first Bible research · by AI Fluency Ministry
+  - button "Open Next.js Dev Tools" [ref=e33] [cursor=pointer]:
+    - img [ref=e34]
+  - alert [ref=e37]

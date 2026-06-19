@@ -1,0 +1,34 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]: "1"
+          - generic [ref=e13]: Eligibility
+        - generic [ref=e18]:
+          - generic [ref=e19]: "2"
+          - generic [ref=e20]: Create Account
+        - generic [ref=e23]:
+          - generic [ref=e24]: "3"
+          - generic [ref=e25]: Start Claim
+        - generic [ref=e28]:
+          - generic [ref=e29]: "4"
+          - generic [ref=e30]: Submit Details
+    - generic [ref=e135]:
+      - heading "Let's check your eligibility" [level=2] [ref=e136]
+      - paragraph [ref=e138]: Answer a few questions to see if you qualify for a company pension payout.
+      - paragraph [ref=e139]: Company pension sector
+      - generic [ref=e140]:
+        - button "Public sector" [ref=e141] [cursor=pointer]:
+          - img [ref=e143]
+          - generic [ref=e148]: Public sector
+        - button "Stage / Performing Arts / Orchestra" [ref=e149] [cursor=pointer]:
+          - img [ref=e151]
+          - generic [ref=e156]: Stage / Performing Arts / Orchestra
+        - button "Private Sector" [ref=e157] [cursor=pointer]:
+          - generic [ref=e159]: Private Sector
+      - button "Continue" [disabled] [ref=e160]:
+        - text: Continue
+        - img [ref=e161]
+  - alert [ref=e60]

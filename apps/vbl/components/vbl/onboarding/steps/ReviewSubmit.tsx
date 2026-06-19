@@ -41,6 +41,36 @@ const REVIEW_SECTIONS: ReviewSection[] = [
   { id: 'signature', title: 'Signature', subStep: 'signature', icon: <PenTool className="w-5 h-5" /> },
 ];
 
+function getSubmitErrorMessage(error: unknown): string {
+  const responseData = (
+    error as {
+      response?: {
+        data?: {
+          error?: string;
+          message?: string;
+          details?: unknown;
+        };
+      };
+    }
+  ).response?.data;
+
+  if (Array.isArray(responseData?.details)) {
+    return responseData.details.join(', ');
+  }
+  if (typeof responseData?.details === 'string') {
+    return responseData.details;
+  }
+  if (responseData?.error) {
+    return responseData.error;
+  }
+  if (responseData?.message) {
+    return responseData.message;
+  }
+  return error instanceof Error
+    ? error.message
+    : 'Failed to submit claim. Please try again.';
+}
+
 interface ReviewSubmitProps {
   onSubmitSuccess?: () => void;
   onEditSection?: (subStep: SubmitDetailsSubStep) => void;
@@ -54,12 +84,17 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB', {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString);
+    if (!match) return dateString;
+    const date = new Date(
+      Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+    );
+    return new Intl.DateTimeFormat('en-GB', {
       day: '2-digit',
-      month: 'short',
+      month: 'long',
       year: 'numeric',
-    });
+      timeZone: 'UTC',
+    }).format(date);
   };
 
   const toggleSection = (sectionId: string) => {
@@ -111,9 +146,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
       }
     } catch (error) {
       console.error('Submission error:', error);
-      setSubmitError(
-        error instanceof Error ? error.message : 'Failed to submit claim. Please try again.'
-      );
+      setSubmitError(getSubmitErrorMessage(error));
       setIsSubmitting(false);
     }
   };
@@ -135,6 +168,15 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
             </p>
             <p className="text-gray-700">
               <span className="text-gray-500">Gender:</span> {GENDER_LABELS[data.identity.gender] || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">Passport or ID number:</span> {data.identity.passportNumber || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">Nationality:</span> {data.identity.nationality || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">Place of birth:</span> {data.identity.placeOfBirth || 'Not provided'}
             </p>
             <button
               onClick={() => handleEditSection(section.subStep)}
@@ -193,7 +235,6 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
               <p className="text-gray-700">
                 {data.bankDetails.accountOption === 'open_free_account' && 'Will open free EUR account'}
                 {data.bankDetails.accountOption === 'trusted_third_party' && 'Using third-party account'}
-                {data.bankDetails.accountOption === 'add_later' && 'Will add IBAN later'}
               </p>
             )}
             <button

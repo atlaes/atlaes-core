@@ -4,7 +4,7 @@ export type EmploymentType =
   | 'private_sector'
   | '';
 
-export type PensionProviderType = 'VBL' | 'ZVK' | 'VddB' | 'VddKO' | '';
+export type PensionProviderType = string;
 
 export type PrivatePensionProviderType =
   | 'Allianz'

@@ -37,6 +37,8 @@ export function GetStartedOnboardingFlow() {
     currentSubStep,
     setCurrentStep,
     setCurrentSubStep,
+    editingFromReview,
+    setEditingFromReview,
     updateSuccessData,
     loadFromClaim,
   } = useOnboarding();
@@ -136,8 +138,11 @@ export function GetStartedOnboardingFlow() {
   const drvEligibilityDate = '15 Mar 2027';
   const isDRVEligibleNow = false;
 
-  // Map onboarding step (1-3) to get-started step (2-4)
-  const activeStep = (currentStep + 1) as 2 | 3 | 4;
+  const activeStep = (() => {
+    if (currentStep === 1 || currentStep === 2) return 2;
+    if (currentSubStep === 'signature' || currentSubStep === 'review') return 4;
+    return 3;
+  })() as 2 | 3 | 4;
 
   // Navigation handlers
   const handleStep1Next = () => {
@@ -150,6 +155,12 @@ export function GetStartedOnboardingFlow() {
   };
 
   const advanceSubStep = () => {
+    if (editingFromReview) {
+      setEditingFromReview(false);
+      setCurrentSubStep('review');
+      return;
+    }
+
     const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === currentSubStep);
     if (currentIndex < SUBMIT_DETAILS_SUBSTEPS.length - 1) {
       setCurrentSubStep(SUBMIT_DETAILS_SUBSTEPS[currentIndex + 1].id);
@@ -266,6 +277,7 @@ export function GetStartedOnboardingFlow() {
   };
 
   const handleEditSection = (subStep: SubmitDetailsSubStep) => {
+    setEditingFromReview(true);
     setCurrentSubStep(subStep);
   };
 

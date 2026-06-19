@@ -12,19 +12,20 @@ export interface JobData {
   startYear: string;
   endMonth: string;
   endYear: string;
-  employmentType: '' | 'Stage/Performing Arts' | 'Private sector' | 'Public Sector' | 'Orchestra';
+  employmentType: '' | 'Stage / Performing Arts' | 'Private sector' | 'Public sector' | 'Orchestra';
   averageMonthlyGrossSalary: string;
   germanFederalState: string;
   companyPension: string;
   supplementaryPensions: string[];
   customPensionName: string;
   // Figma: private-sector jobs ask whether the user's German statutory
-  // pension contributions (DRV) have already been refunded. "no" and
-  // "not_sure" both branch into the optional financial-details sub-step
-  // below, which can change the final result scenario.
+  // pension contributions (DRV) have already been refunded. "no" branches
+  // into the optional financial-details sub-step below, which can change the
+  // final result scenario. "not_sure" is kept for legacy sessions only.
   statutoryPensionRefunded: '' | 'yes' | 'no' | 'not_sure';
+  privateStatementChoice: '' | 'projected' | 'capital' | 'none';
   // Optional financial details shown on the second private-sector sub-step
-  // when the user answered "no" or "not_sure" on the DRV question.
+  // when the user answered "no" on the DRV question.
   projectedMonthlyPension: string;
   capitalAmount: string;
   contractValue: string;
@@ -82,8 +83,8 @@ export interface VBLFormData {
 
 // Within the Job Details step, private-sector jobs have two sub-screens:
 // - 'main': the shared job form (dates, sector, salary, provider, DRV Q)
-// - 'optional': the 4 optional financial fields shown when the DRV answer
-//   is "no" or "not_sure". All other sectors only ever see 'main'.
+// - 'optional': the statement detail screen shown when the DRV answer is "no".
+//   All other sectors only ever see 'main'.
 export type JobSubStep = 'main' | 'optional';
 
 interface VBLCalculatorContextType {
@@ -118,6 +119,7 @@ const createEmptyJob = (): JobData => ({
   supplementaryPensions: [],
   customPensionName: '',
   statutoryPensionRefunded: '',
+  privateStatementChoice: '',
   projectedMonthlyPension: '',
   capitalAmount: '',
   contractValue: '',
@@ -132,9 +134,9 @@ const INITIAL_FORM_DATA: VBLFormData = {
   currentAge: 0,
 };
 
-// A private-sector job has a second sub-step (optional financial fields)
-// when the user answered "no" or "not_sure" to the DRV question. All other
-// sectors and private jobs with "yes" skip straight past sub-step 'optional'.
+// A private-sector job has a second sub-step when the user answered "no" to
+// the DRV question. Legacy "not_sure" sessions still route through it so they
+// can be completed instead of getting stuck.
 const jobHasOptionalSubStep = (job: JobData | undefined): boolean => {
   if (!job || job.employmentType !== 'Private sector') return false;
   return (
@@ -198,7 +200,7 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
     }
     if (currentStep === 1) {
       const job = formData.jobs[currentJobIndex];
-      // Private + "no"/"not_sure" → jump to the optional-fields sub-step
+      // Private + "no" → jump to the optional statement-details sub-step
       // before advancing jobs. Every other case skips straight ahead.
       if (currentJobSubStep === 'main' && jobHasOptionalSubStep(job)) {
         setCurrentJobSubStep('optional');
@@ -279,7 +281,7 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
       }
 
       // Public Sector: requires state + company pension; if VBL, needs plan
-      if (job.employmentType === 'Public Sector') {
+      if (job.employmentType === 'Public sector') {
         if (job.germanFederalState === '') return false;
         if (job.companyPension === '') return false;
         if (job.companyPension === 'VBL') {
@@ -293,7 +295,7 @@ export const VBLCalculatorProvider: React.FC<{ children: ReactNode }> = ({ child
       if (job.employmentType === 'Private sector') {
         if (job.companyPension === '') return false;
         if (job.statutoryPensionRefunded === '') return false;
-        if (job.companyPension === 'Others') {
+        if (job.companyPension === 'Other (enter manually)') {
           return job.customPensionName.trim() !== '';
         }
         return true;

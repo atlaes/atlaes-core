@@ -1,8 +1,9 @@
 'use client';
 
 import React, { ReactNode, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useOnboarding, SUBMIT_DETAILS_SUBSTEPS, SubmitDetailsSubStep } from '@/contexts/OnboardingContext';
+import { getPendingCalculatorSession } from '@/lib/vbl-pending-calculator-sessions-api';
 import { OnboardingLayout } from '@/components/vbl/onboarding/OnboardingLayout';
 import { PensionTypeSelection } from '@/components/vbl/onboarding/steps/PensionTypeSelection';
 import { CreateAccount } from '@/components/vbl/onboarding/steps/CreateAccount';
@@ -23,6 +24,8 @@ interface OnboardingFlowProps {
 
 export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionToken = searchParams?.get('session') ?? null;
   const {
     data,
     updateData,
@@ -41,27 +44,34 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
   // types (e.g., the user has both public and private sector jobs that
   // create separate claims). A single-type user has nothing to choose.
   const [detectedClaimTypes, setDetectedClaimTypes] = useState<string[]>([]);
+  // Figma VBL-30/31/32: the card subtitles show the actual providers
+  // carried over from the calculator (e.g. private: BVV/Allianz/Swiss Life).
+  const [detectedPrivateProvider, setDetectedPrivateProvider] = useState('');
+  const [detectedPublicStageProvider, setDetectedPublicStageProvider] = useState('');
   const [showPensionTypeSelection, setShowPensionTypeSelection] = useState(
     () => {
-      if (typeof window !== 'undefined') {
-        const calc = sessionStorage.getItem('calculator-selection');
-        if (calc) {
-          try {
-            const parsed = JSON.parse(calc) as { claimTypes?: string[] };
-            const types = parsed.claimTypes ?? [];
-            // Only show when user has mixed sectors creating separate claims:
-            // a public/stage pension claim AND a private pension claim.
-            const hasPublicOrStage =
-              types.includes('public') || types.includes('stage');
-            const hasPrivate = types.includes('private');
-            return hasPublicOrStage && hasPrivate;
-          } catch {
-            // fall through to eligibility check
-          }
+      if (typeof window === 'undefined') return data.pensionType === '';
+      // If a session token is in the URL, defer the decision to the
+      // hydration effect (it'll setShowPensionTypeSelection based on
+      // detected claim types).
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('session')) return false;
+      // Legacy fallback path: same logic as before.
+      const calc = sessionStorage.getItem('calculator-selection');
+      if (calc) {
+        try {
+          const parsed = JSON.parse(calc) as { claimTypes?: string[] };
+          const types = parsed.claimTypes ?? [];
+          const hasPublicOrStage =
+            types.includes('public') || types.includes('stage');
+          const hasPrivate = types.includes('private');
+          return hasPublicOrStage && hasPrivate;
+        } catch {
+          // fall through
         }
-        const eligibilityResult = sessionStorage.getItem('eligibility-result');
-        if (eligibilityResult) return false;
       }
+      const eligibilityResult = sessionStorage.getItem('eligibility-result');
+      if (eligibilityResult) return false;
       return data.pensionType === '';
     }
   );
@@ -82,29 +92,84 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
     }
   }, [updateData]);
 
-  // Client #12: carry the pension provider chosen in the calculator into
-  // the onboarding Membership step so the user cannot re-pick a different
-  // provider during claim filing. Also captures detected claim types for
-  // the dynamic pension-type selection screen (client #8).
+  // Hydrate from server-side pending_calculator_sessions when a token is
+  // present in the URL. Falls back to sessionStorage `calculator-selection`
+  // if no token (soft-fail path from Results.tsx where the POST failed).
   useEffect(() => {
-    const stored = sessionStorage.getItem('calculator-selection');
-    if (!stored) return;
-    try {
-      const parsed = JSON.parse(stored) as {
-        pensionProvider?: string;
-        claimTypes?: string[];
-      };
+    let cancelled = false;
+
+    const applySelection = (parsed: {
+      pensionProvider?: string;
+      claimTypes?: string[];
+      privateProvider?: string;
+      publicStageProvider?: string;
+    }) => {
+      if (cancelled) return;
       if (parsed.pensionProvider) {
         updateMembership({ pensionProvider: parsed.pensionProvider });
       }
       if (parsed.claimTypes) {
         setDetectedClaimTypes(parsed.claimTypes);
+        const hasPublicOrStage =
+          parsed.claimTypes.includes('public') || parsed.claimTypes.includes('stage');
+        const hasPrivate = parsed.claimTypes.includes('private');
+        setShowPensionTypeSelection(hasPublicOrStage && hasPrivate);
       }
-    } catch {
-      // Ignore parsing errors
-    }
-    sessionStorage.removeItem('calculator-selection');
-  }, [updateMembership]);
+      if (parsed.privateProvider) {
+        setDetectedPrivateProvider(parsed.privateProvider);
+      }
+      if (parsed.publicStageProvider) {
+        setDetectedPublicStageProvider(parsed.publicStageProvider);
+      }
+    };
+
+    const hydrate = async () => {
+      if (sessionToken) {
+        const session = await getPendingCalculatorSession(sessionToken);
+        if (session && !cancelled) {
+          applySelection({
+            pensionProvider: session.pensionProvider ?? undefined,
+            claimTypes: session.claimTypes ?? [],
+            privateProvider: session.privateProvider ?? undefined,
+            publicStageProvider: session.publicStageProvider ?? undefined,
+          });
+          // Cache the token in sessionStorage so CreateAccount can link the
+          // email to it on submit without re-parsing the URL.
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('vbl-pending-calculator-session-token', sessionToken);
+          }
+          return;
+        }
+      }
+
+      // Fallback: legacy sessionStorage payload (still written by Results.tsx)
+      const stored =
+        typeof window !== 'undefined'
+          ? sessionStorage.getItem('calculator-selection')
+          : null;
+      if (!stored) return;
+      try {
+        const parsed = JSON.parse(stored) as {
+          pensionProvider?: string;
+          claimTypes?: string[];
+          privateProvider?: string;
+          publicStageProvider?: string;
+        };
+        applySelection(parsed);
+      } catch {
+        // Ignore parsing errors
+      }
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('calculator-selection');
+      }
+    };
+
+    hydrate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionToken, updateMembership]);
 
   // Success screen and DRV modal state
   const [showSuccess, setShowSuccess] = useState(false);
@@ -191,6 +256,40 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
     router.push('/dashboard');
   };
 
+  // Figma VBL-23/24: mixed-claim continuation. When the user had both a
+  // supplementary and a private-sector claim, SuccessScreen offers a button
+  // to start the still-pending second claim. We infer the pending side by
+  // subtracting the just-submitted `pensionType` from `detectedClaimTypes`.
+  const pendingOtherClaim = (() => {
+    const hasPrivate = detectedClaimTypes.includes('private');
+    const hasPublicOrStage =
+      detectedClaimTypes.includes('public') ||
+      detectedClaimTypes.includes('stage') ||
+      detectedClaimTypes.includes('orchestra');
+    if (data.pensionType === 'public' && hasPrivate) {
+      return {
+        label: 'Private-sector pension',
+        provider: detectedPrivateProvider || 'BVV',
+      };
+    }
+    if (data.pensionType === 'private' && hasPublicOrStage) {
+      return {
+        label: 'Public-sector pension',
+        provider: detectedPublicStageProvider || 'VBLklassik',
+      };
+    }
+    return null;
+  })();
+
+  const handleStartOtherClaim = () => {
+    // Flip the pensionType and re-enter the onboarding flow from step 1.
+    // Most users will still be authenticated so they'll skip CreateAccount.
+    updateData({ pensionType: data.pensionType === 'public' ? 'private' : 'public' });
+    setShowSuccess(false);
+    setCurrentStep(2);
+    setCurrentSubStep('identity');
+  };
+
   // If pension type not selected yet, show that screen.
   // Client #8: pass detected claim types so the card labels can render
   // dynamically ("Public Sector Pension" vs "Stage Pension" vs both).
@@ -201,6 +300,8 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
         headerTitle={headerTitle}
         headerIcon={headerIcon}
         claimTypes={detectedClaimTypes}
+        privateProvider={detectedPrivateProvider}
+        publicStageProvider={detectedPublicStageProvider}
       />
     );
   }
@@ -215,6 +316,9 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
           onRemindDRV={handleRemindDRV}
           drvEligibilityDate={drvEligibilityDate}
           isDRVEligibleNow={isDRVEligibleNow}
+          otherClaimLabel={pendingOtherClaim?.label}
+          otherClaimProvider={pendingOtherClaim?.provider}
+          onStartOtherClaim={pendingOtherClaim ? handleStartOtherClaim : undefined}
         />
         <DRVUpsellModal
           isOpen={showDRVModal}

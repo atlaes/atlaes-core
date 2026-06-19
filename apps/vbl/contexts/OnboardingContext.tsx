@@ -18,6 +18,20 @@ export interface OnboardingIdentity {
   passportExpiryDate: string;
 }
 
+// Stage / orchestra (VddB / VddKO) membership requires an additional
+// sub-form with employment, leaving, and current-occupation details.
+// These fields only apply when pensionProvider === 'VddB' || 'VddKO'.
+export interface OnboardingStageDetails {
+  stageName: string;
+  rolePosition: string;
+  employmentEndDate: string;
+  permanentlyStopped: 'yes' | 'no' | '';
+  reasonForLeaving: string;
+  reasonForLeavingOther: string;
+  currentOccupation: string;
+  unableToWorkHealth: 'yes' | 'no' | '';
+}
+
 export interface OnboardingMembership {
   // Client #12: this field accepts any calculator provider label (including
   // state-specific ZVKs like "Bayerische ZVK" or "ZVK Darmstadt"), so the
@@ -25,6 +39,7 @@ export interface OnboardingMembership {
   // without mapping through a narrow enum.
   pensionProvider: string;
   membershipNumber: string;
+  stageDetails: OnboardingStageDetails;
 }
 
 export interface OnboardingAddress {
@@ -34,7 +49,7 @@ export interface OnboardingAddress {
   country: string;
 }
 
-export type BankAccountOption = 'own_iban' | 'open_free_account' | 'trusted_third_party' | 'add_later';
+export type BankAccountOption = 'own_iban' | 'open_free_account' | 'trusted_third_party';
 
 export interface OnboardingBankDetails {
   accountHolder: string;
@@ -127,6 +142,7 @@ interface OnboardingContextType {
   updateData: (updates: Partial<OnboardingData>) => void;
   updateIdentity: (updates: Partial<OnboardingIdentity>) => void;
   updateMembership: (updates: Partial<OnboardingMembership>) => void;
+  updateStageDetails: (updates: Partial<OnboardingStageDetails>) => void;
   updateAddress: (updates: Partial<OnboardingAddress>) => void;
   updateBankDetails: (updates: Partial<OnboardingBankDetails>) => void;
   updateSignature: (updates: Partial<OnboardingSignature>) => void;
@@ -165,6 +181,16 @@ const initialData: OnboardingData = {
   membership: {
     pensionProvider: '',
     membershipNumber: '',
+    stageDetails: {
+      stageName: '',
+      rolePosition: '',
+      employmentEndDate: '',
+      permanentlyStopped: '',
+      reasonForLeaving: '',
+      reasonForLeavingOther: '',
+      currentOccupation: '',
+      unableToWorkHealth: '',
+    },
   },
   address: {
     streetAndNumber: '',
@@ -188,6 +214,31 @@ const initialData: OnboardingData = {
 
 const OnboardingContext = createContext<OnboardingContextType | null>(null);
 
+function isAtLeast18(dateOfBirth: string): boolean {
+  if (!dateOfBirth) return false;
+  const birthDate = new Date(`${dateOfBirth}T00:00:00Z`);
+  if (Number.isNaN(birthDate.getTime())) return false;
+
+  const today = new Date();
+  let age = today.getUTCFullYear() - birthDate.getUTCFullYear();
+  const birthdayThisYear = new Date(
+    Date.UTC(
+      today.getUTCFullYear(),
+      birthDate.getUTCMonth(),
+      birthDate.getUTCDate()
+    )
+  );
+  const todayUtc = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+  );
+
+  if (todayUtc < birthdayThisYear) {
+    age -= 1;
+  }
+
+  return age >= 18;
+}
+
 export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [currentSubStep, setCurrentSubStep] = useState<SubmitDetailsSubStep>('identity');
@@ -209,6 +260,16 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setData((prev) => ({
       ...prev,
       membership: { ...prev.membership, ...updates },
+    }));
+  }, []);
+
+  const updateStageDetails = useCallback((updates: Partial<OnboardingStageDetails>) => {
+    setData((prev) => ({
+      ...prev,
+      membership: {
+        ...prev.membership,
+        stageDetails: { ...prev.membership.stageDetails, ...updates },
+      },
     }));
   }, []);
 
@@ -251,12 +312,18 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         return (
           data.identity.fullName !== '' &&
           data.identity.dateOfBirth !== '' &&
+          isAtLeast18(data.identity.dateOfBirth) &&
+          data.identity.gender !== '' &&
+          data.identity.passportNumber.trim() !== '' &&
+          data.identity.nationality.trim() !== '' &&
+          data.identity.placeOfBirth.trim() !== '' &&
           data.membership.pensionProvider !== '' &&
+          data.membership.membershipNumber.trim() !== '' &&
           data.address.streetAndNumber !== '' &&
           data.address.city !== '' &&
           data.address.country !== '' &&
           (data.bankDetails.iban !== '' || data.bankDetails.accountOption !== 'own_iban') &&
-          (data.signature.signatureData !== undefined || data.signature.signatureFile !== null)
+          (!!data.signature.signatureData || !!data.signature.signatureFile)
         );
       default:
         return false;
@@ -269,10 +336,35 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         return (
           data.identity.fullName !== '' &&
           data.identity.dateOfBirth !== '' &&
-          data.identity.gender !== ''
+          isAtLeast18(data.identity.dateOfBirth) &&
+          data.identity.gender !== '' &&
+          data.identity.passportNumber.trim() !== '' &&
+          data.identity.nationality.trim() !== '' &&
+          data.identity.placeOfBirth.trim() !== ''
         );
-      case 'membership':
-        return data.membership.pensionProvider !== '';
+      case 'membership': {
+        if (data.membership.pensionProvider === '') return false;
+        if (data.membership.membershipNumber.trim() === '') return false;
+        // Stage / orchestra providers (VddB, VddKO) require the extended
+        // sub-form in addition to the membership number.
+        const isStage =
+          data.membership.pensionProvider === 'VddB' ||
+          data.membership.pensionProvider === 'VddKO';
+        if (!isStage) return true;
+        const s = data.membership.stageDetails;
+        const reasonOk =
+          s.reasonForLeaving !== '' &&
+          (s.reasonForLeaving !== 'other' || s.reasonForLeavingOther.trim() !== '');
+        return (
+          s.stageName.trim() !== '' &&
+          s.rolePosition.trim() !== '' &&
+          s.employmentEndDate !== '' &&
+          s.permanentlyStopped !== '' &&
+          reasonOk &&
+          s.currentOccupation.trim() !== '' &&
+          s.unableToWorkHealth !== ''
+        );
+      }
       case 'address':
         return (
           data.address.streetAndNumber !== '' &&
@@ -296,10 +388,6 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
             data.bankDetails.iban !== '' &&
             data.bankDetails.thirdPartyConfirmed
           );
-        }
-        // Add later: always valid
-        if (data.bankDetails.accountOption === 'add_later') {
-          return true;
         }
         return false;
       case 'signature':
@@ -408,6 +496,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         updateData,
         updateIdentity,
         updateMembership,
+        updateStageDetails,
         updateAddress,
         updateBankDetails,
         updateSignature,

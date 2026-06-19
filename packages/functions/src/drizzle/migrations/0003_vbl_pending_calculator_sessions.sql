@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS "vbl"."pending_calculator_sessions" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"token" uuid DEFAULT gen_random_uuid() NOT NULL,
+	"jobs" jsonb NOT NULL,
+	"calculation_result" jsonb,
+	"scenario" varchar(64),
+	"date_of_birth" date,
+	"current_age" integer,
+	"user_type" varchar(32),
+	"pension_provider" varchar(100),
+	"claim_types" jsonb,
+	"public_stage_provider" varchar(100),
+	"private_provider" varchar(100),
+	"email" varchar(255),
+	"ip_address" varchar(45),
+	"user_agent" varchar(500),
+	"expires_at" timestamp with time zone NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now(),
+	"updated_at" timestamp with time zone DEFAULT now(),
+	CONSTRAINT "pending_calculator_sessions_token_unique" UNIQUE("token")
+);

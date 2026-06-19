@@ -1,0 +1,25 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]: "1"
+          - generic [ref=e13]: Eligibility
+        - generic [ref=e18]:
+          - generic [ref=e19]: "2"
+          - generic [ref=e20]: Create Account
+        - generic [ref=e23]:
+          - generic [ref=e24]: "3"
+          - generic [ref=e25]: Start Claim
+        - generic [ref=e28]:
+          - generic [ref=e29]: "4"
+          - generic [ref=e30]: Submit Details
+    - generic [ref=e77]:
+      - img [ref=e80]
+      - heading "Not eligible for a supplementary pension refund" [level=2] [ref=e83]
+      - paragraph [ref=e84]: Public-sector pension schemes in certain federal states operate under different regulations and do not allow a refund.
+      - button "Go back" [ref=e85] [cursor=pointer]:
+        - img [ref=e86]
+        - text: Go back
+  - alert [ref=e61]

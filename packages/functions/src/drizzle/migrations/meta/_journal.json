@@ -22,6 +22,20 @@
       "when": 1766810680826,
       "tag": "0002_first_unicorn",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1777268091995,
+      "tag": "0003_vbl_pending_calculator_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777272999490,
+      "tag": "0004_gpr_catchup_tables",
+      "breakpoints": true
     }
   ]
 }

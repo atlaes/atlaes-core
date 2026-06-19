@@ -198,21 +198,37 @@ test.describe('Onboarding Edge Cases', () => {
       if (await fullNameInput.inputValue() === '') {
         await fullNameInput.fill('Test User');
       }
-      const dobInput = page.locator('input[type="date"]');
-      if (await dobInput.inputValue() === '') {
-        await dobInput.fill('1990-01-15');
+      const dayInput = page.getByPlaceholder('Day');
+      if (await dayInput.inputValue() === '') {
+        await dayInput.fill('15');
       }
-      const genderSelect = page.locator('select').first();
+      const yearInput = page.getByPlaceholder('Year');
+      if (await yearInput.inputValue() === '') {
+        await yearInput.fill('1990');
+      }
+      const selects = page.locator('select');
+      const birthMonthSelect = selects.first();
+      if (await birthMonthSelect.inputValue() === '') {
+        await birthMonthSelect.selectOption('January');
+      }
+      const genderSelect = selects.nth(1);
       if (await genderSelect.inputValue() === '') {
         await genderSelect.selectOption('male');
       }
+      await page.getByPlaceholder('Enter document number').fill('P1234567');
+      await page.getByPlaceholder('e.g. Australian').fill('Australian');
+      await page.getByPlaceholder('e.g. Sydney').fill('Sydney');
       await page.getByRole('button', { name: /Continue/i }).click();
 
       // Membership
       await expect(
         page.getByRole('heading', { name: 'Pension membership details' })
       ).toBeVisible({ timeout: 5_000 });
-      await page.locator('select').first().selectOption('VBL');
+      const providerSelect = page.locator('select').first();
+      if (await providerSelect.count() > 0) {
+        await providerSelect.selectOption('VBL');
+      }
+      await page.getByPlaceholder(/membership number/i).fill('VBL123456');
       await page.getByRole('button', { name: /Continue/i }).click();
 
       // Address
@@ -291,17 +307,31 @@ test.describe('Onboarding Edge Cases', () => {
       ).toBeVisible({ timeout: 30_000 });
       const fullNameInput = page.getByPlaceholder('John Smith');
       if (await fullNameInput.inputValue() === '') await fullNameInput.fill('Test User');
-      const dobInput = page.locator('input[type="date"]');
-      if (await dobInput.inputValue() === '') await dobInput.fill('1990-01-15');
-      const genderSelect = page.locator('select').first();
+      const dayInput = page.getByPlaceholder('Day');
+      if (await dayInput.inputValue() === '') await dayInput.fill('15');
+      const yearInput = page.getByPlaceholder('Year');
+      if (await yearInput.inputValue() === '') await yearInput.fill('1990');
+      const selects = page.locator('select');
+      const birthMonthSelect = selects.first();
+      if (await birthMonthSelect.inputValue() === '') {
+        await birthMonthSelect.selectOption('January');
+      }
+      const genderSelect = selects.nth(1);
       if (await genderSelect.inputValue() === '') await genderSelect.selectOption('male');
+      await page.getByPlaceholder('Enter document number').fill('P1234567');
+      await page.getByPlaceholder('e.g. Australian').fill('Australian');
+      await page.getByPlaceholder('e.g. Sydney').fill('Sydney');
       await page.getByRole('button', { name: /Continue/i }).click();
 
       // Membership
       await expect(
         page.getByRole('heading', { name: 'Pension membership details' })
       ).toBeVisible({ timeout: 5_000 });
-      await page.locator('select').first().selectOption('VBL');
+      const providerSelect = page.locator('select').first();
+      if (await providerSelect.count() > 0) {
+        await providerSelect.selectOption('VBL');
+      }
+      await page.getByPlaceholder(/membership number/i).fill('VBL123456');
       await page.getByRole('button', { name: /Continue/i }).click();
 
       // Address

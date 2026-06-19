@@ -1,4 +1,4 @@
-CREATE SCHEMA "claims";
+CREATE SCHEMA IF NOT EXISTS "claims";
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "claims"."claim_documents" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
