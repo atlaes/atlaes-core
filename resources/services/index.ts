@@ -22,7 +22,7 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
     JWT_SECRET: 'a-proper-32-char-minimum-secret-for-staging-env',
     NODE_ENV: 'production',
     MINDEE_API: process.env.MINDEE_API ?? '',
-    SES_FROM_EMAIL: 'noreply@atlaes.de',
+    SES_FROM_EMAIL: 'noreply@companypension.de',
     STRIPE_SECRET_KEY: $app.stage === 'production'
       ? ''
       : 'sk_test_51SRpwnD86goZexmM9XSBC97ERit2aUg4XOg0TGNvag9Zhzugx7NyChKTU0AubwFyrvIHtveGkd6AnjyytKpVlQWB00s9zr78UR',
