@@ -12,14 +12,16 @@ test('uses the CompanyPension cash-outs and refunds logo on auth screens', async
   await expect(logo).toBeVisible();
   await expect(logo).toHaveAttribute(
     'src',
-    /companypension-cashouts-refunds\.svg/
+    /companypension-cashouts-refunds\.svg\?v=20260626/
   );
 });
 
 test('serves the supplied Company Pension logo lockup asset', async ({
   page,
 }) => {
-  const response = await page.request.get('/companypension-cashouts-refunds.svg');
+  const response = await page.request.get(
+    '/companypension-cashouts-refunds.svg?v=20260626'
+  );
   expect(response.ok()).toBe(true);
 
   const svg = await response.text();
