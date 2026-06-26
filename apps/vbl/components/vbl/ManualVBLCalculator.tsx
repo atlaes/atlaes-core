@@ -134,6 +134,37 @@ const isDateRangeValid = (form: ManualFormData) => {
   return end >= start;
 };
 
+const getContributionMonthCount = (form: ManualFormData) => {
+  if (!isDateRangeValid(form)) return 0;
+  const start =
+    Number(form.startYear) * 12 + MONTHS.indexOf(form.startMonth);
+  const end = Number(form.endYear) * 12 + MONTHS.indexOf(form.endMonth);
+  return end - start + 1;
+};
+
+const startsIn2018OrLater = (form: ManualFormData) =>
+  Number(form.startYear) >= 2018;
+
+const shouldShowAdditionalContributionCheck = (form: ManualFormData) => {
+  if (form.pensionType !== 'stage') return false;
+  if (startsIn2018OrLater(form)) return false;
+
+  const months = getContributionMonthCount(form);
+  return months >= 36 && months <= 119;
+};
+
+const getNextScreenAfterPeriod = (form: ManualFormData): CalculatorScreen => {
+  const months = getContributionMonthCount(form);
+
+  if (months < 12) return 'blocked';
+  if (form.pensionType !== 'stage') return 'salary';
+  if (shouldShowAdditionalContributionCheck(form)) return 'thresholds';
+  if (startsIn2018OrLater(form) && months >= 36) return 'blocked';
+  if (months >= 120) return 'blocked';
+
+  return 'salary';
+};
+
 const getSelectedProvider = (form: ManualFormData) =>
   form.pensionType === 'stage' ? form.stageProvider : form.publicProvider;
 
@@ -494,7 +525,7 @@ const CalculatorSidebar: React.FC<{ screen: CalculatorScreen }> = ({ screen }) =
       style={{ backgroundColor: '#163300' }}
     >
       <div className="mb-10 flex justify-center">
-        <CompanyPensionLogo className="h-auto w-[218px]" />
+        <CompanyPensionLogo className="h-auto w-[260px]" />
       </div>
       <div className="-mx-7 mb-12 h-px bg-white" />
       <div className="-mr-7 space-y-5">
@@ -556,7 +587,7 @@ export const ManualVBLCalculator: React.FC = () => {
     else if (screen === 'period') setScreen('provider');
     else if (screen === 'thresholds') setScreen('period');
     else if (screen === 'salary') {
-      setScreen(form.pensionType === 'stage' ? 'thresholds' : 'period');
+      setScreen(shouldShowAdditionalContributionCheck(form) ? 'thresholds' : 'period');
     } else if (screen === 'blocked') {
       setScreen('thresholds');
     }
@@ -600,7 +631,7 @@ export const ManualVBLCalculator: React.FC = () => {
     else if (screen === 'federal-state') setScreen('provider');
     else if (screen === 'provider') setScreen('period');
     else if (screen === 'period') {
-      setScreen(form.pensionType === 'stage' ? 'thresholds' : 'salary');
+      setScreen(getNextScreenAfterPeriod(form));
     } else if (screen === 'thresholds') {
       setScreen(isThresholdBlocked ? 'blocked' : 'salary');
     } else if (screen === 'salary') {

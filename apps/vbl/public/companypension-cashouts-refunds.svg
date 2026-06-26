@@ -1,9 +1,12 @@
-<svg width="518" height="143" viewBox="0 0 518 143" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+<svg width="760" height="160" viewBox="0 0 760 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">Company Pension Cash-outs &amp; Refunds</title>
   <desc id="desc">Company Pension logo with cash-outs and refunds tagline.</desc>
-  <path d="M71.5 9.3 130 43.1v56.8l-58.5 33.8L13 99.9V43.1L71.5 9.3Z" fill="#9FE870"/>
-  <path d="M71.5 23.8 116 49.5v44.1L71.5 119.2 27 93.6V49.5L71.5 23.8ZM39 56.4v30.3l32.5 18.8L104 86.7V56.4L71.5 37.7 39 56.4Z" fill="#163300"/>
-  <path d="M58.7 63.2 71.5 55.8 96 70v22.2l-24.5 14.1L47 92.2V70l11.7-6.8v15l12.8-7.4 12.8 7.4v6.6l-12.8 7.4-12.8-7.4V63.2Z" fill="#9FE870"/>
-  <text x="154" y="61" fill="white" font-family="Inter, Arial, Helvetica, sans-serif" font-size="45" font-weight="800" letter-spacing="0">Company Pension</text>
-  <text x="154" y="112" fill="#9FE870" font-family="Inter, Arial, Helvetica, sans-serif" font-size="34" font-weight="800" letter-spacing="0">CASH-OUTS &amp; REFUNDS</text>
+  <g transform="translate(5 8) scale(2.05)" stroke="#9FE870" stroke-width="7" stroke-linejoin="round" fill="none">
+    <path d="M33 7 59 22v30L33 67 7 52V22L33 7Z"/>
+    <path d="M43 24 33 18 20 26v22l13 7 10-6" stroke-linecap="round"/>
+    <path d="M33 36h22" stroke-linecap="round"/>
+  </g>
+  <text x="176" y="69" fill="#FFFFFF" font-family="Montserrat, Inter, Arial, Helvetica, sans-serif" font-size="62" font-weight="800" letter-spacing="0">Company</text>
+  <text x="500" y="69" fill="#FFFFFF" font-family="Montserrat, Inter, Arial, Helvetica, sans-serif" font-size="62" font-weight="800" letter-spacing="0">Pension</text>
+  <text x="176" y="128" fill="#9FE870" font-family="Montserrat, Inter, Arial, Helvetica, sans-serif" font-size="42" font-weight="800" letter-spacing="0">CASH-OUTS &amp; REFUNDS</text>
 </svg>

@@ -68,6 +68,20 @@ async function chooseManual(page: Page, pensionName: string) {
   await continueButton(page).click();
 }
 
+async function enterContributionPeriod(
+  page: Page,
+  startMonth: string,
+  startYear: string,
+  endMonth: string,
+  endYear: string
+) {
+  await chooseDropdownOption(page, 'Start month', startMonth);
+  await chooseDropdownOption(page, 'Start year', startYear);
+  await chooseDropdownOption(page, 'End month', endMonth);
+  await chooseDropdownOption(page, 'End year', endYear);
+  await continueButton(page).click();
+}
+
 test.describe('Manual VBL calculator', () => {
   test('matches the pension type design copy and only shows refund options', async ({
     page,
@@ -127,11 +141,13 @@ test.describe('Manual VBL calculator', () => {
     await expect(
       page.getByRole('heading', { name: 'When did you pay into this pension?' })
     ).toBeVisible();
-    await chooseDropdownOption(page, 'Start month', 'January');
-    await chooseDropdownOption(page, 'Start year', '2020');
-    await chooseDropdownOption(page, 'End month', 'December');
-    await chooseDropdownOption(page, 'End year', '2021');
-    await continueButton(page).click();
+    await enterContributionPeriod(
+      page,
+      'January',
+      '2020',
+      'December',
+      '2021'
+    );
 
     await expect(
       page.getByRole('heading', {
@@ -175,21 +191,19 @@ test.describe('Manual VBL calculator', () => {
     await continueButton(page).click();
     await chooseDropdownOption(page, 'Company pension', 'VddKO');
     await continueButton(page).click();
-    await chooseDropdownOption(page, 'Start month', 'January');
-    await chooseDropdownOption(page, 'Start year', '2023');
-    await chooseDropdownOption(page, 'End month', 'December');
-    await chooseDropdownOption(page, 'End year', '2024');
-    await continueButton(page).click();
 
+    await enterContributionPeriod(
+      page,
+      'January',
+      '2023',
+      'December',
+      '2024'
+    );
     await expect(
       page.getByRole('heading', {
-        name: 'A few more details are needed for your estimate',
+        name: 'What was your average gross monthly salary?',
       })
     ).toBeVisible();
-    await page.getByLabel('Less than 36 months').check();
-    await page.getByLabel('Less than 60 months').check();
-    await continueButton(page).click();
-
     await page.getByLabel('Average monthly gross salary (€)').fill('5000');
     await continueButton(page).click();
 
@@ -225,12 +239,14 @@ test.describe('Manual VBL calculator', () => {
     await continueButton(page).click();
     await chooseDropdownOption(page, 'Company pension', 'VddB');
     await continueButton(page).click();
-    await chooseDropdownOption(page, 'Start month', 'January');
-    await chooseDropdownOption(page, 'Start year', '2020');
-    await chooseDropdownOption(page, 'End month', 'December');
-    await chooseDropdownOption(page, 'End year', '2023');
-    await continueButton(page).click();
 
+    await enterContributionPeriod(
+      page,
+      'January',
+      '2017',
+      'December',
+      '2019'
+    );
     await page.getByLabel('36 months or more').check();
     await page.getByLabel('Less than 60 months').check();
     await continueButton(page).click();
@@ -242,6 +258,64 @@ test.describe('Manual VBL calculator', () => {
     ).toBeVisible();
     await expect(
       page.getByRole('button', { name: 'Return to start' })
+    ).toBeVisible();
+  });
+
+  test('does not show the additional contribution check when VddB/VddKO starts in 2018 or later', async ({
+    page,
+  }) => {
+    await chooseManual(page, 'VddB / VddKO refund');
+
+    await chooseDropdownOption(page, 'Employer’s federal state', 'Bavaria');
+    await continueButton(page).click();
+    await chooseDropdownOption(page, 'Company pension', 'VddB');
+    await continueButton(page).click();
+    await enterContributionPeriod(
+      page,
+      'January',
+      '2020',
+      'December',
+      '2022'
+    );
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'A few more details are needed for your estimate',
+      })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('heading', {
+        name: 'This refund cannot currently be claimed with CompanyPension',
+      })
+    ).toBeVisible();
+  });
+
+  test('blocks contribution periods shorter than 12 months before collecting salary', async ({
+    page,
+  }) => {
+    await chooseManual(page, 'VBL / ZVK refund');
+
+    await chooseDropdownOption(page, 'Employer’s federal state', 'Bavaria');
+    await continueButton(page).click();
+    await chooseDropdownOption(page, 'Company pension', 'VBL');
+    await continueButton(page).click();
+    await enterContributionPeriod(
+      page,
+      'January',
+      '2024',
+      'November',
+      '2024'
+    );
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'What was your average gross monthly salary?',
+      })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('heading', {
+        name: 'This refund cannot currently be claimed with CompanyPension',
+      })
     ).toBeVisible();
   });
 });
