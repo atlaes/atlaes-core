@@ -23,11 +23,13 @@ type PensionType = 'public' | 'stage' | '';
 type EntryMethod = 'manual' | 'upload' | '';
 type PublicProvider = 'VBL' | 'ZVK' | '';
 type StageProvider = 'VddB' | 'VddKO' | '';
+type VBLPlan = 'VBLklassik' | 'VBLextra' | '';
 type Threshold36 = 'less_than_36' | '36_or_more' | '';
 type Threshold60 = 'less_than_60' | '60_or_more' | '';
 type CalculatorScreen =
   | 'pension-type'
   | 'entry-method'
+  | 'upload-review'
   | 'federal-state'
   | 'provider'
   | 'period'
@@ -42,6 +44,7 @@ interface ManualFormData {
   federalState: string;
   publicProvider: PublicProvider;
   stageProvider: StageProvider;
+  vblPlan: VBLPlan;
   startMonth: string;
   startYear: string;
   endMonth: string;
@@ -94,6 +97,8 @@ const FEDERAL_STATES = [
   'Thuringia',
 ];
 
+const UPLOAD_FEDERAL_STATES = ['Berlin', ...FEDERAL_STATES];
+
 const YEARS = Array.from(
   { length: new Date().getFullYear() - 2004 + 1 },
   (_, index) => String(2004 + index)
@@ -105,6 +110,7 @@ const INITIAL_FORM_DATA: ManualFormData = {
   federalState: '',
   publicProvider: '',
   stageProvider: '',
+  vblPlan: '',
   startMonth: '',
   startYear: '',
   endMonth: '',
@@ -168,6 +174,14 @@ const getNextScreenAfterPeriod = (form: ManualFormData): CalculatorScreen => {
 const getSelectedProvider = (form: ManualFormData) =>
   form.pensionType === 'stage' ? form.stageProvider : form.publicProvider;
 
+const getSupplementaryPensions = (form: ManualFormData) => {
+  const provider = getSelectedProvider(form);
+  if (form.pensionType === 'public' && provider === 'VBL' && form.vblPlan) {
+    return form.vblPlan === 'VBLklassik' ? ['VBL'] : [form.vblPlan];
+  }
+  return provider ? [provider] : [];
+};
+
 const getEstimateTitle = (pensionType: PensionType) =>
   pensionType === 'stage'
     ? 'Your estimated VddB/VddKO refund'
@@ -192,6 +206,7 @@ const formatAmount = (amount: number) =>
 
 const buildJob = (form: ManualFormData) => {
   const provider = getSelectedProvider(form);
+  const supplementaryPensions = getSupplementaryPensions(form);
 
   return {
     startMonth: form.startMonth,
@@ -202,7 +217,7 @@ const buildJob = (form: ManualFormData) => {
     averageMonthlyGrossSalary: form.averageMonthlyGrossSalary,
     germanFederalState: form.federalState,
     companyPension: provider,
-    supplementaryPensions: provider ? [provider] : [],
+    supplementaryPensions,
     customPensionName: '',
     statutoryPensionRefunded: '',
     privateStatementChoice: '',
@@ -217,7 +232,7 @@ const buildCalculatePayload = (form: ManualFormData) => ({
   jobs: [
     {
       employmentType: getEmploymentType(form),
-      supplementaryPensions: [getSelectedProvider(form)],
+      supplementaryPensions: getSupplementaryPensions(form),
       startDate: `${form.startYear}-${monthToNumber(form.startMonth)}`,
       endDate: `${form.endYear}-${monthToNumber(form.endMonth)}`,
       averageMonthlyGrossSalary: form.averageMonthlyGrossSalary,
@@ -276,6 +291,7 @@ interface SelectFieldProps {
   onChange: (value: string) => void;
   options: string[];
   placeholder: string;
+  error?: string;
 }
 
 const SelectField: React.FC<SelectFieldProps> = ({
@@ -284,6 +300,7 @@ const SelectField: React.FC<SelectFieldProps> = ({
   onChange,
   options,
   placeholder,
+  error,
 }) => {
   const [isOpen, setIsOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement>(null);
@@ -330,7 +347,11 @@ const SelectField: React.FC<SelectFieldProps> = ({
         aria-controls={listboxId}
         aria-labelledby={`${labelId} ${valueId}`}
         onClick={() => setIsOpen((open) => !open)}
-        className="flex h-12 w-full items-center justify-between rounded-lg border border-[#D7DCE8] bg-white px-4 text-left text-gray-900 shadow-sm outline-none transition focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/25"
+        className={`flex h-12 w-full items-center justify-between rounded-lg border bg-white px-4 text-left text-gray-900 shadow-sm outline-none transition ${
+          error
+            ? 'border-[#B91C0B] focus:border-[#B91C0B] focus:ring-2 focus:ring-[#B91C0B]/20'
+            : 'border-[#D7DCE8] focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/25'
+        }`}
       >
         <span
           id={valueId}
@@ -372,6 +393,12 @@ const SelectField: React.FC<SelectFieldProps> = ({
           ))}
         </div>
       )}
+      {error && (
+        <p className="mt-2 flex items-center gap-2 text-xs font-medium text-[#B91C0B]">
+          <Info className="h-4 w-4" />
+          {error}
+        </p>
+      )}
     </div>
   );
 };
@@ -400,6 +427,25 @@ const RadioRow: React.FC<RadioRowProps> = ({ name, label, checked, onChange }) =
     />
     {label}
   </label>
+);
+
+const PlanChip: React.FC<{
+  label: VBLPlan;
+  selected: boolean;
+  onClick: () => void;
+}> = ({ label, selected, onClick }) => (
+  <button
+    type="button"
+    aria-pressed={selected}
+    onClick={onClick}
+    className={`h-10 rounded-lg border px-4 text-sm font-semibold transition ${
+      selected
+        ? 'border-[#163300] bg-[#9FE870] text-[#163300]'
+        : 'border-[#D7DCE8] bg-[#EEF1EE] text-[#163300] hover:border-[#9FE870]'
+    }`}
+  >
+    {label}
+  </button>
 );
 
 interface FormShellProps {
@@ -575,6 +621,26 @@ export const ManualVBLCalculator: React.FC = () => {
     setIsCalculating(false);
   };
 
+  const showUploadReview = () => {
+    setForm((previous) => ({
+      ...previous,
+      entryMethod: 'upload',
+      federalState: previous.federalState || 'Berlin',
+      publicProvider:
+        previous.pensionType === 'public'
+          ? previous.publicProvider || 'VBL'
+          : previous.publicProvider,
+      stageProvider:
+        previous.pensionType === 'stage'
+          ? previous.stageProvider || 'VddB'
+          : previous.stageProvider,
+      vblPlan:
+        previous.pensionType === 'public' ? previous.vblPlan || 'VBLextra' : '',
+      averageMonthlyGrossSalary: previous.averageMonthlyGrossSalary || '3500',
+    }));
+    setScreen('upload-review');
+  };
+
   const isThresholdBlocked =
     form.pensionType === 'stage' &&
     (form.post2018Months === '36_or_more' ||
@@ -582,12 +648,15 @@ export const ManualVBLCalculator: React.FC = () => {
 
   const goBack = () => {
     if (screen === 'entry-method') setScreen('pension-type');
+    else if (screen === 'upload-review') setScreen('entry-method');
     else if (screen === 'federal-state') setScreen('entry-method');
     else if (screen === 'provider') setScreen('federal-state');
     else if (screen === 'period') setScreen('provider');
     else if (screen === 'thresholds') setScreen('period');
     else if (screen === 'salary') {
-      setScreen(shouldShowAdditionalContributionCheck(form) ? 'thresholds' : 'period');
+      setScreen(
+        shouldShowAdditionalContributionCheck(form) ? 'thresholds' : 'period'
+      );
     } else if (screen === 'blocked') {
       setScreen('thresholds');
     }
@@ -627,8 +696,20 @@ export const ManualVBLCalculator: React.FC = () => {
   const handleContinue = () => {
     if (screen === 'pension-type') {
       setScreen('entry-method');
-    } else if (screen === 'entry-method') setScreen('federal-state');
-    else if (screen === 'federal-state') setScreen('provider');
+    } else if (screen === 'entry-method') {
+      if (form.entryMethod === 'upload') {
+        showUploadReview();
+      } else {
+        setScreen('federal-state');
+      }
+    } else if (screen === 'upload-review') {
+      const nextScreen = getNextScreenAfterPeriod(form);
+      if (nextScreen === 'salary') {
+        void calculateEstimate();
+      } else {
+        setScreen(nextScreen);
+      }
+    } else if (screen === 'federal-state') setScreen('provider');
     else if (screen === 'provider') setScreen('period');
     else if (screen === 'period') {
       setScreen(getNextScreenAfterPeriod(form));
@@ -690,7 +771,12 @@ export const ManualVBLCalculator: React.FC = () => {
 
   const canContinue =
     (screen === 'pension-type' && form.pensionType !== '') ||
-    (screen === 'entry-method' && form.entryMethod === 'manual') ||
+    (screen === 'entry-method' && form.entryMethod !== '') ||
+    (screen === 'upload-review' &&
+      getSelectedProvider(form) !== '' &&
+      form.federalState !== '' &&
+      isDateRangeValid(form) &&
+      form.averageMonthlyGrossSalary !== '') ||
     (screen === 'federal-state' && form.federalState !== '') ||
     (screen === 'provider' && getSelectedProvider(form) !== '') ||
     (screen === 'period' && isDateRangeValid(form)) ||
@@ -734,8 +820,10 @@ export const ManualVBLCalculator: React.FC = () => {
                     onClick={() =>
                       updateForm({
                         pensionType: 'public',
+                        entryMethod: '',
                         publicProvider: '',
                         stageProvider: '',
+                        vblPlan: '',
                       })
                     }
                   />
@@ -747,8 +835,10 @@ export const ManualVBLCalculator: React.FC = () => {
                     onClick={() =>
                       updateForm({
                         pensionType: 'stage',
+                        entryMethod: '',
                         publicProvider: '',
                         stageProvider: '',
+                        vblPlan: '',
                       })
                     }
                   />
@@ -770,7 +860,20 @@ export const ManualVBLCalculator: React.FC = () => {
                     icon={<Pencil className="h-8 w-8 text-gray-500" />}
                     title="Enter details manually"
                     description="Continue without upload and enter the details yourself."
-                    onClick={() => updateForm({ entryMethod: 'manual' })}
+                    onClick={() =>
+                      updateForm({
+                        entryMethod: 'manual',
+                        federalState: '',
+                        publicProvider: '',
+                        stageProvider: '',
+                        vblPlan: '',
+                        startMonth: '',
+                        startYear: '',
+                        endMonth: '',
+                        endYear: '',
+                        averageMonthlyGrossSalary: '',
+                      })
+                    }
                   />
                   <CardButton
                     selected={form.entryMethod === 'upload'}
@@ -778,7 +881,6 @@ export const ManualVBLCalculator: React.FC = () => {
                     title="Upload document"
                     description="Use your pension document to pre-fill details for the estimate."
                     onClick={() => updateForm({ entryMethod: 'upload' })}
-                    disabled
                   />
                   <div className="flex items-start gap-2 px-1 text-center text-sm leading-5 text-gray-600">
                     <Info className="mt-0.5 h-4 w-4 shrink-0" />
@@ -787,6 +889,143 @@ export const ManualVBLCalculator: React.FC = () => {
                       are not needed for this check. If you continue with a
                       refund request, the document can be carried into your
                       secure claim.
+                    </p>
+                  </div>
+                </div>
+              </FormShell>
+            )}
+
+            {screen === 'upload-review' && (
+              <FormShell
+                title="We found these details in your document"
+                subtitle="Please check and correct anything that is missing or incorrect."
+                canContinue={canContinue}
+                onBack={goBack}
+                onContinue={handleContinue}
+              >
+                <div className="space-y-5 text-left">
+                  <SelectField
+                    label="Company pension provider"
+                    value={getSelectedProvider(form)}
+                    onChange={(value) => {
+                      if (form.pensionType === 'stage') {
+                        updateForm({ stageProvider: value as StageProvider });
+                        return;
+                      }
+
+                      const publicProvider = value as PublicProvider;
+                      updateForm({
+                        publicProvider,
+                        vblPlan:
+                          publicProvider === 'VBL'
+                            ? form.vblPlan || 'VBLklassik'
+                            : '',
+                      });
+                    }}
+                    options={
+                      form.pensionType === 'stage'
+                        ? ['VddB', 'VddKO']
+                        : ['VBL', 'ZVK']
+                    }
+                    placeholder="Select company pension provider"
+                  />
+
+                  {form.pensionType === 'public' &&
+                    form.publicProvider === 'VBL' && (
+                      <div>
+                        <p className="mb-3 text-sm font-medium text-gray-800">
+                          VBL plan
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                          <PlanChip
+                            label="VBLklassik"
+                            selected={form.vblPlan === 'VBLklassik'}
+                            onClick={() => updateForm({ vblPlan: 'VBLklassik' })}
+                          />
+                          <PlanChip
+                            label="VBLextra"
+                            selected={form.vblPlan === 'VBLextra'}
+                            onClick={() => updateForm({ vblPlan: 'VBLextra' })}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                  <SelectField
+                    label="German federal state"
+                    value={form.federalState}
+                    onChange={(value) => updateForm({ federalState: value })}
+                    options={UPLOAD_FEDERAL_STATES}
+                    placeholder="Select federal state"
+                  />
+
+                  <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
+                    <SelectField
+                      label="Start month"
+                      value={form.startMonth}
+                      onChange={(value) => updateForm({ startMonth: value })}
+                      options={MONTHS}
+                      placeholder="Select start month"
+                      error={!form.startMonth ? 'Missing details' : undefined}
+                    />
+                    <SelectField
+                      label="Start year"
+                      value={form.startYear}
+                      onChange={(value) => updateForm({ startYear: value })}
+                      options={YEARS}
+                      placeholder="Select start year"
+                      error={!form.startYear ? 'Missing details' : undefined}
+                    />
+                    <SelectField
+                      label="End month"
+                      value={form.endMonth}
+                      onChange={(value) => updateForm({ endMonth: value })}
+                      options={MONTHS}
+                      placeholder="Select end month"
+                      error={!form.endMonth ? 'Missing details' : undefined}
+                    />
+                    <SelectField
+                      label="End year"
+                      value={form.endYear}
+                      onChange={(value) => updateForm({ endYear: value })}
+                      options={YEARS}
+                      placeholder="Select end year"
+                      error={!form.endYear ? 'Missing details' : undefined}
+                    />
+                  </div>
+
+                  {hasDateRange(form) && !isDateRangeValid(form) && (
+                    <p className="rounded-md bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                      End date cannot be earlier than start date.
+                    </p>
+                  )}
+
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-medium text-gray-800">
+                      Average monthly gross salary (€)
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={form.averageMonthlyGrossSalary}
+                      onChange={(event) =>
+                        updateForm({
+                          averageMonthlyGrossSalary:
+                            event.target.value.replace(/[^0-9]/g, ''),
+                        })
+                      }
+                      placeholder="E.g., 3500"
+                      className="h-12 w-full rounded-lg border border-[#D7DCE8] px-4 text-gray-900 shadow-sm outline-none transition focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/25"
+                    />
+                  </label>
+
+                  <div className="flex items-start gap-2 px-1 text-sm leading-5 text-gray-600">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                    <p>
+                      These details are used only to calculate your estimate. If
+                      you continue with a refund request, they can be carried
+                      into your secure claim.
                     </p>
                   </div>
                 </div>
@@ -836,7 +1075,10 @@ export const ManualVBLCalculator: React.FC = () => {
                   onChange={(value) =>
                     form.pensionType === 'stage'
                       ? updateForm({ stageProvider: value as StageProvider })
-                      : updateForm({ publicProvider: value as PublicProvider })
+                      : updateForm({
+                          publicProvider: value as PublicProvider,
+                          vblPlan: '',
+                        })
                   }
                   options={
                     form.pensionType === 'stage'

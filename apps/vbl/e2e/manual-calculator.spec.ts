@@ -68,6 +68,24 @@ async function chooseManual(page: Page, pensionName: string) {
   await continueButton(page).click();
 }
 
+async function chooseUpload(page: Page, pensionName: string) {
+  await page.goto('/calculator');
+  await expect(
+    page.getByRole('heading', { name: 'What refund do you want to estimate?' })
+  ).toBeVisible();
+
+  await page.getByRole('button', { name: pensionName }).click();
+  await continueButton(page).click();
+
+  await expect(
+    page.getByRole('heading', {
+      name: 'Upload a pension document or enter details manually',
+    })
+  ).toBeVisible();
+  await page.getByRole('button', { name: /Upload document/ }).click();
+  await continueButton(page).click();
+}
+
 async function enterContributionPeriod(
   page: Page,
   startMonth: string,
@@ -317,5 +335,62 @@ test.describe('Manual VBL calculator', () => {
         name: 'This refund cannot currently be claimed with CompanyPension',
       })
     ).toBeVisible();
+  });
+
+  test('reviews uploaded VBL extraction details before calculating an estimate', async ({
+    page,
+  }) => {
+    const api = await mockCalculation(page, 7500);
+
+    await chooseUpload(page, 'VBL / ZVK refund');
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'We found these details in your document',
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'Please check and correct anything that is missing or incorrect.'
+      )
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /Company pension provider VBL/ })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /German federal state Berlin/ })
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'VBLklassik' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'VBLextra' })).toBeVisible();
+    await expect(
+      page.getByLabel('Average monthly gross salary (€)')
+    ).toHaveValue('3500');
+    await expect(page.getByText('Missing details')).toHaveCount(4);
+    await expect(continueButton(page)).toBeDisabled();
+
+    await page.getByRole('button', { name: 'VBLklassik' }).click();
+    await chooseDropdownOption(page, 'Start month', 'January');
+    await chooseDropdownOption(page, 'Start year', '2020');
+    await chooseDropdownOption(page, 'End month', 'December');
+    await chooseDropdownOption(page, 'End year', '2021');
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Your estimated VBL/ZVK refund' })
+    ).toBeVisible();
+    await expect(page.getByText('€ 7,500')).toBeVisible();
+    expect(api.getPayload()).toEqual({
+      jobs: [
+        {
+          employmentType: 'Public sector',
+          supplementaryPensions: ['VBL'],
+          startDate: '2020-01',
+          endDate: '2021-12',
+          averageMonthlyGrossSalary: '3500',
+          germanFederalState: 'Berlin',
+        },
+      ],
+      userType: 'insured_person',
+    });
   });
 });
