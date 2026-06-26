@@ -8,8 +8,10 @@ import {
   Building2,
   Check,
   ChevronDown,
+  FileText,
   Info,
   Landmark,
+  Loader2,
   MessageCircle,
   Pencil,
   Upload,
@@ -17,6 +19,11 @@ import {
 } from 'lucide-react';
 import apiClient from '../../lib/api';
 import { createPendingCalculatorSession } from '../../lib/vbl-pending-calculator-sessions-api';
+import {
+  extractPensionDocument,
+  PensionDocumentExtractionDetails,
+  PensionDocumentType,
+} from '../../lib/vbl-pension-document-extraction-api';
 import { CompanyPensionLogo } from './icons/CompanyPensionLogo';
 
 type PensionType = 'public' | 'stage' | '';
@@ -134,16 +141,14 @@ const hasDateRange = (form: ManualFormData) =>
 
 const isDateRangeValid = (form: ManualFormData) => {
   if (!hasDateRange(form)) return false;
-  const start =
-    Number(form.startYear) * 12 + MONTHS.indexOf(form.startMonth);
+  const start = Number(form.startYear) * 12 + MONTHS.indexOf(form.startMonth);
   const end = Number(form.endYear) * 12 + MONTHS.indexOf(form.endMonth);
   return end >= start;
 };
 
 const getContributionMonthCount = (form: ManualFormData) => {
   if (!isDateRangeValid(form)) return 0;
-  const start =
-    Number(form.startYear) * 12 + MONTHS.indexOf(form.startMonth);
+  const start = Number(form.startYear) * 12 + MONTHS.indexOf(form.startMonth);
   const end = Number(form.endYear) * 12 + MONTHS.indexOf(form.endMonth);
   return end - start + 1;
 };
@@ -188,13 +193,13 @@ const getEstimateTitle = (pensionType: PensionType) =>
     : 'Your estimated VBL/ZVK refund';
 
 const getStartClaimLabel = (pensionType: PensionType) =>
-  pensionType === 'stage'
-    ? 'Start VddB/VddKO refund'
-    : 'Start VBL/ZVK refund';
+  pensionType === 'stage' ? 'Start VddB/VddKO refund' : 'Start VBL/ZVK refund';
 
 const getEmploymentType = (form: ManualFormData) => {
   if (form.pensionType === 'stage') {
-    return form.stageProvider === 'VddKO' ? 'Orchestra' : 'Stage / Performing Arts';
+    return form.stageProvider === 'VddKO'
+      ? 'Orchestra'
+      : 'Stage / Performing Arts';
   }
   return 'Public sector';
 };
@@ -241,6 +246,65 @@ const buildCalculatePayload = (form: ManualFormData) => ({
   ],
   userType: 'insured_person',
 });
+
+const formatFileSize = (size: number): string => {
+  if (size < 1024 * 1024) {
+    return `${Math.max(1, Math.round(size / 1024))} KB`;
+  }
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const getCalculatorDocumentType = (
+  pensionType: PensionType
+): PensionDocumentType => (pensionType === 'stage' ? 'vddb_vddko' : 'vbl_zvk');
+
+const isPublicProvider = (
+  provider: string | null
+): provider is PublicProvider => provider === 'VBL' || provider === 'ZVK';
+
+const isStageProvider = (provider: string | null): provider is StageProvider =>
+  provider === 'VddB' || provider === 'VddKO';
+
+const mapExtractionToForm = (
+  details: PensionDocumentExtractionDetails,
+  currentForm: ManualFormData
+): Partial<ManualFormData> => {
+  const updates: Partial<ManualFormData> = {
+    entryMethod: 'upload',
+    federalState: details.federalState || currentForm.federalState,
+    startMonth: details.startMonth || currentForm.startMonth,
+    startYear: details.startYear || currentForm.startYear,
+    endMonth: details.endMonth || currentForm.endMonth,
+    endYear: details.endYear || currentForm.endYear,
+    averageMonthlyGrossSalary:
+      details.averageMonthlyGrossSalary ||
+      currentForm.averageMonthlyGrossSalary,
+  };
+
+  if (currentForm.pensionType === 'stage') {
+    const stageProvider = isStageProvider(details.provider)
+      ? details.provider
+      : currentForm.stageProvider;
+    return {
+      ...updates,
+      stageProvider,
+      publicProvider: currentForm.publicProvider,
+      vblPlan: '',
+    };
+  }
+
+  const publicProvider = isPublicProvider(details.provider)
+    ? details.provider
+    : currentForm.publicProvider;
+
+  return {
+    ...updates,
+    publicProvider,
+    stageProvider: currentForm.stageProvider,
+    vblPlan:
+      publicProvider === 'VBL' ? details.vblPlan || currentForm.vblPlan : '',
+  };
+};
 
 interface CardButtonProps {
   selected: boolean;
@@ -410,7 +474,12 @@ interface RadioRowProps {
   onChange: () => void;
 }
 
-const RadioRow: React.FC<RadioRowProps> = ({ name, label, checked, onChange }) => (
+const RadioRow: React.FC<RadioRowProps> = ({
+  name,
+  label,
+  checked,
+  onChange,
+}) => (
   <label
     className={`flex h-10 cursor-pointer items-center gap-3 rounded-md border px-5 text-sm font-medium transition ${
       checked
@@ -548,7 +617,9 @@ const SidebarStep: React.FC<{
   </div>
 );
 
-const CalculatorSidebar: React.FC<{ screen: CalculatorScreen }> = ({ screen }) => {
+const CalculatorSidebar: React.FC<{ screen: CalculatorScreen }> = ({
+  screen,
+}) => {
   const activeSection = getCurrentSection(screen);
   const steps = [
     {
@@ -589,7 +660,9 @@ const CalculatorSidebar: React.FC<{ screen: CalculatorScreen }> = ({ screen }) =
       <div className="mt-auto flex items-center gap-3">
         <div className="flex-1">
           <p className="font-bold text-white">Need help?</p>
-          <p className="text-sm text-white/80">Our assistant is here for you.</p>
+          <p className="text-sm text-white/80">
+            Our assistant is here for you.
+          </p>
         </div>
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white">
           <MessageCircle className="h-5 w-5 text-[#9FE870]" aria-hidden />
@@ -601,13 +674,17 @@ const CalculatorSidebar: React.FC<{ screen: CalculatorScreen }> = ({ screen }) =
 
 export const ManualVBLCalculator: React.FC = () => {
   const router = useRouter();
+  const uploadInputRef = React.useRef<HTMLInputElement>(null);
   const [screen, setScreen] = React.useState<CalculatorScreen>('pension-type');
   const [form, setForm] = React.useState<ManualFormData>(INITIAL_FORM_DATA);
-  const [calculation, setCalculation] = React.useState<CalculationResult | null>(
-    null
-  );
+  const [calculation, setCalculation] =
+    React.useState<CalculationResult | null>(null);
   const [isCalculating, setIsCalculating] = React.useState(false);
+  const [isExtracting, setIsExtracting] = React.useState(false);
   const [error, setError] = React.useState('');
+  const [extractionError, setExtractionError] = React.useState('');
+  const [selectedUploadFile, setSelectedUploadFile] =
+    React.useState<File | null>(null);
   const [showUnlistedStateInfo, setShowUnlistedStateInfo] =
     React.useState(false);
 
@@ -620,28 +697,58 @@ export const ManualVBLCalculator: React.FC = () => {
     setForm(INITIAL_FORM_DATA);
     setCalculation(null);
     setError('');
+    setExtractionError('');
     setIsCalculating(false);
+    setIsExtracting(false);
+    setSelectedUploadFile(null);
     setShowUnlistedStateInfo(false);
   };
 
-  const showUploadReview = () => {
+  const showUploadReview = (details: PensionDocumentExtractionDetails) => {
     setForm((previous) => ({
       ...previous,
-      entryMethod: 'upload',
-      federalState: previous.federalState || 'Berlin',
-      publicProvider:
-        previous.pensionType === 'public'
-          ? previous.publicProvider || 'VBL'
-          : previous.publicProvider,
-      stageProvider:
-        previous.pensionType === 'stage'
-          ? previous.stageProvider || 'VddB'
-          : previous.stageProvider,
-      vblPlan:
-        previous.pensionType === 'public' ? previous.vblPlan || 'VBLextra' : '',
-      averageMonthlyGrossSalary: previous.averageMonthlyGrossSalary || '3500',
+      ...mapExtractionToForm(details, previous),
     }));
     setScreen('upload-review');
+  };
+
+  const handleUploadFileChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setSelectedUploadFile(file);
+    setExtractionError('');
+    updateForm({ entryMethod: 'upload' });
+  };
+
+  const extractSelectedUpload = async () => {
+    if (isExtracting) return;
+
+    if (!selectedUploadFile) {
+      uploadInputRef.current?.click();
+      return;
+    }
+
+    setIsExtracting(true);
+    setExtractionError('');
+
+    try {
+      const extraction = await extractPensionDocument(
+        selectedUploadFile,
+        getCalculatorDocumentType(form.pensionType)
+      );
+      showUploadReview(extraction.details);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Pension document extraction failed';
+      setExtractionError(message);
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
   const isThresholdBlocked =
@@ -676,7 +783,9 @@ export const ManualVBLCalculator: React.FC = () => {
         '/vbl/calculate-simple',
         buildCalculatePayload(form)
       );
-      const result = response.data?.calculation as CalculationResult | undefined;
+      const result = response.data?.calculation as
+        | CalculationResult
+        | undefined;
       if (!response.data?.success || !result) {
         throw new Error(response.data?.details || 'Calculation failed');
       }
@@ -701,7 +810,7 @@ export const ManualVBLCalculator: React.FC = () => {
       setScreen('entry-method');
     } else if (screen === 'entry-method') {
       if (form.entryMethod === 'upload') {
-        showUploadReview();
+        void extractSelectedUpload();
       } else {
         setScreen('federal-state');
       }
@@ -820,30 +929,34 @@ export const ManualVBLCalculator: React.FC = () => {
                     icon={<Building2 className="h-8 w-8 text-gray-700" />}
                     title="VBL / ZVK refund"
                     description="Estimate your possible public-sector company pension refund."
-                    onClick={() =>
+                    onClick={() => {
+                      setSelectedUploadFile(null);
+                      setExtractionError('');
                       updateForm({
                         pensionType: 'public',
                         entryMethod: '',
                         publicProvider: '',
                         stageProvider: '',
                         vblPlan: '',
-                      })
-                    }
+                      });
+                    }}
                   />
                   <CardButton
                     selected={form.pensionType === 'stage'}
                     icon={<Landmark className="h-8 w-8 text-gray-700" />}
                     title="VddB / VddKO refund"
                     description="Estimate your possible stage or orchestra pension refund."
-                    onClick={() =>
+                    onClick={() => {
+                      setSelectedUploadFile(null);
+                      setExtractionError('');
                       updateForm({
                         pensionType: 'stage',
                         entryMethod: '',
                         publicProvider: '',
                         stageProvider: '',
                         vblPlan: '',
-                      })
-                    }
+                      });
+                    }}
                   />
                 </div>
               </FormShell>
@@ -853,9 +966,10 @@ export const ManualVBLCalculator: React.FC = () => {
               <FormShell
                 title="Upload a pension document or enter details manually"
                 subtitle="Upload your pension statement for a faster estimate, or answer a few questions yourself."
-                canContinue={canContinue}
+                canContinue={canContinue && !isExtracting}
                 onBack={goBack}
                 onContinue={handleContinue}
+                continueText={isExtracting ? 'Reading document' : 'Continue'}
               >
                 <div className="space-y-4">
                   <CardButton
@@ -863,7 +977,9 @@ export const ManualVBLCalculator: React.FC = () => {
                     icon={<Pencil className="h-8 w-8 text-gray-500" />}
                     title="Enter details manually"
                     description="Continue without upload and enter the details yourself."
-                    onClick={() =>
+                    onClick={() => {
+                      setSelectedUploadFile(null);
+                      setExtractionError('');
                       updateForm({
                         entryMethod: 'manual',
                         federalState: '',
@@ -875,21 +991,56 @@ export const ManualVBLCalculator: React.FC = () => {
                         endMonth: '',
                         endYear: '',
                         averageMonthlyGrossSalary: '',
-                      })
-                    }
+                      });
+                    }}
                   />
                   <CardButton
                     selected={form.entryMethod === 'upload'}
-                    icon={<Upload className="h-8 w-8 text-gray-400" />}
+                    icon={
+                      isExtracting ? (
+                        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+                      ) : (
+                        <Upload className="h-8 w-8 text-gray-400" />
+                      )
+                    }
                     title="Upload document"
                     description="Use your pension document to pre-fill details for the estimate."
-                    onClick={() => updateForm({ entryMethod: 'upload' })}
+                    onClick={() => {
+                      updateForm({ entryMethod: 'upload' });
+                      setExtractionError('');
+                      uploadInputRef.current?.click();
+                    }}
+                    disabled={isExtracting}
                   />
+                  <input
+                    ref={uploadInputRef}
+                    name="pensionDocument"
+                    type="file"
+                    accept="application/pdf,image/*,.pdf,.png,.jpg,.jpeg,.webp"
+                    className="sr-only"
+                    onChange={handleUploadFileChange}
+                  />
+                  {selectedUploadFile && (
+                    <div className="flex items-center gap-2 rounded-lg bg-[#F0FDE4] px-3 py-2 text-sm text-[#163300]">
+                      <FileText className="h-4 w-4" />
+                      <span className="font-medium">
+                        {selectedUploadFile.name}
+                      </span>
+                      <span className="text-[#163300]/60">
+                        {formatFileSize(selectedUploadFile.size)}
+                      </span>
+                    </div>
+                  )}
+                  {extractionError && (
+                    <p className="rounded-md bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                      {extractionError}
+                    </p>
+                  )}
                   <div className="flex items-start gap-2 px-1 text-center text-sm leading-5 text-gray-600">
                     <Info className="mt-0.5 h-4 w-4 shrink-0" />
                     <p>
-                      You can upload only the relevant page and hide details that
-                      are not needed for this check. If you continue with a
+                      You can upload only the relevant page and hide details
+                      that are not needed for this check. If you continue with a
                       refund request, the document can be carried into your
                       secure claim.
                     </p>
@@ -943,7 +1094,9 @@ export const ManualVBLCalculator: React.FC = () => {
                           <PlanChip
                             label="VBLklassik"
                             selected={form.vblPlan === 'VBLklassik'}
-                            onClick={() => updateForm({ vblPlan: 'VBLklassik' })}
+                            onClick={() =>
+                              updateForm({ vblPlan: 'VBLklassik' })
+                            }
                           />
                           <PlanChip
                             label="VBLextra"
@@ -1014,8 +1167,10 @@ export const ManualVBLCalculator: React.FC = () => {
                       value={form.averageMonthlyGrossSalary}
                       onChange={(event) =>
                         updateForm({
-                          averageMonthlyGrossSalary:
-                            event.target.value.replace(/[^0-9]/g, ''),
+                          averageMonthlyGrossSalary: event.target.value.replace(
+                            /[^0-9]/g,
+                            ''
+                          ),
                         })
                       }
                       placeholder="E.g., 3500"

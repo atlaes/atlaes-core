@@ -50,6 +50,47 @@ async function mockCalculation(page: Page, amount = 12000) {
   };
 }
 
+async function mockExtraction(page: Page) {
+  await page.route('**/api/vbl/extract-pension-document', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        extraction: {
+          details: {
+            provider: 'VBL',
+            vblPlan: 'VBLklassik',
+            federalState: 'Berlin',
+            startMonth: 'January',
+            startYear: '2020',
+            endMonth: 'December',
+            endYear: '2021',
+            employmentEndMonth: 'December',
+            employmentEndYear: '2021',
+            averageMonthlyGrossSalary: '3500',
+            statePensionRefundReceived: null,
+            bavStatementValueType: null,
+            bavStatementAmount: null,
+          },
+          confidence: {
+            provider: 0.95,
+            vblPlan: 0.91,
+            federalState: 0.86,
+            dates: 0.9,
+            employmentEndDate: 0.8,
+            salary: 0.78,
+            statePensionRefund: 0,
+            bavStatementValue: 0,
+          },
+          missingFields: [],
+          model: 'mistral-ocr-latest+mistral-large-latest',
+        },
+      }),
+    });
+  });
+}
+
 async function chooseManual(page: Page, pensionName: string) {
   await page.goto('/calculator');
   await expect(
@@ -82,7 +123,15 @@ async function chooseUpload(page: Page, pensionName: string) {
       name: 'Upload a pension document or enter details manually',
     })
   ).toBeVisible();
+  const fileChooserPromise = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: /Upload document/ }).click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles({
+    name: 'vbl-statement.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from('%PDF test'),
+  });
+  await expect(page.getByText('vbl-statement.pdf')).toBeVisible();
   await continueButton(page).click();
 }
 
@@ -107,7 +156,9 @@ test.describe('Manual VBL calculator', () => {
     await page.goto('/calculator');
 
     await expect(
-      page.getByRole('heading', { name: 'What refund do you want to estimate?' })
+      page.getByRole('heading', {
+        name: 'What refund do you want to estimate?',
+      })
     ).toBeVisible();
     await expect(
       page.getByText('Estimate your possible VBL, ZVK, VddB or VddKO refund.')
@@ -164,7 +215,9 @@ test.describe('Manual VBL calculator', () => {
         'CompanyPension currently checks VBL West contribution refunds. If your contributions were paid only while working in a state that is not listed, this refund cannot currently continue through the online calculator.'
       )
     ).toBeVisible();
-    await page.getByRole('button', { name: /Employer’s federal state/ }).click();
+    await page
+      .getByRole('button', { name: /Employer’s federal state/ })
+      .click();
     await expect(page.getByRole('option', { name: 'Bavaria' })).toBeVisible();
     await page.getByRole('option', { name: 'Bavaria' }).click();
     await continueButton(page).click();
@@ -178,13 +231,7 @@ test.describe('Manual VBL calculator', () => {
     await expect(
       page.getByRole('heading', { name: 'When did you pay into this pension?' })
     ).toBeVisible();
-    await enterContributionPeriod(
-      page,
-      'January',
-      '2020',
-      'December',
-      '2021'
-    );
+    await enterContributionPeriod(page, 'January', '2020', 'December', '2021');
 
     await expect(
       page.getByRole('heading', {
@@ -229,13 +276,7 @@ test.describe('Manual VBL calculator', () => {
     await chooseDropdownOption(page, 'Company pension', 'VddKO');
     await continueButton(page).click();
 
-    await enterContributionPeriod(
-      page,
-      'January',
-      '2023',
-      'December',
-      '2024'
-    );
+    await enterContributionPeriod(page, 'January', '2023', 'December', '2024');
     await expect(
       page.getByRole('heading', {
         name: 'What was your average gross monthly salary?',
@@ -277,13 +318,7 @@ test.describe('Manual VBL calculator', () => {
     await chooseDropdownOption(page, 'Company pension', 'VddB');
     await continueButton(page).click();
 
-    await enterContributionPeriod(
-      page,
-      'January',
-      '2017',
-      'December',
-      '2019'
-    );
+    await enterContributionPeriod(page, 'January', '2017', 'December', '2019');
     await page.getByLabel('36 months or more').check();
     await page.getByLabel('Less than 60 months').check();
     await continueButton(page).click();
@@ -307,13 +342,7 @@ test.describe('Manual VBL calculator', () => {
     await continueButton(page).click();
     await chooseDropdownOption(page, 'Company pension', 'VddB');
     await continueButton(page).click();
-    await enterContributionPeriod(
-      page,
-      'January',
-      '2020',
-      'December',
-      '2022'
-    );
+    await enterContributionPeriod(page, 'January', '2020', 'December', '2022');
 
     await expect(
       page.getByRole('heading', {
@@ -336,13 +365,7 @@ test.describe('Manual VBL calculator', () => {
     await continueButton(page).click();
     await chooseDropdownOption(page, 'Company pension', 'VBL');
     await continueButton(page).click();
-    await enterContributionPeriod(
-      page,
-      'January',
-      '2024',
-      'November',
-      '2024'
-    );
+    await enterContributionPeriod(page, 'January', '2024', 'November', '2024');
 
     await expect(
       page.getByRole('heading', {
@@ -360,6 +383,7 @@ test.describe('Manual VBL calculator', () => {
     page,
   }) => {
     const api = await mockCalculation(page, 7500);
+    await mockExtraction(page);
 
     await chooseUpload(page, 'VBL / ZVK refund');
 
@@ -379,19 +403,13 @@ test.describe('Manual VBL calculator', () => {
     await expect(
       page.getByRole('button', { name: /German federal state Berlin/ })
     ).toBeVisible();
-    await expect(page.getByRole('button', { name: 'VBLklassik' })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'VBLklassik' })
+    ).toBeVisible();
     await expect(page.getByRole('button', { name: 'VBLextra' })).toBeVisible();
     await expect(
       page.getByLabel('Average monthly gross salary (€)')
     ).toHaveValue('3500');
-    await expect(page.getByText('Missing details')).toHaveCount(4);
-    await expect(continueButton(page)).toBeDisabled();
-
-    await page.getByRole('button', { name: 'VBLklassik' }).click();
-    await chooseDropdownOption(page, 'Start month', 'January');
-    await chooseDropdownOption(page, 'Start year', '2020');
-    await chooseDropdownOption(page, 'End month', 'December');
-    await chooseDropdownOption(page, 'End year', '2021');
     await continueButton(page).click();
 
     await expect(

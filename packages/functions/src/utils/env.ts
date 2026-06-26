@@ -22,16 +22,15 @@ function getDatabaseUrl(): string {
   }
 
   // Fallback to DATABASE_URL env var or default
-  const fallback = process.env.DATABASE_URL || 'postgresql://vbl_user:vbl_password@localhost:5432/vbl_development';
+  const fallback =
+    process.env.DATABASE_URL ||
+    'postgresql://vbl_user:vbl_password@localhost:5432/vbl_development';
   console.log('Using DATABASE_URL from environment or default');
   return fallback;
 }
 
 const envSchema = z.object({
-  DATABASE_URL: z.preprocess(
-    () => getDatabaseUrl(),
-    z.string()
-  ),
+  DATABASE_URL: z.preprocess(() => getDatabaseUrl(), z.string()),
   REDIS_URL: z.string().optional().default('redis://localhost:6379'),
   JWT_SECRET: z
     .string()
@@ -57,6 +56,13 @@ const envSchema = z.object({
   // Stripe
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  // Mistral OCR / extraction
+  MISTRAL_API_KEY: z.string().optional(),
+  MISTRAL_OCR_MODEL: z.string().optional().default('mistral-ocr-latest'),
+  MISTRAL_EXTRACTION_MODEL: z
+    .string()
+    .optional()
+    .default('mistral-large-latest'),
   // Admin token gating the /api/migrations/run endpoint.
   // CI/CD posts this header after each staging deploy. Rotates via SST secret.
   // Local dev keeps a known default; production requires a real value (guarded below).
@@ -73,7 +79,8 @@ export const env = envSchema.parse(process.env);
 // migration token.
 if (
   env.NODE_ENV === 'production' &&
-  env.ADMIN_MIGRATION_TOKEN === 'dev-migration-token-not-for-production-use-only'
+  env.ADMIN_MIGRATION_TOKEN ===
+    'dev-migration-token-not-for-production-use-only'
 ) {
   throw new Error(
     'ADMIN_MIGRATION_TOKEN must be set to a real secret in production (>=32 chars). ' +
