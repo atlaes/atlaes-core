@@ -14,6 +14,12 @@ type CalculatePayload = {
 const continueButton = (page: Page) =>
   page.getByRole('button', { name: 'Continue', exact: true });
 
+async function chooseDropdownOption(page: Page, label: string, option: string) {
+  await page.getByRole('button', { name: new RegExp(label) }).click();
+  await expect(page.getByRole('option', { name: option })).toBeVisible();
+  await page.getByRole('option', { name: option }).click();
+}
+
 async function mockCalculation(page: Page, amount = 12000) {
   let payload: CalculatePayload | null = null;
 
@@ -107,22 +113,24 @@ test.describe('Manual VBL calculator', () => {
       )
     ).toBeVisible();
     await expect(page.getByText('My state is not listed >')).toBeVisible();
-    await page.getByLabel('Employer’s federal state').selectOption('Bavaria');
+    await page.getByRole('button', { name: /Employer’s federal state/ }).click();
+    await expect(page.getByRole('option', { name: 'Bavaria' })).toBeVisible();
+    await page.getByRole('option', { name: 'Bavaria' }).click();
     await continueButton(page).click();
 
     await expect(
       page.getByRole('heading', { name: 'Select your company pension' })
     ).toBeVisible();
-    await page.getByLabel('Company pension').selectOption('VBL');
+    await chooseDropdownOption(page, 'Company pension', 'VBL');
     await continueButton(page).click();
 
     await expect(
       page.getByRole('heading', { name: 'When did you pay into this pension?' })
     ).toBeVisible();
-    await page.getByLabel('Start month').selectOption('January');
-    await page.getByLabel('Start year').selectOption('2020');
-    await page.getByLabel('End month').selectOption('December');
-    await page.getByLabel('End year').selectOption('2021');
+    await chooseDropdownOption(page, 'Start month', 'January');
+    await chooseDropdownOption(page, 'Start year', '2020');
+    await chooseDropdownOption(page, 'End month', 'December');
+    await chooseDropdownOption(page, 'End year', '2021');
     await continueButton(page).click();
 
     await expect(
@@ -163,14 +171,14 @@ test.describe('Manual VBL calculator', () => {
 
     await chooseManual(page, 'VddB / VddKO refund');
 
-    await page.getByLabel('Employer’s federal state').selectOption('Bavaria');
+    await chooseDropdownOption(page, 'Employer’s federal state', 'Bavaria');
     await continueButton(page).click();
-    await page.getByLabel('Company pension').selectOption('VddKO');
+    await chooseDropdownOption(page, 'Company pension', 'VddKO');
     await continueButton(page).click();
-    await page.getByLabel('Start month').selectOption('January');
-    await page.getByLabel('Start year').selectOption('2023');
-    await page.getByLabel('End month').selectOption('December');
-    await page.getByLabel('End year').selectOption('2024');
+    await chooseDropdownOption(page, 'Start month', 'January');
+    await chooseDropdownOption(page, 'Start year', '2023');
+    await chooseDropdownOption(page, 'End month', 'December');
+    await chooseDropdownOption(page, 'End year', '2024');
     await continueButton(page).click();
 
     await expect(
@@ -213,14 +221,14 @@ test.describe('Manual VBL calculator', () => {
   }) => {
     await chooseManual(page, 'VddB / VddKO refund');
 
-    await page.getByLabel('Employer’s federal state').selectOption('Bavaria');
+    await chooseDropdownOption(page, 'Employer’s federal state', 'Bavaria');
     await continueButton(page).click();
-    await page.getByLabel('Company pension').selectOption('VddB');
+    await chooseDropdownOption(page, 'Company pension', 'VddB');
     await continueButton(page).click();
-    await page.getByLabel('Start month').selectOption('January');
-    await page.getByLabel('Start year').selectOption('2020');
-    await page.getByLabel('End month').selectOption('December');
-    await page.getByLabel('End year').selectOption('2023');
+    await chooseDropdownOption(page, 'Start month', 'January');
+    await chooseDropdownOption(page, 'Start year', '2020');
+    await chooseDropdownOption(page, 'End month', 'December');
+    await chooseDropdownOption(page, 'End year', '2023');
     await continueButton(page).click();
 
     await page.getByLabel('36 months or more').check();

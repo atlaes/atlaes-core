@@ -1,9 +1,9 @@
-<svg width="244" height="50" viewBox="0 0 244 50" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">CompanyPension Cash-outs &amp; Refunds</title>
-  <desc id="desc">CompanyPension logo with cash-outs and refunds tagline.</desc>
-  <path d="M25 1.75 46.5 14.2v21.6L25 48.25 3.5 35.8V14.2L25 1.75Z" stroke="#9FE870" stroke-width="5" stroke-linejoin="round"/>
-  <path d="M16.2 18.1 25 13l13.5 7.8v14.3L25 42.9l-13.5-7.8V20.8l4.7-2.7Z" fill="#9FE870"/>
-  <path d="M20.2 23.6 25 20.8l7.7 4.4v5.7L25 35.4l-7.7-4.5v-4.1l2.9-1.7v3.8l4.8 2.8 4.9-2.8v-1.6L25 24.5l-4.8 2.8v-3.7Z" fill="#163300"/>
-  <text x="56" y="24" fill="white" font-family="Inter, Arial, Helvetica, sans-serif" font-size="22" font-weight="800">CompanyPension</text>
-  <text x="56" y="44" fill="#9FE870" font-family="Inter, Arial, Helvetica, sans-serif" font-size="15" font-weight="800">CASH-OUTS &amp; REFUNDS</text>
+<svg width="518" height="143" viewBox="0 0 518 143" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Company Pension Cash-outs &amp; Refunds</title>
+  <desc id="desc">Company Pension logo with cash-outs and refunds tagline.</desc>
+  <path d="M71.5 9.3 130 43.1v56.8l-58.5 33.8L13 99.9V43.1L71.5 9.3Z" fill="#9FE870"/>
+  <path d="M71.5 23.8 116 49.5v44.1L71.5 119.2 27 93.6V49.5L71.5 23.8ZM39 56.4v30.3l32.5 18.8L104 86.7V56.4L71.5 37.7 39 56.4Z" fill="#163300"/>
+  <path d="M58.7 63.2 71.5 55.8 96 70v22.2l-24.5 14.1L47 92.2V70l11.7-6.8v15l12.8-7.4 12.8 7.4v6.6l-12.8 7.4-12.8-7.4V63.2Z" fill="#9FE870"/>
+  <text x="154" y="61" fill="white" font-family="Inter, Arial, Helvetica, sans-serif" font-size="45" font-weight="800" letter-spacing="0">Company Pension</text>
+  <text x="154" y="112" fill="#9FE870" font-family="Inter, Arial, Helvetica, sans-serif" font-size="34" font-weight="800" letter-spacing="0">CASH-OUTS &amp; REFUNDS</text>
 </svg>

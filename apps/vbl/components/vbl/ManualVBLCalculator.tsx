@@ -253,26 +253,97 @@ const SelectField: React.FC<SelectFieldProps> = ({
   onChange,
   options,
   placeholder,
-}) => (
-  <label className="block text-left">
-    <span className="mb-2 block text-sm font-medium text-gray-800">{label}</span>
-    <span className="relative block">
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-12 w-full appearance-none rounded-lg border border-[#D7DCE8] bg-white px-4 pr-11 text-gray-900 shadow-sm outline-none transition focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/25"
+}) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  const labelId = React.useId();
+  const valueId = React.useId();
+  const listboxId = React.useId();
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideClick);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [isOpen]);
+
+  return (
+    <div ref={rootRef} className="relative text-left">
+      <span
+        id={labelId}
+        className="mb-2 block text-sm font-medium text-gray-800"
       >
-        <option value="">{placeholder}</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-500" />
-    </span>
-  </label>
-);
+        {label}
+      </span>
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-controls={listboxId}
+        aria-labelledby={`${labelId} ${valueId}`}
+        onClick={() => setIsOpen((open) => !open)}
+        className="flex h-12 w-full items-center justify-between rounded-lg border border-[#D7DCE8] bg-white px-4 text-left text-gray-900 shadow-sm outline-none transition focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/25"
+      >
+        <span
+          id={valueId}
+          className={value ? 'text-gray-900' : 'text-gray-400'}
+        >
+          {value || placeholder}
+        </span>
+        <ChevronDown
+          className={`h-5 w-5 shrink-0 text-gray-500 transition-transform ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+      {isOpen && (
+        <div
+          id={listboxId}
+          role="listbox"
+          aria-labelledby={labelId}
+          className="absolute z-50 mt-2 max-h-64 w-full overflow-auto rounded-lg border border-[#D7DCE8] bg-white p-1 shadow-lg"
+        >
+          {options.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="option"
+              aria-selected={value === option}
+              onClick={() => {
+                onChange(option);
+                setIsOpen(false);
+              }}
+              className={`flex min-h-11 w-full items-center rounded-md px-4 text-left text-sm transition ${
+                value === option
+                  ? 'bg-[#9FE870] text-[#163300]'
+                  : 'text-gray-700 hover:bg-[#EAF8DF]'
+              }`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface RadioRowProps {
   name: string;
