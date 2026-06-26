@@ -25,7 +25,7 @@
   },
   "states": {
     "WEST": [
-      "Baden-Württemberg", "Bavaria", "Berlin (West)", "Bremen", "Hamburg", "Hesse", "Lower Saxony", "North Rhine-Westphalia", "Rheinland-Palatinate", "Saarland", "Schleswig-Holstein"
+      "Baden-Württemberg", "Bavaria", "Berlin", "Berlin (West)", "Bremen", "Hamburg", "Hesse", "Lower Saxony", "North Rhine-Westphalia", "Rheinland-Palatinate", "Saarland", "Schleswig-Holstein"
     ],
     "EAST": [
       "Berlin (East)", "Brandenburg", "Mecklenburg-Western Pomerania", "Saxony", "Saxony-Anhalt", "Thuringia"

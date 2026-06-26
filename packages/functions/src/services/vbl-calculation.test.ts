@@ -405,6 +405,27 @@ describe('VBLCalculationService', () => {
       );
     });
 
+    it('accepts generic Berlin from uploaded documents as a West period', async () => {
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeInput({
+          employmentEnd: '2021-12-31',
+          monthsContributed: 24,
+          consecutiveMonthsContributed: 24,
+          periods: [
+            {
+              startDate: '2020-01-01',
+              endDate: '2021-12-31',
+              state: 'Berlin',
+              grossMonthlySalary: 3500,
+            },
+          ],
+        })
+      );
+
+      expect(result.isEligible).toBe(true);
+      expect(result.calculationDetails.westGermanyEligible).toBe(true);
+    });
+
     it('rejects East Germany periods for supplementary refund', async () => {
       const result = await VBLCalculationService.calculateVBLRefund(
         makeInput({
