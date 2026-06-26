@@ -8,7 +8,6 @@ import {
   Building2,
   Check,
   ChevronDown,
-  Drama,
   Info,
   Landmark,
   MessageCircle,
@@ -20,7 +19,7 @@ import apiClient from '../../lib/api';
 import { createPendingCalculatorSession } from '../../lib/vbl-pending-calculator-sessions-api';
 import { CompanyPensionLogo } from './icons/CompanyPensionLogo';
 
-type PensionType = 'cashout' | 'public' | 'stage' | '';
+type PensionType = 'public' | 'stage' | '';
 type EntryMethod = 'manual' | 'upload' | '';
 type PublicProvider = 'VBL' | 'ZVK' | '';
 type StageProvider = 'VddB' | 'VddKO' | '';
@@ -525,10 +524,6 @@ export const ManualVBLCalculator: React.FC = () => {
 
   const handleContinue = () => {
     if (screen === 'pension-type') {
-      if (form.pensionType === 'cashout') {
-        router.push('/get-started');
-        return;
-      }
       setScreen('entry-method');
     } else if (screen === 'entry-method') setScreen('federal-state');
     else if (screen === 'federal-state') setScreen('provider');
@@ -622,31 +617,18 @@ export const ManualVBLCalculator: React.FC = () => {
           <div className="flex min-h-full w-full items-center justify-center">
             {screen === 'pension-type' && (
               <FormShell
-                title="What do you want to check?"
-                subtitle="Check if your bAV cash-out can be started through CompanyPension, or estimate your VBL, ZVK, VddB or VddKO refund."
+                title="What refund do you want to estimate?"
+                subtitle="Estimate your possible VBL, ZVK, VddB or VddKO refund."
                 showBack={false}
                 canContinue={canContinue}
                 onContinue={handleContinue}
               >
                 <div className="space-y-4">
                   <CardButton
-                    selected={form.pensionType === 'cashout'}
-                    icon={<Building2 className="h-8 w-8 text-gray-700" />}
-                    title="bAV / Company Pension Cash-Out"
-                    description="Check if your bAV cash-out can be started."
-                    onClick={() =>
-                      updateForm({
-                        pensionType: 'cashout',
-                        publicProvider: '',
-                        stageProvider: '',
-                      })
-                    }
-                  />
-                  <CardButton
                     selected={form.pensionType === 'public'}
-                    icon={<Landmark className="h-8 w-8 text-gray-700" />}
-                    title="VBL / ZVK Refund"
-                    description="Estimate your possible VBL or ZVK refund."
+                    icon={<Building2 className="h-8 w-8 text-gray-700" />}
+                    title="VBL / ZVK refund"
+                    description="Estimate your possible public-sector company pension refund."
                     onClick={() =>
                       updateForm({
                         pensionType: 'public',
@@ -657,8 +639,8 @@ export const ManualVBLCalculator: React.FC = () => {
                   />
                   <CardButton
                     selected={form.pensionType === 'stage'}
-                    icon={<Drama className="h-8 w-8 text-gray-700" />}
-                    title="VddB / VddKO Refund"
+                    icon={<Landmark className="h-8 w-8 text-gray-700" />}
+                    title="VddB / VddKO refund"
                     description="Estimate your possible stage or orchestra pension refund."
                     onClick={() =>
                       updateForm({
@@ -700,8 +682,9 @@ export const ManualVBLCalculator: React.FC = () => {
                     <Info className="mt-0.5 h-4 w-4 shrink-0" />
                     <p>
                       You can upload only the relevant page and hide details that
-                      are not needed for this check. Upload support will follow
-                      after the manual flow.
+                      are not needed for this check. If you continue with a
+                      refund request, the document can be carried into your
+                      secure claim.
                     </p>
                   </div>
                 </div>
@@ -710,19 +693,22 @@ export const ManualVBLCalculator: React.FC = () => {
 
             {screen === 'federal-state' && (
               <FormShell
-                title="In which German federal state did you mainly work?"
-                subtitle="Choose the federal state where you worked for most of this contribution period."
+                title="Where was your public-sector employer located?"
+                subtitle="Select the German federal state where your employer was based. CompanyPension currently only checks contributions in West Germany states."
                 canContinue={canContinue}
                 onBack={goBack}
                 onContinue={handleContinue}
               >
                 <SelectField
-                  label="German federal state"
+                  label="Employer’s federal state"
                   value={form.federalState}
                   onChange={(value) => updateForm({ federalState: value })}
                   options={FEDERAL_STATES}
                   placeholder="Select federal state"
                 />
+                <p className="mt-3 text-left text-sm font-bold text-[#163300] underline">
+                  My state is not listed &gt;
+                </p>
               </FormShell>
             )}
 

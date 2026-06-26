@@ -47,7 +47,7 @@ async function mockCalculation(page: Page, amount = 12000) {
 async function chooseManual(page: Page, pensionName: string) {
   await page.goto('/calculator');
   await expect(
-    page.getByRole('heading', { name: 'What do you want to check?' })
+    page.getByRole('heading', { name: 'What refund do you want to estimate?' })
   ).toBeVisible();
 
   await page.getByRole('button', { name: pensionName }).click();
@@ -63,16 +63,30 @@ async function chooseManual(page: Page, pensionName: string) {
 }
 
 test.describe('Manual VBL calculator', () => {
-  test('routes bAV cash-out checks to the existing get-started flow', async ({
+  test('matches the pension type design copy and only shows refund options', async ({
     page,
   }) => {
     await page.goto('/calculator');
-    await page
-      .getByRole('button', { name: 'bAV / Company Pension Cash-Out' })
-      .click();
-    await continueButton(page).click();
 
-    await expect(page).toHaveURL(/\/get-started$/);
+    await expect(
+      page.getByRole('heading', { name: 'What refund do you want to estimate?' })
+    ).toBeVisible();
+    await expect(
+      page.getByText('Estimate your possible VBL, ZVK, VddB or VddKO refund.')
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', {
+        name: 'VBL / ZVK refund Estimate your possible public-sector company pension refund.',
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', {
+        name: 'VddB / VddKO refund Estimate your possible stage or orchestra pension refund.',
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /bAV|Company Pension Cash-Out/ })
+    ).toHaveCount(0);
   });
 
   test('calculates the manual VBL/ZVK estimate and sends the public-sector payload', async ({
@@ -80,14 +94,20 @@ test.describe('Manual VBL calculator', () => {
   }) => {
     const api = await mockCalculation(page);
 
-    await chooseManual(page, 'VBL / ZVK Refund');
+    await chooseManual(page, 'VBL / ZVK refund');
 
     await expect(
       page.getByRole('heading', {
-        name: 'In which German federal state did you mainly work?',
+        name: 'Where was your public-sector employer located?',
       })
     ).toBeVisible();
-    await page.getByLabel('German federal state').selectOption('Bavaria');
+    await expect(
+      page.getByText(
+        'Select the German federal state where your employer was based. CompanyPension currently only checks contributions in West Germany states.'
+      )
+    ).toBeVisible();
+    await expect(page.getByText('My state is not listed >')).toBeVisible();
+    await page.getByLabel('Employer’s federal state').selectOption('Bavaria');
     await continueButton(page).click();
 
     await expect(
@@ -141,9 +161,9 @@ test.describe('Manual VBL calculator', () => {
   }) => {
     const api = await mockCalculation(page, 9000);
 
-    await chooseManual(page, 'VddB / VddKO Refund');
+    await chooseManual(page, 'VddB / VddKO refund');
 
-    await page.getByLabel('German federal state').selectOption('Bavaria');
+    await page.getByLabel('Employer’s federal state').selectOption('Bavaria');
     await continueButton(page).click();
     await page.getByLabel('Company pension').selectOption('VddKO');
     await continueButton(page).click();
@@ -191,9 +211,9 @@ test.describe('Manual VBL calculator', () => {
   test('blocks VddB/VddKO manual estimates when contribution thresholds are exceeded', async ({
     page,
   }) => {
-    await chooseManual(page, 'VddB / VddKO Refund');
+    await chooseManual(page, 'VddB / VddKO refund');
 
-    await page.getByLabel('German federal state').selectOption('Bavaria');
+    await page.getByLabel('Employer’s federal state').selectOption('Bavaria');
     await continueButton(page).click();
     await page.getByLabel('Company pension').selectOption('VddB');
     await continueButton(page).click();
