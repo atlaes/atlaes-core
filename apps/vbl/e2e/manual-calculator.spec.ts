@@ -144,7 +144,26 @@ test.describe('Manual VBL calculator', () => {
         'Select the German federal state where your employer was based. CompanyPension currently only checks contributions in West Germany states.'
       )
     ).toBeVisible();
-    await expect(page.getByText('My state is not listed >')).toBeVisible();
+    const stateNotListed = page.getByRole('button', {
+      name: 'My state is not listed >',
+    });
+    await expect(stateNotListed).toBeVisible();
+    await expect(
+      page.getByText(
+        'This refund cannot currently be estimated with CompanyPension'
+      )
+    ).toHaveCount(0);
+    await stateNotListed.click();
+    await expect(
+      page.getByText(
+        'This refund cannot currently be estimated with CompanyPension'
+      )
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'CompanyPension currently checks VBL West contribution refunds. If your contributions were paid only while working in a state that is not listed, this refund cannot currently continue through the online calculator.'
+      )
+    ).toBeVisible();
     await page.getByRole('button', { name: /Employer’s federal state/ }).click();
     await expect(page.getByRole('option', { name: 'Bavaria' })).toBeVisible();
     await page.getByRole('option', { name: 'Bavaria' }).click();

@@ -608,6 +608,8 @@ export const ManualVBLCalculator: React.FC = () => {
   );
   const [isCalculating, setIsCalculating] = React.useState(false);
   const [error, setError] = React.useState('');
+  const [showUnlistedStateInfo, setShowUnlistedStateInfo] =
+    React.useState(false);
 
   const updateForm = (updates: Partial<ManualFormData>) => {
     setForm((previous) => ({ ...previous, ...updates }));
@@ -619,6 +621,7 @@ export const ManualVBLCalculator: React.FC = () => {
     setCalculation(null);
     setError('');
     setIsCalculating(false);
+    setShowUnlistedStateInfo(false);
   };
 
   const showUploadReview = () => {
@@ -1047,9 +1050,32 @@ export const ManualVBLCalculator: React.FC = () => {
                   options={FEDERAL_STATES}
                   placeholder="Select federal state"
                 />
-                <p className="mt-3 text-left text-sm font-bold text-[#163300] underline">
+                <button
+                  type="button"
+                  onClick={() => setShowUnlistedStateInfo(true)}
+                  className="mt-3 block text-left text-sm font-bold text-[#163300] underline"
+                >
                   My state is not listed &gt;
-                </p>
+                </button>
+                {showUnlistedStateInfo && (
+                  <div className="mt-8 flex items-start gap-5 rounded-xl bg-[#EEF6EA] px-7 py-6 text-left">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#4E8F21] text-white">
+                      <Info className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold leading-6 text-[#444844]">
+                        This refund cannot currently be estimated with
+                        CompanyPension
+                      </p>
+                      <p className="mt-2 text-lg leading-7 text-[#4C504D]">
+                        CompanyPension currently checks VBL West contribution
+                        refunds. If your contributions were paid only while
+                        working in a state that is not listed, this refund
+                        cannot currently continue through the online calculator.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </FormShell>
             )}
 
