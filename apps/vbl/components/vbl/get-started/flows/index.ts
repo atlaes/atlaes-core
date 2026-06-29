@@ -58,6 +58,7 @@ export interface EligibilityData {
 
 export type StepId =
   | 'public_entry_path'
+  | 'public_upload'
   | 'federal_state'
   | 'pension_provider'
   | 'pension_scheme'
