@@ -9,6 +9,21 @@ const INELIGIBLE_STATES = [
   'Thuringia',
 ];
 
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
 function endedInOrAfter2018(data: EligibilityData): boolean {
   const endYear = Number(data.employmentEndYear);
   return Number.isFinite(endYear) && endYear >= 2018;
@@ -16,10 +31,10 @@ function endedInOrAfter2018(data: EligibilityData): boolean {
 
 export const publicSectorFlow: FlowConfig = {
   steps: [
+    'public_entry_path',
     'federal_state',
     'pension_provider',
     'pension_scheme',
-    'eu_continuation',
     'employment_end_date',
     'contribution_period',
     'contribution_duration',
@@ -28,10 +43,6 @@ export const publicSectorFlow: FlowConfig = {
   shouldSkipStep(stepId: StepId, data: EligibilityData): boolean {
     // VBL plan toggle only for VBL provider
     if (stepId === 'pension_scheme' && data.pensionProvider !== 'VBL') {
-      return true;
-    }
-    // Contribution duration only if user continues in EU public sector
-    if (stepId === 'contribution_duration' && data.euContinuation !== 'yes') {
       return true;
     }
     return false;
@@ -91,5 +102,32 @@ export const publicSectorFlow: FlowConfig = {
       default:
         return null;
     }
+  },
+
+  checkWaiting(stepId: StepId, data: EligibilityData) {
+    if (
+      stepId === 'employment_end_date' &&
+      data.employmentEndMonth &&
+      data.employmentEndYear
+    ) {
+      const monthIndex = MONTHS.indexOf(data.employmentEndMonth);
+      const year = Number(data.employmentEndYear);
+      if (monthIndex < 0 || !Number.isFinite(year)) return null;
+
+      const eligibleDate = new Date(year, monthIndex + 24);
+      if (eligibleDate > new Date()) {
+        const formattedDate = eligibleDate.toLocaleDateString('en-GB', {
+          month: 'long',
+          year: 'numeric',
+        });
+        return {
+          title: 'Your refund is not yet available',
+          message:
+            'A 24-month waiting period must pass after your public-sector employment ends before this refund can be requested.',
+          eligibleDate: formattedDate,
+        };
+      }
+    }
+    return null;
   },
 };

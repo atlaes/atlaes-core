@@ -30,6 +30,8 @@ export type StageContributionDurationType =
   | '36_plus'
   | '';
 
+export type PublicEntryPathType = 'upload' | 'manual' | '';
+
 export interface EligibilityData {
   employmentType: EmploymentType;
   federalState: string;
@@ -38,6 +40,7 @@ export interface EligibilityData {
   euContinuation: 'yes' | 'no' | '';
   consecutiveContribution: 'yes' | 'no' | '';
   contributionDuration: ContributionDurationType;
+  publicEntryPath: PublicEntryPathType;
   // Stage-specific
   stageContributionDuration: StageContributionDurationType;
   employmentEndMonth: string;
@@ -54,6 +57,7 @@ export interface EligibilityData {
 }
 
 export type StepId =
+  | 'public_entry_path'
   | 'federal_state'
   | 'pension_provider'
   | 'pension_scheme'

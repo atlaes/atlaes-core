@@ -14,17 +14,15 @@ test.describe('Private Sector Eligibility', () => {
   });
 
   // ============================================================
-  // Info Banner
+  // Start Option
   // ============================================================
 
-  test('Info banner appears when Private Sector selected', async ({
+  test('bAV option copy is visible on the start screen', async ({
     page,
   }) => {
-    await page.getByText('Private Sector').click();
+    await navigateToGetStarted(page);
     await expect(
-      page.getByText(
-        /Private sector company pensions usually do not allow a direct refund/
-      )
+      page.getByText('For Direktversicherung and other bAV contracts.')
     ).toBeVisible();
   });
 

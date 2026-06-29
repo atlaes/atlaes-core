@@ -115,7 +115,7 @@ test.describe('Stage / Performing Arts Eligibility', () => {
     // Should be back at the employment type selection
     await expect(
       page.getByRole('heading', {
-        name: "Let's check your eligibility",
+        name: 'What do you want to start?',
       })
     ).toBeVisible({ timeout: 5_000 });
   });

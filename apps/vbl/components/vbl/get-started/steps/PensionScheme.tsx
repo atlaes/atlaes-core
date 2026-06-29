@@ -20,42 +20,44 @@ export const PensionScheme: React.FC = () => {
   };
 
   return (
-    <div className="max-w-lg mx-auto">
-      <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-        Select your pension scheme
-      </h2>
-      <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
-      <p className="text-gray-600 text-center mb-8">
-        Choose the scheme(s) you contributed to during your employment.
-      </p>
+    <div className="mx-auto max-w-[600px]">
+      <div className="mb-9 text-center">
+        <h2 className="text-[26px] font-bold leading-tight text-[#111827]">
+          Select your company pension
+        </h2>
+        <div className="mx-auto mt-3 h-px w-full max-w-[560px] bg-[#D9DEE7]" />
+        <p className="mx-auto mt-4 max-w-[500px] text-[16px] leading-6 text-[#4B5563]">
+          Choose the company pension your employer paid into.
+        </p>
+      </div>
 
-      <p className="text-sm font-medium text-gray-700 mb-2">
+      <p className="mb-2 text-[15px] font-medium text-[#1F2937]">
         Company pension
       </p>
 
       {/* Read-only provider display */}
-      <div className="relative mb-6">
-        <div className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
+      <div className="relative mb-5">
+        <div className="flex h-12 w-full items-center rounded-[8px] border border-[#D3DAE8] bg-white px-4 pr-10 text-[16px] text-[#1F2937] shadow-sm">
           {data.pensionProvider}
         </div>
         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
       </div>
 
-      <p className="text-sm font-medium text-gray-700 mb-3">
+      <p className="mb-3 text-[15px] font-medium text-[#1F2937]">
         Which VBL plan do you have?
       </p>
 
-      <div className="flex gap-3 mb-6">
+      <div className="mb-6 flex gap-4">
         {VBL_PLANS.map((plan) => {
           const isSelected = selected === plan.id;
           return (
             <button
               key={plan.id}
               onClick={() => setSelected(plan.id)}
-              className={`px-5 py-2.5 rounded-lg text-sm font-medium border transition-all ${
+              className={`rounded-[7px] border px-5 py-2.5 text-[14px] font-medium transition-all ${
                 isSelected
-                  ? 'bg-[#163300] text-white border-[#163300]'
-                  : 'bg-gray-100 text-gray-700 border-gray-200 hover:border-gray-300'
+                  ? 'border-[#163300] bg-[#9FE870] text-[#163300]'
+                  : 'border-[#D6DCE3] bg-[#EFF2F0] text-[#163300] hover:border-[#163300]'
               }`}
             >
               {plan.label}
@@ -67,10 +69,10 @@ export const PensionScheme: React.FC = () => {
       <button
         onClick={handleContinue}
         disabled={!selected}
-        className="w-full py-3 px-6 bg-[#9FE870] text-[#163300] font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-[#8AD860] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="mx-auto mt-16 flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-[6px] bg-[#9FE870] px-6 text-[16px] font-bold text-[#163300] shadow-sm transition hover:bg-[#8AD860] disabled:cursor-not-allowed disabled:opacity-45"
       >
         Continue
-        <ArrowRight className="w-4 h-4" />
+        <ArrowRight className="h-5 w-5" />
       </button>
     </div>
   );

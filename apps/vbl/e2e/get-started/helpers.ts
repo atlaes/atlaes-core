@@ -19,21 +19,48 @@ export const TEST_PASSPORT_PATH = path.join(
 export async function navigateToGetStarted(page: Page) {
   await page.goto(GET_STARTED_URL);
   await expect(
-    page.getByRole('heading', { name: "Let's check your eligibility" })
+    page.getByRole('heading', { name: 'What do you want to start?' })
   ).toBeVisible({ timeout: 10_000 });
 }
 
 export async function selectEmploymentType(
   page: Page,
-  type: 'Public sector' | 'Stage / Performing Arts/ Orchestra' | 'Private Sector'
+  type:
+    | 'Public sector'
+    | 'VBL / ZVK Refund'
+    | 'Stage / Performing Arts/ Orchestra'
+    | 'VddB / VddKO Refund'
+    | 'Private Sector'
+    | 'bAV / Company Pension Cash-Out'
+    | 'Not sure'
 ) {
-  await page.getByText(type, { exact: false }).click();
-  await page.getByRole('button', { name: 'Continue' }).click();
+  const labelByLegacyName: Record<string, string> = {
+    'Public sector': 'VBL / ZVK Refund',
+    'Stage / Performing Arts/ Orchestra': 'VddB / VddKO Refund',
+    'Private Sector': 'bAV / Company Pension Cash-Out',
+  };
+  const label = labelByLegacyName[type] ?? type;
+
+  await page.getByRole('button', { name: new RegExp(label, 'i') }).click();
+  await page.getByRole('button', { name: /Start check|Continue/i }).click();
+}
+
+export async function selectPublicEntryPath(
+  page: Page,
+  path: 'Upload document' | 'Answer questions' = 'Answer questions'
+) {
+  await expect(
+    page.getByRole('heading', {
+      name: 'Upload your pension document or continue manually',
+    })
+  ).toBeVisible({ timeout: 5_000 });
+  await page.getByRole('button', { name: new RegExp(path, 'i') }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
 }
 
 export async function selectFederalState(page: Page, state: string) {
   await expect(
-    page.getByRole('heading', { name: 'Where was your employer located?' })
+    page.getByRole('heading', { name: /Where was your.*employer located/ })
   ).toBeVisible({ timeout: 5_000 });
   await page.locator('select').selectOption(state);
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -45,7 +72,7 @@ export async function selectPensionProvider(
 ) {
   await expect(
     page.getByRole('heading', {
-      name: 'Select your company pension provider',
+      name: /Select your company pension/,
     })
   ).toBeVisible({ timeout: 5_000 });
   await page.locator('select').selectOption(provider);
@@ -68,7 +95,7 @@ export async function selectPensionScheme(
   plan: 'VBLklassik' | 'VBLextra'
 ) {
   await expect(
-    page.getByRole('heading', { name: 'Select your pension scheme' })
+    page.getByRole('heading', { name: /Select your company pension|Select your pension scheme/ })
   ).toBeVisible({ timeout: 5_000 });
   await page.getByText(plan).click();
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -79,7 +106,7 @@ export async function selectContributionPeriod(
   consecutive: 'Yes' | 'No'
 ) {
   await expect(
-    page.getByRole('heading', { name: 'Contribution period' })
+    page.getByRole('heading', { name: /VBL contribution period|Contribution period/ })
   ).toBeVisible({ timeout: 5_000 });
   await page.getByRole('button', { name: consecutive, exact: true }).click();
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -91,7 +118,7 @@ export async function selectContributionDuration(
 ) {
   await expect(
     page.getByRole('heading', {
-      name: 'How many months did you contribute in total?',
+      name: /How many months did you (pay into VBL|contribute) in total/,
     })
   ).toBeVisible({ timeout: 5_000 });
   await page.getByText(duration).click();
@@ -199,19 +226,19 @@ export async function fillPrivateContributionDetails(
 
 export async function expectEligibleResult(page: Page) {
   await expect(
-    page.getByRole('heading', { name: /eligible to continue|lump-sum settlement may be possible/i })
+    page.getByRole('heading', { name: /eligible to continue|lump-sum settlement may be possible|refund can be started/i })
   ).toBeVisible({ timeout: 5_000 });
   await expect(
-    page.getByRole('button', { name: /Continue securely|Start Claim/i })
+    page.getByRole('button', { name: /Continue securely|Start Claim|Create your secure claim/i })
   ).toBeVisible();
 }
 
 export async function expectNotEligibleResult(page: Page) {
   await expect(
-    page.getByRole('heading', { name: /not eligible/i })
+    page.getByRole('heading', { name: /not eligible|cannot currently be claimed/i })
   ).toBeVisible({ timeout: 5_000 });
   await expect(
-    page.getByRole('button', { name: 'Go back' })
+    page.getByRole('button', { name: /Go back|Return to start|Return to homepage/i })
   ).toBeVisible();
 }
 
@@ -243,11 +270,11 @@ export async function expectWaitingResult(page: Page) {
 
 export async function navigatePublicSectorToEligible(page: Page) {
   await navigateToGetStarted(page);
-  await selectEmploymentType(page, 'Public sector');
+  await selectEmploymentType(page, 'VBL / ZVK Refund');
+  await selectPublicEntryPath(page, 'Answer questions');
   await selectFederalState(page, 'North Rhine-Westphalia');
   await selectPensionProvider(page, 'VBL');
   await selectPensionScheme(page, 'VBLklassik');
-  await selectEUContinuation(page, 'Yes');
   await selectEmploymentEndDate(page, 'January', '2017');
   await selectContributionPeriod(page, 'No');
   await selectContributionDuration(page, 'Less than 36 months');

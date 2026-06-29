@@ -2,10 +2,10 @@ import { test, expect } from '@playwright/test';
 import {
   navigateToGetStarted,
   selectEmploymentType,
+  selectPublicEntryPath,
   selectFederalState,
   selectPensionProvider,
   selectPensionScheme,
-  selectEUContinuation,
   selectEmploymentEndDate,
   selectContributionPeriod,
   selectContributionDuration,
@@ -16,7 +16,23 @@ import {
 test.describe('Public Sector Eligibility', () => {
   test.beforeEach(async ({ page }) => {
     await navigateToGetStarted(page);
-    await selectEmploymentType(page, 'Public sector');
+    await selectEmploymentType(page, 'VBL / ZVK Refund');
+    await selectPublicEntryPath(page, 'Answer questions');
+  });
+
+  test('state not listed opens the explanatory notice', async ({ page }) => {
+    await page.getByRole('button', { name: /My state is not listed/i }).click();
+
+    await expect(
+      page.getByText(
+        'This refund cannot currently be estimated with CompanyPension'
+      )
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        /CompanyPension currently checks VBL West contribution refunds/i
+      )
+    ).toBeVisible();
   });
 
   // ============================================================
@@ -29,7 +45,6 @@ test.describe('Public Sector Eligibility', () => {
     await selectFederalState(page, 'North Rhine-Westphalia');
     await selectPensionProvider(page, 'VBL');
     await selectPensionScheme(page, 'VBLklassik');
-    await selectEUContinuation(page, 'Yes');
     await selectEmploymentEndDate(page, 'January', '2017');
     await selectContributionPeriod(page, 'No');
     await selectContributionDuration(page, 'Less than 36 months');
@@ -42,7 +57,6 @@ test.describe('Public Sector Eligibility', () => {
     await selectFederalState(page, 'Bavaria');
     await selectPensionProvider(page, 'VBL');
     await selectPensionScheme(page, 'VBLklassik');
-    await selectEUContinuation(page, 'Yes');
     await selectEmploymentEndDate(page, 'December', '2017');
     await selectContributionPeriod(page, 'No');
     await selectContributionDuration(page, '36 to 59 months');
@@ -55,7 +69,6 @@ test.describe('Public Sector Eligibility', () => {
     await selectFederalState(page, 'Hesse');
     await selectPensionProvider(page, 'ZVK Darmstadt');
     // Pension scheme step should be skipped for non-VBL providers.
-    await selectEUContinuation(page, 'Yes');
     await selectEmploymentEndDate(page, 'January', '2016');
     await selectContributionPeriod(page, 'No');
     await selectContributionDuration(page, 'Less than 36 months');
@@ -93,7 +106,7 @@ test.describe('Public Sector Eligibility', () => {
       await selectFederalState(page, state);
       await expectNotEligibleResult(page);
       await expect(
-        page.getByText('Not eligible for a supplementary pension refund')
+        page.getByText('This refund cannot currently be claimed with CompanyPension')
       ).toBeVisible();
     });
   }
@@ -108,7 +121,7 @@ test.describe('Public Sector Eligibility', () => {
     await selectPensionScheme(page, 'VBLextra');
     await expectNotEligibleResult(page);
     await expect(
-      page.getByText('Not eligible for a supplementary pension refund')
+      page.getByText('This refund cannot currently be claimed with CompanyPension')
     ).toBeVisible();
   });
 
@@ -117,7 +130,6 @@ test.describe('Public Sector Eligibility', () => {
   }) => {
     await selectFederalState(page, 'Hamburg');
     await selectPensionProvider(page, 'Hamburgisches Zusatzversorgungsgesetz');
-    await selectEUContinuation(page, 'Yes');
     await selectEmploymentEndDate(page, 'January', '2018');
     await selectContributionPeriod(page, 'Yes');
     await expectNotEligibleResult(page);
@@ -128,7 +140,6 @@ test.describe('Public Sector Eligibility', () => {
   }) => {
     await selectFederalState(page, 'Hamburg');
     await selectPensionProvider(page, 'Hamburgisches Zusatzversorgungsgesetz');
-    await selectEUContinuation(page, 'Yes');
     await selectEmploymentEndDate(page, 'December', '2017');
     await selectContributionPeriod(page, 'Yes');
     await selectContributionDuration(page, 'Less than 36 months');
@@ -139,7 +150,6 @@ test.describe('Public Sector Eligibility', () => {
     await selectFederalState(page, 'Bremen');
     await selectPensionProvider(page, 'VBL');
     await selectPensionScheme(page, 'VBLklassik');
-    await selectEUContinuation(page, 'Yes');
     await selectEmploymentEndDate(page, 'January', '2017');
     await selectContributionPeriod(page, 'No');
     await selectContributionDuration(page, '60 months or more');
@@ -154,13 +164,11 @@ test.describe('Public Sector Eligibility', () => {
     await selectFederalState(page, 'Brandenburg');
     await expectNotEligibleResult(page);
 
-    // Click "Go back" button — this calls reset()
-    await page.getByRole('button', { name: 'Go back' }).click();
+    await page.getByRole('button', { name: /Return to start|Go back/ }).click();
 
-    // Should be back at the employment type selection
     await expect(
       page.getByRole('heading', {
-        name: "Let's check your eligibility",
+        name: 'What do you want to start?',
       })
     ).toBeVisible({ timeout: 5_000 });
   });

@@ -2,10 +2,10 @@ import { test, expect } from '@playwright/test';
 import {
   navigateToGetStarted,
   selectEmploymentType,
+  selectPublicEntryPath,
   selectFederalState,
   selectPensionProvider,
   selectPensionScheme,
-  selectEUContinuation,
   selectEmploymentEndDate,
   selectStagePensionDetails,
   selectStageContributionDuration,
@@ -13,150 +13,146 @@ import {
 } from './helpers';
 
 test.describe('Eligibility Edge Cases', () => {
-  // ============================================================
-  // Initial State
-  // ============================================================
-
   test.describe('Initial State', () => {
-    test('Page loads with 3 employment types visible', async ({
+    test('Page loads with the start options visible', async ({ page }) => {
+      await navigateToGetStarted(page);
+      await expect(
+        page.getByText('bAV / Company Pension Cash-Out')
+      ).toBeVisible();
+      await expect(page.getByText('VBL / ZVK Refund')).toBeVisible();
+      await expect(page.getByText('VddB / VddKO Refund')).toBeVisible();
+      await expect(page.getByText('Not sure')).toBeVisible();
+    });
+
+    test('Default VBL / ZVK choice opens the upload/manual choice', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
-      await expect(page.getByText('Public sector')).toBeVisible();
+      await page.getByRole('button', { name: 'Start check' }).click();
       await expect(
-        page.getByText('Stage / Performing Arts/ Orchestra')
-      ).toBeVisible();
-      await expect(page.getByText('Private Sector')).toBeVisible();
-    });
-
-    test('Continue disabled without selection', async ({ page }) => {
-      await navigateToGetStarted(page);
-      const continueBtn = page.getByRole('button', {
-        name: 'Continue',
-      });
-      await expect(continueBtn).toBeDisabled();
+        page.getByRole('heading', {
+          name: 'Upload your pension document or continue manually',
+        })
+      ).toBeVisible({ timeout: 5_000 });
     });
   });
 
-  // ============================================================
-  // Public Sector Back Navigation
-  // ============================================================
-
   test.describe('Public Sector Back Navigation', () => {
-    test('Back from federal state → employment type', async ({
+    test('Back from upload/manual choice returns to start choice', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
-      await selectEmploymentType(page, 'Public sector');
+      await selectEmploymentType(page, 'VBL / ZVK Refund');
       await expect(
         page.getByRole('heading', {
-          name: 'Where was your employer located?',
+          name: 'Upload your pension document or continue manually',
+        })
+      ).toBeVisible({ timeout: 5_000 });
+
+      await page.getByRole('button', { name: 'Back' }).click();
+      await expect(
+        page.getByRole('heading', { name: 'What do you want to start?' })
+      ).toBeVisible({ timeout: 5_000 });
+    });
+
+    test('Back from federal state returns to upload/manual choice', async ({
+      page,
+    }) => {
+      await navigateToGetStarted(page);
+      await selectEmploymentType(page, 'VBL / ZVK Refund');
+      await selectPublicEntryPath(page, 'Answer questions');
+      await expect(
+        page.getByRole('heading', {
+          name: 'Where was your public-sector employer located?',
         })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
         page.getByRole('heading', {
-          name: "Let's check your eligibility",
+          name: 'Upload your pension document or continue manually',
         })
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from pension provider → federal state', async ({
+    test('Back from pension provider returns to federal state', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
-      await selectEmploymentType(page, 'Public sector');
+      await selectEmploymentType(page, 'VBL / ZVK Refund');
+      await selectPublicEntryPath(page, 'Answer questions');
       await selectFederalState(page, 'Bavaria');
       await expect(
-        page.getByRole('heading', {
-          name: 'Select your company pension provider',
-        })
+        page.getByRole('heading', { name: 'Select your company pension' })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
         page.getByRole('heading', {
-          name: 'Where was your employer located?',
+          name: 'Where was your public-sector employer located?',
         })
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from pension scheme → provider', async ({ page }) => {
+    test('Back from pension scheme returns to provider', async ({ page }) => {
       await navigateToGetStarted(page);
-      await selectEmploymentType(page, 'Public sector');
+      await selectEmploymentType(page, 'VBL / ZVK Refund');
+      await selectPublicEntryPath(page, 'Answer questions');
       await selectFederalState(page, 'Berlin (West)');
       await selectPensionProvider(page, 'VBL');
       await expect(
-        page.getByRole('heading', {
-          name: 'Select your pension scheme',
-        })
+        page.getByRole('heading', { name: 'Select your company pension' })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
-        page.getByRole('heading', {
-          name: 'Select your company pension provider',
-        })
+        page.getByRole('heading', { name: 'Select your company pension' })
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from contribution period → employment end date (VBL)', async ({
+    test('Back from contribution period returns to employment end date', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
-      await selectEmploymentType(page, 'Public sector');
+      await selectEmploymentType(page, 'VBL / ZVK Refund');
+      await selectPublicEntryPath(page, 'Answer questions');
       await selectFederalState(page, 'Berlin (West)');
       await selectPensionProvider(page, 'VBL');
       await selectPensionScheme(page, 'VBLklassik');
-      await selectEUContinuation(page, 'Yes');
       await selectEmploymentEndDate(page, 'January', '2017');
       await expect(
-        page.getByRole('heading', { name: 'Contribution period' })
+        page.getByRole('heading', { name: 'VBL contribution period' })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
-        page.getByRole('heading', {
-          name: 'When did your employment end?',
-        })
+        page.getByRole('heading', { name: 'When did your employment end?' })
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from EU continuation → provider (non-VBL, scheme skipped)', async ({
-      page,
-    }) => {
+    test('Back from non-VBL end date returns to provider', async ({ page }) => {
       await navigateToGetStarted(page);
-      await selectEmploymentType(page, 'Public sector');
+      await selectEmploymentType(page, 'VBL / ZVK Refund');
+      await selectPublicEntryPath(page, 'Answer questions');
       await selectFederalState(page, 'Hesse');
       await selectPensionProvider(page, 'ZVK Darmstadt');
-      // Pension scheme is skipped for non-VBL, so EU continuation follows provider.
       await expect(
-        page.getByRole('heading', { name: 'Public-sector employment' })
+        page.getByRole('heading', { name: 'When did your employment end?' })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
-        page.getByRole('heading', {
-          name: 'Select your company pension provider',
-        })
+        page.getByRole('heading', { name: 'Select your company pension' })
       ).toBeVisible({ timeout: 5_000 });
     });
   });
 
-  // ============================================================
-  // Stage Back Navigation
-  // ============================================================
-
   test.describe('Stage Back Navigation', () => {
-    test('Back from stage details → federal state', async ({
+    test('Back from stage details returns to federal state', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
-      await selectEmploymentType(
-        page,
-        'Stage / Performing Arts/ Orchestra'
-      );
+      await selectEmploymentType(page, 'Stage / Performing Arts/ Orchestra');
       await selectFederalState(page, 'Berlin (West)');
       await expect(
         page.getByRole('heading', {
@@ -166,18 +162,13 @@ test.describe('Eligibility Edge Cases', () => {
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
-        page.getByRole('heading', {
-          name: 'Where was your employer located?',
-        })
+        page.getByRole('heading', { name: 'Where was your employer located?' })
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from stage duration → details', async ({ page }) => {
+    test('Back from stage duration returns to details', async ({ page }) => {
       await navigateToGetStarted(page);
-      await selectEmploymentType(
-        page,
-        'Stage / Performing Arts/ Orchestra'
-      );
+      await selectEmploymentType(page, 'Stage / Performing Arts/ Orchestra');
       await selectFederalState(page, 'Berlin (West)');
       await selectStagePensionDetails(page, 'VddB');
       await expect(
@@ -194,19 +185,14 @@ test.describe('Eligibility Edge Cases', () => {
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from end date → duration', async ({ page }) => {
+    test('Back from end date returns to duration', async ({ page }) => {
       await navigateToGetStarted(page);
-      await selectEmploymentType(
-        page,
-        'Stage / Performing Arts/ Orchestra'
-      );
+      await selectEmploymentType(page, 'Stage / Performing Arts/ Orchestra');
       await selectFederalState(page, 'Berlin (West)');
       await selectStagePensionDetails(page, 'VddB');
       await selectStageContributionDuration(page, '12 to 35 months');
       await expect(
-        page.getByRole('heading', {
-          name: 'When did your employment end?',
-        })
+        page.getByRole('heading', { name: 'When did your employment end?' })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
@@ -218,12 +204,8 @@ test.describe('Eligibility Edge Cases', () => {
     });
   });
 
-  // ============================================================
-  // Private Sector Back Navigation
-  // ============================================================
-
   test.describe('Private Sector Back Navigation', () => {
-    test('Back from private provider → employment type', async ({
+    test('Back from private provider returns to start choice', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
@@ -236,13 +218,11 @@ test.describe('Eligibility Edge Cases', () => {
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
-        page.getByRole('heading', {
-          name: "Let's check your eligibility",
-        })
+        page.getByRole('heading', { name: 'What do you want to start?' })
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from contribution details → provider', async ({
+    test('Back from contribution details returns to provider', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
@@ -261,53 +241,28 @@ test.describe('Eligibility Edge Cases', () => {
     });
   });
 
-  // ============================================================
-  // Miscellaneous Edge Cases
-  // ============================================================
-
   test.describe('Misc', () => {
-    test('No back button on employment type step', async ({ page }) => {
+    test('No back button on start choice', async ({ page }) => {
       await navigateToGetStarted(page);
-      // The back button should not be present on the first step
       await expect(
         page.getByRole('button', { name: 'Back' })
       ).not.toBeVisible();
     });
 
-    test('Switching employment types before clicking continue', async ({
+    test('Switching start choices before clicking continue', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
 
-      // Select Public sector
-      await page.getByText('Public sector').click();
+      await page.getByRole('button', { name: /VBL \/ ZVK Refund/i }).click();
+      await page
+        .getByRole('button', { name: /bAV \/ Company Pension Cash-Out/i })
+        .click();
+      await page.getByRole('button', { name: /VddB \/ VddKO Refund/i }).click();
 
-      // Switch to Private Sector
-      await page.getByText('Private Sector').click();
-
-      // The info banner for private should appear
+      await page.getByRole('button', { name: 'Start check' }).click();
       await expect(
-        page.getByText(
-          /Private sector company pensions usually do not allow/
-        )
-      ).toBeVisible();
-
-      // Switch to Stage
-      await page.getByText('Stage / Performing Arts/ Orchestra').click();
-
-      // Private info banner should disappear
-      await expect(
-        page.getByText(
-          /Private sector company pensions usually do not allow/
-        )
-      ).not.toBeVisible();
-
-      // Continue with Stage selected → should go to federal state first
-      await page.getByRole('button', { name: 'Continue' }).click();
-      await expect(
-        page.getByRole('heading', {
-          name: 'Where was your employer located?',
-        })
+        page.getByRole('heading', { name: 'Where was your employer located?' })
       ).toBeVisible({ timeout: 5_000 });
     });
   });

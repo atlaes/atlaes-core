@@ -27,6 +27,7 @@ const initialData: EligibilityData = {
   euContinuation: '',
   consecutiveContribution: '',
   contributionDuration: '',
+  publicEntryPath: '',
   stageContributionDuration: '',
   employmentEndMonth: '',
   employmentEndYear: '',

@@ -17,7 +17,7 @@ const MAIN_STEPS = [
   { id: 1, label: 'Check' },
   { id: 2, label: 'Secure Claim' },
   { id: 3, label: 'Complete Details' },
-  { id: 4, label: 'Sign and Submit' },
+  { id: 4, label: 'Sign & Submit' },
 ] as const;
 
 // Icon components for sub-steps (copied from OnboardingLayout)
@@ -102,26 +102,29 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
   const isSubStepActive = (subStepId: SubmitDetailsSubStep) => subStepId === currentSubStep;
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-[1000px] bg-white rounded-2xl shadow-xl overflow-hidden">
+    <div className="flex min-h-screen items-center justify-center bg-[#F5F5F5] px-4 py-10">
+      <div className="w-full max-w-[1260px] overflow-hidden rounded-[20px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
         {/* Dark Green Header */}
-        <div className="px-4 sm:px-8 pt-4 sm:pt-6" style={{ backgroundColor: '#163300' }}>
+        <div
+          className="px-4 pt-6 sm:px-8 sm:pt-7"
+          style={{ backgroundColor: '#163300' }}
+        >
           {/* Logo */}
-          <div className="flex items-center justify-center gap-3 mb-6">
-            <CompanyPensionLogo />
+          <div className="mb-5 flex items-center justify-center">
+            <CompanyPensionLogo className="h-auto w-[260px] max-w-full" />
           </div>
 
           {/* Divider */}
-          <div className="w-full h-px bg-white/20 mb-6" />
+          <div className="mx-auto mb-3 h-px w-full max-w-[890px] bg-white/20" />
 
           {/* Step Progress Indicator */}
-          <div className="flex items-center justify-center">
+          <div className="mx-auto flex max-w-[960px] items-center justify-center">
             {MAIN_STEPS.map((step, index) => (
               <React.Fragment key={step.id}>
                 <div className="flex flex-col items-center">
                   <div className="flex items-center gap-2">
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm ${
+                      className={`flex h-11 w-11 items-center justify-center rounded-full text-[18px] font-semibold ${
                         isStepCompleted(step.id)
                           ? 'bg-[#9FE870] text-[#163300]'
                           : isStepActive(step.id)
@@ -136,7 +139,7 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
                       )}
                     </div>
                     <span
-                      className={`text-sm font-medium hidden sm:inline ${
+                      className={`hidden whitespace-nowrap text-[16px] font-semibold sm:inline ${
                         isStepActive(step.id) || isStepCompleted(step.id)
                           ? 'text-[#9FE870]'
                           : 'text-white'
@@ -146,18 +149,18 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
                     </span>
                   </div>
                   {/* Triangle Pointer — only under active step */}
-                  <div className="mt-3">
+                  <div className="mt-2">
                     {isStepActive(step.id) ? (
                       <div
                         className="w-0 h-0"
                         style={{
-                          borderLeft: '8px solid transparent',
-                          borderRight: '8px solid transparent',
-                          borderBottom: '8px solid white',
+                          borderLeft: '9px solid transparent',
+                          borderRight: '9px solid transparent',
+                          borderBottom: '14px solid white',
                         }}
                       />
                     ) : (
-                      <div className="h-2" />
+                      <div className="h-[14px]" />
                     )}
                   </div>
                 </div>
@@ -165,7 +168,7 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
                 {/* Connector Line */}
                 {index < MAIN_STEPS.length - 1 && (
                   <div
-                    className={`w-6 sm:w-20 h-0.5 mx-1.5 sm:mx-4 mb-3 ${
+                    className={`mx-2 mb-5 h-0.5 w-6 sm:mx-5 sm:w-24 ${
                       isStepCompleted(step.id + 1) || isStepActive(step.id + 1)
                         ? 'bg-[#9FE870]'
                         : 'bg-white/50'
@@ -177,7 +180,7 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
           </div>
 
           {/* Active step label - mobile only */}
-          <div className="text-center -mt-1 mb-2 sm:hidden">
+          <div className="-mt-1 mb-2 text-center sm:hidden">
             <span className="text-base text-white font-semibold">
               {MAIN_STEPS.find((s) => isStepActive(s.id))?.label}
             </span>
@@ -185,12 +188,12 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
         </div>
 
         {/* Content Area */}
-        <div className="p-4 sm:p-8">
+        <div className="min-h-[690px] px-7 py-8 sm:px-8">
           {/* Back Button */}
           {showBack && onBack && (
             <button
               onClick={onBack}
-              className="flex items-center gap-2 text-[#163300] font-medium mb-6 hover:opacity-70 transition-opacity"
+              className="mb-10 flex items-center gap-2 text-[16px] font-semibold text-[#50536D] transition-opacity hover:opacity-70"
             >
               <ArrowLeft className="w-4 h-4" />
               Back

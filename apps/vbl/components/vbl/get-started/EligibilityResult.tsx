@@ -19,8 +19,34 @@ export const EligibilityResult: React.FC = () => {
     confirmEligibility();
   };
 
+  const isPublic = data.employmentType === 'public_sector';
+
   if (result === 'eligible') {
     const isPrivate = data.employmentType === 'private_sector';
+
+    if (isPublic) {
+      return (
+        <div className="mx-auto flex min-h-[470px] max-w-[760px] flex-col items-center justify-center text-center">
+          <div className="mb-9 flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#9FE870]">
+            <div className="flex h-[78px] w-[78px] items-center justify-center rounded-full bg-[#163300]">
+              <Check className="h-11 w-11 text-[#9FE870]" strokeWidth={3} />
+            </div>
+          </div>
+
+          <h2 className="mb-8 text-[26px] font-bold leading-tight text-[#111827] md:whitespace-nowrap">
+            Your refund can be started with CompanyPension
+          </h2>
+
+          <button
+            onClick={handleContinueSecurely}
+            className="flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-[6px] bg-[#9FE870] px-6 text-[16px] font-bold text-[#163300] shadow-sm transition hover:bg-[#8AD860]"
+          >
+            Create your secure claim
+            <ArrowRight className="h-5 w-5" />
+          </button>
+        </div>
+      );
+    }
 
     return (
       <div className="max-w-lg mx-auto text-center py-8">
@@ -130,6 +156,30 @@ export const EligibilityResult: React.FC = () => {
   }
 
   if (result === 'not_eligible' && ineligibilityInfo) {
+    if (isPublic) {
+      return (
+        <div className="mx-auto flex min-h-[470px] max-w-[620px] flex-col items-center justify-center text-center">
+          <div className="mb-9 flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#F5D4CF]">
+            <div className="flex h-[78px] w-[78px] items-center justify-center rounded-full bg-[#B92513]">
+              <X className="h-12 w-12 text-white" strokeWidth={2.5} />
+            </div>
+          </div>
+
+          <h2 className="mb-8 max-w-[520px] text-[26px] font-bold leading-tight text-[#111827]">
+            This refund cannot currently be claimed with CompanyPension
+          </h2>
+
+          <button
+            onClick={reset}
+            className="flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-[6px] bg-[#9FE870] px-6 text-[16px] font-bold text-[#163300] shadow-sm transition hover:bg-[#8AD860]"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            Return to start
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="max-w-lg mx-auto text-center py-8">
         <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-6">

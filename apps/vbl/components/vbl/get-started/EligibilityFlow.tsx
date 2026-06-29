@@ -5,6 +5,7 @@ import { useEligibility } from '@/contexts/EligibilityContext';
 import { GetStartedLayout } from './GetStartedLayout';
 import { EligibilityResult } from './EligibilityResult';
 import { EmploymentType } from './steps/EmploymentType';
+import { PublicEntryPath } from './steps/PublicEntryPath';
 import { FederalState } from './steps/FederalState';
 import { PensionProvider } from './steps/PensionProvider';
 import { PensionScheme } from './steps/PensionScheme';
@@ -19,6 +20,7 @@ import { PrivateContributionDetails } from './steps/PrivateContributionDetails';
 
 const STEP_COMPONENTS: Record<string, React.FC> = {
   // Public sector steps
+  public_entry_path: PublicEntryPath,
   federal_state: FederalState,
   pension_provider: PensionProvider,
   pension_scheme: PensionScheme,
@@ -59,8 +61,11 @@ export function EligibilityFlow() {
   const StepComponent = currentStepId ? STEP_COMPONENTS[currentStepId] : null;
   if (!StepComponent) return null;
 
+  const showLayoutBack =
+    stepHistory.length > 0 && currentStepId !== 'public_entry_path';
+
   return (
-    <GetStartedLayout showBack={stepHistory.length > 0} onBack={goBack}>
+    <GetStartedLayout showBack={showLayoutBack} onBack={goBack}>
       <StepComponent />
     </GetStartedLayout>
   );
