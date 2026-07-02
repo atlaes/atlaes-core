@@ -36,6 +36,15 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
 
       // Create Stripe Checkout Session and redirect
       const { url } = await createCheckoutSession(claimId);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(
+          'vbl_onboarding_payment_seed',
+          JSON.stringify({
+            pensionType: data.pensionType,
+            membership: data.membership,
+          })
+        );
+      }
       window.location.href = url;
     } catch (err) {
       console.error('Payment initiation failed:', err);
@@ -54,7 +63,7 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
-        Pay €199 deposit to begin your company pension refund claim.
+        Pay the €199 deposit to start your company pension refund claim.
       </p>
 
       {/* Payment Card */}
@@ -62,7 +71,9 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
         {/* Deposit Amount — centered pill card per Figma VBL-1 */}
         <div className="bg-gray-100 rounded-xl py-5 mb-6 text-center">
           <p className="text-3xl font-bold text-[#163300] leading-none">€199</p>
-          <p className="text-sm text-gray-600 mt-1">deposit (minimum fee)</p>
+          <p className="text-sm text-gray-600 mt-1">
+            deposit — credited toward your service fee
+          </p>
         </div>
 
         {/* Fee Breakdown List */}
@@ -90,7 +101,7 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
               <Check className="w-3 h-3 text-white" />
             </div>
             <p className="text-sm text-gray-700">
-              <strong>Deposit:</strong> You pay the €199 upfront and it counts toward your final service fee
+              <strong>Deposit:</strong> You pay €199 upfront and it counts toward your final service fee
             </p>
           </div>
 
@@ -108,7 +119,7 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
               <Check className="w-3 h-3 text-white" />
             </div>
             <p className="text-sm text-gray-700">
-              <strong>Money-back guarantee:</strong> Your €199 deposit is fully refunded if the pension authority rejects your claim
+              <strong>Money-back guarantee:</strong> The €199 deposit is fully refunded if the pension provider rejects your claim
             </p>
           </div>
         </div>
@@ -118,7 +129,7 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
           Your refund will be paid directly to your own bank account.
         </p>
         <p className="text-xs text-gray-500 text-center mb-6">
-          Secure payment via Stripe.
+          Secure payment via Stripe
         </p>
 
         {/* Error Message */}

@@ -9,6 +9,7 @@ import {
   selectEmploymentEndDate,
   selectStagePensionDetails,
   selectStageContributionDuration,
+  selectPrivateEntryPath,
   selectPrivatePensionProvider,
 } from './helpers';
 
@@ -148,39 +149,41 @@ test.describe('Eligibility Edge Cases', () => {
   });
 
   test.describe('Stage Back Navigation', () => {
-    test('Back from stage details returns to federal state', async ({
+    test('Back from stage details returns to upload/manual choice', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
       await selectEmploymentType(page, 'Stage / Performing Arts/ Orchestra');
-      await selectFederalState(page, 'Berlin (West)');
+      await selectPublicEntryPath(page, 'Answer questions');
       await expect(
         page.getByRole('heading', {
-          name: 'Stage / Orchestra pension details',
+          name: 'Select your stage or orchestra pension',
         })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
-        page.getByRole('heading', { name: 'Where was your employer located?' })
+        page.getByRole('heading', {
+          name: 'Upload your pension document or continue manually',
+        })
       ).toBeVisible({ timeout: 5_000 });
     });
 
     test('Back from stage duration returns to details', async ({ page }) => {
       await navigateToGetStarted(page);
       await selectEmploymentType(page, 'Stage / Performing Arts/ Orchestra');
-      await selectFederalState(page, 'Berlin (West)');
+      await selectPublicEntryPath(page, 'Answer questions');
       await selectStagePensionDetails(page, 'VddB');
       await expect(
         page.getByRole('heading', {
-          name: 'How many months did you contribute in total?',
+          name: 'How many VddB/VddKO contribution months do you have in total?',
         })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
         page.getByRole('heading', {
-          name: 'Stage / Orchestra pension details',
+          name: 'Select your stage or orchestra pension',
         })
       ).toBeVisible({ timeout: 5_000 });
     });
@@ -188,7 +191,7 @@ test.describe('Eligibility Edge Cases', () => {
     test('Back from end date returns to duration', async ({ page }) => {
       await navigateToGetStarted(page);
       await selectEmploymentType(page, 'Stage / Performing Arts/ Orchestra');
-      await selectFederalState(page, 'Berlin (West)');
+      await selectPublicEntryPath(page, 'Answer questions');
       await selectStagePensionDetails(page, 'VddB');
       await selectStageContributionDuration(page, '12 to 35 months');
       await expect(
@@ -198,21 +201,21 @@ test.describe('Eligibility Edge Cases', () => {
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
         page.getByRole('heading', {
-          name: 'How many months did you contribute in total?',
+          name: 'How many VddB/VddKO contribution months do you have in total?',
         })
       ).toBeVisible({ timeout: 5_000 });
     });
   });
 
   test.describe('Private Sector Back Navigation', () => {
-    test('Back from private provider returns to start choice', async ({
+    test('Back from private upload/manual choice returns to start choice', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
       await selectEmploymentType(page, 'Private Sector');
       await expect(
         page.getByRole('heading', {
-          name: 'Which company pension did you contribute to?',
+          name: 'Upload your pension statement or continue manually',
         })
       ).toBeVisible({ timeout: 5_000 });
 
@@ -222,11 +225,32 @@ test.describe('Eligibility Edge Cases', () => {
       ).toBeVisible({ timeout: 5_000 });
     });
 
+    test('Back from private provider returns to upload/manual choice', async ({
+      page,
+    }) => {
+      await navigateToGetStarted(page);
+      await selectEmploymentType(page, 'Private Sector');
+      await selectPrivateEntryPath(page, 'Answer questions');
+      await expect(
+        page.getByRole('heading', {
+          name: 'Which company pension did you contribute to?',
+        })
+      ).toBeVisible({ timeout: 5_000 });
+
+      await page.getByRole('button', { name: 'Back' }).click();
+      await expect(
+        page.getByRole('heading', {
+          name: 'Upload your pension statement or continue manually',
+        })
+      ).toBeVisible({ timeout: 5_000 });
+    });
+
     test('Back from contribution details returns to provider', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
       await selectEmploymentType(page, 'Private Sector');
+      await selectPrivateEntryPath(page, 'Answer questions');
       await selectPrivatePensionProvider(page, 'BVV');
       await expect(
         page.getByRole('heading', { name: 'Contribution details' })
@@ -262,7 +286,9 @@ test.describe('Eligibility Edge Cases', () => {
 
       await page.getByRole('button', { name: 'Start check' }).click();
       await expect(
-        page.getByRole('heading', { name: 'Where was your employer located?' })
+        page.getByRole('heading', {
+          name: 'Upload your pension document or continue manually',
+        })
       ).toBeVisible({ timeout: 5_000 });
     });
   });

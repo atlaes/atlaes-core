@@ -20,9 +20,9 @@ interface SuccessScreenProps {
 }
 
 const WHAT_HAPPENS_NEXT = [
-  'The pension provider reviews your application',
+  'The pension provider reviews your refund request.',
   "Once the refund is granted, we'll notify you so you can download the official refund statement and settle any remaining service fee.",
-  'The refund is paid directly to the bank account you provided',
+  'The refund is paid directly to the bank account you provided.',
 ];
 
 export const SuccessScreen: React.FC<SuccessScreenProps> = ({
@@ -57,7 +57,7 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
 
       {/* Title */}
       <h2 className="text-2xl font-bold text-gray-900 mb-3">
-        Your refund claim has been submitted
+        Your refund request has been submitted
       </h2>
 
       {/* Subtitle */}
@@ -122,10 +122,13 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
 
       {/* DRV Upsell Section */}
       {showDRVSection && (
-        <div className="bg-[#6366F1] rounded-xl overflow-hidden text-white">
+        <div className="bg-[#EDEBFF] rounded-xl overflow-hidden text-[#6B6689]">
           {/* Header */}
-          <div className="bg-[#4F46E5] px-6 py-3">
-            <h3 className="font-semibold">German State Pension (DRV)</h3>
+          <div className="bg-[#4F46E5] px-6 py-3 text-white">
+            <h3 className="font-semibold">German State Pension Refund</h3>
+            <p className="text-sm text-white/80">
+              Separate from your company pension claim
+            </p>
           </div>
 
           {/* Content */}
@@ -133,24 +136,24 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
             {isDRVEligibleNow ? (
               <>
                 <p className="text-lg font-medium mb-2">
-                  You are also eligible for a<br />German state pension refund
+                  You may also be able to claim a<br />German state pension refund
                 </p>
-                <p className="text-sm text-white/80 mb-4">
-                  Based on your nationality, residence, and contribution history, you appear to be <span className="font-semibold text-white">eligible</span> to also apply for your German state pension refund.
+                <p className="text-sm mb-4">
+                  Based on your nationality, residence and contribution history, you may also be able to apply for a German state pension refund.
                 </p>
-                <p className="text-sm text-white/80 mb-6">
-                  This is a <span className="font-semibold text-white">separate and optional claim</span> process from your supplementary refund.
+                <p className="text-sm mb-6">
+                  This is a separate and optional claim process from your company pension claim.
                 </p>
                 <button
                   onClick={onStartDRVClaim}
-                  className="w-full py-3 px-6 bg-white text-[#4F46E5] font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors mb-3"
+                  className="w-full py-3 px-6 bg-[#4F46E5] text-white font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-[#4338CA] transition-colors mb-3"
                 >
-                  Start state pension refund claim
+                  Check German state pension refund
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 <button
                   onClick={onGoToDashboard}
-                  className="text-sm text-white/80 hover:text-white transition-colors"
+                  className="text-sm font-semibold text-[#4F46E5] hover:text-[#4338CA] transition-colors"
                 >
                   Not now
                 </button>
@@ -160,19 +163,19 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
                 <p className="text-lg font-medium mb-2">
                   Later, you may also be eligible for a<br />German state pension refund
                 </p>
-                <p className="text-sm text-white/80 mb-4">
-                  Based on your nationality, residence, and last contribution date, you will become <span className="font-semibold text-white">eligible</span> to apply for a German state pension refund from:
+                <p className="text-sm mb-4">
+                  Based on your nationality, residence and last contribution date, you may be able to apply for a German state pension refund from:
                 </p>
 
                 {/* Eligibility Date Box */}
-                <div className="bg-white/10 rounded-lg py-2 px-4 mb-4 inline-block">
-                  <span className="text-white font-medium">
+                <div className="bg-white rounded-lg py-2 px-4 mb-4 inline-block">
+                  <span className="font-medium text-[#6B6689]">
                     {drvEligibilityDate || 'DD MMM YYYY'}
                   </span>
                 </div>
 
-                <p className="text-sm text-white/80 mb-6">
-                  You don't need to remember this — we can notify you when the time comes.
+                <p className="text-sm mb-6">
+                  This is a separate and optional claim process from your company pension claim. We can remind you when the time comes.
                 </p>
 
                 <button
@@ -180,16 +183,16 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
                   disabled={data.successData?.drvReminderSet}
                   className={`w-full py-3 px-6 font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors mb-3 ${
                     data.successData?.drvReminderSet
-                      ? 'bg-white/20 text-white/60 cursor-not-allowed'
-                      : 'bg-white text-[#4F46E5] hover:bg-gray-100'
+                      ? 'bg-[#4F46E5]/30 text-white cursor-not-allowed'
+                      : 'bg-[#4F46E5] text-white hover:bg-[#4338CA]'
                   }`}
                 >
                   <Bell className="w-4 h-4" />
-                  {data.successData?.drvReminderSet ? 'Reminder set!' : "Remind me when I'm eligible"}
+                  {data.successData?.drvReminderSet ? 'Reminder set!' : 'Remind me when I can apply'}
                 </button>
                 <button
                   onClick={onGoToDashboard}
-                  className="text-sm text-white/80 hover:text-white transition-colors"
+                  className="text-sm font-semibold text-[#4F46E5] hover:text-[#4338CA] transition-colors"
                 >
                   No thanks
                 </button>

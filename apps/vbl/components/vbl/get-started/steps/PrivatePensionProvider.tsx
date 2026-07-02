@@ -7,9 +7,13 @@ import { PrivatePensionProviderType } from '@/components/vbl/get-started/flows';
 
 const PROVIDERS: { id: PrivatePensionProviderType; label: string }[] = [
   { id: 'Allianz', label: 'Allianz' },
-  { id: 'Axa', label: 'Axa' },
-  { id: 'BVV', label: 'BVV' },
+  { id: 'Axa', label: 'AXA' },
   { id: 'Swiss_Life', label: 'Swiss Life' },
+  { id: 'ERGO', label: 'ERGO' },
+  { id: 'R_V', label: 'R+V' },
+  { id: 'Nuernberger', label: 'Nürnberger' },
+  { id: 'HDI', label: 'HDI' },
+  { id: 'BVV', label: 'BVV' },
   { id: 'Other', label: 'Other (enter manually)' },
 ];
 

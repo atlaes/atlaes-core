@@ -37,7 +37,7 @@ export const Address: React.FC<AddressProps> = ({ onNext }) => {
   return (
     <div className="max-w-lg mx-auto">
       <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-        Your current address
+        Your current residential address
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
@@ -51,12 +51,15 @@ export const Address: React.FC<AddressProps> = ({ onNext }) => {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Street and house number
           </label>
+          <p className="mb-2 text-sm text-gray-500">
+            Please enter your address using Latin characters.
+          </p>
           <input
             ref={streetInputRef}
             type="text"
             value={data.address.streetAndNumber}
             onChange={(e) => updateAddress({ streetAndNumber: e.target.value })}
-            placeholder="Start typing to search…"
+            placeholder="Street and house number"
             autoComplete="off"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
           />

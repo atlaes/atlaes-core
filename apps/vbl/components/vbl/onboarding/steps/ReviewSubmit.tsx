@@ -36,7 +36,7 @@ interface ReviewSection {
 const REVIEW_SECTIONS: ReviewSection[] = [
   { id: 'personal', title: 'Personal information', subStep: 'identity', icon: <User className="w-5 h-5" /> },
   { id: 'address', title: 'Address', subStep: 'address', icon: <MapPin className="w-5 h-5" /> },
-  { id: 'membership', title: 'Membership', subStep: 'membership', icon: <CardIcon className="w-5 h-5" /> },
+  { id: 'membership', title: 'Pension details', subStep: 'membership', icon: <CardIcon className="w-5 h-5" /> },
   { id: 'bank', title: 'Bank details', subStep: 'bank-details', icon: <Landmark className="w-5 h-5" /> },
   { id: 'signature', title: 'Signature', subStep: 'signature', icon: <PenTool className="w-5 h-5" /> },
 ];
@@ -170,9 +170,6 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
               <span className="text-gray-500">Gender:</span> {GENDER_LABELS[data.identity.gender] || 'Not provided'}
             </p>
             <p className="text-gray-700">
-              <span className="text-gray-500">Passport or ID number:</span> {data.identity.passportNumber || 'Not provided'}
-            </p>
-            <p className="text-gray-700">
               <span className="text-gray-500">Nationality:</span> {data.identity.nationality || 'Not provided'}
             </p>
             <p className="text-gray-700">
@@ -188,12 +185,19 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
         );
       case 'address':
         return (
-          <div className="space-y-1 text-sm pt-4 pb-2">
-            <p className="text-gray-700">{data.address.streetAndNumber || 'Not provided'}</p>
+          <div className="space-y-2 text-sm pt-4 pb-2">
             <p className="text-gray-700">
-              {data.address.postalCode} {data.address.city}
+              <span className="text-gray-500">Street and house number:</span> {data.address.streetAndNumber || 'Not provided'}
             </p>
-            <p className="text-gray-700">{COUNTRY_LABELS[data.address.country] || data.address.country}</p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">Postal code:</span> {data.address.postalCode || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">City:</span> {data.address.city || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">Country:</span> {COUNTRY_LABELS[data.address.country] || data.address.country || 'Not provided'}
+            </p>
             <button
               onClick={() => handleEditSection(section.subStep)}
               className="text-[#163300] font-medium hover:underline mt-2"
@@ -224,7 +228,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
           <div className="space-y-2 text-sm pt-4 pb-2">
             {data.bankDetails.accountHolder && (
               <p className="text-gray-700">
-                <span className="text-gray-500">Account holder:</span> {data.bankDetails.accountHolder}
+                <span className="text-gray-500">Account holder name:</span> {data.bankDetails.accountHolder}
               </p>
             )}
             {data.bankDetails.iban ? (
@@ -277,11 +281,11 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
   return (
     <div className="max-w-lg mx-auto">
       <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-        Review your claim
+        Review your refund request
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
-        Please review your information before submitting your refund claim.
+        Please review your information before submitting your refund request.
       </p>
 
       {/* Accordion Sections */}
@@ -346,7 +350,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
           </>
         ) : (
           <>
-            Submit Refund Claim
+            Submit claim
             <ArrowRight className="w-4 h-4" />
           </>
         )}

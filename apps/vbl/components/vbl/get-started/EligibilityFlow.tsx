@@ -15,7 +15,9 @@ import { ContributionDuration } from './steps/ContributionDuration';
 import { EUContinuation } from './steps/EUContinuation';
 import { StagePensionDetails } from './steps/StagePensionDetails';
 import { StageContributionDuration } from './steps/StageContributionDuration';
+import { StageUploadDocument } from './steps/StageUploadDocument';
 import { EmploymentEndDate } from './steps/EmploymentEndDate';
+import { PrivateUploadDocument } from './steps/PrivateUploadDocument';
 import { PrivatePensionProvider } from './steps/PrivatePensionProvider';
 import { PrivateContributionDetails } from './steps/PrivateContributionDetails';
 
@@ -30,10 +32,16 @@ const STEP_COMPONENTS: Record<string, React.FC> = {
   contribution_period: ContributionPeriod,
   contribution_duration: ContributionDuration,
   // Stage steps
+  stage_entry_path: PublicEntryPath,
+  stage_upload: StageUploadDocument,
   stage_pension_details: StagePensionDetails,
   stage_contribution_duration: StageContributionDuration,
+  stage_post_2001_contribution_duration: StageContributionDuration,
+  stage_post_2018_contribution_duration: StageContributionDuration,
   employment_end_date: EmploymentEndDate,
   // Private sector steps
+  private_entry_path: PublicEntryPath,
+  private_upload: PrivateUploadDocument,
   private_pension_provider: PrivatePensionProvider,
   private_contribution_details: PrivateContributionDetails,
 };
@@ -66,7 +74,11 @@ export function EligibilityFlow() {
   const showLayoutBack =
     stepHistory.length > 0 &&
     currentStepId !== 'public_entry_path' &&
-    currentStepId !== 'public_upload';
+    currentStepId !== 'public_upload' &&
+    currentStepId !== 'stage_entry_path' &&
+    currentStepId !== 'stage_upload' &&
+    currentStepId !== 'private_entry_path' &&
+    currentStepId !== 'private_upload';
 
   return (
     <GetStartedLayout showBack={showLayoutBack} onBack={goBack}>

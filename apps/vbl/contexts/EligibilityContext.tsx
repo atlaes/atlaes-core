@@ -28,9 +28,13 @@ const initialData: EligibilityData = {
   consecutiveContribution: '',
   contributionDuration: '',
   publicEntryPath: '',
+  stageEntryPath: '',
   stageContributionDuration: '',
+  stagePost2001ContributionDuration: '',
+  stagePost2018ContributionDuration: '',
   employmentEndMonth: '',
   employmentEndYear: '',
+  privateEntryPath: '',
   privatePensionProvider: '',
   privatePensionProviderOther: '',
   contributionStartMonth: '',
@@ -39,6 +43,9 @@ const initialData: EligibilityData = {
   contributionEndYear: '',
   averageMonthlyContribution: '',
   employerPaidContributions: '',
+  privateStatePensionRefundReceived: '',
+  privateStatementValueType: '',
+  privateStatementAmount: '',
 };
 
 function getFlowConfig(employmentType: string): FlowConfig | null {

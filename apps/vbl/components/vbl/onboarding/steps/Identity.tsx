@@ -151,7 +151,6 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
     data.identity.dateOfBirth !== '' &&
     isAtLeast18(data.identity.dateOfBirth) &&
     data.identity.gender !== '' &&
-    data.identity.passportNumber.trim() !== '' &&
     data.identity.nationality.trim() !== '' &&
     data.identity.placeOfBirth.trim() !== '';
   const isUnder18 =
@@ -183,7 +182,7 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
         </h2>
         <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
         <p className="text-gray-600 text-center mb-8">
-          A copy of your passport or ID is required by the pension authority and will be included with your refund application.
+          A clear copy of your passport or national ID is required by the pension provider and will be included with your refund request.
         </p>
 
         {/* Upload Area */}
@@ -215,7 +214,7 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
             <path d="M38.5 30.3A9 9 0 0 0 36 14h-1.3A14.4 14.4 0 1 0 8 26.7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <p className="text-gray-600 mb-2">
-            Drag & drop your file here or{' '}
+            Drag and drop your file here or{' '}
             <span className="text-[#163300] font-medium hover:underline">
               browse
             </span>
@@ -254,11 +253,11 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
   return (
     <div className="max-w-lg mx-auto">
       <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-        Confirm your details
+        Confirm your identity details
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
-        We extracted the following from your document. Please verify and correct if needed.
+        We read these details from your document. Please check and correct them if needed.
       </p>
 
       {/* Uploaded Document Preview */}
@@ -313,6 +312,37 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
           />
         </div>
 
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nationality
+            </label>
+            <input
+              type="text"
+              value={data.identity.nationality}
+              onChange={(e) =>
+                updateIdentity({ nationality: e.target.value })
+              }
+              placeholder="e.g. Australian"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Place of birth
+            </label>
+            <input
+              type="text"
+              value={data.identity.placeOfBirth}
+              onChange={(e) =>
+                updateIdentity({ placeOfBirth: e.target.value })
+              }
+              placeholder="e.g. Sydney"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+            />
+          </div>
+        </div>
+
         {/* Date of birth + Gender */}
         <div className="space-y-4">
           <DatePartsInput
@@ -349,59 +379,13 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
             </div>
           </div>
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Passport or ID number
-          </label>
-          <input
-            type="text"
-            value={data.identity.passportNumber}
-            onChange={(e) =>
-              updateIdentity({ passportNumber: e.target.value })
-            }
-            placeholder="Enter document number"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nationality
-            </label>
-            <input
-              type="text"
-              value={data.identity.nationality}
-              onChange={(e) =>
-                updateIdentity({ nationality: e.target.value })
-              }
-              placeholder="e.g. Australian"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Place of birth
-            </label>
-            <input
-              type="text"
-              value={data.identity.placeOfBirth}
-              onChange={(e) =>
-                updateIdentity({ placeOfBirth: e.target.value })
-              }
-              placeholder="e.g. Sydney"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
-            />
-          </div>
-        </div>
       </div>
 
       {/* Info Banner */}
       <div className="mt-6 bg-[#F0FDE4] rounded-lg p-4 flex items-center gap-3">
         <Info className="w-5 h-5 text-[#163300] flex-shrink-0" />
         <p className="text-sm text-[#163300]">
-          The details you confirm here will be used in the official refund application.
+          The details you confirm here will be used for your refund request.
         </p>
       </div>
 

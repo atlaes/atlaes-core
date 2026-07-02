@@ -70,7 +70,7 @@ export function GetStartedOnboardingFlow() {
       // Map eligibility provider to membership provider value
       let mappedProvider = provider;
       if (provider === 'VBL' && eligibilityData.vblPlan) {
-        mappedProvider = 'VBL';
+        mappedProvider = eligibilityData.vblPlan;
       }
       updateData({
         membership: {
@@ -80,6 +80,32 @@ export function GetStartedOnboardingFlow() {
       });
     }
   }, [eligibilityData.pensionProvider, eligibilityData.vblPlan, data.membership, updateData]);
+
+  // Restore provider/type details after the Stripe redirect reloads the page.
+  useEffect(() => {
+    if (data.membership.pensionProvider) return;
+    if (typeof window === 'undefined') return;
+
+    const raw = sessionStorage.getItem('vbl_onboarding_payment_seed');
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw) as {
+        pensionType?: typeof data.pensionType;
+        membership?: typeof data.membership;
+      };
+      if (!parsed.membership?.pensionProvider) return;
+      updateData({
+        pensionType: parsed.pensionType || data.pensionType,
+        membership: {
+          ...data.membership,
+          ...parsed.membership,
+        },
+      });
+    } catch {
+      sessionStorage.removeItem('vbl_onboarding_payment_seed');
+    }
+  }, [data.membership, data.pensionType, updateData]);
 
   // Resume draft claim on mount
   useEffect(() => {

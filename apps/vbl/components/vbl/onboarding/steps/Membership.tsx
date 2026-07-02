@@ -10,6 +10,8 @@ interface MembershipProps {
 }
 
 const PENSION_PROVIDERS = [
+  { value: 'VBLklassik', label: 'VBLklassik', shortLabel: 'VBLklassik' },
+  { value: 'VBLextra', label: 'VBLextra', shortLabel: 'VBLextra' },
   { value: 'VBL', label: 'VBL', shortLabel: 'VBL' },
   { value: 'ZVK', label: 'ZVK', shortLabel: 'ZVK' },
   { value: 'KVBW', label: 'KVBW', shortLabel: 'KVBW' },
@@ -36,28 +38,50 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
   );
 
   const providerLabel = selectedProvider?.label || data.membership.pensionProvider || '';
+  const displayProviderLabel = providerLabel === 'VBL' ? 'VBLklassik' : providerLabel;
+  const isVblProvider =
+    providerLabel === 'VBL' ||
+    providerLabel === 'VBLklassik' ||
+    providerLabel === 'VBLextra';
 
   // Dynamic membership number label and helper text based on selection
-  const membershipNumberLabel = providerLabel
+  const membershipNumberLabel = isVblProvider
+    ? 'VBL insurance number'
+    : providerLabel
     ? `${providerLabel} membership number`
     : 'Membership number';
 
-  const membershipNumberPlaceholder = providerLabel
+  const membershipNumberPlaceholder = isVblProvider
+    ? 'Enter your VBL insurance number'
+    : providerLabel
     ? `Enter your ${providerLabel} membership number`
     : 'Enter your membership number';
 
-  const helperText = providerLabel
+  const helperText = isVblProvider
+    ? 'You can find this number on your VBL letters or statements.'
+    : providerLabel
     ? `You can find this number on letters or statements from ${providerLabel}.`
     : 'You can find this number on letters or statements from your pension provider.';
+
+  const heading = isStageProvider
+    ? 'Stage or orchestra employment details'
+    : isVblProvider
+    ? 'VBL pension details'
+    : 'Pension details';
+  const intro = isStageProvider
+    ? 'Please provide details about your last stage or orchestra employment in Germany.'
+    : isVblProvider
+    ? 'Enter the details from your VBL document.'
+    : 'Enter the details from your pension document.';
 
   return (
     <div className="max-w-lg mx-auto">
       <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-        Pension membership details
+        {heading}
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
-        Enter your supplementary pension scheme membership information.
+        {intro}
       </p>
 
       {/* Form Fields */}
@@ -65,7 +89,7 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
         {/* Pension Provider — read-only if pre-selected from eligibility */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Supplementary pension:
+            Selected company pension
           </label>
           {/* Client #12: when the provider is carried over from the calculator
               or eligibility flow, show it as locked display — the user cannot
@@ -75,7 +99,7 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
               className="w-full px-4 py-3 rounded-lg text-gray-700 font-medium"
               style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)' }}
             >
-              {providerLabel}
+              {displayProviderLabel}
             </div>
           ) : (
             <div className="relative">
@@ -98,29 +122,30 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
           )}
         </div>
 
-        {/* Membership Number */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {membershipNumberLabel}
-          </label>
-          <input
-            type="text"
-            value={data.membership.membershipNumber}
-            onChange={(e) => updateMembership({ membershipNumber: e.target.value })}
-            placeholder={membershipNumberPlaceholder}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
-          />
-          {/* Info Banner */}
-          <div className="mt-3 bg-[#F0FDE4] rounded-lg p-3 flex items-center gap-3">
-            <Info className="w-5 h-5 text-[#163300] flex-shrink-0" />
-            <p className="text-sm text-[#163300]">
-              {helperText}
-            </p>
+        {!isStageProvider && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {membershipNumberLabel}
+            </label>
+            <input
+              type="text"
+              value={data.membership.membershipNumber}
+              onChange={(e) => updateMembership({ membershipNumber: e.target.value })}
+              placeholder={membershipNumberPlaceholder}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+            />
+            {/* Info Banner */}
+            <div className="mt-3 bg-[#F0FDE4] rounded-lg p-3 flex items-center gap-3">
+              <Info className="w-5 h-5 text-[#163300] flex-shrink-0" />
+              <p className="text-sm text-[#163300]">
+                {helperText}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         {isStageProvider && (
-          <div className="border-t border-gray-200 pt-6">
+          <div className="pt-2">
             <StageMembershipDetails embedded />
           </div>
         )}

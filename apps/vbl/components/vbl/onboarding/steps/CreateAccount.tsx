@@ -120,12 +120,12 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
     <div className="max-w-md mx-auto">
       {/* Title */}
       <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-        Create your account
+        Create your secure claim
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
-        Create your secure account to start your claim. We'll guide you through
-        every step and help you prepare the required submission.
+        Create secure access to continue your refund request. We'll guide you
+        step by step through the online process.
       </p>
 
       {/* Error Message */}
@@ -146,7 +146,7 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="your.email@example.com"
+            placeholder="Email..."
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none transition-all"
             required
           />

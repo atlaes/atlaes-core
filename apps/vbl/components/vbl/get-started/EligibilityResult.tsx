@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Check, X, ArrowRight, ArrowLeft, Clock, Bell } from 'lucide-react';
 import { useEligibility } from '@/contexts/EligibilityContext';
 
@@ -14,17 +14,23 @@ export const EligibilityResult: React.FC = () => {
     data,
     confirmEligibility,
   } = useEligibility();
+  const [stageReminderStep, setStageReminderStep] = useState<
+    'initial' | 'form' | 'set'
+  >('initial');
+  const [reminderEmail, setReminderEmail] = useState('');
 
   const handleContinueSecurely = () => {
     confirmEligibility();
   };
 
   const isPublic = data.employmentType === 'public_sector';
+  const isStage = data.employmentType === 'stage_performing_arts';
+  const isStageUpload = isStage && data.stageEntryPath === 'upload';
 
   if (result === 'eligible') {
     const isPrivate = data.employmentType === 'private_sector';
 
-    if (isPublic) {
+    if (isPublic || isStage) {
       return (
         <div className="mx-auto flex min-h-[470px] max-w-[760px] flex-col items-center justify-center text-center">
           <div className="mb-9 flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#9FE870]">
@@ -41,7 +47,7 @@ export const EligibilityResult: React.FC = () => {
             onClick={handleContinueSecurely}
             className="flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-[6px] bg-[#9FE870] px-6 text-[16px] font-bold text-[#163300] shadow-sm transition hover:bg-[#8AD860]"
           >
-            Create your secure claim
+            {isStageUpload ? 'Create secure claim' : 'Create your secure claim'}
             <ArrowRight className="h-5 w-5" />
           </button>
         </div>
@@ -119,6 +125,122 @@ export const EligibilityResult: React.FC = () => {
   }
 
   if (result === 'waiting' && waitingInfo) {
+    if (isStage) {
+      if (stageReminderStep === 'set') {
+        return (
+          <div className="mx-auto flex min-h-[470px] max-w-[620px] flex-col items-center justify-center text-center">
+            <div className="mb-9 flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#9FE870]">
+              <div className="flex h-[78px] w-[78px] items-center justify-center rounded-full bg-[#163300]">
+                <Check className="h-11 w-11 text-[#9FE870]" strokeWidth={3} />
+              </div>
+            </div>
+
+            <h2 className="mb-4 text-[26px] font-bold leading-tight text-[#111827]">
+              Reminder set
+            </h2>
+            <p className="max-w-[460px] text-[16px] leading-6 text-[#4B5563]">
+              {isStageUpload
+                ? 'We will remind you when your VddB/VddKO refund can be started with CompanyPension.'
+                : "We'll email you when you can start your refund."}
+            </p>
+            {isStageUpload && (
+              <button
+                type="button"
+                onClick={reset}
+                className="mt-8 flex h-12 w-full max-w-[400px] items-center justify-center rounded-[6px] bg-[#9FE870] px-6 text-[16px] font-bold text-[#163300] shadow-sm transition hover:bg-[#8AD860]"
+              >
+                Return to start
+              </button>
+            )}
+          </div>
+        );
+      }
+
+      if (stageReminderStep === 'form') {
+        return (
+          <div className="mx-auto flex min-h-[470px] max-w-[620px] flex-col items-center justify-center text-center">
+            <div className="mb-9 flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#EEF6EA]">
+              <div className="flex h-[78px] w-[78px] items-center justify-center rounded-full bg-[#5A9A23]">
+                <Clock className="h-11 w-11 text-white" strokeWidth={2.5} />
+              </div>
+            </div>
+
+            <h2 className="mb-4 text-[26px] font-bold leading-tight text-[#111827]">
+              {isStageUpload
+                ? 'Notify me when I can start'
+                : 'Your refund cannot be started yet'}
+            </h2>
+            <p className="mb-8 max-w-[520px] text-[16px] leading-6 text-[#4B5563]">
+              {isStageUpload
+                ? 'Enter your email and we will remind you when the waiting period has passed.'
+                : `You can return on or after ${waitingInfo.eligibleDate}.`}
+            </p>
+
+            <label className="mb-2 w-full max-w-[400px] text-left text-[15px] font-semibold text-[#4A4F58]">
+              Email address
+            </label>
+            <input
+              type="email"
+              placeholder="Email"
+              value={reminderEmail}
+              onChange={(event) => setReminderEmail(event.target.value)}
+              className="mb-5 h-12 w-full max-w-[400px] rounded-[8px] border border-[#D3DAE8] bg-white px-4 text-[16px] text-[#1F2937] shadow-sm transition-all focus:border-[#9FE870] focus:outline-none focus:ring-2 focus:ring-[#9FE870]/20"
+            />
+
+            <button
+              type="button"
+              onClick={() => setStageReminderStep('set')}
+              disabled={!reminderEmail}
+              className="flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-[6px] bg-[#9FE870] px-6 text-[16px] font-bold text-[#163300] shadow-sm transition hover:bg-[#8AD860] disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              Set reminder
+              <ArrowRight className="h-5 w-5" />
+            </button>
+            <p className="mt-4 max-w-[430px] text-[14px] italic leading-5 text-[#6B7280]">
+              We&apos;ll send you an email reminder when you can start your
+              refund.
+            </p>
+          </div>
+        );
+      }
+
+      return (
+        <div className="mx-auto flex min-h-[470px] max-w-[620px] flex-col items-center justify-center text-center">
+          <div className="mb-9 flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#EEF6EA]">
+            <div className="flex h-[78px] w-[78px] items-center justify-center rounded-full bg-[#5A9A23]">
+              <Clock className="h-11 w-11 text-white" strokeWidth={2.5} />
+            </div>
+          </div>
+
+          <h2 className="mb-4 text-[26px] font-bold leading-tight text-[#111827]">
+            Your refund cannot be started yet
+          </h2>
+          <p className="mb-8 max-w-[460px] text-[16px] leading-6 text-[#4B5563]">
+            You can return on or after {waitingInfo.eligibleDate}.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setStageReminderStep('form')}
+            className="flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-[6px] bg-[#9FE870] px-6 text-[16px] font-bold text-[#163300] shadow-sm transition hover:bg-[#8AD860]"
+          >
+            <Bell className="h-5 w-5" />
+            Notify me when I can start
+          </button>
+          <p className="mt-4 text-[14px] italic leading-5 text-[#6B7280]">
+            We&apos;ll send you an email reminder.
+          </p>
+          <button
+            type="button"
+            onClick={reset}
+            className="mt-6 text-[15px] font-semibold text-[#163300] underline underline-offset-2 transition hover:text-[#2A5A00]"
+          >
+            Back
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="max-w-lg mx-auto text-center py-8">
         <div className="w-20 h-20 rounded-full bg-[#9FE870] flex items-center justify-center mx-auto mb-6">
@@ -156,7 +278,7 @@ export const EligibilityResult: React.FC = () => {
   }
 
   if (result === 'not_eligible' && ineligibilityInfo) {
-    if (isPublic) {
+    if (isPublic || isStage) {
       return (
         <div className="mx-auto flex min-h-[470px] max-w-[620px] flex-col items-center justify-center text-center">
           <div className="mb-9 flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#F5D4CF]">

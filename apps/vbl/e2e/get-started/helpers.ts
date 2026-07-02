@@ -1,4 +1,5 @@
 import { Page, expect } from '@playwright/test';
+import { existsSync } from 'fs';
 import path from 'path';
 
 // ============================================================
@@ -52,6 +53,19 @@ export async function selectPublicEntryPath(
   await expect(
     page.getByRole('heading', {
       name: 'Upload your pension document or continue manually',
+    })
+  ).toBeVisible({ timeout: 5_000 });
+  await page.getByRole('button', { name: new RegExp(path, 'i') }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+}
+
+export async function selectPrivateEntryPath(
+  page: Page,
+  path: 'Upload document' | 'Answer questions' = 'Answer questions'
+) {
+  await expect(
+    page.getByRole('heading', {
+      name: 'Upload your pension statement or continue manually',
     })
   ).toBeVisible({ timeout: 5_000 });
   await page.getByRole('button', { name: new RegExp(path, 'i') }).click();
@@ -131,7 +145,7 @@ export async function selectStagePensionDetails(
 ) {
   await expect(
     page.getByRole('heading', {
-      name: 'Stage / Orchestra pension details',
+      name: 'Select your stage or orchestra pension',
     })
   ).toBeVisible({ timeout: 5_000 });
   await page.locator('select').selectOption(provider);
@@ -143,11 +157,16 @@ export async function selectStageContributionDuration(
   duration:
     | 'Less than 12 months'
     | '12 to 35 months'
+    | '36 to 119 months'
+    | '120 months or more'
+    | 'Less than 60 months'
+    | '60 months or more'
+    | 'Less than 36 months'
     | '36 months or more'
 ) {
   await expect(
     page.getByRole('heading', {
-      name: 'How many months did you contribute in total?',
+      name: /How many (VddB\/VddKO contribution months do you have in total|of those contribution months were after 1 January (2001|2018))/,
     })
   ).toBeVisible({ timeout: 5_000 });
   await page.getByText(duration).click();
@@ -229,7 +248,9 @@ export async function expectEligibleResult(page: Page) {
     page.getByRole('heading', { name: /eligible to continue|lump-sum settlement may be possible|refund can be started/i })
   ).toBeVisible({ timeout: 5_000 });
   await expect(
-    page.getByRole('button', { name: /Continue securely|Start Claim|Create your secure claim/i })
+    page.getByRole('button', {
+      name: /Continue securely|Start Claim|Create (your )?secure claim/i,
+    })
   ).toBeVisible();
 }
 
@@ -256,11 +277,13 @@ export async function expectReviewResult(page: Page) {
 export async function expectWaitingResult(page: Page) {
   await expect(
     page.getByRole('heading', {
-      name: 'Your company pension payout is not yet available',
+      name: /Your company pension payout is not yet available|Your refund cannot be started yet/,
     })
   ).toBeVisible({ timeout: 5_000 });
   await expect(
-    page.getByRole('button', { name: /Notify me when I'm eligible/i })
+    page.getByRole('button', {
+      name: /Notify me when (I'm eligible|I can start)/i,
+    })
   ).toBeVisible();
 }
 
@@ -284,7 +307,7 @@ export async function navigatePublicSectorToEligible(page: Page) {
 export async function navigateStageToEligible(page: Page) {
   await navigateToGetStarted(page);
   await selectEmploymentType(page, 'Stage / Performing Arts/ Orchestra');
-  await selectFederalState(page, 'Berlin (West)');
+  await selectPublicEntryPath(page, 'Answer questions');
   await selectStagePensionDetails(page, 'VddB');
   await selectStageContributionDuration(page, '12 to 35 months');
   // Use a date far enough in the past to avoid the 24-month wait
@@ -295,6 +318,7 @@ export async function navigateStageToEligible(page: Page) {
 export async function navigatePrivateSectorToEligible(page: Page) {
   await navigateToGetStarted(page);
   await selectEmploymentType(page, 'Private Sector');
+  await selectPrivateEntryPath(page, 'Answer questions');
   await selectPrivatePensionProvider(page, 'BVV');
   await fillPrivateContributionDetails(page, {
     startMonth: 'January',
@@ -312,10 +336,10 @@ export async function navigatePrivateSectorToEligible(page: Page) {
 
 export async function completeCreateAccount(page: Page, email?: string) {
   await expect(
-    page.getByRole('heading', { name: 'Create your account' })
+    page.getByRole('heading', { name: 'Create your secure claim' })
   ).toBeVisible({ timeout: 10_000 });
   await page
-    .getByPlaceholder('your.email@example.com')
+    .getByLabel('Email address')
     .fill(email ?? TEST_EMAIL);
   await page
     .getByRole('button', { name: /Continue with email/i })
@@ -339,11 +363,19 @@ export async function completeIdentityUpload(page: Page) {
   ).toBeVisible({ timeout: 10_000 });
 
   const fileInput = page.locator('input[type="file"]');
-  await fileInput.setInputFiles(TEST_PASSPORT_PATH);
+  if (existsSync(TEST_PASSPORT_PATH)) {
+    await fileInput.setInputFiles(TEST_PASSPORT_PATH);
+  } else {
+    await fileInput.setInputFiles({
+      name: 'passport.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4\n%EOF'),
+    });
+  }
 
   // Wait for OCR processing and confirm phase
   await expect(
-    page.getByRole('heading', { name: /Confirm your details/i })
+    page.getByRole('heading', { name: /Confirm your identity details/i })
   ).toBeVisible({ timeout: 30_000 });
 
   // Fill identity fields if empty
@@ -368,10 +400,6 @@ export async function completeIdentityUpload(page: Page) {
   if ((await genderSelect.inputValue()) === '') {
     await genderSelect.selectOption('male');
   }
-  const passportNumberInput = page.getByPlaceholder('Enter document number');
-  if ((await passportNumberInput.inputValue()) === '') {
-    await passportNumberInput.fill('P1234567');
-  }
   const nationalityInput = page.getByPlaceholder('e.g. Australian');
   if ((await nationalityInput.inputValue()) === '') {
     await nationalityInput.fill('Australian');
@@ -385,19 +413,19 @@ export async function completeIdentityUpload(page: Page) {
 
 export async function completeMembership(page: Page) {
   await expect(
-    page.getByRole('heading', { name: 'Pension membership details' })
+    page.getByRole('heading', { name: 'VBL pension details' })
   ).toBeVisible({ timeout: 5_000 });
   const providerSelect = page.locator('select').first();
   if ((await providerSelect.count()) > 0) {
     await providerSelect.selectOption('VBL');
   }
-  await page.getByPlaceholder(/membership number/i).fill('VBL123456');
+  await page.getByPlaceholder(/VBL insurance number|membership number/i).fill('VBL123456');
   await page.getByRole('button', { name: /Continue/i }).click();
 }
 
 export async function completeAddress(page: Page) {
   await expect(
-    page.getByRole('heading', { name: 'Your current address' })
+    page.getByRole('heading', { name: 'Your current residential address' })
   ).toBeVisible({ timeout: 5_000 });
   await page
     .getByPlaceholder('Street and house number')
@@ -410,9 +438,12 @@ export async function completeAddress(page: Page) {
 
 export async function completeBankDetails(page: Page) {
   await expect(
-    page.getByRole('heading', {
-      name: /bank account|refund be paid/i,
-    })
+    page.getByRole('heading', { name: 'Where should the refund be paid?' })
+  ).toBeVisible({ timeout: 5_000 });
+  await page.getByRole('button', { name: /My own EUR \/ SEPA account/i }).click();
+  await page.getByRole('button', { name: /Continue/i }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Enter your bank details' })
   ).toBeVisible({ timeout: 5_000 });
   await page.getByPlaceholder(/IBAN/i).fill('DE89370400440532013000');
   await page.getByRole('button', { name: /Continue/i }).click();
@@ -435,14 +466,17 @@ export async function completeSignature(page: Page) {
     await page.mouse.up();
   }
 
+  await page
+    .getByLabel('I confirm that this is my legal signature.')
+    .check();
   await page.getByRole('button', { name: /Continue/i }).click();
 }
 
 export async function submitClaimOnReview(page: Page) {
   await expect(
-    page.getByRole('heading', { name: /Review your claim/i })
+    page.getByRole('heading', { name: /Review your refund request/i })
   ).toBeVisible({ timeout: 10_000 });
-  await page.getByRole('button', { name: /Submit/i }).click();
+  await page.getByRole('button', { name: /Submit claim/i }).click();
 }
 
 // ============================================================

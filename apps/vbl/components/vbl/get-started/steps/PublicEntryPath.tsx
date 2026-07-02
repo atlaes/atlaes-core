@@ -3,10 +3,10 @@
 import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, Info, Pencil, Upload } from 'lucide-react';
 import { useEligibility } from '@/contexts/EligibilityContext';
-import { PublicEntryPathType } from '@/components/vbl/get-started/flows';
+import { EntryPathType } from '@/components/vbl/get-started/flows';
 
 const OPTIONS: {
-  id: Exclude<PublicEntryPathType, ''>;
+  id: Exclude<EntryPathType, ''>;
   title: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -29,25 +29,43 @@ const OPTIONS: {
 
 export const PublicEntryPath: React.FC = () => {
   const { data, goNext, goBack } = useEligibility();
-  const [selected, setSelected] = useState<PublicEntryPathType>(
-    data.publicEntryPath || ''
+  const isStage = data.employmentType === 'stage_performing_arts';
+  const isPrivate = data.employmentType === 'private_sector';
+  const [selected, setSelected] = useState<EntryPathType>(
+    (isPrivate
+      ? data.privateEntryPath
+      : isStage
+        ? data.stageEntryPath
+        : data.publicEntryPath) || ''
   );
 
   const handleContinue = () => {
     if (!selected) return;
-    goNext({ publicEntryPath: selected });
+    if (isPrivate) {
+      goNext({ privateEntryPath: selected });
+      return;
+    }
+    goNext(
+      isStage ? { stageEntryPath: selected } : { publicEntryPath: selected }
+    );
   };
+
+  const heading = isPrivate
+    ? 'Upload your pension statement or continue manually'
+    : 'Upload your pension document or continue manually';
+  const description = isPrivate
+    ? 'A pension statement can help us check your case faster. You can also continue without uploading a document.'
+    : 'A pension document can help us check your case faster. You can also continue by answering a few questions.';
 
   return (
     <div className="mx-auto max-w-[640px]">
       <div className="mb-9 text-center">
         <h2 className="text-[26px] font-bold leading-tight text-[#111827]">
-          Upload your pension document or continue manually
+          {heading}
         </h2>
         <div className="mx-auto mt-3 h-px w-full max-w-[560px] bg-[#D9DEE7]" />
         <p className="mx-auto mt-4 max-w-[520px] text-[16px] leading-6 text-[#4B5563]">
-          A pension document can help us check your case faster. You can also
-          continue by answering a few questions.
+          {description}
         </p>
       </div>
 
