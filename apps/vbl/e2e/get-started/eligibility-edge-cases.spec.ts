@@ -127,7 +127,7 @@ test.describe('Eligibility Edge Cases', () => {
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
-        page.getByRole('heading', { name: 'When did your employment end?' })
+        page.getByRole('heading', { name: 'When did this employment end?' })
       ).toBeVisible({ timeout: 5_000 });
     });
 
@@ -138,7 +138,7 @@ test.describe('Eligibility Edge Cases', () => {
       await selectFederalState(page, 'Hesse');
       await selectPensionProvider(page, 'ZVK Darmstadt');
       await expect(
-        page.getByRole('heading', { name: 'When did your employment end?' })
+        page.getByRole('heading', { name: 'When did this employment end?' })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();

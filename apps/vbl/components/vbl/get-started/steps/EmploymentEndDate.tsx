@@ -29,6 +29,10 @@ export const EmploymentEndDate: React.FC = () => {
   const { data, goNext } = useEligibility();
   const [month, setMonth] = useState(data.employmentEndMonth || '');
   const [year, setYear] = useState(data.employmentEndYear || '');
+  const heading =
+    data.employmentType === 'public_sector'
+      ? 'When did this employment end?'
+      : 'When did your employment end?';
   const selectedMonthIndex = MONTHS.indexOf(month);
   const selectedYear = Number(year);
   const now = new Date();
@@ -48,7 +52,7 @@ export const EmploymentEndDate: React.FC = () => {
     <div className="mx-auto max-w-[640px]">
       <div className="mb-9 text-center">
         <h2 className="text-[26px] font-bold leading-tight text-[#111827]">
-          When did your employment end?
+          {heading}
         </h2>
         <div className="mx-auto mt-3 h-px w-full max-w-[560px] bg-[#D9DEE7]" />
       </div>

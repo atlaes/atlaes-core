@@ -7,6 +7,7 @@ import {
   Building2,
   ArrowRight,
   HelpCircle,
+  Info,
 } from 'lucide-react';
 import { useEligibility } from '@/contexts/EligibilityContext';
 import { EmploymentType as EmploymentTypeValue } from '@/components/vbl/get-started/flows';
@@ -47,11 +48,10 @@ type StartOptionId = (typeof EMPLOYMENT_OPTIONS)[number]['id'];
 export const EmploymentType: React.FC = () => {
   const { data, goNext } = useEligibility();
   const initialSelected =
-    EMPLOYMENT_OPTIONS.find((option) => option.employmentType === data.employmentType)
-      ?.id || 'public_sector';
-  const [selected, setSelected] = useState<StartOptionId>(
-    initialSelected
-  );
+    EMPLOYMENT_OPTIONS.find(
+      (option) => option.employmentType === data.employmentType
+    )?.id || 'public_sector';
+  const [selected, setSelected] = useState<StartOptionId>(initialSelected);
 
   const handleContinue = () => {
     if (!selected) return;
@@ -82,27 +82,44 @@ export const EmploymentType: React.FC = () => {
           const isSelected = selected === option.id;
           const Icon = option.icon;
           return (
-            <button
-              key={option.id}
-              onClick={() => setSelected(option.id)}
-              className={`flex min-h-[90px] w-full items-center gap-6 rounded-[8px] border px-5 py-4 text-left transition ${
-                isSelected
-                  ? 'border-[#163300] bg-[#9FE870] text-[#163300]'
-                  : 'border-[#AEB4BF] bg-white text-[#111827] hover:border-[#163300]'
-              }`}
-            >
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center">
-                <Icon className="h-11 w-11 text-[#3F464F]" strokeWidth={2.1} />
-              </span>
-              <span>
-                <span className="block text-[17px] font-bold">
-                  {option.label}
+            <React.Fragment key={option.id}>
+              <button
+                onClick={() => setSelected(option.id)}
+                className={`flex min-h-[90px] w-full items-center gap-6 rounded-[8px] border px-5 py-4 text-left transition ${
+                  isSelected
+                    ? 'border-[#163300] bg-[#9FE870] text-[#163300]'
+                    : 'border-[#AEB4BF] bg-white text-[#111827] hover:border-[#163300]'
+                }`}
+              >
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center">
+                  <Icon
+                    className="h-11 w-11 text-[#3F464F]"
+                    strokeWidth={2.1}
+                  />
                 </span>
-                <span className="mt-1 block text-[16px] leading-6 text-[#4B5563]">
-                  {option.description}
+                <span>
+                  <span className="block text-[17px] font-bold">
+                    {option.label}
+                  </span>
+                  <span className="mt-1 block text-[16px] leading-6 text-[#4B5563]">
+                    {option.description}
+                  </span>
                 </span>
-              </span>
-            </button>
+              </button>
+
+              {option.id === 'private_sector' && isSelected && (
+                <div className="flex items-start gap-4 rounded-[10px] bg-[#EEF6EA] px-6 py-4 text-[#3F464F]">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5A9A23]">
+                    <Info className="h-4 w-4 text-white" />
+                  </div>
+                  <p className="text-[15px] leading-6">
+                    bAV cash-outs depend on your provider, contract value and
+                    whether the required conditions are met. We’ll check whether
+                    your case can be started through CompanyPension.
+                  </p>
+                </div>
+              )}
+            </React.Fragment>
           );
         })}
       </div>

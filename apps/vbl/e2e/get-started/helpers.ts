@@ -8,10 +8,7 @@ import path from 'path';
 
 export const GET_STARTED_URL = '/get-started';
 export const TEST_EMAIL = 'kalibuas@gmail.com';
-export const TEST_PASSPORT_PATH = path.join(
-  __dirname,
-  '../../public/USA.pdf'
-);
+export const TEST_PASSPORT_PATH = path.join(__dirname, '../../public/USA.pdf');
 
 // ============================================================
 // Eligibility Nav Helpers
@@ -80,10 +77,7 @@ export async function selectFederalState(page: Page, state: string) {
   await page.getByRole('button', { name: 'Continue' }).click();
 }
 
-export async function selectPensionProvider(
-  page: Page,
-  provider: string
-) {
+export async function selectPensionProvider(page: Page, provider: string) {
   await expect(
     page.getByRole('heading', {
       name: /Select your company pension/,
@@ -109,7 +103,9 @@ export async function selectPensionScheme(
   plan: 'VBLklassik' | 'VBLextra'
 ) {
   await expect(
-    page.getByRole('heading', { name: /Select your company pension|Select your pension scheme/ })
+    page.getByRole('heading', {
+      name: /Select your company pension|Select your pension scheme/,
+    })
   ).toBeVisible({ timeout: 5_000 });
   await page.getByText(plan).click();
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -120,7 +116,9 @@ export async function selectContributionPeriod(
   consecutive: 'Yes' | 'No'
 ) {
   await expect(
-    page.getByRole('heading', { name: /VBL contribution period|Contribution period/ })
+    page.getByRole('heading', {
+      name: /VBL contribution period|Contribution period/,
+    })
   ).toBeVisible({ timeout: 5_000 });
   await page.getByRole('button', { name: consecutive, exact: true }).click();
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -179,7 +177,9 @@ export async function selectEmploymentEndDate(
   year: string
 ) {
   await expect(
-    page.getByRole('heading', { name: 'When did your employment end?' })
+    page.getByRole('heading', {
+      name: /When did (this|your) employment end\?/,
+    })
   ).toBeVisible({ timeout: 5_000 });
   const selects = page.locator('select');
   await selects.nth(0).selectOption(month);
@@ -199,9 +199,7 @@ export async function selectPrivatePensionProvider(
   ).toBeVisible({ timeout: 5_000 });
   await page.locator('select').selectOption(provider);
   if (provider === 'Other' && otherName) {
-    await page
-      .getByPlaceholder('Pension provider name')
-      .fill(otherName);
+    await page.getByPlaceholder('Pension provider name').fill(otherName);
   }
   await page.getByRole('button', { name: 'Continue' }).click();
 }
@@ -245,7 +243,9 @@ export async function fillPrivateContributionDetails(
 
 export async function expectEligibleResult(page: Page) {
   await expect(
-    page.getByRole('heading', { name: /eligible to continue|lump-sum settlement may be possible|refund can be started/i })
+    page.getByRole('heading', {
+      name: /eligible to continue|lump-sum settlement may be possible|refund can be started/i,
+    })
   ).toBeVisible({ timeout: 5_000 });
   await expect(
     page.getByRole('button', {
@@ -256,10 +256,14 @@ export async function expectEligibleResult(page: Page) {
 
 export async function expectNotEligibleResult(page: Page) {
   await expect(
-    page.getByRole('heading', { name: /not eligible|cannot currently be claimed/i })
+    page.getByRole('heading', {
+      name: /not eligible|cannot currently be claimed/i,
+    })
   ).toBeVisible({ timeout: 5_000 });
   await expect(
-    page.getByRole('button', { name: /Go back|Return to start|Return to homepage/i })
+    page.getByRole('button', {
+      name: /Go back|Return to start|Return to homepage/i,
+    })
   ).toBeVisible();
 }
 
@@ -338,12 +342,8 @@ export async function completeCreateAccount(page: Page, email?: string) {
   await expect(
     page.getByRole('heading', { name: 'Create your secure claim' })
   ).toBeVisible({ timeout: 10_000 });
-  await page
-    .getByLabel('Email address')
-    .fill(email ?? TEST_EMAIL);
-  await page
-    .getByRole('button', { name: /Continue with email/i })
-    .click();
+  await page.getByLabel('Email address').fill(email ?? TEST_EMAIL);
+  await page.getByRole('button', { name: /Continue with email/i }).click();
 }
 
 export async function completePayment(page: Page) {
@@ -419,7 +419,9 @@ export async function completeMembership(page: Page) {
   if ((await providerSelect.count()) > 0) {
     await providerSelect.selectOption('VBL');
   }
-  await page.getByPlaceholder(/VBL insurance number|membership number/i).fill('VBL123456');
+  await page
+    .getByPlaceholder(/VBL insurance number|membership number/i)
+    .fill('VBL123456');
   await page.getByRole('button', { name: /Continue/i }).click();
 }
 
@@ -427,9 +429,7 @@ export async function completeAddress(page: Page) {
   await expect(
     page.getByRole('heading', { name: 'Your current residential address' })
   ).toBeVisible({ timeout: 5_000 });
-  await page
-    .getByPlaceholder('Street and house number')
-    .fill('Test St 1');
+  await page.getByPlaceholder('Street and house number').fill('Test St 1');
   await page.getByPlaceholder('Postal code').fill('50667');
   await page.getByPlaceholder('City').fill('Cologne');
   await page.locator('select').first().selectOption('DE');
@@ -440,7 +440,9 @@ export async function completeBankDetails(page: Page) {
   await expect(
     page.getByRole('heading', { name: 'Where should the refund be paid?' })
   ).toBeVisible({ timeout: 5_000 });
-  await page.getByRole('button', { name: /My own EUR \/ SEPA account/i }).click();
+  await page
+    .getByRole('button', { name: /My own EUR \/ SEPA account/i })
+    .click();
   await page.getByRole('button', { name: /Continue/i }).click();
   await expect(
     page.getByRole('heading', { name: 'Enter your bank details' })
@@ -466,9 +468,7 @@ export async function completeSignature(page: Page) {
     await page.mouse.up();
   }
 
-  await page
-    .getByLabel('I confirm that this is my legal signature.')
-    .check();
+  await page.getByLabel('I confirm that this is my legal signature.').check();
   await page.getByRole('button', { name: /Continue/i }).click();
 }
 

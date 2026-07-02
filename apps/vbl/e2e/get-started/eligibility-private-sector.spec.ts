@@ -106,12 +106,20 @@ test.describe('Private Sector Eligibility', () => {
   // Start Option
   // ============================================================
 
-  test('bAV option copy is visible on the start screen', async ({
-    page,
-  }) => {
+  test('bAV option copy is visible on the start screen', async ({ page }) => {
     await navigateToGetStarted(page);
     await expect(
       page.getByText('For Direktversicherung and other bAV contracts.')
+    ).toBeVisible();
+    await page
+      .getByRole('button', {
+        name: /bAV \/ Company Pension Cash-Out/i,
+      })
+      .click();
+    await expect(
+      page.getByText(
+        'bAV cash-outs depend on your provider, contract value and whether the required conditions are met. We’ll check whether your case can be started through CompanyPension.'
+      )
     ).toBeVisible();
   });
 
@@ -200,9 +208,7 @@ test.describe('Private Sector Eligibility', () => {
     await expect(
       page.getByRole('heading', { name: 'Contribution details' })
     ).toBeVisible({ timeout: 5_000 });
-    await expect(
-      page.getByRole('button', { name: 'Not sure' })
-    ).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Not sure' })).toHaveCount(0);
   });
 
   // ============================================================
@@ -225,9 +231,7 @@ test.describe('Private Sector Eligibility', () => {
     await expect(continueBtn).toBeDisabled();
 
     // Fill provider name
-    await page
-      .getByPlaceholder('Pension provider name')
-      .fill('MyPensionCo');
+    await page.getByPlaceholder('Pension provider name').fill('MyPensionCo');
     await expect(continueBtn).toBeEnabled();
   });
 
@@ -265,9 +269,7 @@ test.describe('Private Sector Eligibility', () => {
     await selects.nth(1).selectOption('2018');
     await selects.nth(2).selectOption('December');
     await selects.nth(3).selectOption('2020');
-    await page
-      .getByRole('button', { name: 'Yes', exact: true })
-      .click();
+    await page.getByRole('button', { name: 'Yes', exact: true }).click();
 
     // Continue should be enabled even without monthly amount
     const continueBtn = page.getByRole('button', { name: 'Continue' });
@@ -347,9 +349,9 @@ test.describe('Private Sector Eligibility', () => {
         'We could not confirm everything from your document. Please add the missing details so we can check whether your bAV cash-out can be started.'
       )
     ).toBeVisible();
-    await expect(page.getByText('Missing details', { exact: true })).toHaveCount(
-      3
-    );
+    await expect(
+      page.getByText('Missing details', { exact: true })
+    ).toHaveCount(3);
 
     await page.getByLabel('Provider').selectOption('BVV');
     await page.getByLabel('Pension value').fill('8750');
