@@ -63,7 +63,7 @@ npx playwright test e2e/onboarding.spec.ts # Run single spec
 - **Redis 7** for caching
 - Routes: `/api/auth`, `/api/claims`, `/api/documents`, `/api/signatures`, `/api/vbl`, `/api/gpr`, `/api/health`
 - Auth methods: email/password, Google OAuth, Apple Sign-In, magic links
-- Document processing via Mindee OCR; file storage on S3
+- Document processing via Mistral OCR; file storage on S3
 
 ### Key Data Flow
 

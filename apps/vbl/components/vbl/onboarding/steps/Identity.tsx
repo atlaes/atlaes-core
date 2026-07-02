@@ -1,7 +1,14 @@
 'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
-import { ArrowRight, X, ChevronDown, Info, Loader2, AlertCircle } from 'lucide-react';
+import {
+  ArrowRight,
+  X,
+  ChevronDown,
+  Info,
+  Loader2,
+  AlertCircle,
+} from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { uploadDocument } from '@/lib/onboarding-api';
 import { DatePartsInput } from '../DatePartsInput';
@@ -28,8 +35,9 @@ function isAtLeast18(dateOfBirth: string): boolean {
   );
 
   if (
-    new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())) <
-    birthdayThisYear
+    new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+    ) < birthdayThisYear
   ) {
     age -= 1;
   }
@@ -81,11 +89,16 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
         // Auto-fill OCR data if available
         if (result.ocr) {
           updateIdentity({
-            fullName: `${result.ocr.firstName || ''} ${result.ocr.lastName || ''}`.trim(),
+            fullName:
+              `${result.ocr.firstName || ''} ${result.ocr.lastName || ''}`.trim(),
             firstName: result.ocr.firstName || '',
             lastName: result.ocr.lastName || '',
             dateOfBirth: result.ocr.dateOfBirth || '',
-            gender: (result.ocr.gender?.toLowerCase() as 'male' | 'female' | 'other') || '',
+            gender:
+              (result.ocr.gender?.toLowerCase() as
+                | 'male'
+                | 'female'
+                | 'other') || '',
             passportNumber: result.ocr.passportNumber || '',
             nationality: result.ocr.nationality || '',
             placeOfBirth: result.ocr.placeOfBirth || '',
@@ -100,10 +113,29 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
 
         setPhase('confirm');
       } catch (err) {
-        // If OCR fails, still allow manual entry
         console.error('Document upload/OCR error:', err);
-        setUploadError('Document uploaded but OCR extraction failed. Please enter details manually.');
-        setPhase('confirm');
+        const apiError =
+          err &&
+          typeof err === 'object' &&
+          'response' in err &&
+          err.response &&
+          typeof err.response === 'object' &&
+          'data' in err.response &&
+          err.response.data &&
+          typeof err.response.data === 'object' &&
+          'error' in err.response.data &&
+          typeof err.response.data.error === 'string'
+            ? err.response.data.error
+            : null;
+        setUploadError(
+          apiError ||
+            'We could not read this file as a passport or ID. Please upload a clearer passport or ID.'
+        );
+        updateIdentity({
+          documentFile: null,
+          documentPreview: undefined,
+        });
+        setPhase('upload');
       }
     },
     [updateIdentity, updateData]
@@ -143,6 +175,7 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
       documentFile: null,
       documentPreview: undefined,
     });
+    setUploadError(null);
     setPhase('upload');
   };
 
@@ -164,7 +197,8 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
         </h2>
         <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
         <p className="text-gray-600 text-center mb-8">
-          We're extracting information from your document. This may take a moment.
+          We're extracting information from your document. This may take a
+          moment.
         </p>
         <div className="flex flex-col items-center gap-4 py-12">
           <Loader2 className="w-12 h-12 text-[#9FE870] animate-spin" />
@@ -182,7 +216,8 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
         </h2>
         <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
         <p className="text-gray-600 text-center mb-8">
-          A clear copy of your passport or national ID is required by the pension provider and will be included with your refund request.
+          A clear copy of your passport or national ID is required by the
+          pension provider and will be included with your refund request.
         </p>
 
         {/* Upload Area */}
@@ -203,15 +238,29 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
             fileTypeError
               ? 'border-red-400 bg-red-50'
               : isDragging
-              ? 'border-[#9FE870] bg-[#F0FDE4]'
-              : 'border-gray-300 hover:border-gray-400'
+                ? 'border-[#9FE870] bg-[#F0FDE4]'
+                : 'border-gray-300 hover:border-gray-400'
           }`}
         >
           {/* Cloud upload icon matching design */}
-          <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M14 32l10-10 10 10" strokeLinecap="round" strokeLinejoin="round" />
+          <svg
+            className="w-12 h-12 text-gray-400 mx-auto mb-4"
+            viewBox="0 0 48 48"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path
+              d="M14 32l10-10 10 10"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
             <path d="M24 22v18" strokeLinecap="round" />
-            <path d="M38.5 30.3A9 9 0 0 0 36 14h-1.3A14.4 14.4 0 1 0 8 26.7" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M38.5 30.3A9 9 0 0 0 36 14h-1.3A14.4 14.4 0 1 0 8 26.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
           <p className="text-gray-600 mb-2">
             Drag and drop your file here or{' '}
@@ -237,6 +286,14 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
           </div>
         )}
 
+        {/* Upload/OCR Error Banner */}
+        {uploadError && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <p className="text-sm text-red-700">{uploadError}</p>
+          </div>
+        )}
+
         {/* Continue Button */}
         <button
           disabled
@@ -257,7 +314,8 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
-        We read these details from your document. Please check and correct them if needed.
+        We read these details from your document. Please check and correct them
+        if needed.
       </p>
 
       {/* Uploaded Document Preview */}
@@ -320,9 +378,7 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
             <input
               type="text"
               value={data.identity.nationality}
-              onChange={(e) =>
-                updateIdentity({ nationality: e.target.value })
-              }
+              onChange={(e) => updateIdentity({ nationality: e.target.value })}
               placeholder="e.g. Australian"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
             />
@@ -334,9 +390,7 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
             <input
               type="text"
               value={data.identity.placeOfBirth}
-              onChange={(e) =>
-                updateIdentity({ placeOfBirth: e.target.value })
-              }
+              onChange={(e) => updateIdentity({ placeOfBirth: e.target.value })}
               placeholder="e.g. Sydney"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
             />

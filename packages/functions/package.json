@@ -37,7 +37,6 @@
     "google-auth-library": "^10.4.2",
     "hono": "^4.0.0",
     "jsonwebtoken": "^9.0.2",
-    "mindee": "4.36.0",
     "pg": "^8.16.3",
     "postgres": "^3.4.3",
     "redis": "^4.6.10",
