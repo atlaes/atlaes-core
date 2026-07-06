@@ -5,9 +5,18 @@ import { ArrowRight, ChevronDown } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { DatePartsInput } from '../DatePartsInput';
 
+// Item 26: the combined screen was split in two (see design refs
+// Eligibility/VBL-4.png "Stage or orchestra employment details" and
+// Eligibility/VBL-5.png "Leaving stage or orchestra employment"). `section`
+// lets a caller render just one half; omitting it renders all three
+// sections in one go, preserving the original standalone/legacy behavior
+// for any other consumer of this component.
+type StageMembershipSection = 'last-employment' | 'leaving-occupation';
+
 interface StageMembershipDetailsProps {
   onNext?: () => void;
   embedded?: boolean;
+  section?: StageMembershipSection;
 }
 
 // Stage / orchestra (VddB / VddKO) extended sub-form. It can render inline
@@ -24,10 +33,14 @@ const REASONS_FOR_LEAVING = [
 export const StageMembershipDetails: React.FC<StageMembershipDetailsProps> = ({
   onNext,
   embedded = false,
+  section,
 }) => {
   const { data, updateStageDetails, canProceedFromSubStep } = useOnboarding();
   const s = data.membership.stageDetails;
   const canProceed = canProceedFromSubStep('membership');
+
+  const showLastEmployment = !section || section === 'last-employment';
+  const showLeavingOccupation = !section || section === 'leaving-occupation';
 
   return (
     <div className={embedded ? '' : 'max-w-lg mx-auto'}>
@@ -38,154 +51,166 @@ export const StageMembershipDetails: React.FC<StageMembershipDetailsProps> = ({
           </h2>
           <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
           <p className="text-gray-600 text-center mb-8">
-            Please provide details about your last stage or orchestra employment in Germany.
+            Please provide details about your last stage or orchestra employment
+            in Germany.
           </p>
         </>
       )}
 
       {/* Section 1 — Last employment */}
-      <div className="mb-6">
-        <h3 className="text-base font-semibold text-[#163300] mb-4">
-          Last stage or orchestra employment in Germany
-        </h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Name of the stage or orchestra
-            </label>
-            <input
-              type="text"
-              value={s.stageName}
-              onChange={(e) => updateStageDetails({ stageName: e.target.value })}
-              placeholder="e.g. Berlin State Opera"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Your role or position
-            </label>
-            <input
-              type="text"
-              value={s.rolePosition}
-              onChange={(e) => updateStageDetails({ rolePosition: e.target.value })}
-              placeholder="e.g. Violinist, actor, stage technician"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
-            />
-          </div>
-          <div>
-            <DatePartsInput
-              label="When did this employment end?"
-              value={s.employmentEndDate}
-              onChange={(value) =>
-                updateStageDetails({ employmentEndDate: value })
-              }
-            />
+      {showLastEmployment && (
+        <div className="mb-6">
+          <h3 className="text-base font-semibold text-[#163300] mb-4">
+            Last stage or orchestra employment in Germany
+          </h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Name of the stage or orchestra
+              </label>
+              <input
+                type="text"
+                value={s.stageName}
+                onChange={(e) =>
+                  updateStageDetails({ stageName: e.target.value })
+                }
+                placeholder="e.g. Berlin State Opera"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Your role or position
+              </label>
+              <input
+                type="text"
+                value={s.rolePosition}
+                onChange={(e) =>
+                  updateStageDetails({ rolePosition: e.target.value })
+                }
+                placeholder="e.g. Violinist, actor, stage technician"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+              />
+            </div>
+            <div>
+              <DatePartsInput
+                label="When did this employment end?"
+                value={s.employmentEndDate}
+                onChange={(value) =>
+                  updateStageDetails({ employmentEndDate: value })
+                }
+              />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Section 2 — Leaving employment */}
-      <div className="mb-6">
-        <h3 className="text-base font-semibold text-[#163300] mb-4">
-          Leaving stage / orchestra employment
-        </h3>
-        <p className="text-sm text-gray-700 mb-3">
-          Have you permanently stopped working in stage or orchestra employment in Germany?
-        </p>
-        <div className="flex items-center gap-6 mb-4">
-          {(['yes', 'no'] as const).map((v) => (
-            <label key={v} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="permanentlyStopped"
-                checked={s.permanentlyStopped === v}
-                onChange={() => updateStageDetails({ permanentlyStopped: v })}
-                className="w-4 h-4 text-[#9FE870] focus:ring-[#9FE870]"
-              />
-              <span className="text-sm text-gray-700 capitalize">{v}</span>
-            </label>
-          ))}
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Reason for leaving
-          </label>
-          <div className="relative">
-            <select
-              value={s.reasonForLeaving}
-              onChange={(e) =>
-                updateStageDetails({ reasonForLeaving: e.target.value })
-              }
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white"
-            >
-              <option value="">Select a reason</option>
-              {REASONS_FOR_LEAVING.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+      {showLeavingOccupation && (
+        <div className="mb-6">
+          <h3 className="text-base font-semibold text-[#163300] mb-4">
+            Leaving stage / orchestra employment
+          </h3>
+          <p className="text-sm text-gray-700 mb-3">
+            Have you permanently stopped working in stage or orchestra
+            employment in Germany?
+          </p>
+          <div className="flex items-center gap-6 mb-4">
+            {(['yes', 'no'] as const).map((v) => (
+              <label key={v} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="permanentlyStopped"
+                  checked={s.permanentlyStopped === v}
+                  onChange={() => updateStageDetails({ permanentlyStopped: v })}
+                  className="w-4 h-4 text-[#9FE870] focus:ring-[#9FE870]"
+                />
+                <span className="text-sm text-gray-700 capitalize">{v}</span>
+              </label>
+            ))}
           </div>
-        </div>
 
-        {s.reasonForLeaving === 'other' && (
-          <div>
+          <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Other (please specify)
+              Reason for leaving
+            </label>
+            <div className="relative">
+              <select
+                value={s.reasonForLeaving}
+                onChange={(e) =>
+                  updateStageDetails({ reasonForLeaving: e.target.value })
+                }
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white"
+              >
+                <option value="">Select a reason</option>
+                {REASONS_FOR_LEAVING.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+
+          {s.reasonForLeaving === 'other' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Other (please specify)
+              </label>
+              <input
+                type="text"
+                value={s.reasonForLeavingOther}
+                onChange={(e) =>
+                  updateStageDetails({ reasonForLeavingOther: e.target.value })
+                }
+                placeholder="Enter other reason for leaving"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Section 3 — Current occupation */}
+      {showLeavingOccupation && (
+        <div className="mb-8">
+          <h3 className="text-base font-semibold text-[#163300] mb-4">
+            Current occupation
+          </h3>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              What is your current occupation?
             </label>
             <input
               type="text"
-              value={s.reasonForLeavingOther}
+              value={s.currentOccupation}
               onChange={(e) =>
-                updateStageDetails({ reasonForLeavingOther: e.target.value })
+                updateStageDetails({ currentOccupation: e.target.value })
               }
-              placeholder="Enter other reason for leaving"
+              placeholder="e.g. Office employee, self-employed, freelancer"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
             />
           </div>
-        )}
-      </div>
-
-      {/* Section 3 — Current occupation */}
-      <div className="mb-8">
-        <h3 className="text-base font-semibold text-[#163300] mb-4">
-          Current occupation
-        </h3>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            What is your current occupation?
-          </label>
-          <input
-            type="text"
-            value={s.currentOccupation}
-            onChange={(e) =>
-              updateStageDetails({ currentOccupation: e.target.value })
-            }
-            placeholder="e.g. Office employee, self-employed, freelancer"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
-          />
+          <p className="text-sm text-gray-700 mb-3">
+            Are you currently unable to work for health reasons?
+          </p>
+          <div className="flex items-center gap-6">
+            {(['no', 'yes'] as const).map((v) => (
+              <label key={v} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="unableToWorkHealth"
+                  checked={s.unableToWorkHealth === v}
+                  onChange={() => updateStageDetails({ unableToWorkHealth: v })}
+                  className="w-4 h-4 text-[#9FE870] focus:ring-[#9FE870]"
+                />
+                <span className="text-sm text-gray-700 capitalize">{v}</span>
+              </label>
+            ))}
+          </div>
         </div>
-        <p className="text-sm text-gray-700 mb-3">
-          Are you currently unable to work for health reasons?
-        </p>
-        <div className="flex items-center gap-6">
-          {(['no', 'yes'] as const).map((v) => (
-            <label key={v} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="unableToWorkHealth"
-                checked={s.unableToWorkHealth === v}
-                onChange={() => updateStageDetails({ unableToWorkHealth: v })}
-                className="w-4 h-4 text-[#9FE870] focus:ring-[#9FE870]"
-              />
-              <span className="text-sm text-gray-700 capitalize">{v}</span>
-            </label>
-          ))}
-        </div>
-      </div>
+      )}
 
       {!embedded && onNext && (
         <button

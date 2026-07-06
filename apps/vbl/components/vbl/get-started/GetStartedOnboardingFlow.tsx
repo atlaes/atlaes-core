@@ -432,7 +432,12 @@ export function GetStartedOnboardingFlow() {
           <Identity onNext={saveAndAdvance} setBackOverride={setBackOverride} />
         );
       case 'membership':
-        return <Membership onNext={saveAndAdvance} />;
+        return (
+          <Membership
+            onNext={saveAndAdvance}
+            setBackOverride={setBackOverride}
+          />
+        );
       case 'address':
         return <Address onNext={saveAndAdvance} />;
       case 'bank-details':

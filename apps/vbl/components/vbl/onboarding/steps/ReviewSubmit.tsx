@@ -1,12 +1,22 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ArrowRight, User, CreditCard as CardIcon, MapPin, Landmark, PenTool, ChevronDown, ChevronUp, Check } from 'lucide-react';
-import { useOnboarding, SubmitDetailsSubStep } from '@/contexts/OnboardingContext';
 import {
-  submitClaim,
-  markStepComplete,
-} from '@/lib/onboarding-api';
+  ArrowRight,
+  User,
+  CreditCard as CardIcon,
+  MapPin,
+  Landmark,
+  PenTool,
+  ChevronDown,
+  ChevronUp,
+  Check,
+} from 'lucide-react';
+import {
+  useOnboarding,
+  SubmitDetailsSubStep,
+} from '@/contexts/OnboardingContext';
+import { submitClaim, markStepComplete } from '@/lib/onboarding-api';
 
 const GENDER_LABELS: Record<string, string> = {
   male: 'Male',
@@ -26,6 +36,15 @@ const COUNTRY_LABELS: Record<string, string> = {
   OTHER: 'Other',
 };
 
+const REASON_FOR_LEAVING_LABELS: Record<string, string> = {
+  contract_ended: 'Contract ended / not renewed',
+  health: 'Health reasons / injury',
+  career_change: 'Career change',
+  retirement: 'Retirement',
+  relocation: 'Relocation',
+  other: 'Other (please specify)',
+};
+
 interface ReviewSection {
   id: string;
   title: string;
@@ -33,13 +52,51 @@ interface ReviewSection {
   icon: React.ReactNode;
 }
 
-const REVIEW_SECTIONS: ReviewSection[] = [
-  { id: 'personal', title: 'Personal information', subStep: 'identity', icon: <User className="w-5 h-5" /> },
-  { id: 'address', title: 'Address', subStep: 'address', icon: <MapPin className="w-5 h-5" /> },
-  { id: 'membership', title: 'Pension details', subStep: 'membership', icon: <CardIcon className="w-5 h-5" /> },
-  { id: 'bank', title: 'Bank details', subStep: 'bank-details', icon: <Landmark className="w-5 h-5" /> },
-  { id: 'signature', title: 'Signature', subStep: 'signature', icon: <PenTool className="w-5 h-5" /> },
+// Item 27: base accordion order. The "Employment Details" section is
+// inserted between Bank details and Signature only for stage/orchestra
+// (VddB / VddKO) claimants — see design reference Eligibility/VBL-19.png
+// ("Review your refund request", accordion: Personal information, Address,
+// Pension details, Bank details, Employment Details, Signature).
+const BASE_REVIEW_SECTIONS: ReviewSection[] = [
+  {
+    id: 'personal',
+    title: 'Personal information',
+    subStep: 'identity',
+    icon: <User className="w-5 h-5" />,
+  },
+  {
+    id: 'address',
+    title: 'Address',
+    subStep: 'address',
+    icon: <MapPin className="w-5 h-5" />,
+  },
+  {
+    id: 'membership',
+    title: 'Pension details',
+    subStep: 'membership',
+    icon: <CardIcon className="w-5 h-5" />,
+  },
+  {
+    id: 'bank',
+    title: 'Bank details',
+    subStep: 'bank-details',
+    icon: <Landmark className="w-5 h-5" />,
+  },
 ];
+
+const EMPLOYMENT_DETAILS_SECTION: ReviewSection = {
+  id: 'employment',
+  title: 'Employment Details',
+  subStep: 'membership',
+  icon: <CardIcon className="w-5 h-5" />,
+};
+
+const SIGNATURE_SECTION: ReviewSection = {
+  id: 'signature',
+  title: 'Signature',
+  subStep: 'signature',
+  icon: <PenTool className="w-5 h-5" />,
+};
 
 function getSubmitErrorMessage(error: unknown): string {
   const responseData = (
@@ -76,11 +133,27 @@ interface ReviewSubmitProps {
   onEditSection?: (subStep: SubmitDetailsSubStep) => void;
 }
 
-export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onEditSection }) => {
-  const { data, updateSuccessData, setCurrentSubStep, canProceedFromSubStep } = useOnboarding();
+export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
+  onSubmitSuccess,
+  onEditSection,
+}) => {
+  const { data, updateSuccessData, setCurrentSubStep, canProceedFromSubStep } =
+    useOnboarding();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set()
+  );
+
+  // Item 27: stage/orchestra (VddB, VddKO) claimants get an additional
+  // "Employment Details" accordion row, between Bank details and Signature.
+  const isStageProvider =
+    data.membership.pensionProvider === 'VddB' ||
+    data.membership.pensionProvider === 'VddKO';
+
+  const reviewSections: ReviewSection[] = isStageProvider
+    ? [...BASE_REVIEW_SECTIONS, EMPLOYMENT_DETAILS_SECTION, SIGNATURE_SECTION]
+    : [...BASE_REVIEW_SECTIONS, SIGNATURE_SECTION];
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
@@ -123,7 +196,9 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
     try {
       const claimId = data.claimId;
       if (!claimId) {
-        throw new Error('No claim found. Please restart the onboarding process.');
+        throw new Error(
+          'No claim found. Please restart the onboarding process.'
+        );
       }
 
       // Mark final review steps as complete
@@ -138,7 +213,9 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
 
       updateSuccessData({
         submissionId: submitResult.claim.id,
-        submittedAt: submitResult.claim.submittedAt as string || new Date().toISOString(),
+        submittedAt:
+          (submitResult.claim.submittedAt as string) ||
+          new Date().toISOString(),
       });
 
       if (onSubmitSuccess) {
@@ -171,16 +248,20 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
                 .join(' ') || 'Not provided'}
             </p>
             <p className="text-gray-700">
-              <span className="text-gray-500">Date of birth:</span> {formatDate(data.identity.dateOfBirth) || 'Not provided'}
+              <span className="text-gray-500">Date of birth:</span>{' '}
+              {formatDate(data.identity.dateOfBirth) || 'Not provided'}
             </p>
             <p className="text-gray-700">
-              <span className="text-gray-500">Gender:</span> {GENDER_LABELS[data.identity.gender] || 'Not provided'}
+              <span className="text-gray-500">Gender:</span>{' '}
+              {GENDER_LABELS[data.identity.gender] || 'Not provided'}
             </p>
             <p className="text-gray-700">
-              <span className="text-gray-500">Nationality:</span> {data.identity.nationality || 'Not provided'}
+              <span className="text-gray-500">Nationality:</span>{' '}
+              {data.identity.nationality || 'Not provided'}
             </p>
             <p className="text-gray-700">
-              <span className="text-gray-500">Place of birth:</span> {data.identity.placeOfBirth || 'Not provided'}
+              <span className="text-gray-500">Place of birth:</span>{' '}
+              {data.identity.placeOfBirth || 'Not provided'}
             </p>
             <button
               onClick={() => handleEditSection(section.subStep)}
@@ -194,16 +275,22 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
         return (
           <div className="space-y-2 text-sm pt-4 pb-2">
             <p className="text-gray-700">
-              <span className="text-gray-500">Street and house number:</span> {data.address.streetAndNumber || 'Not provided'}
+              <span className="text-gray-500">Street and house number:</span>{' '}
+              {data.address.streetAndNumber || 'Not provided'}
             </p>
             <p className="text-gray-700">
-              <span className="text-gray-500">Postal code:</span> {data.address.postalCode || 'Not provided'}
+              <span className="text-gray-500">Postal code:</span>{' '}
+              {data.address.postalCode || 'Not provided'}
             </p>
             <p className="text-gray-700">
-              <span className="text-gray-500">City:</span> {data.address.city || 'Not provided'}
+              <span className="text-gray-500">City:</span>{' '}
+              {data.address.city || 'Not provided'}
             </p>
             <p className="text-gray-700">
-              <span className="text-gray-500">Country:</span> {COUNTRY_LABELS[data.address.country] || data.address.country || 'Not provided'}
+              <span className="text-gray-500">Country:</span>{' '}
+              {COUNTRY_LABELS[data.address.country] ||
+                data.address.country ||
+                'Not provided'}
             </p>
             <button
               onClick={() => handleEditSection(section.subStep)}
@@ -217,10 +304,12 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
         return (
           <div className="space-y-2 text-sm pt-4 pb-2">
             <p className="text-gray-700">
-              <span className="text-gray-500">Scheme:</span> {data.membership.pensionProvider || 'Not provided'}
+              <span className="text-gray-500">Scheme:</span>{' '}
+              {data.membership.pensionProvider || 'Not provided'}
             </p>
             <p className="text-gray-700">
-              <span className="text-gray-500">Membership number:</span> {data.membership.membershipNumber || 'Not provided'}
+              <span className="text-gray-500">Membership number:</span>{' '}
+              {data.membership.membershipNumber || 'Not provided'}
             </p>
             <button
               onClick={() => handleEditSection(section.subStep)}
@@ -235,17 +324,21 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
           <div className="space-y-2 text-sm pt-4 pb-2">
             {data.bankDetails.accountHolder && (
               <p className="text-gray-700">
-                <span className="text-gray-500">Account holder name:</span> {data.bankDetails.accountHolder}
+                <span className="text-gray-500">Account holder name:</span>{' '}
+                {data.bankDetails.accountHolder}
               </p>
             )}
             {data.bankDetails.iban ? (
               <p className="text-gray-700">
-                <span className="text-gray-500">IBAN:</span> {data.bankDetails.iban}
+                <span className="text-gray-500">IBAN:</span>{' '}
+                {data.bankDetails.iban}
               </p>
             ) : (
               <p className="text-gray-700">
-                {data.bankDetails.accountOption === 'open_free_account' && 'Will open free EUR account'}
-                {data.bankDetails.accountOption === 'trusted_third_party' && 'Using third-party account'}
+                {data.bankDetails.accountOption === 'open_free_account' &&
+                  'Will open free EUR account'}
+                {data.bankDetails.accountOption === 'trusted_third_party' &&
+                  'Using third-party account'}
               </p>
             )}
             <button
@@ -256,6 +349,69 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
             </button>
           </div>
         );
+      case 'employment': {
+        // Item 27: stage/orchestra employment details, shown only for VddB /
+        // VddKO claimants. Field order per design reference
+        // Eligibility/VBL-4.png and VBL-5.png: stage name, role, employment
+        // end date, permanently stopped, reason for leaving, current
+        // occupation, health flag.
+        const stage = data.membership.stageDetails;
+        const reasonLabel =
+          stage.reasonForLeaving === 'other'
+            ? stage.reasonForLeavingOther || 'Not provided'
+            : REASON_FOR_LEAVING_LABELS[stage.reasonForLeaving] ||
+              'Not provided';
+        return (
+          <div className="space-y-2 text-sm pt-4 pb-2">
+            <p className="text-gray-700">
+              <span className="text-gray-500">Stage or orchestra:</span>{' '}
+              {stage.stageName || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">Role or position:</span>{' '}
+              {stage.rolePosition || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">Employment end date:</span>{' '}
+              {formatDate(stage.employmentEndDate) || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">
+                Permanently stopped working:
+              </span>{' '}
+              {stage.permanentlyStopped
+                ? stage.permanentlyStopped === 'yes'
+                  ? 'Yes'
+                  : 'No'
+                : 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">Reason for leaving:</span>{' '}
+              {reasonLabel}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">Current occupation:</span>{' '}
+              {stage.currentOccupation || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">
+                Unable to work for health reasons:
+              </span>{' '}
+              {stage.unableToWorkHealth
+                ? stage.unableToWorkHealth === 'yes'
+                  ? 'Yes'
+                  : 'No'
+                : 'Not provided'}
+            </p>
+            <button
+              onClick={() => handleEditSection(section.subStep)}
+              className="text-[#163300] font-medium hover:underline mt-2"
+            >
+              Edit information
+            </button>
+          </div>
+        );
+      }
       case 'signature':
         return (
           <div className="pt-4 pb-2">
@@ -297,7 +453,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
 
       {/* Accordion Sections */}
       <div className="space-y-3 mb-8">
-        {REVIEW_SECTIONS.map((section) => {
+        {reviewSections.map((section) => {
           const isExpanded = expandedSections.has(section.id);
           const isComplete = isSectionComplete(section.subStep);
 
@@ -315,7 +471,9 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
                   <div className="w-8 h-8 bg-[#9FE870] rounded-lg flex items-center justify-center text-[#163300]">
                     {section.icon}
                   </div>
-                  <span className="font-semibold text-[#163300]">{section.title}</span>
+                  <span className="font-semibold text-[#163300]">
+                    {section.title}
+                  </span>
                 </div>
                 <div className="text-[#9FE870]">
                   {isExpanded ? (
@@ -328,9 +486,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
 
               {/* Section Content */}
               {isExpanded && (
-                <div className="px-5 pb-4">
-                  {renderSectionContent(section)}
-                </div>
+                <div className="px-5 pb-4">{renderSectionContent(section)}</div>
               )}
             </div>
           );
