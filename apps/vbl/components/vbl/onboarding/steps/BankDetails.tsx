@@ -461,17 +461,6 @@ export const BankDetails: React.FC<BankDetailsProps> = ({
         })}
       </div>
 
-      {data.bankDetails.accountOption === 'trusted_third_party' && (
-        <div className="mb-8 flex items-center gap-3 rounded-lg bg-[#F0FDE4] p-3">
-          <Info className="h-5 w-5 flex-shrink-0 text-[#163300]" />
-          <p className="text-sm text-[#163300]">
-            Please make sure you fully trust the account holder. The refund will
-            be paid directly by the pension provider to this account and the
-            payment cannot be changed once issued.
-          </p>
-        </div>
-      )}
-
       <button
         onClick={handleContinueFromDestination}
         className="mx-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-lg bg-[#9FE870] px-6 py-4 font-semibold text-[#163300] transition-colors hover:bg-[#8AD860]"
