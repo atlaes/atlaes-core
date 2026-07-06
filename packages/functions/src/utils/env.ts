@@ -64,6 +64,13 @@ const envSchema = z.object({
     .string()
     .min(32)
     .default('dev-migration-token-not-for-production-use-only'),
+  // Lettershop (onlinebrief24.de) SFTP delivery
+  LETTERSHOP_SFTP_HOST: z.string().optional(),
+  LETTERSHOP_SFTP_PORT: z.coerce.number().optional().default(22),
+  LETTERSHOP_SFTP_USER: z.string().optional(),
+  LETTERSHOP_SFTP_PASSWORD: z.string().optional(),
+  LETTERSHOP_SFTP_PRIVATE_KEY_PATH: z.string().optional(),
+  LETTERSHOP_MODE: z.enum(['test', 'live', 'off']).default('test'),
 });
 
 export const env = envSchema.parse(process.env);

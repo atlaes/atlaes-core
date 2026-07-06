@@ -935,7 +935,28 @@ export class ClaimsApplicationService {
       // import here would create a circular import.
       try {
         const { ClaimPdfService } = await import('./claim-pdf');
-        await ClaimPdfService.generateAndStoreForClaim(claimId, userId);
+        const { bytes } = await ClaimPdfService.generateAndStoreForClaim(
+          claimId,
+          userId
+        );
+
+        // Deliver the combined claim PDF to the lettershop provider
+        // (onlinebrief24.de) for printing/mailing. Same non-fatal contract
+        // as PDF generation above: a lettershop failure must never fail
+        // submission. Lazy import avoids a cycle (lettershop.ts imports
+        // the claims schema/db, and this module is imported widely).
+        try {
+          const { LettershopService } = await import('./lettershop');
+          await LettershopService.sendClaimPdf(claimId, bytes, userId);
+        } catch (lettershopError) {
+          logger.warn('Failed to submit claim PDF to lettershop', {
+            claimId,
+            error:
+              lettershopError instanceof Error
+                ? lettershopError.message
+                : String(lettershopError),
+          });
+        }
       } catch (pdfError) {
         logger.warn('Failed to generate claim PDF after submission', {
           claimId,
