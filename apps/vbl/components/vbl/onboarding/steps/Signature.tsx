@@ -266,7 +266,8 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
   }, [data.claimId, data.signatureId, data.signature.signatureData, updateData, onNext]);
 
   const canProceed =
-    data.signature.signatureData !== undefined || data.signature.signatureFile !== null;
+    (!!data.signature.signatureData || !!data.signature.signatureFile) &&
+    data.signature.legalConfirmed;
 
   return (
     <div className="max-w-lg mx-auto">
@@ -275,7 +276,7 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
-        Your signature will be used to sign your refund claim and authorize us to receive correspondence from the pension provider on your behalf.
+        Your signature will be used to sign your refund request and authorize CompanyPension to receive correspondence from the pension provider for this process.
       </p>
 
       {/* Mode Toggle */}
@@ -289,7 +290,7 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
           }`}
         >
           <Pencil className="w-4 h-4" />
-          Draw Signature
+          Draw signature
         </button>
         <button
           onClick={() => setMode('upload')}
@@ -300,7 +301,7 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
           }`}
         >
           <Upload className="w-4 h-4" />
-          Upload Image
+          Upload signature image
         </button>
       </div>
 
@@ -325,7 +326,7 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
             />
             {!data.signature.signatureData && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <p className="text-gray-400">Draw your signature</p>
+                <p className="text-gray-400">Draw your signature here</p>
               </div>
             )}
           </div>
@@ -410,6 +411,20 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
           {uploadError}
         </div>
       )}
+
+      <label className="mt-6 flex cursor-pointer items-start gap-3">
+        <input
+          type="checkbox"
+          checked={data.signature.legalConfirmed}
+          onChange={(e) =>
+            updateSignature({ legalConfirmed: e.target.checked })
+          }
+          className="mt-1 h-4 w-4 rounded border-gray-300 text-[#9FE870] focus:ring-[#9FE870]"
+        />
+        <span className="text-sm text-gray-700">
+          I confirm that this is my legal signature.
+        </span>
+      </label>
 
       {/* Continue Button */}
       <button

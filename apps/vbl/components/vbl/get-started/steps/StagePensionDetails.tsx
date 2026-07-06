@@ -22,16 +22,18 @@ export const StagePensionDetails: React.FC = () => {
   };
 
   return (
-    <div className="max-w-lg mx-auto">
-      <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-        Stage / Orchestra pension details
-      </h2>
-      <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
-      <p className="text-gray-600 text-center mb-8">
-        Tell us about your pension scheme and contribution period.
-      </p>
+    <div className="mx-auto max-w-[640px]">
+      <div className="mb-9 text-center">
+        <h2 className="text-[26px] font-bold leading-tight text-[#111827]">
+          Select your stage or orchestra pension
+        </h2>
+        <div className="mx-auto mt-3 h-px w-full max-w-[560px] bg-[#D9DEE7]" />
+        <p className="mx-auto mt-4 max-w-[520px] text-[16px] leading-6 text-[#4B5563]">
+          Choose the company pension you paid into during your employment.
+        </p>
+      </div>
 
-      <p className="text-sm font-medium text-gray-700 mb-2">
+      <p className="mb-2 text-[15px] font-semibold text-[#4A4F58]">
         Company pension
       </p>
 
@@ -41,7 +43,7 @@ export const StagePensionDetails: React.FC = () => {
           onChange={(e) =>
             setSelected(e.target.value as PensionProviderType)
           }
-          className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg appearance-none cursor-pointer focus:outline-none focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/20 transition-all text-gray-700"
+          className="h-12 w-full cursor-pointer appearance-none rounded-[8px] border border-[#D3DAE8] bg-white px-4 pr-10 text-[16px] text-[#1F2937] shadow-sm transition-all focus:border-[#9FE870] focus:outline-none focus:ring-2 focus:ring-[#9FE870]/20"
         >
           <option value="">Select company pension provider</option>
           {STAGE_PROVIDERS.map((provider) => (
@@ -56,10 +58,10 @@ export const StagePensionDetails: React.FC = () => {
       <button
         onClick={handleContinue}
         disabled={!selected}
-        className="w-full py-3 px-6 bg-[#9FE870] text-[#163300] font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-[#8AD860] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="mx-auto mt-16 flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-[6px] bg-[#9FE870] px-6 text-[16px] font-bold text-[#163300] shadow-sm transition hover:bg-[#8AD860] disabled:cursor-not-allowed disabled:opacity-45"
       >
         Continue
-        <ArrowRight className="w-4 h-4" />
+        <ArrowRight className="h-5 w-5" />
       </button>
     </div>
   );

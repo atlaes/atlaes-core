@@ -4,13 +4,23 @@ import { logger } from '../utils/logger';
 import { authMiddleware } from '../middleware/auth';
 import { db } from '../utils/db';
 import { documents } from '../drizzle/schema/shared';
-import { extractPassportData, PassportOCRResult } from '../services/mindee';
+import {
+  extractPassportData,
+  PassportOCRResult,
+} from '../services/passport-ocr';
 import { uploadFile, deleteFile } from '../utils/s3';
 
 const documentsRouter = new Hono();
 
 // Document type validation
-const documentTypes = ['passport', 'payslip', 'abmeldung', 'bank_statement', 'certified_id_form', 'other'] as const;
+const documentTypes = [
+  'passport',
+  'payslip',
+  'abmeldung',
+  'bank_statement',
+  'certified_id_form',
+  'other',
+] as const;
 
 /**
  * Upload a document
@@ -52,7 +62,12 @@ documentsRouter.post('/upload', authMiddleware, async (c) => {
     }
 
     // Validate file type
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    const allowedTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+    ];
     if (!allowedTypes.includes(file.type)) {
       return c.json(
         {
@@ -63,12 +78,32 @@ documentsRouter.post('/upload', authMiddleware, async (c) => {
       );
     }
 
+    // Get file buffer for OCR processing
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+
+    // If this is a passport or national ID upload, verify and extract first.
+    // Do not persist a file or document record if it is not an identity document.
+    let ocrResult: PassportOCRResult | null = null;
+    if (documentType === 'passport') {
+      logger.info('Triggering passport OCR...');
+      ocrResult = await extractPassportData(fileBuffer, file.name, file.type);
+      if (!ocrResult.success) {
+        logger.warn('Passport OCR failed:', ocrResult.error);
+        return c.json(
+          {
+            success: false,
+            error: ocrResult.error || 'Passport OCR failed',
+            ocr: null,
+          },
+          400
+        );
+      }
+      logger.info('Passport OCR completed successfully');
+    }
+
     // Generate a unique S3 key (in production, this would upload to S3)
     const fileExtension = file.name.split('.').pop() || 'bin';
     const s3Key = `documents/${user.id}/${randomUUID()}.${fileExtension}`;
-
-    // Get file buffer for OCR processing
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
 
     // Upload file to S3
     await uploadFile(s3Key, fileBuffer, file.type);
@@ -83,23 +118,12 @@ documentsRouter.post('/upload', authMiddleware, async (c) => {
         fileSize: file.size,
         s3Key: s3Key,
         documentType: documentType || null,
+        ocrData: ocrResult?.success ? ocrResult.data : null,
         status: 'completed', // In production, might be 'pending' until OCR processes
       })
       .returning();
 
     logger.info(`Document uploaded: ${document.id} by user ${user.id}`);
-
-    // If this is a passport, extract data using OCR
-    let ocrResult: PassportOCRResult | null = null;
-    if (documentType === 'passport') {
-      logger.info('Triggering passport OCR...');
-      ocrResult = await extractPassportData(fileBuffer, file.name);
-      if (ocrResult.success) {
-        logger.info('Passport OCR completed successfully');
-      } else {
-        logger.warn('Passport OCR failed:', ocrResult.error);
-      }
-    }
 
     return c.json({
       success: true,
@@ -120,7 +144,8 @@ documentsRouter.post('/upload', authMiddleware, async (c) => {
     return c.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to upload document',
+        error:
+          error instanceof Error ? error.message : 'Failed to upload document',
       },
       500
     );
@@ -159,7 +184,8 @@ documentsRouter.get('/', authMiddleware, async (c) => {
     return c.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to get documents',
+        error:
+          error instanceof Error ? error.message : 'Failed to get documents',
       },
       500
     );
@@ -214,7 +240,8 @@ documentsRouter.delete('/:id', authMiddleware, async (c) => {
     return c.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to delete document',
+        error:
+          error instanceof Error ? error.message : 'Failed to delete document',
       },
       500
     );

@@ -10,12 +10,30 @@ import {
   VBLSimpleCalculationService,
   VBLSimpleCalculationInput,
 } from '../services/vbl-calculation-simple';
+import {
+  extractPensionDocumentDetails,
+  PensionDocumentExtractionConfigError,
+  PensionDocumentExtractionProviderError,
+  PensionDocumentType,
+} from '../services/pension-document-extraction';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 import { db } from '../utils/db';
 import { applications, calculationLogs } from '../drizzle/schema/vbl';
 import { eq, and } from 'drizzle-orm';
 
 const vbl = new Hono();
+const calculatorPensionDocumentTypes = [
+  'vbl_zvk',
+  'vddb_vddko',
+  'bav_private',
+] as const;
+const maxPensionDocumentSize = 10 * 1024 * 1024;
+const allowedPensionDocumentMimeTypes = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+] as const;
 
 // Validation schemas
 const vblCalculationSchema = z.object({
@@ -110,6 +128,110 @@ const applicationUpdateSchema = z.object({
   isWestGermany: z.boolean().optional(),
   monthsContributed: z.number().min(0).optional(),
   vblInsuranceNumber: z.string().optional(),
+});
+
+// Extract calculator fields from an uploaded pension document.
+// Public endpoint: this is used before account creation in the calculator.
+vbl.post('/extract-pension-document', async (c) => {
+  try {
+    const formData = await c.req.formData();
+    const file = formData.get('file');
+    const pensionType = formData.get('pensionType');
+
+    if (!file || !(file instanceof File)) {
+      return c.json({ success: false, error: 'No file provided' }, 400);
+    }
+
+    if (
+      typeof pensionType !== 'string' ||
+      !calculatorPensionDocumentTypes.includes(
+        pensionType as PensionDocumentType
+      )
+    ) {
+      return c.json(
+        {
+          success: false,
+          error: 'Invalid pension type',
+        },
+        400
+      );
+    }
+
+    if (file.size > maxPensionDocumentSize) {
+      return c.json(
+        {
+          success: false,
+          error: 'File size exceeds 10MB limit',
+        },
+        400
+      );
+    }
+
+    if (
+      !allowedPensionDocumentMimeTypes.includes(
+        file.type as (typeof allowedPensionDocumentMimeTypes)[number]
+      )
+    ) {
+      return c.json(
+        {
+          success: false,
+          error: 'Invalid file type. Allowed: PDF, JPG, PNG, WEBP',
+        },
+        400
+      );
+    }
+
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const extraction = await extractPensionDocumentDetails({
+      fileBuffer,
+      fileName: file.name,
+      mimeType: file.type,
+      pensionType: pensionType as PensionDocumentType,
+    });
+
+    return c.json({
+      success: true,
+      extraction: {
+        details: extraction.details,
+        confidence: extraction.confidence,
+        missingFields: extraction.missingFields,
+        model: extraction.model,
+      },
+    });
+  } catch (error) {
+    logger.error('Pension document extraction error:', error);
+
+    if (error instanceof PensionDocumentExtractionConfigError) {
+      return c.json(
+        {
+          success: false,
+          error: error.message,
+        },
+        503
+      );
+    }
+
+    if (error instanceof PensionDocumentExtractionProviderError) {
+      return c.json(
+        {
+          success: false,
+          error: error.message,
+        },
+        502
+      );
+    }
+
+    return c.json(
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to extract pension document details',
+      },
+      500
+    );
+  }
 });
 
 // Calculate VBL refund (public endpoint - no auth required)

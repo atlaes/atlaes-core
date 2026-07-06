@@ -3,6 +3,7 @@
 import React from 'react';
 import { Check } from 'lucide-react';
 import { useVBLCalculator } from '../../hooks/useVBLCalculator';
+import { CompanyPensionLogo } from './icons/CompanyPensionLogo';
 
 interface StepConfig {
   id: number;
@@ -77,11 +78,7 @@ export const Sidebar: React.FC = () => {
     >
       {/* Logo/Branding */}
       <div className="mb-10 px-2 flex justify-center">
-        <img
-          src="/logo-horizontal.png"
-          alt="Company Pension"
-          className="w-[173px]"
-        />
+        <CompanyPensionLogo className="w-[244px] h-auto" />
       </div>
 
       {/* Gradient divider */}

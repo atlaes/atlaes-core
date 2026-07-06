@@ -67,6 +67,7 @@ export interface OnboardingSignature {
   signatureFile?: File | null; // Uploaded image file
   signaturePreview?: string;
   signatureType: 'draw' | 'upload' | '';
+  legalConfirmed: boolean;
 }
 
 export interface OnboardingSuccessData {
@@ -117,7 +118,7 @@ export type SubmitDetailsSubStep =
 
 export const SUBMIT_DETAILS_SUBSTEPS: { id: SubmitDetailsSubStep; label: string; icon: string }[] = [
   { id: 'identity', label: 'Identity', icon: 'user' },
-  { id: 'membership', label: 'Membership', icon: 'card' },
+  { id: 'membership', label: 'Pension Details', icon: 'card' },
   { id: 'address', label: 'Address', icon: 'location' },
   { id: 'bank-details', label: 'Bank Details', icon: 'bank' },
   { id: 'signature', label: 'Signature', icon: 'pen' },
@@ -208,6 +209,7 @@ const initialData: OnboardingData = {
   },
   signature: {
     signatureType: '',
+    legalConfirmed: false,
   },
   successData: {},
 };
@@ -309,21 +311,44 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         return data.paymentCompleted;
       case 3:
         // All sub-steps must be complete
+        const isStage =
+          data.membership.pensionProvider === 'VddB' ||
+          data.membership.pensionProvider === 'VddKO';
+        const stageDetailsOk = (() => {
+          const s = data.membership.stageDetails;
+          const reasonOk =
+            s.reasonForLeaving !== '' &&
+            (s.reasonForLeaving !== 'other' ||
+              s.reasonForLeavingOther.trim() !== '');
+          return (
+            s.stageName.trim() !== '' &&
+            s.rolePosition.trim() !== '' &&
+            s.employmentEndDate !== '' &&
+            s.permanentlyStopped !== '' &&
+            reasonOk &&
+            s.currentOccupation.trim() !== '' &&
+            s.unableToWorkHealth !== ''
+          );
+        })();
+        const pensionDetailsOk =
+          data.membership.pensionProvider !== '' &&
+          (isStage
+            ? stageDetailsOk
+            : data.membership.membershipNumber.trim() !== '');
         return (
           data.identity.fullName !== '' &&
           data.identity.dateOfBirth !== '' &&
           isAtLeast18(data.identity.dateOfBirth) &&
           data.identity.gender !== '' &&
-          data.identity.passportNumber.trim() !== '' &&
           data.identity.nationality.trim() !== '' &&
           data.identity.placeOfBirth.trim() !== '' &&
-          data.membership.pensionProvider !== '' &&
-          data.membership.membershipNumber.trim() !== '' &&
+          pensionDetailsOk &&
           data.address.streetAndNumber !== '' &&
           data.address.city !== '' &&
           data.address.country !== '' &&
           (data.bankDetails.iban !== '' || data.bankDetails.accountOption !== 'own_iban') &&
-          (!!data.signature.signatureData || !!data.signature.signatureFile)
+          (!!data.signature.signatureData || !!data.signature.signatureFile) &&
+          data.signature.legalConfirmed
         );
       default:
         return false;
@@ -338,19 +363,17 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
           data.identity.dateOfBirth !== '' &&
           isAtLeast18(data.identity.dateOfBirth) &&
           data.identity.gender !== '' &&
-          data.identity.passportNumber.trim() !== '' &&
           data.identity.nationality.trim() !== '' &&
           data.identity.placeOfBirth.trim() !== ''
         );
       case 'membership': {
         if (data.membership.pensionProvider === '') return false;
-        if (data.membership.membershipNumber.trim() === '') return false;
         // Stage / orchestra providers (VddB, VddKO) require the extended
         // sub-form in addition to the membership number.
         const isStage =
           data.membership.pensionProvider === 'VddB' ||
           data.membership.pensionProvider === 'VddKO';
-        if (!isStage) return true;
+        if (!isStage) return data.membership.membershipNumber.trim() !== '';
         const s = data.membership.stageDetails;
         const reasonOk =
           s.reasonForLeaving !== '' &&
@@ -392,8 +415,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         return false;
       case 'signature':
         return (
-          !!data.signature.signatureData ||
-          !!data.signature.signatureFile
+          (!!data.signature.signatureData ||
+            !!data.signature.signatureFile) &&
+          data.signature.legalConfirmed
         );
       case 'review':
         return true; // Review page is always valid

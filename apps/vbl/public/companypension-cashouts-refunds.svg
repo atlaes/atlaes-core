@@ -1,0 +1,12 @@
+<svg width="760" height="160" viewBox="0 0 760 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Company Pension Cash-outs &amp; Refunds</title>
+  <desc id="desc">Company Pension logo with cash-outs and refunds tagline.</desc>
+  <g transform="translate(5 8) scale(2.05)" stroke="#9FE870" stroke-width="7" stroke-linejoin="round" fill="none">
+    <path d="M33 7 59 22v30L33 67 7 52V22L33 7Z"/>
+    <path d="M43 24 33 18 20 26v22l13 7 10-6" stroke-linecap="round"/>
+    <path d="M33 36h22" stroke-linecap="round"/>
+  </g>
+  <text x="176" y="69" fill="#FFFFFF" font-family="Montserrat, Inter, Arial, Helvetica, sans-serif" font-size="62" font-weight="800" letter-spacing="0">Company</text>
+  <text x="500" y="69" fill="#FFFFFF" font-family="Montserrat, Inter, Arial, Helvetica, sans-serif" font-size="62" font-weight="800" letter-spacing="0">Pension</text>
+  <text x="176" y="128" fill="#9FE870" font-family="Montserrat, Inter, Arial, Helvetica, sans-serif" font-size="42" font-weight="800" letter-spacing="0">CASH-OUTS &amp; REFUNDS</text>
+</svg>

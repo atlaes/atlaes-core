@@ -34,7 +34,7 @@ export const StageMembershipDetails: React.FC<StageMembershipDetailsProps> = ({
       {!embedded && (
         <>
           <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-            Stage / orchestra employment details
+            Stage or orchestra employment details
           </h2>
           <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
           <p className="text-gray-600 text-center mb-8">
@@ -46,12 +46,12 @@ export const StageMembershipDetails: React.FC<StageMembershipDetailsProps> = ({
       {/* Section 1 — Last employment */}
       <div className="mb-6">
         <h3 className="text-base font-semibold text-[#163300] mb-4">
-          Last stage / orchestra employment in Germany
+          Last stage or orchestra employment in Germany
         </h3>
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Name of the stage / orchestra
+              Name of the stage or orchestra
             </label>
             <input
               type="text"
@@ -63,13 +63,13 @@ export const StageMembershipDetails: React.FC<StageMembershipDetailsProps> = ({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Your role / position
+              Your role or position
             </label>
             <input
               type="text"
               value={s.rolePosition}
               onChange={(e) => updateStageDetails({ rolePosition: e.target.value })}
-              placeholder="e.g. Violinist, Actor, Stage technician"
+              placeholder="e.g. Violinist, actor, stage technician"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
             />
           </div>
@@ -91,7 +91,7 @@ export const StageMembershipDetails: React.FC<StageMembershipDetailsProps> = ({
           Leaving stage / orchestra employment
         </h3>
         <p className="text-sm text-gray-700 mb-3">
-          Have you permanently stopped working in stage / orchestra employment in Germany?
+          Have you permanently stopped working in stage or orchestra employment in Germany?
         </p>
         <div className="flex items-center gap-6 mb-4">
           {(['yes', 'no'] as const).map((v) => (
@@ -142,7 +142,7 @@ export const StageMembershipDetails: React.FC<StageMembershipDetailsProps> = ({
               onChange={(e) =>
                 updateStageDetails({ reasonForLeavingOther: e.target.value })
               }
-              placeholder="Other reason for leaving"
+              placeholder="Enter other reason for leaving"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
             />
           </div>
@@ -164,7 +164,7 @@ export const StageMembershipDetails: React.FC<StageMembershipDetailsProps> = ({
             onChange={(e) =>
               updateStageDetails({ currentOccupation: e.target.value })
             }
-            placeholder="e.g. Office employee, Self-employed, Freelancer"
+            placeholder="e.g. Office employee, self-employed, freelancer"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
           />
         </div>

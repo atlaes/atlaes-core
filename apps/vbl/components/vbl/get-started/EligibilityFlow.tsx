@@ -5,6 +5,8 @@ import { useEligibility } from '@/contexts/EligibilityContext';
 import { GetStartedLayout } from './GetStartedLayout';
 import { EligibilityResult } from './EligibilityResult';
 import { EmploymentType } from './steps/EmploymentType';
+import { PublicEntryPath } from './steps/PublicEntryPath';
+import { PublicUploadDocument } from './steps/PublicUploadDocument';
 import { FederalState } from './steps/FederalState';
 import { PensionProvider } from './steps/PensionProvider';
 import { PensionScheme } from './steps/PensionScheme';
@@ -13,12 +15,16 @@ import { ContributionDuration } from './steps/ContributionDuration';
 import { EUContinuation } from './steps/EUContinuation';
 import { StagePensionDetails } from './steps/StagePensionDetails';
 import { StageContributionDuration } from './steps/StageContributionDuration';
+import { StageUploadDocument } from './steps/StageUploadDocument';
 import { EmploymentEndDate } from './steps/EmploymentEndDate';
+import { PrivateUploadDocument } from './steps/PrivateUploadDocument';
 import { PrivatePensionProvider } from './steps/PrivatePensionProvider';
 import { PrivateContributionDetails } from './steps/PrivateContributionDetails';
 
 const STEP_COMPONENTS: Record<string, React.FC> = {
   // Public sector steps
+  public_entry_path: PublicEntryPath,
+  public_upload: PublicUploadDocument,
   federal_state: FederalState,
   pension_provider: PensionProvider,
   pension_scheme: PensionScheme,
@@ -26,10 +32,16 @@ const STEP_COMPONENTS: Record<string, React.FC> = {
   contribution_period: ContributionPeriod,
   contribution_duration: ContributionDuration,
   // Stage steps
+  stage_entry_path: PublicEntryPath,
+  stage_upload: StageUploadDocument,
   stage_pension_details: StagePensionDetails,
   stage_contribution_duration: StageContributionDuration,
+  stage_post_2001_contribution_duration: StageContributionDuration,
+  stage_post_2018_contribution_duration: StageContributionDuration,
   employment_end_date: EmploymentEndDate,
   // Private sector steps
+  private_entry_path: PublicEntryPath,
+  private_upload: PrivateUploadDocument,
   private_pension_provider: PrivatePensionProvider,
   private_contribution_details: PrivateContributionDetails,
 };
@@ -59,8 +71,17 @@ export function EligibilityFlow() {
   const StepComponent = currentStepId ? STEP_COMPONENTS[currentStepId] : null;
   if (!StepComponent) return null;
 
+  const showLayoutBack =
+    stepHistory.length > 0 &&
+    currentStepId !== 'public_entry_path' &&
+    currentStepId !== 'public_upload' &&
+    currentStepId !== 'stage_entry_path' &&
+    currentStepId !== 'stage_upload' &&
+    currentStepId !== 'private_entry_path' &&
+    currentStepId !== 'private_upload';
+
   return (
-    <GetStartedLayout showBack={stepHistory.length > 0} onBack={goBack}>
+    <GetStartedLayout showBack={showLayoutBack} onBack={goBack}>
       <StepComponent />
     </GetStartedLayout>
   );

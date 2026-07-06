@@ -54,7 +54,7 @@ Logic-only Group C items. Type-check clean. 9 modified + 2 new files. Not yet te
 |---|---|---|
 | **#8** | Dynamic "which pension first" screen | Only shown when user has mixed public/stage **and** private claim types. Card labels adapt: "Public Sector Pension" / "Stage / Orchestra Pension" / "Public Sector & Stage Pension" depending on what the user has. |
 | **#12** | Pension membership locked from calculator | `Results.handleStartClaim` writes `{pensionProvider, claimTypes}` to `sessionStorage['calculator-selection']`. `OnboardingFlow` reads on mount and calls `updateMembership`. `OnboardingMembership.pensionProvider` widened from narrow enum to `string` so state-specific ZVKs (e.g. "Bayerische ZVK") are accepted verbatim. |
-| **#13** | Full country dropdown + Google Places | 249-country ISO list in `lib/countries.ts`. New `hooks/useGooglePlacesAutocomplete.ts` lazy-loads Maps JS SDK once and attaches Places Autocomplete to the street input. Graceful fallback: if `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is missing, the hook is a no-op and the plain text field keeps working. |
+| **#13** | Full country dropdown + Google Places | 249-country ISO list in `lib/countries.ts`. New `hooks/useGooglePlacesAutocomplete.ts` lazy-loads Maps JS SDK once and attaches Places Autocomplete to the street input. Staging now receives `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` from the GitHub `staging` environment secret. |
 | **#14** | IBAN validation + default account holder | `isValidIbanFormat` helper (2 letters + 2 digits + 11–30 alphanumeric, total 15–34). Red-border error state once ≥4 chars entered. Continue blocked until valid. `accountHolder` defaults from `identity.fullName` via `useEffect`. |
 | **#15 (bug only)** | Signature "Invalid Token" regression | `signatureId` is cleared on every canvas mutation (stopDrawing, undo, redo, clear, upload, delete). Previously, modified signatures reused the stale server-side ID and got rejected. **Copy changes still pending — need Figma text.** |
 | **#16** | Review: clickable header + edit-returns-to-review | `OnboardingContext` gains `editingFromReview` flag. `handleEditSection` + header clicks set it true; `handleSubStepNext` routes to `'review'` when true. `isSubStepCompleted` now uses `canProceedFromSubStep` (actual data validity) instead of index position — going back no longer "unchecks" later steps. Completed steps become clickable in the header stepper. |
@@ -91,26 +91,18 @@ The Figma MCP Starter plan rate limit is blocking `get_design_context` calls. Ca
 | **#18** | Mixed public/private split estimate card | Layout for the split card + wording for "excludes non-refundable" note |
 | **#18** | Private 3 result screens | Clarification on what the 3rd screen is (Entry B only has 2 outcomes) |
 
-## ⚠️ Pending — blocked on env / external config
+## 📬 Email branding
 
-| # | Item | Blocker |
-|---|---|---|
-| **#13 (activation)** | Google Places to actually work | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` needs to be added to Atlaes staging env. Code is live; without the key it silently falls back to plain text input. |
-
----
-
-## 📬 Separate PR (Group E)
-
-**6-item magic-link email rebrand** — backend email templates, not VBL frontend. Separate concern:
+Magic-link email rebrand lives in `packages/functions/src/services/email.ts`.
 
 1. "Company Pension" branding replaces generic ATLAES
-2. Company Pension logo in email header
+2. Company Pension logo in email header — now uses the hosted `companypension-cashouts-refunds.svg` asset
 3. Subject line: "Sign in to your Company Pension account"
 4. Heading: "Sign in to your Company Pension account"
 5. De-emphasize raw fallback link (place lower, smaller, with lead-in text)
 6. Footer simplification
 
-Lives in `packages/functions/src/services/` email code. Not yet touched.
+Remaining wording changes still need final copy approval.
 
 ---
 
@@ -128,6 +120,5 @@ Lives in `packages/functions/src/services/` email code. Not yet touched.
 ## Next actions in order of friction
 
 1. **Commit + push + deploy `group-c/figma-alignment`** — 6 items ready for staging verification. No external blockers.
-2. **Add `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`** to staging env (ops). Activates #13.
-3. **Unblock visual items** via screenshots pasted in chat or client copy paste. Items: #3, #9, #10, #11, #15-copy, #18-split.
-4. **Group E email rebrand** as separate backend PR.
+2. **Unblock visual items** via screenshots pasted in chat or client copy paste. Items: #3, #9, #10, #11, #15-copy, #18-split.
+3. **Finish remaining email wording changes** once final copy is approved.
