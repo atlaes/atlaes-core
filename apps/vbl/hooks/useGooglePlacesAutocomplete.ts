@@ -169,6 +169,16 @@ export const useGooglePlacesAutocomplete = (
       if (google?.maps?.event && autocomplete) {
         google.maps.event.clearInstanceListeners(autocomplete);
       }
+      // Google's Autocomplete widget appends a `.pac-container` dropdown
+      // div directly to document.body (not inside `node`), and
+      // clearInstanceListeners doesn't remove it — so it must be cleaned
+      // up manually or it's orphaned on every re-attach. Removing every
+      // `.pac-container` on the page is safe only because this hook
+      // guards against multiple concurrent attaches and Address.tsx is
+      // the sole consumer (verified: no other component uses this hook);
+      // if multiple autocomplete instances could coexist, this would need
+      // to be scoped to the instance being torn down.
+      document.querySelectorAll('.pac-container').forEach((el) => el.remove());
       if (attachedNodeRef.current === node) {
         attachedNodeRef.current = null;
         delete node.dataset.placesAutocomplete;
