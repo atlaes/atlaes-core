@@ -17,7 +17,16 @@ export const Address: React.FC<AddressProps> = ({ onNext }) => {
   // Client #13: when the user picks a Google Places suggestion, fill in all
   // four fields from the structured address components. No-ops silently if
   // the Maps SDK is not configured (NEXT_PUBLIC_GOOGLE_MAPS_API_KEY missing).
-  useGooglePlacesAutocomplete(streetInputRef, {
+  //
+  // Task 11 (item 17): the hook returns a callback ref (attachStreetInput)
+  // that must be used on the <input> below instead of streetInputRef
+  // directly. A plain RefObject can't tell the hook when the DOM node
+  // actually mounts, so on paths where the input appears later or is
+  // remounted, the old wiring could silently never attach. The callback ref
+  // re-fires whenever the node changes, so attachment is reliable
+  // regardless of mount timing/flow. streetInputRef.current still gets
+  // populated (written through by the hook) for any other consumer.
+  const attachStreetInput = useGooglePlacesAutocomplete(streetInputRef, {
     onPlaceSelected: (place) => {
       updateAddress({
         streetAndNumber: place.streetAndNumber,
@@ -55,7 +64,7 @@ export const Address: React.FC<AddressProps> = ({ onNext }) => {
             Please enter your address using Latin characters.
           </p>
           <input
-            ref={streetInputRef}
+            ref={attachStreetInput}
             type="text"
             value={data.address.streetAndNumber}
             onChange={(e) => updateAddress({ streetAndNumber: e.target.value })}
