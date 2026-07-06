@@ -286,11 +286,11 @@ test.describe('Manual VBL calculator', () => {
     await continueButton(page).click();
 
     await expect(
-      page.getByRole('heading', { name: 'Your estimated VddB/VddKO refund' })
+      page.getByRole('heading', { name: 'Your estimated VddKO refund' })
     ).toBeVisible();
     await expect(page.getByText('€ 9,000')).toBeVisible();
     await expect(
-      page.getByRole('button', { name: 'Start VddB/VddKO refund' })
+      page.getByRole('button', { name: 'Start VddKO refund' })
     ).toBeVisible();
 
     expect(api.getPayload()).toEqual({

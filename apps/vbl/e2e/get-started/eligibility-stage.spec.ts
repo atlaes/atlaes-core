@@ -29,7 +29,8 @@ async function mockStageUploadExtraction(
   let sawStagePensionType = false;
 
   await page.route('**/api/vbl/extract-pension-document', async (route) => {
-    sawStagePensionType = route.request().postData()?.includes('vddb_vddko') ?? false;
+    sawStagePensionType =
+      route.request().postData()?.includes('vddb_vddko') ?? false;
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -320,7 +321,7 @@ test.describe('Stage / Performing Arts Eligibility', () => {
     ).toBeVisible();
     await expect(
       page.getByText(
-        'VddB/VddKO uses contribution-period rules based on how long and when contributions were paid.'
+        'VddKO uses contribution-period rules based on how long and when contributions were paid.'
       )
     ).toBeVisible();
     await page.getByText('Less than 36 months').click();
@@ -345,7 +346,7 @@ test.describe('Stage / Performing Arts Eligibility', () => {
     ).toBeVisible();
     await expect(
       page.getByText(
-        'We will remind you when your VddB/VddKO refund can be started with CompanyPension.'
+        'We will remind you when your VddKO refund can be started with CompanyPension.'
       )
     ).toBeVisible();
   });
@@ -373,11 +374,11 @@ test.describe('Stage / Performing Arts Eligibility', () => {
     ).toBeVisible();
     await expect(
       page.getByText(
-        'We could not confirm everything from your document. Please add the missing details so we can check whether your VddB/VddKO refund can be started.'
+        'We could not confirm everything from your document. Please add the missing details so we can check whether your VddB refund can be started.'
       )
     ).toBeVisible();
-    await expect(page.getByText('Missing details', { exact: true })).toHaveCount(
-      4
-    );
+    await expect(
+      page.getByText('Missing details', { exact: true })
+    ).toHaveCount(4);
   });
 });

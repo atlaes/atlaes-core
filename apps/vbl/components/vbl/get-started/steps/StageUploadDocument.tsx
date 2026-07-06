@@ -517,6 +517,7 @@ export const StageUploadDocument: React.FC = () => {
   if (phase === 'contribution_check') {
     const showPost2018 = form.provider === 'VddKO';
     const showPost2001 = form.provider === 'VddB';
+    const providerLabel = form.provider || 'VddB/VddKO';
 
     return (
       <div className="mx-auto max-w-[640px]">
@@ -526,14 +527,14 @@ export const StageUploadDocument: React.FC = () => {
           </h2>
           <div className="mx-auto mt-3 h-px w-full max-w-[560px] bg-[#D9DEE7]" />
           <p className="mx-auto mt-4 max-w-[520px] text-[16px] leading-6 text-[#4B5563]">
-            VddB/VddKO uses contribution-period rules based on how long and when
-            contributions were paid.
+            {providerLabel} uses contribution-period rules based on how long and
+            when contributions were paid.
           </p>
         </div>
 
         <div className="space-y-6">
           <OptionGroup
-            title="How many VddB/VddKO contribution months do you have in total?"
+            title={`How many ${providerLabel} contribution months do you have in total?`}
             options={TOTAL_OPTIONS}
             selected={contributionCheck.total}
             onSelect={(value) =>
@@ -587,7 +588,9 @@ export const StageUploadDocument: React.FC = () => {
           <div className="mx-auto mt-3 h-px w-full max-w-[560px] bg-[#D9DEE7]" />
           <p className="mx-auto mt-4 max-w-[560px] text-[16px] leading-6 text-[#4B5563]">
             {reviewIsMissing
-              ? 'We could not confirm everything from your document. Please add the missing details so we can check whether your VddB/VddKO refund can be started.'
+              ? `We could not confirm everything from your document. Please add the missing details so we can check whether your ${
+                  form.provider || 'VddB/VddKO'
+                } refund can be started.`
               : 'Please check the details needed for the first refund check.'}
           </p>
         </div>

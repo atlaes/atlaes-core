@@ -177,7 +177,7 @@ test.describe('Eligibility Edge Cases', () => {
       await selectStagePensionDetails(page, 'VddB');
       await expect(
         page.getByRole('heading', {
-          name: 'How many VddB/VddKO contribution months do you have in total?',
+          name: 'How many VddB contribution months do you have in total?',
         })
       ).toBeVisible({ timeout: 5_000 });
 
@@ -202,7 +202,7 @@ test.describe('Eligibility Edge Cases', () => {
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
         page.getByRole('heading', {
-          name: 'How many VddB/VddKO contribution months do you have in total?',
+          name: 'How many VddB contribution months do you have in total?',
         })
       ).toBeVisible({ timeout: 5_000 });
     });
@@ -267,9 +267,7 @@ test.describe('Eligibility Edge Cases', () => {
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from statement amount returns to provider', async ({
-      page,
-    }) => {
+    test('Back from statement amount returns to provider', async ({ page }) => {
       await navigateToGetStarted(page);
       await selectEmploymentType(page, 'Private Sector');
       await selectPrivateEntryPath(page, 'Answer questions');

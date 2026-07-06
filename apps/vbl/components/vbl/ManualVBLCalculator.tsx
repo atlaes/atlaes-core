@@ -187,13 +187,26 @@ const getSupplementaryPensions = (form: ManualFormData) => {
   return provider ? [provider] : [];
 };
 
-const getEstimateTitle = (pensionType: PensionType) =>
+const getStageProviderLabel = (stageProvider: StageProvider) =>
+  stageProvider === 'VddB' || stageProvider === 'VddKO'
+    ? stageProvider
+    : 'VddB/VddKO';
+
+const getEstimateTitle = (
+  pensionType: PensionType,
+  stageProvider: StageProvider
+) =>
   pensionType === 'stage'
-    ? 'Your estimated VddB/VddKO refund'
+    ? `Your estimated ${getStageProviderLabel(stageProvider)} refund`
     : 'Your estimated VBL/ZVK refund';
 
-const getStartClaimLabel = (pensionType: PensionType) =>
-  pensionType === 'stage' ? 'Start VddB/VddKO refund' : 'Start VBL/ZVK refund';
+const getStartClaimLabel = (
+  pensionType: PensionType,
+  stageProvider: StageProvider
+) =>
+  pensionType === 'stage'
+    ? `Start ${getStageProviderLabel(stageProvider)} refund`
+    : 'Start VBL/ZVK refund';
 
 const getEmploymentType = (form: ManualFormData) => {
   if (form.pensionType === 'stage') {
@@ -1466,7 +1479,7 @@ export const ManualVBLCalculator: React.FC = () => {
                       className="text-[25px] font-bold leading-tight text-gray-950"
                       style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
                     >
-                      {getEstimateTitle(form.pensionType)}
+                      {getEstimateTitle(form.pensionType, form.stageProvider)}
                     </h1>
                     <div className="mx-auto mt-8 flex min-h-[174px] w-full max-w-[600px] items-center justify-center rounded-lg bg-[#9FE870] shadow-md">
                       <div>
@@ -1504,7 +1517,10 @@ export const ManualVBLCalculator: React.FC = () => {
                         onClick={() => void startClaim()}
                         className="flex h-12 items-center justify-center gap-2 rounded-md bg-[#9FE870] font-semibold text-[#163300] shadow-md transition hover:bg-[#8AD860]"
                       >
-                        {getStartClaimLabel(form.pensionType)}
+                        {getStartClaimLabel(
+                          form.pensionType,
+                          form.stageProvider
+                        )}
                         <ArrowRight className="h-5 w-5" />
                       </button>
                     </div>

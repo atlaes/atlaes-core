@@ -27,6 +27,10 @@ export const EligibilityResult: React.FC = () => {
   const isPublic = data.employmentType === 'public_sector';
   const isStage = data.employmentType === 'stage_performing_arts';
   const isStageUpload = isStage && data.stageEntryPath === 'upload';
+  const stageProviderLabel =
+    data.pensionProvider === 'VddB' || data.pensionProvider === 'VddKO'
+      ? data.pensionProvider
+      : 'VddB/VddKO';
 
   if (result === 'eligible') {
     const isPrivate = data.employmentType === 'private_sector';
@@ -144,7 +148,7 @@ export const EligibilityResult: React.FC = () => {
             </h2>
             <p className="max-w-[460px] text-[16px] leading-6 text-[#4B5563]">
               {isStageUpload
-                ? 'We will remind you when your VddB/VddKO refund can be started with CompanyPension.'
+                ? `We will remind you when your ${stageProviderLabel} refund can be started with CompanyPension.`
                 : "We'll email you when you can start your refund."}
             </p>
             {isStageUpload && (

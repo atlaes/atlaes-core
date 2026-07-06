@@ -75,8 +75,13 @@ function getConfig(
     };
   }
 
+  const providerLabel =
+    data.pensionProvider === 'VddB' || data.pensionProvider === 'VddKO'
+      ? data.pensionProvider
+      : 'VddB/VddKO';
+
   return {
-    heading: 'How many VddB/VddKO contribution months do you have in total?',
+    heading: `How many ${providerLabel} contribution months do you have in total?`,
     selectedValue: data.stageContributionDuration,
     options: TOTAL_OPTIONS,
     getUpdate: (selected) => ({
