@@ -16,6 +16,11 @@ import {
   PensionDocumentExtractionProviderError,
   PensionDocumentType,
 } from '../services/pension-document-extraction';
+import {
+  extractHealthInsuranceDocumentDetails,
+  HealthInsuranceDocumentExtractionConfigError,
+  HealthInsuranceDocumentExtractionProviderError,
+} from '../services/health-insurance-document-extraction';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 import { db } from '../utils/db';
 import { applications, calculationLogs } from '../drizzle/schema/vbl';
@@ -228,6 +233,95 @@ vbl.post('/extract-pension-document', async (c) => {
           error instanceof Error
             ? error.message
             : 'Failed to extract pension document details',
+      },
+      500
+    );
+  }
+});
+
+// Extract Health Insurance substep fields from an uploaded document.
+// Task 15: bAV/private pension type only, post-account (authenticated) —
+// the Health Insurance substep only appears after payment, unlike the
+// pre-account /extract-pension-document endpoint above.
+vbl.post('/extract-health-insurance-document', authMiddleware, async (c) => {
+  try {
+    const formData = await c.req.formData();
+    const file = formData.get('file');
+
+    if (!file || !(file instanceof File)) {
+      return c.json({ success: false, error: 'No file provided' }, 400);
+    }
+
+    if (file.size > maxPensionDocumentSize) {
+      return c.json(
+        {
+          success: false,
+          error: 'File size exceeds 10MB limit',
+        },
+        400
+      );
+    }
+
+    if (
+      !allowedPensionDocumentMimeTypes.includes(
+        file.type as (typeof allowedPensionDocumentMimeTypes)[number]
+      )
+    ) {
+      return c.json(
+        {
+          success: false,
+          error: 'Invalid file type. Allowed: PDF, JPG, PNG, WEBP',
+        },
+        400
+      );
+    }
+
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const extraction = await extractHealthInsuranceDocumentDetails({
+      fileBuffer,
+      fileName: file.name,
+      mimeType: file.type,
+    });
+
+    return c.json({
+      success: true,
+      extraction: {
+        details: extraction.details,
+        confidence: extraction.confidence,
+        missingFields: extraction.missingFields,
+        model: extraction.model,
+      },
+    });
+  } catch (error) {
+    logger.error('Health insurance document extraction error:', error);
+
+    if (error instanceof HealthInsuranceDocumentExtractionConfigError) {
+      return c.json(
+        {
+          success: false,
+          error: error.message,
+        },
+        503
+      );
+    }
+
+    if (error instanceof HealthInsuranceDocumentExtractionProviderError) {
+      return c.json(
+        {
+          success: false,
+          error: error.message,
+        },
+        502
+      );
+    }
+
+    return c.json(
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to extract health insurance document details',
       },
       500
     );

@@ -56,6 +56,16 @@ const updateClaimSchema = z.object({
   abmeldungMethod: z.enum(['uploaded', 'manual', 'service_requested']).optional(),
   deregistrationServiceRequested: z.boolean().optional(),
 
+  // Health Insurance (Task 15, bAV/private pension type only)
+  healthInsuranceType: z.enum(['statutory', 'private', 'not_sure']).optional(),
+  healthInsuranceProviderName: z.string().max(255).optional(),
+  healthInsuranceProviderAddress: z.string().max(500).optional(),
+  healthInsuranceInsuredSinceMonth: z.string().max(20).optional(),
+  healthInsuranceInsuredSinceYear: z.string().max(4).optional(),
+  healthInsurancePlaceOfBirth: z.string().max(100).optional(),
+  healthInsuranceCountryOfBirth: z.string().max(100).optional(),
+  healthInsuranceNumber: z.string().max(50).optional(),
+
   // Bank Details
   preferredCurrency: z.string().max(10).optional(),
   accountHolderName: z.string().max(255).optional(),
@@ -82,7 +92,14 @@ const updateClaimSchema = z.object({
 // Add document schema
 const addDocumentSchema = z.object({
   documentId: z.string().uuid(),
-  documentRole: z.enum(['passport', 'payslip', 'abmeldung', 'bank_statement', 'certified_id_form']),
+  documentRole: z.enum([
+    'passport',
+    'payslip',
+    'abmeldung',
+    'bank_statement',
+    'certified_id_form',
+    'health_insurance',
+  ]),
 });
 
 // Attach signature schema
@@ -115,6 +132,7 @@ const validStepNames: ClaimStepName[] = [
   'currentAddress',
   'germanSocialInsurance',
   'lastAddressInGermany',
+  'healthInsurance',
   'bankDetails',
   'signDocuments',
   'identityConfirmationForm',
