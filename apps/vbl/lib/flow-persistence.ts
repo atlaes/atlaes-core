@@ -40,10 +40,24 @@ import type {
 
 const ELIGIBILITY_KEY = 'vbl_eligibility_v1';
 const ONBOARDING_KEY = 'vbl_onboarding_v1';
+// Final review fix (CRITICAL 2): the magic-link auth email opens in a NEW
+// TAB, so sessionStorage (tab-scoped) is empty when the user lands back on
+// /get-started?fromAuth=1 — the eligibility-derived pensionType/provider that
+// the carry-over effect in GetStartedOnboardingFlow would otherwise apply is
+// gone, and the flow silently defaults to the public paygate. localStorage
+// survives across tabs, so this one small, explicitly-not-sensitive blob is
+// written alongside the sessionStorage eligibility state (same moment: when
+// eligibility is confirmed) and read on the fromAuth resume path before any
+// ''-to-'public' defaulting happens.
+const FLOW_IDENTITY_KEY = 'vbl_flow_identity_v1';
 const VERSION = 1;
 
 function hasSessionStorage(): boolean {
   return typeof window !== 'undefined' && !!window.sessionStorage;
+}
+
+function hasLocalStorage(): boolean {
+  return typeof window !== 'undefined' && !!window.localStorage;
 }
 
 function safeRead<T>(key: string): T | null {
@@ -75,6 +89,37 @@ function safeClear(key: string): void {
   if (!hasSessionStorage()) return;
   try {
     window.sessionStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
+}
+
+function safeReadLocal<T>(key: string): T | null {
+  if (!hasLocalStorage()) return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || parsed.version !== VERSION) return null;
+    return parsed as T;
+  } catch {
+    return null;
+  }
+}
+
+function safeWriteLocal(key: string, value: unknown): void {
+  if (!hasLocalStorage()) return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Storage full / disabled / private mode — best-effort only.
+  }
+}
+
+function safeClearLocal(key: string): void {
+  if (!hasLocalStorage()) return;
+  try {
+    window.localStorage.removeItem(key);
   } catch {
     // ignore
   }
@@ -300,9 +345,45 @@ export function clearOnboardingState(): void {
   safeClear(ONBOARDING_KEY);
 }
 
-// Clears both keys — used on successful final submission and on explicit
-// flow restart (e.g. "Return to start" from the eligibility result screen).
+// ------------------------------------------------------------------
+// Flow identity persistence (CRITICAL 2 — magic-link new-tab return)
+// ------------------------------------------------------------------
+//
+// Deliberately just two plain strings, neither sensitive (a pension type
+// selection and a provider name are not credentials/PII in the File/token
+// sense this module otherwise excludes) — so this is exempt from the
+// File/token exclusion discipline documented at the top of this file.
+
+export interface PersistedFlowIdentity {
+  version: number;
+  pensionType: 'public' | 'private' | '';
+  pensionProvider: string;
+}
+
+export function saveFlowIdentity(
+  state: Omit<PersistedFlowIdentity, 'version'>
+): void {
+  if (state.pensionType === '' && state.pensionProvider === '') {
+    clearFlowIdentity();
+    return;
+  }
+  safeWriteLocal(FLOW_IDENTITY_KEY, { version: VERSION, ...state });
+}
+
+export function loadFlowIdentity(): PersistedFlowIdentity | null {
+  return safeReadLocal<PersistedFlowIdentity>(FLOW_IDENTITY_KEY);
+}
+
+export function clearFlowIdentity(): void {
+  safeClearLocal(FLOW_IDENTITY_KEY);
+}
+
+// Clears all persisted flow blobs — used on successful final submission and
+// on explicit flow restart (e.g. "Return to start" from the eligibility
+// result screen). Single clear point per Task 13 discipline: any new
+// persisted key (e.g. flow identity, CRITICAL 2) is added here too.
 export function clearAllFlowPersistence(): void {
   clearEligibilityState();
   clearOnboardingState();
+  clearFlowIdentity();
 }

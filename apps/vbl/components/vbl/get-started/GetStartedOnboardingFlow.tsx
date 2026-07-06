@@ -16,7 +16,11 @@ import {
   markStepComplete,
   verifyPaymentSession,
 } from '@/lib/onboarding-api';
-import { clearAllFlowPersistence } from '@/lib/flow-persistence';
+import {
+  clearAllFlowPersistence,
+  loadFlowIdentity,
+  saveFlowIdentity,
+} from '@/lib/flow-persistence';
 import { GetStartedLayout } from './GetStartedLayout';
 import { CreateAccount } from '@/components/vbl/onboarding/steps/CreateAccount';
 import { Payment } from '@/components/vbl/onboarding/steps/Payment';
@@ -61,40 +65,98 @@ export function GetStartedOnboardingFlow() {
     }
   }, [user, currentStep, updateData, setCurrentStep]);
 
-  // Set pension type and provider from eligibility data on mount
+  // Set pension type and provider from eligibility data on mount.
+  //
+  // CRITICAL 2 fix: the magic-link email opens in a NEW TAB, so when the
+  // user lands back on /get-started?fromAuth=1, sessionStorage-backed
+  // EligibilityContext is empty (fromAuth force-confirms eligibility without
+  // ever walking the flow — see app/get-started/page.tsx) and
+  // eligibilityData.employmentType is ''. Previously that always defaulted
+  // pensionType to 'public', paygating bAV/private claimants incorrectly and
+  // skipping the Health Insurance substep entirely. Now, when eligibility
+  // has nothing (employmentType === ''), we first check the
+  // vbl_flow_identity_v1 localStorage blob (written below, at the same
+  // moment eligibility is confirmed with real data) — localStorage survives
+  // across tabs, unlike sessionStorage. Only default to 'public' when that
+  // key is genuinely absent too (a fresh visitor who has never confirmed
+  // eligibility with a real employment type).
   useEffect(() => {
-    if (data.pensionType === '') {
-      const pensionType =
-        eligibilityData.employmentType === 'private_sector'
-          ? 'private'
-          : 'public';
-      updateData({ pensionType });
+    if (data.pensionType !== '') return;
+
+    if (eligibilityData.employmentType === '') {
+      const savedIdentity = loadFlowIdentity();
+      if (savedIdentity?.pensionType) {
+        updateData({ pensionType: savedIdentity.pensionType });
+        return;
+      }
+      updateData({ pensionType: 'public' });
+      return;
     }
+
+    const pensionType =
+      eligibilityData.employmentType === 'private_sector'
+        ? 'private'
+        : 'public';
+    updateData({ pensionType });
   }, [data.pensionType, eligibilityData.employmentType, updateData]);
 
-  // Carry over pension provider from eligibility to membership
+  // Carry over pension provider from eligibility to membership.
+  //
+  // CRITICAL 1 fix: the private/bAV flow stores its selected provider in
+  // eligibilityData.privatePensionProvider (privatePensionProviderOther for
+  // the free-text "Other" case), never in eligibilityData.pensionProvider
+  // (that field is only ever set by the public/stage flows). Previously this
+  // effect only ever read pensionProvider, so bAV claimants always reached
+  // Membership.tsx's locked read-only provider box empty — with no dropdown
+  // fallback by design — and a permanently disabled Continue. Now the
+  // private path is mapped explicitly.
   useEffect(() => {
-    if (
-      eligibilityData.pensionProvider &&
-      data.membership.pensionProvider === ''
-    ) {
+    if (data.membership.pensionProvider !== '') return;
+
+    let mappedProvider = '';
+    if (eligibilityData.privatePensionProvider) {
+      mappedProvider =
+        eligibilityData.privatePensionProvider === 'Other'
+          ? eligibilityData.privatePensionProviderOther ||
+            eligibilityData.privatePensionProvider
+          : eligibilityData.privatePensionProvider;
+    } else if (eligibilityData.pensionProvider) {
       const provider = eligibilityData.pensionProvider;
-      // Map eligibility provider to membership provider value
-      let mappedProvider = provider;
-      if (provider === 'VBL' && eligibilityData.vblPlan) {
-        mappedProvider = eligibilityData.vblPlan;
-      }
-      updateData({
-        membership: {
-          ...data.membership,
-          pensionProvider: mappedProvider as any,
-        },
-      });
+      mappedProvider =
+        provider === 'VBL' && eligibilityData.vblPlan
+          ? eligibilityData.vblPlan
+          : provider;
     }
+
+    if (!mappedProvider) return;
+
+    updateData({
+      membership: {
+        ...data.membership,
+        pensionProvider: mappedProvider,
+      },
+    });
+
+    // CRITICAL 2: persist pensionType + provider to localStorage the moment
+    // we have a real, non-empty provider to carry over — this is the same
+    // point in the flow where eligibility has genuinely been confirmed with
+    // data (as opposed to the fromAuth force-confirm path, which never runs
+    // this effect to a non-empty mappedProvider). Written here rather than
+    // only in the pensionType effect above so both values land together.
+    const resolvedPensionType =
+      data.pensionType ||
+      (eligibilityData.privatePensionProvider ? 'private' : 'public');
+    saveFlowIdentity({
+      pensionType: resolvedPensionType,
+      pensionProvider: mappedProvider,
+    });
   }, [
     eligibilityData.pensionProvider,
     eligibilityData.vblPlan,
+    eligibilityData.privatePensionProvider,
+    eligibilityData.privatePensionProviderOther,
     data.membership,
+    data.pensionType,
     updateData,
   ]);
 

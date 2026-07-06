@@ -37,6 +37,15 @@ export const Membership: React.FC<MembershipProps> = ({
 }) => {
   const { data, updateMembership, canProceedFromSubStep } = useOnboarding();
 
+  // Final review fix (CRITICAL 1): bAV/private claimants see this screen too
+  // (their eligibility-selected provider now carries over — see the
+  // carry-over effect in GetStartedOnboardingFlow.tsx). Per the July design
+  // (Get-Started/Private-Flow/VBL-5.png, heading "Company pension membership
+  // details"), the membership-number field is instead labeled "Contract,
+  // policy or reference number" for this pension type — membership number is
+  // still REQUIRED, just relabeled.
+  const isPrivatePensionType = data.pensionType === 'private';
+
   // Stage / orchestra (VddB, VddKO) needs membership number plus an extended
   // employment details form on the same step.
   const isStageProvider =
@@ -147,16 +156,25 @@ export const Membership: React.FC<MembershipProps> = ({
   // pattern ("You can find this number on letters or statements from VBL.").
   const providerNameForCopy = isVblProvider ? 'VBL' : providerLabel;
 
-  // Dynamic membership number label and helper text based on selection
-  const membershipNumberLabel = isVblProvider
-    ? 'VBL insurance number'
-    : providerLabel
-      ? `${providerLabel} membership number`
-      : 'Membership number';
+  // Dynamic membership number label and helper text based on selection.
+  // Final review fix (CRITICAL 1): bAV/private claimants get the
+  // "Contract, policy or reference number" label per
+  // Get-Started/Private-Flow/VBL-5.png — membership number is still
+  // REQUIRED, just relabeled to match how a company pension document
+  // actually refers to this identifier.
+  const membershipNumberLabel = isPrivatePensionType
+    ? 'Contract, policy or reference number'
+    : isVblProvider
+      ? 'VBL insurance number'
+      : providerLabel
+        ? `${providerLabel} membership number`
+        : 'Membership number';
 
-  const membershipNumberPlaceholder = providerNameForCopy
-    ? `Enter your ${providerNameForCopy} ${isVblProvider ? 'insurance' : 'membership'} number`
-    : 'Enter your membership number';
+  const membershipNumberPlaceholder = isPrivatePensionType
+    ? 'Enter your contract, policy or reference number'
+    : providerNameForCopy
+      ? `Enter your ${providerNameForCopy} ${isVblProvider ? 'insurance' : 'membership'} number`
+      : 'Enter your membership number';
 
   const helperText = providerNameForCopy
     ? `You can find this number on letters or statements from ${providerNameForCopy}.`
@@ -166,21 +184,28 @@ export const Membership: React.FC<MembershipProps> = ({
   // (Eligibility/VBL-5.png — "Leaving stage or orchestra employment" /
   // "Please provide a few more details for your refund request."). Screen 1
   // keeps the original combined-screen heading/intro (Eligibility/VBL-4.png).
+  // Final review fix (CRITICAL 1): bAV/private (non-stage) claimants get the
+  // Get-Started/Private-Flow/VBL-5.png heading/intro instead of the generic
+  // "<Provider> pension details" copy.
   const isStageScreen2 = isStageProvider && phase === 'stage-screen-2';
   const heading = isStageScreen2
     ? 'Leaving stage or orchestra employment'
     : isStageProvider
       ? 'Stage or orchestra employment details'
-      : providerNameForCopy
-        ? `${providerNameForCopy} pension details`
-        : 'Pension details';
+      : isPrivatePensionType
+        ? 'Company pension membership details'
+        : providerNameForCopy
+          ? `${providerNameForCopy} pension details`
+          : 'Pension details';
   const intro = isStageScreen2
     ? 'Please provide a few more details for your refund request.'
     : isStageProvider
       ? 'Please provide details about your last stage or orchestra employment in Germany.'
-      : providerNameForCopy
-        ? `Enter the details from your ${providerNameForCopy} document.`
-        : 'Enter the details from your pension document.';
+      : isPrivatePensionType
+        ? "Enter the details from your company pension document. We'll use this information for your bAV cash-out request."
+        : providerNameForCopy
+          ? `Enter the details from your ${providerNameForCopy} document.`
+          : 'Enter the details from your pension document.';
 
   return (
     <div className="max-w-lg mx-auto">
