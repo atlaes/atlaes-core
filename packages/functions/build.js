@@ -11,7 +11,7 @@ fs.mkdirSync(distPath, { recursive: true });
 
 // Use esbuild for fast compilation
 try {
-  execSync('npx esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --external:@hono/* --external:hono --external:pg --external:postgres --external:drizzle-orm --external:bcryptjs --external:jsonwebtoken --external:google-auth-library --external:redis --external:zod --external:axios --external:dotenv --external:canvas --external:mindee --external:pdf-lib --external:ssh2-sftp-client', {
+  execSync('npx esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --external:@hono/* --external:hono --external:pg --external:postgres --external:drizzle-orm --external:bcryptjs --external:jsonwebtoken --external:google-auth-library --external:redis --external:zod --external:axios --external:dotenv --external:canvas --external:pdf-lib --external:ssh2-sftp-client', {
     stdio: 'inherit',
     cwd: __dirname
   });

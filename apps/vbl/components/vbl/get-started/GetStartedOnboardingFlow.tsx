@@ -1,24 +1,33 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useOnboarding, SUBMIT_DETAILS_SUBSTEPS, SubmitDetailsSubStep } from '@/contexts/OnboardingContext';
+import {
+  useOnboarding,
+  getSubmitDetailsSubsteps,
+  SubmitDetailsSubStep,
+} from '@/contexts/OnboardingContext';
 import { useEligibility } from '@/contexts/EligibilityContext';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   getClaim,
   updateClaim,
   attachDocument,
-  attachSignatureToClaim,
   markStepComplete,
   verifyPaymentSession,
 } from '@/lib/onboarding-api';
+import {
+  clearAllFlowPersistence,
+  loadFlowIdentity,
+  saveFlowIdentity,
+} from '@/lib/flow-persistence';
 import { GetStartedLayout } from './GetStartedLayout';
 import { CreateAccount } from '@/components/vbl/onboarding/steps/CreateAccount';
 import { Payment } from '@/components/vbl/onboarding/steps/Payment';
 import { Identity } from '@/components/vbl/onboarding/steps/Identity';
 import { Membership } from '@/components/vbl/onboarding/steps/Membership';
 import { Address } from '@/components/vbl/onboarding/steps/Address';
+import { HealthInsurance } from '@/components/vbl/onboarding/steps/HealthInsurance';
 import { BankDetails } from '@/components/vbl/onboarding/steps/BankDetails';
 import { Signature } from '@/components/vbl/onboarding/steps/Signature';
 import { ReviewSubmit } from '@/components/vbl/onboarding/steps/ReviewSubmit';
@@ -43,6 +52,10 @@ export function GetStartedOnboardingFlow() {
     loadFromClaim,
   } = useOnboarding();
 
+  // Task 15: Health Insurance only appears for bAV/private pension type
+  // claimants — see getSubmitDetailsSubsteps in OnboardingContext.tsx.
+  const submitDetailsSubsteps = getSubmitDetailsSubsteps(data.pensionType);
+
   // Auto-advance past CreateAccount when user is already authenticated
   // (e.g. arriving via magic link redirect back to /get-started)
   useEffect(() => {
@@ -52,34 +65,145 @@ export function GetStartedOnboardingFlow() {
     }
   }, [user, currentStep, updateData, setCurrentStep]);
 
-  // Set pension type and provider from eligibility data on mount
+  // Set pension type and provider from eligibility data on mount.
+  //
+  // CRITICAL 2 fix: the magic-link email opens in a NEW TAB, so when the
+  // user lands back on /get-started?fromAuth=1, sessionStorage-backed
+  // EligibilityContext is empty (fromAuth force-confirms eligibility without
+  // ever walking the flow — see app/get-started/page.tsx) and
+  // eligibilityData.employmentType is ''. Previously that always defaulted
+  // pensionType to 'public', paygating bAV/private claimants incorrectly and
+  // skipping the Health Insurance substep entirely. Now, when eligibility
+  // has nothing (employmentType === ''), we first check the
+  // vbl_flow_identity_v1 localStorage blob (written below, at the same
+  // moment eligibility is confirmed with real data) — localStorage survives
+  // across tabs, unlike sessionStorage. Only default to 'public' when that
+  // key is genuinely absent too (a fresh visitor who has never confirmed
+  // eligibility with a real employment type).
   useEffect(() => {
-    if (data.pensionType === '') {
-      const pensionType =
-        eligibilityData.employmentType === 'private_sector'
-          ? 'private'
-          : 'public';
-      updateData({ pensionType });
-    }
-  }, [data.pensionType, eligibilityData.employmentType, updateData]);
+    if (data.pensionType !== '') return;
 
-  // Carry over pension provider from eligibility to membership
-  useEffect(() => {
-    if (eligibilityData.pensionProvider && data.membership.pensionProvider === '') {
-      const provider = eligibilityData.pensionProvider;
-      // Map eligibility provider to membership provider value
-      let mappedProvider = provider;
-      if (provider === 'VBL' && eligibilityData.vblPlan) {
-        mappedProvider = 'VBL';
+    if (eligibilityData.employmentType === '') {
+      const savedIdentity = loadFlowIdentity();
+      if (savedIdentity?.pensionType) {
+        // Same magic-link tab boundary as above: the C1 eligibility carry-over
+        // never runs on this resume path, so restore pensionProvider from the
+        // same localStorage blob here too — but only when nothing else
+        // (in-memory state or a loaded claim) has already set it.
+        if (savedIdentity.pensionProvider && !data.membership.pensionProvider) {
+          updateData({
+            pensionType: savedIdentity.pensionType,
+            membership: {
+              ...data.membership,
+              pensionProvider: savedIdentity.pensionProvider,
+            },
+          });
+          return;
+        }
+        updateData({ pensionType: savedIdentity.pensionType });
+        return;
       }
+      updateData({ pensionType: 'public' });
+      return;
+    }
+
+    const pensionType =
+      eligibilityData.employmentType === 'private_sector'
+        ? 'private'
+        : 'public';
+    updateData({ pensionType });
+  }, [
+    data.pensionType,
+    data.membership,
+    eligibilityData.employmentType,
+    updateData,
+  ]);
+
+  // Carry over pension provider from eligibility to membership.
+  //
+  // CRITICAL 1 fix: the private/bAV flow stores its selected provider in
+  // eligibilityData.privatePensionProvider (privatePensionProviderOther for
+  // the free-text "Other" case), never in eligibilityData.pensionProvider
+  // (that field is only ever set by the public/stage flows). Previously this
+  // effect only ever read pensionProvider, so bAV claimants always reached
+  // Membership.tsx's locked read-only provider box empty — with no dropdown
+  // fallback by design — and a permanently disabled Continue. Now the
+  // private path is mapped explicitly.
+  useEffect(() => {
+    if (data.membership.pensionProvider !== '') return;
+
+    let mappedProvider = '';
+    if (eligibilityData.privatePensionProvider) {
+      mappedProvider =
+        eligibilityData.privatePensionProvider === 'Other'
+          ? eligibilityData.privatePensionProviderOther ||
+            eligibilityData.privatePensionProvider
+          : eligibilityData.privatePensionProvider;
+    } else if (eligibilityData.pensionProvider) {
+      const provider = eligibilityData.pensionProvider;
+      mappedProvider =
+        provider === 'VBL' && eligibilityData.vblPlan
+          ? eligibilityData.vblPlan
+          : provider;
+    }
+
+    if (!mappedProvider) return;
+
+    updateData({
+      membership: {
+        ...data.membership,
+        pensionProvider: mappedProvider,
+      },
+    });
+
+    // CRITICAL 2: persist pensionType + provider to localStorage the moment
+    // we have a real, non-empty provider to carry over — this is the same
+    // point in the flow where eligibility has genuinely been confirmed with
+    // data (as opposed to the fromAuth force-confirm path, which never runs
+    // this effect to a non-empty mappedProvider). Written here rather than
+    // only in the pensionType effect above so both values land together.
+    const resolvedPensionType =
+      data.pensionType ||
+      (eligibilityData.privatePensionProvider ? 'private' : 'public');
+    saveFlowIdentity({
+      pensionType: resolvedPensionType,
+      pensionProvider: mappedProvider,
+    });
+  }, [
+    eligibilityData.pensionProvider,
+    eligibilityData.vblPlan,
+    eligibilityData.privatePensionProvider,
+    eligibilityData.privatePensionProviderOther,
+    data.membership,
+    data.pensionType,
+    updateData,
+  ]);
+
+  // Restore provider/type details after the Stripe redirect reloads the page.
+  useEffect(() => {
+    if (data.membership.pensionProvider) return;
+    if (typeof window === 'undefined') return;
+
+    const raw = sessionStorage.getItem('vbl_onboarding_payment_seed');
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw) as {
+        pensionType?: typeof data.pensionType;
+        membership?: typeof data.membership;
+      };
+      if (!parsed.membership?.pensionProvider) return;
       updateData({
+        pensionType: parsed.pensionType || data.pensionType,
         membership: {
           ...data.membership,
-          pensionProvider: mappedProvider as any,
+          ...parsed.membership,
         },
       });
+    } catch {
+      sessionStorage.removeItem('vbl_onboarding_payment_seed');
     }
-  }, [eligibilityData.pensionProvider, eligibilityData.vblPlan, data.membership, updateData]);
+  }, [data.membership, data.pensionType, updateData]);
 
   // Resume draft claim on mount
   useEffect(() => {
@@ -135,6 +259,38 @@ export function GetStartedOnboardingFlow() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showDRVModal, setShowDRVModal] = useState(false);
 
+  // Item 13/18a: lets the active sub-step intercept the global Back button
+  // for an internal phase transition (e.g. Identity's confirm phase
+  // returning to its own upload phase, or BankDetails' own/trusted/SummitFX
+  // branches returning to the account-type selection phase) instead of
+  // leaving the sub-step entirely. A sub-step registers a handler while it
+  // wants to own Back, and clears it when it no longer does (see
+  // Identity.tsx and BankDetails.tsx). Only one sub-step is ever mounted at
+  // a time, so there's no risk of two overrides being active together.
+  const backOverrideRef = useRef<(() => void) | null>(null);
+  const setBackOverride = useCallback((handler: (() => void) | null) => {
+    backOverrideRef.current = handler;
+  }, []);
+
+  // Item 18b: BankDetails registers a reset handler while it's showing one of
+  // its internal branches (own/trusted/SummitFX), so re-clicking the already-
+  // active "Bank Details" tab can return it to the account-type selection
+  // phase. Mirrors the backOverrideRef pattern above.
+  const bankDetailsResetRef = useRef<(() => void) | null>(null);
+  const setBankDetailsReset = useCallback((handler: (() => void) | null) => {
+    bankDetailsResetRef.current = handler;
+  }, []);
+
+  const handleSubStepTabClick = (subStep: SubmitDetailsSubStep) => {
+    if (
+      subStep === 'bank-details' &&
+      currentSubStep === 'bank-details' &&
+      bankDetailsResetRef.current
+    ) {
+      bankDetailsResetRef.current();
+    }
+  };
+
   const drvEligibilityDate = '15 Mar 2027';
   const isDRVEligibleNow = false;
 
@@ -161,9 +317,11 @@ export function GetStartedOnboardingFlow() {
       return;
     }
 
-    const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === currentSubStep);
-    if (currentIndex < SUBMIT_DETAILS_SUBSTEPS.length - 1) {
-      setCurrentSubStep(SUBMIT_DETAILS_SUBSTEPS[currentIndex + 1].id);
+    const currentIndex = submitDetailsSubsteps.findIndex(
+      (s) => s.id === currentSubStep
+    );
+    if (currentIndex < submitDetailsSubsteps.length - 1) {
+      setCurrentSubStep(submitDetailsSubsteps[currentIndex + 1].id);
     }
   };
 
@@ -177,14 +335,26 @@ export function GetStartedOnboardingFlow() {
     try {
       switch (currentSubStep) {
         case 'identity': {
-          const firstName =
-            data.identity.firstName ||
-            data.identity.fullName.trim().split(/\s+/)[0] ||
-            '';
-          const lastName =
-            data.identity.lastName ||
-            data.identity.fullName.trim().split(/\s+/).slice(1).join(' ') ||
-            '';
+          // Task 6: the `claims` table has no middleName column (see
+          // packages/functions/src/drizzle/schema/claims.ts) and we are not
+          // adding a migration for this task. Known limitation: the middle
+          // name is persisted concatenated into firstName as
+          // "First Middle" (trimmed when middle is empty), so it survives
+          // submission and downstream PDF generation, but the DB can no
+          // longer tell first and middle apart once saved. This mirrors,
+          // without regressing, the meaning of the firstName/lastName
+          // columns that packages/functions/src/services/claim-pdf already
+          // reads — those columns still mean "the person's name", just
+          // sometimes containing an embedded middle name now. See
+          // loadFromClaim in OnboardingContext.tsx for the corresponding
+          // (lossy) reverse mapping on resume.
+          const firstName = [
+            data.identity.firstName.trim(),
+            data.identity.middleName.trim(),
+          ]
+            .filter(Boolean)
+            .join(' ');
+          const lastName = data.identity.lastName.trim();
           await updateClaim(claimId, {
             claimType: 'own_refund',
             firstName,
@@ -219,6 +389,24 @@ export function GetStartedOnboardingFlow() {
           });
           await markStepComplete(claimId, 'currentAddress');
           break;
+        case 'health-insurance': {
+          const hi = data.healthInsurance;
+          await updateClaim(claimId, {
+            healthInsuranceType: hi.type || undefined,
+            healthInsuranceProviderName: hi.providerName || undefined,
+            healthInsuranceProviderAddress: hi.providerAddress || undefined,
+            healthInsuranceInsuredSinceMonth: hi.insuredSinceMonth || undefined,
+            healthInsuranceInsuredSinceYear: hi.insuredSinceYear || undefined,
+            healthInsurancePlaceOfBirth: hi.placeOfBirth || undefined,
+            healthInsuranceCountryOfBirth: hi.countryOfBirth || undefined,
+            healthInsuranceNumber: hi.insuranceNumber || undefined,
+          });
+          if (hi.documentId) {
+            await attachDocument(claimId, hi.documentId, 'health_insurance');
+          }
+          await markStepComplete(claimId, 'healthInsurance');
+          break;
+        }
         case 'bank-details':
           await updateClaim(claimId, {
             iban: data.bankDetails.iban || undefined,
@@ -227,9 +415,17 @@ export function GetStartedOnboardingFlow() {
           await markStepComplete(claimId, 'bankDetails');
           break;
         case 'signature':
-          if (data.signatureId) {
-            await attachSignatureToClaim(claimId, data.signatureId);
-          }
+          // Item 21 cleanup (not the root cause — see lib/api.ts for that):
+          // Signature.tsx::handleContinue already calls
+          // attachSignatureToClaim itself (added in "Fix: attach signature to
+          // claim before submission") and only invokes onNext() (this
+          // function) after that attach resolves. This call used to
+          // re-attach the same signature a second time — in practice it was
+          // a silent no-op (onNext() runs before the parent re-renders with
+          // the freshly-set data.signatureId, so this closure always saw it
+          // as undefined and skipped), but it's dead, misleading code and a
+          // latent double-submit risk if the render timing ever changes.
+          // Removed; just mark the step complete.
           await markStepComplete(claimId, 'signDocuments');
           break;
       }
@@ -242,6 +438,10 @@ export function GetStartedOnboardingFlow() {
   };
 
   const handleBack = () => {
+    if (backOverrideRef.current) {
+      backOverrideRef.current();
+      return;
+    }
     if (currentStep === 1) {
       // Go back to eligibility flow
       resetEligibility();
@@ -254,9 +454,11 @@ export function GetStartedOnboardingFlow() {
         setCurrentStep(1);
       }
     } else if (currentStep === 3) {
-      const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === currentSubStep);
+      const currentIndex = submitDetailsSubsteps.findIndex(
+        (s) => s.id === currentSubStep
+      );
       if (currentIndex > 0) {
-        setCurrentSubStep(SUBMIT_DETAILS_SUBSTEPS[currentIndex - 1].id);
+        setCurrentSubStep(submitDetailsSubsteps[currentIndex - 1].id);
       } else {
         // Don't go back to Payment if already paid — go to eligibility instead
         if (data.paymentCompleted) {
@@ -273,6 +475,10 @@ export function GetStartedOnboardingFlow() {
       submittedAt: new Date().toISOString(),
       drvEligibilityDate: drvEligibilityDate,
     });
+    // Claim is submitted — nothing left to resume. Clear both persisted
+    // blobs so a refresh on the success screen (or a later visit) doesn't
+    // try to resurrect a completed run.
+    clearAllFlowPersistence();
     setShowSuccess(true);
   };
 
@@ -297,7 +503,11 @@ export function GetStartedOnboardingFlow() {
   // Success screen
   if (showSuccess) {
     return (
-      <GetStartedLayout showBack={false} activeStep={4} currentSubStep={currentSubStep}>
+      <GetStartedLayout
+        showBack={false}
+        activeStep={4}
+        currentSubStep={currentSubStep}
+      >
         <SuccessScreen
           onGoToDashboard={handleGoToDashboard}
           onStartDRVClaim={handleStartDRVClaim}
@@ -334,13 +544,33 @@ export function GetStartedOnboardingFlow() {
   const renderSubStep = () => {
     switch (currentSubStep) {
       case 'identity':
-        return <Identity onNext={saveAndAdvance} />;
+        return (
+          <Identity onNext={saveAndAdvance} setBackOverride={setBackOverride} />
+        );
       case 'membership':
-        return <Membership onNext={saveAndAdvance} />;
+        return (
+          <Membership
+            onNext={saveAndAdvance}
+            setBackOverride={setBackOverride}
+          />
+        );
       case 'address':
         return <Address onNext={saveAndAdvance} />;
+      case 'health-insurance':
+        return (
+          <HealthInsurance
+            onNext={saveAndAdvance}
+            setBackOverride={setBackOverride}
+          />
+        );
       case 'bank-details':
-        return <BankDetails onNext={saveAndAdvance} />;
+        return (
+          <BankDetails
+            onNext={saveAndAdvance}
+            setBackOverride={setBackOverride}
+            setPhaseReset={setBankDetailsReset}
+          />
+        );
       case 'signature':
         return <Signature onNext={saveAndAdvance} />;
       case 'review':
@@ -357,10 +587,15 @@ export function GetStartedOnboardingFlow() {
 
   return (
     <GetStartedLayout
-      showBack={true}
+      // Item 11: the paygate (step 2) has no local Back button, and the
+      // global back control is hidden while it's active — every other
+      // step keeps it.
+      showBack={currentStep !== 2}
       onBack={handleBack}
       activeStep={activeStep}
       currentSubStep={currentStep === 3 ? currentSubStep : undefined}
+      onSubStepClick={handleSubStepTabClick}
+      subSteps={submitDetailsSubsteps}
     >
       {renderStepContent()}
     </GetStartedLayout>

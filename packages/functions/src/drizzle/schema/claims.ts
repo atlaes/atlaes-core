@@ -12,6 +12,7 @@ export type ClaimStepName =
   | 'currentAddress'
   | 'germanSocialInsurance'
   | 'lastAddressInGermany'
+  | 'healthInsurance'
   | 'bankDetails'
   | 'signDocuments'
   | 'identityConfirmationForm'
@@ -35,7 +36,17 @@ export type ClaimWorkflowState =
 export type ClaimStatus = 'draft' | 'ready' | 'submitted' | 'processing' | 'completed' | 'rejected';
 
 // Document roles for claim documents
-export type ClaimDocumentRole = 'passport' | 'payslip' | 'abmeldung' | 'bank_statement' | 'certified_id_form';
+export type ClaimDocumentRole =
+  | 'passport'
+  | 'payslip'
+  | 'abmeldung'
+  | 'bank_statement'
+  | 'certified_id_form'
+  | 'health_insurance';
+
+// Task 15: type of health insurance selected/confirmed on the Health
+// Insurance substep (bAV/private pension type only).
+export type HealthInsuranceType = 'statutory' | 'private' | 'not_sure';
 
 // Certifying authority types for identity verification
 export type CertifyingAuthority =
@@ -90,6 +101,17 @@ export const claimsTable = claims.table('claims', {
   abmeldungMethod: varchar('abmeldung_method', { length: 50 }), // 'uploaded' | 'manual' | 'service_requested'
   deregistrationServiceRequested: boolean('deregistration_service_requested').default(false), // €50 service
 
+  // Task 15: Health Insurance (bAV/private pension type only). All
+  // nullable — OCR-extracted or manually confirmed on the substep.
+  healthInsuranceType: varchar('health_insurance_type', { length: 20 }), // 'statutory' | 'private' | 'not_sure'
+  healthInsuranceProviderName: varchar('health_insurance_provider_name', { length: 255 }),
+  healthInsuranceProviderAddress: varchar('health_insurance_provider_address', { length: 500 }),
+  healthInsuranceInsuredSinceMonth: varchar('health_insurance_insured_since_month', { length: 20 }),
+  healthInsuranceInsuredSinceYear: varchar('health_insurance_insured_since_year', { length: 4 }),
+  healthInsurancePlaceOfBirth: varchar('health_insurance_place_of_birth', { length: 100 }),
+  healthInsuranceCountryOfBirth: varchar('health_insurance_country_of_birth', { length: 100 }),
+  healthInsuranceNumber: varchar('health_insurance_number', { length: 50 }),
+
   // Section 3: Payment Details - Bank Details
   preferredCurrency: varchar('preferred_currency', { length: 10 }), // 'AUD', 'EUR', 'USD', etc.
   accountHolderName: varchar('account_holder_name', { length: 255 }),
@@ -137,7 +159,7 @@ export const claimDocuments = claims.table('claim_documents', {
   id: uuid('id').defaultRandom().primaryKey(),
   claimId: uuid('claim_id').notNull().references(() => claimsTable.id, { onDelete: 'cascade' }),
   documentId: uuid('document_id').notNull().references(() => documents.id),
-  documentRole: varchar('document_role', { length: 50 }).notNull(), // 'passport', 'payslip', 'abmeldung', 'bank_statement', 'certified_id_form'
+  documentRole: varchar('document_role', { length: 50 }).notNull(), // 'passport', 'payslip', 'abmeldung', 'bank_statement', 'certified_id_form', 'health_insurance'
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 

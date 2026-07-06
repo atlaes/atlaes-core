@@ -58,6 +58,18 @@ export interface ClaimGermanAddress {
   deregistrationServiceRequested?: boolean;
 }
 
+// Task 15: Health Insurance (bAV/private pension type only)
+export interface ClaimHealthInsurance {
+  healthInsuranceType?: 'statutory' | 'private' | 'not_sure';
+  healthInsuranceProviderName?: string;
+  healthInsuranceProviderAddress?: string;
+  healthInsuranceInsuredSinceMonth?: string;
+  healthInsuranceInsuredSinceYear?: string;
+  healthInsurancePlaceOfBirth?: string;
+  healthInsuranceCountryOfBirth?: string;
+  healthInsuranceNumber?: string;
+}
+
 export interface ClaimBankDetails {
   preferredCurrency?: string;
   accountHolderName?: string;
@@ -72,7 +84,12 @@ export interface ClaimBankDetails {
   bankCountry?: string;
 }
 
-export interface ClaimData extends ClaimPersonalInfo, ClaimCurrentAddress, ClaimGermanAddress, ClaimBankDetails {
+export interface ClaimData
+  extends ClaimPersonalInfo,
+    ClaimCurrentAddress,
+    ClaimGermanAddress,
+    ClaimHealthInsurance,
+    ClaimBankDetails {
   svNummer?: string;
   certifyingAuthority?: CertifyingAuthority;
   confirmationAccuracyAccepted?: boolean;
@@ -116,6 +133,16 @@ export interface Claim {
   moveOutDate: string | null;
   abmeldungMethod: string | null;
   deregistrationServiceRequested: boolean | null;
+
+  // Health Insurance (Task 15, bAV/private pension type only)
+  healthInsuranceType: string | null;
+  healthInsuranceProviderName: string | null;
+  healthInsuranceProviderAddress: string | null;
+  healthInsuranceInsuredSinceMonth: string | null;
+  healthInsuranceInsuredSinceYear: string | null;
+  healthInsurancePlaceOfBirth: string | null;
+  healthInsuranceCountryOfBirth: string | null;
+  healthInsuranceNumber: string | null;
 
   // Bank Details
   preferredCurrency: string | null;
@@ -222,6 +249,14 @@ function mapRowToClaim(row: any): Claim {
     moveOutDate: row.moveOutDate,
     abmeldungMethod: row.abmeldungMethod,
     deregistrationServiceRequested: row.deregistrationServiceRequested,
+    healthInsuranceType: row.healthInsuranceType,
+    healthInsuranceProviderName: row.healthInsuranceProviderName,
+    healthInsuranceProviderAddress: row.healthInsuranceProviderAddress,
+    healthInsuranceInsuredSinceMonth: row.healthInsuranceInsuredSinceMonth,
+    healthInsuranceInsuredSinceYear: row.healthInsuranceInsuredSinceYear,
+    healthInsurancePlaceOfBirth: row.healthInsurancePlaceOfBirth,
+    healthInsuranceCountryOfBirth: row.healthInsuranceCountryOfBirth,
+    healthInsuranceNumber: row.healthInsuranceNumber,
     preferredCurrency: row.preferredCurrency,
     accountHolderName: row.accountHolderName,
     bankName: row.bankName,

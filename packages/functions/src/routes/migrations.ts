@@ -75,13 +75,53 @@ migrations.post('/run', async (c) => {
 //   - Loose (e.g. only check that the tracking table is absent):
 //     simpler but unsafe — a brand-new DB also has no tracking table and
 //     would be misidentified as legacy.
-async function isLegacyDB(): Promise<boolean> {
-  // TODO(user): replace this throw with the real check. 5-10 lines.
-  // Suggested shape:
-  //   1. Check if drizzle.__drizzle_migrations exists. If yes → false (already tracked).
-  //   2. Check if shared.users (or another canonical legacy table) exists. If no → false (fresh DB).
-  //   3. Otherwise → true (legacy DB needing baseline).
-  throw new Error('isLegacyDB() not implemented yet');
+type QueryExecutor = {
+  execute(query: unknown): Promise<unknown>;
+};
+
+export async function isLegacyDB(database: QueryExecutor = db): Promise<boolean> {
+  const hasMigrationTracking = await tableExists(
+    database,
+    'drizzle',
+    '__drizzle_migrations'
+  );
+  if (hasMigrationTracking) return false;
+
+  return tableExists(database, 'shared', 'users');
+}
+
+async function tableExists(
+  database: QueryExecutor,
+  schemaName: string,
+  tableName: string
+): Promise<boolean> {
+  const result = await database.execute(sql`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = ${schemaName}
+        AND table_name = ${tableName}
+    ) AS exists;
+  `);
+
+  return readExists(result);
+}
+
+function readExists(result: unknown): boolean {
+  const rows = Array.isArray(result)
+    ? result
+    : result && typeof result === 'object' && 'rows' in result
+      ? (result as { rows?: unknown[] }).rows
+      : undefined;
+
+  if (!Array.isArray(rows) || rows.length === 0) return false;
+
+  const firstRow = rows[0];
+  if (!firstRow || typeof firstRow !== 'object' || !('exists' in firstRow)) {
+    return false;
+  }
+
+  return Boolean((firstRow as { exists: unknown }).exists);
 }
 
 // Once isLegacyDB() returns true, this seeds drizzle.__drizzle_migrations
