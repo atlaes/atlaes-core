@@ -10,6 +10,7 @@ import {
   selectStagePensionDetails,
   selectStageContributionDuration,
   selectPrivateEntryPath,
+  selectPrivateStatePensionRefund,
   selectPrivatePensionProvider,
 } from './helpers';
 
@@ -25,14 +26,14 @@ test.describe('Eligibility Edge Cases', () => {
       await expect(page.getByText('Not sure')).toBeVisible();
     });
 
-    test('Default VBL / ZVK choice opens the upload/manual choice', async ({
+    test('Default bAV choice opens the upload/manual choice', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
       await page.getByRole('button', { name: 'Start check' }).click();
       await expect(
         page.getByRole('heading', {
-          name: 'Upload your pension document or continue manually',
+          name: 'Upload your pension statement or continue manually',
         })
       ).toBeVisible({ timeout: 5_000 });
     });
@@ -225,7 +226,7 @@ test.describe('Eligibility Edge Cases', () => {
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from private provider returns to upload/manual choice', async ({
+    test('Back from state pension refund question returns to upload/manual choice', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
@@ -233,7 +234,7 @@ test.describe('Eligibility Edge Cases', () => {
       await selectPrivateEntryPath(page, 'Answer questions');
       await expect(
         page.getByRole('heading', {
-          name: 'Which company pension did you contribute to?',
+          name: 'Have you already received your German state pension refund?',
         })
       ).toBeVisible({ timeout: 5_000 });
 
@@ -245,21 +246,45 @@ test.describe('Eligibility Edge Cases', () => {
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from contribution details returns to provider', async ({
+    test('Back from private provider returns to state pension refund question', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
       await selectEmploymentType(page, 'Private Sector');
       await selectPrivateEntryPath(page, 'Answer questions');
-      await selectPrivatePensionProvider(page, 'BVV');
+      await selectPrivateStatePensionRefund(page, 'No');
       await expect(
-        page.getByRole('heading', { name: 'Contribution details' })
+        page.getByRole('heading', {
+          name: 'Who is your bAV provider?',
+        })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
         page.getByRole('heading', {
-          name: 'Which company pension did you contribute to?',
+          name: 'Have you already received your German state pension refund?',
+        })
+      ).toBeVisible({ timeout: 5_000 });
+    });
+
+    test('Back from statement amount returns to provider', async ({
+      page,
+    }) => {
+      await navigateToGetStarted(page);
+      await selectEmploymentType(page, 'Private Sector');
+      await selectPrivateEntryPath(page, 'Answer questions');
+      await selectPrivateStatePensionRefund(page, 'No');
+      await selectPrivatePensionProvider(page, 'BVV');
+      await expect(
+        page.getByRole('heading', {
+          name: 'What amount is shown on your bAV statement?',
+        })
+      ).toBeVisible({ timeout: 5_000 });
+
+      await page.getByRole('button', { name: 'Back' }).click();
+      await expect(
+        page.getByRole('heading', {
+          name: 'Who is your bAV provider?',
         })
       ).toBeVisible({ timeout: 5_000 });
     });

@@ -50,7 +50,7 @@ export const EmploymentType: React.FC = () => {
   const initialSelected =
     EMPLOYMENT_OPTIONS.find(
       (option) => option.employmentType === data.employmentType
-    )?.id || 'public_sector';
+    )?.id || 'private_sector';
   const [selected, setSelected] = useState<StartOptionId>(initialSelected);
 
   const handleContinue = () => {

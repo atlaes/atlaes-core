@@ -3,10 +3,10 @@ import {
   navigateToGetStarted,
   selectEmploymentType,
   selectPrivateEntryPath,
+  selectPrivateStatePensionRefund,
   selectPrivatePensionProvider,
-  fillPrivateContributionDetails,
+  fillPrivateStatementAmount,
   expectEligibleResult,
-  expectReviewResult,
 } from './helpers';
 
 type PrivateUploadProvider =
@@ -148,16 +148,14 @@ test.describe('Private Sector Eligibility', () => {
   // Happy Paths — Eligible
   // ============================================================
 
-  test('BVV + employer paid yes → eligible', async ({ page }) => {
+  test('BVV + capital amount → eligible', async ({ page }) => {
     await selectEmploymentType(page, 'Private Sector');
     await selectPrivateEntryPath(page, 'Answer questions');
+    await selectPrivateStatePensionRefund(page, 'No');
     await selectPrivatePensionProvider(page, 'BVV');
-    await fillPrivateContributionDetails(page, {
-      startMonth: 'January',
-      startYear: '2018',
-      endMonth: 'December',
-      endYear: '2020',
-      employerPaid: 'Yes',
+    await fillPrivateStatementAmount(page, {
+      statementAmount: '15000',
+      valueType: 'capital_amount',
     });
     await expectEligibleResult(page);
     // Private eligible has specific text
@@ -166,49 +164,28 @@ test.describe('Private Sector Eligibility', () => {
     ).toBeVisible();
   });
 
-  test('Allianz + employer paid yes → eligible', async ({ page }) => {
+  test('Allianz + monthly pension → eligible', async ({ page }) => {
     await selectEmploymentType(page, 'Private Sector');
     await selectPrivateEntryPath(page, 'Answer questions');
+    await selectPrivateStatePensionRefund(page, 'Yes');
     await selectPrivatePensionProvider(page, 'Allianz');
-    await fillPrivateContributionDetails(page, {
-      startMonth: 'March',
-      startYear: '2019',
-      endMonth: 'June',
-      endYear: '2021',
-      employerPaid: 'Yes',
+    await fillPrivateStatementAmount(page, {
+      statementAmount: '450',
+      valueType: 'monthly_pension',
     });
     await expectEligibleResult(page);
   });
 
-  // ============================================================
-  // Review — Individual Assessment
-  // ============================================================
-
-  test('Other provider + employer yes → review', async ({ page }) => {
+  test('Other provider continues through to eligible', async ({ page }) => {
     await selectEmploymentType(page, 'Private Sector');
     await selectPrivateEntryPath(page, 'Answer questions');
+    await selectPrivateStatePensionRefund(page, 'No');
     await selectPrivatePensionProvider(page, 'Other', 'MyPensionCo');
-    await fillPrivateContributionDetails(page, {
-      startMonth: 'February',
-      startYear: '2017',
-      endMonth: 'August',
-      endYear: '2019',
-      employerPaid: 'Yes',
+    await fillPrivateStatementAmount(page, {
+      statementAmount: '8000',
+      valueType: 'capital_amount',
     });
-    await expectReviewResult(page);
-  });
-
-  test('Not sure is not offered in the bAV contribution details flow', async ({
-    page,
-  }) => {
-    await selectEmploymentType(page, 'Private Sector');
-    await selectPrivateEntryPath(page, 'Answer questions');
-    await selectPrivatePensionProvider(page, 'BVV');
-
-    await expect(
-      page.getByRole('heading', { name: 'Contribution details' })
-    ).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByRole('button', { name: 'Not sure' })).toHaveCount(0);
+    await expectEligibleResult(page);
   });
 
   // ============================================================
@@ -218,9 +195,10 @@ test.describe('Private Sector Eligibility', () => {
   test('Other requires name before continue', async ({ page }) => {
     await selectEmploymentType(page, 'Private Sector');
     await selectPrivateEntryPath(page, 'Answer questions');
+    await selectPrivateStatePensionRefund(page, 'No');
     await expect(
       page.getByRole('heading', {
-        name: 'Which company pension did you contribute to?',
+        name: 'Who is your bAV provider?',
       })
     ).toBeVisible({ timeout: 5_000 });
 
@@ -235,43 +213,44 @@ test.describe('Private Sector Eligibility', () => {
     await expect(continueBtn).toBeEnabled();
   });
 
-  test('Continue disabled without required fields on contribution details', async ({
+  test('Continue disabled without required fields on statement amount', async ({
     page,
   }) => {
     await selectEmploymentType(page, 'Private Sector');
     await selectPrivateEntryPath(page, 'Answer questions');
+    await selectPrivateStatePensionRefund(page, 'No');
     await selectPrivatePensionProvider(page, 'BVV');
 
     await expect(
-      page.getByRole('heading', { name: 'Contribution details' })
+      page.getByRole('heading', {
+        name: 'What amount is shown on your bAV statement?',
+      })
     ).toBeVisible({ timeout: 5_000 });
 
-    // Continue should be disabled initially (no dates/employer-paid selected)
+    // Continue should be disabled initially (no value type selected)
     const continueBtn = page.getByRole('button', { name: 'Continue' });
     await expect(continueBtn).toBeDisabled();
   });
 
-  test('Monthly contribution is optional', async ({ page }) => {
+  test('Amount is not required when value type is not found', async ({
+    page,
+  }) => {
     await selectEmploymentType(page, 'Private Sector');
     await selectPrivateEntryPath(page, 'Answer questions');
+    await selectPrivateStatePensionRefund(page, 'No');
     await selectPrivatePensionProvider(page, 'Swiss_Life');
 
     await expect(
-      page.getByRole('heading', { name: 'Contribution details' })
+      page.getByRole('heading', {
+        name: 'What amount is shown on your bAV statement?',
+      })
     ).toBeVisible({ timeout: 5_000 });
 
-    // Verify the optional label is visible
-    await expect(page.getByText('(optional)')).toBeVisible();
+    await page
+      .getByLabel('Value type shown on your document')
+      .selectOption('not_found');
 
-    // Fill required fields without monthly amount
-    const selects = page.locator('select');
-    await selects.nth(0).selectOption('January');
-    await selects.nth(1).selectOption('2018');
-    await selects.nth(2).selectOption('December');
-    await selects.nth(3).selectOption('2020');
-    await page.getByRole('button', { name: 'Yes', exact: true }).click();
-
-    // Continue should be enabled even without monthly amount
+    // Continue should be enabled even without a pension value
     const continueBtn = page.getByRole('button', { name: 'Continue' });
     await expect(continueBtn).toBeEnabled();
   });
@@ -327,7 +306,7 @@ test.describe('Private Sector Eligibility', () => {
     await expectEligibleResult(page);
   });
 
-  test('uploaded bAV document with missing details asks for details and routes unapproved DRV refunds to review', async ({
+  test('uploaded bAV document with missing details asks for details and continues after unapproved DRV refund', async ({
     page,
   }) => {
     await mockPrivateUploadExtraction(page, {
@@ -375,6 +354,6 @@ test.describe('Private Sector Eligibility', () => {
       .click();
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
-    await expectReviewResult(page);
+    await expectEligibleResult(page);
   });
 });

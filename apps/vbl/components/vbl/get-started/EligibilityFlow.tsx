@@ -12,14 +12,14 @@ import { PensionProvider } from './steps/PensionProvider';
 import { PensionScheme } from './steps/PensionScheme';
 import { ContributionPeriod } from './steps/ContributionPeriod';
 import { ContributionDuration } from './steps/ContributionDuration';
-import { EUContinuation } from './steps/EUContinuation';
 import { StagePensionDetails } from './steps/StagePensionDetails';
 import { StageContributionDuration } from './steps/StageContributionDuration';
 import { StageUploadDocument } from './steps/StageUploadDocument';
 import { EmploymentEndDate } from './steps/EmploymentEndDate';
 import { PrivateUploadDocument } from './steps/PrivateUploadDocument';
+import { PrivateStatePensionRefund } from './steps/PrivateStatePensionRefund';
 import { PrivatePensionProvider } from './steps/PrivatePensionProvider';
-import { PrivateContributionDetails } from './steps/PrivateContributionDetails';
+import { PrivateStatementAmount } from './steps/PrivateStatementAmount';
 
 const STEP_COMPONENTS: Record<string, React.FC> = {
   // Public sector steps
@@ -28,7 +28,6 @@ const STEP_COMPONENTS: Record<string, React.FC> = {
   federal_state: FederalState,
   pension_provider: PensionProvider,
   pension_scheme: PensionScheme,
-  eu_continuation: EUContinuation,
   contribution_period: ContributionPeriod,
   contribution_duration: ContributionDuration,
   // Stage steps
@@ -42,8 +41,9 @@ const STEP_COMPONENTS: Record<string, React.FC> = {
   // Private sector steps
   private_entry_path: PublicEntryPath,
   private_upload: PrivateUploadDocument,
+  private_state_pension_refund: PrivateStatePensionRefund,
   private_pension_provider: PrivatePensionProvider,
-  private_contribution_details: PrivateContributionDetails,
+  private_statement_amount: PrivateStatementAmount,
 };
 
 export function EligibilityFlow() {
@@ -78,7 +78,9 @@ export function EligibilityFlow() {
     currentStepId !== 'stage_entry_path' &&
     currentStepId !== 'stage_upload' &&
     currentStepId !== 'private_entry_path' &&
-    currentStepId !== 'private_upload';
+    currentStepId !== 'private_upload' &&
+    currentStepId !== 'private_state_pension_refund' &&
+    currentStepId !== 'private_statement_amount';
 
   return (
     <GetStartedLayout showBack={showLayoutBack} onBack={goBack}>

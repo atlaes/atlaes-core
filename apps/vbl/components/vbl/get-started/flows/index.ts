@@ -18,8 +18,6 @@ export type PrivatePensionProviderType =
   | 'Other'
   | '';
 
-export type EmployerPaidType = 'yes' | 'not_sure' | '';
-
 export type VBLPlan = 'VBLklassik' | 'VBLextra' | '';
 
 export type ContributionDurationType =
@@ -61,7 +59,6 @@ export interface EligibilityData {
   federalState: string;
   pensionProvider: PensionProviderType;
   vblPlan: VBLPlan;
-  euContinuation: 'yes' | 'no' | '';
   consecutiveContribution: 'yes' | 'no' | '';
   contributionDuration: ContributionDurationType;
   publicEntryPath: PublicEntryPathType;
@@ -72,16 +69,16 @@ export interface EligibilityData {
   stagePost2018ContributionDuration: StagePost2018ContributionDurationType;
   employmentEndMonth: string;
   employmentEndYear: string;
-  // Private sector-specific
-  privateEntryPath: PrivateEntryPathType;
-  privatePensionProvider: PrivatePensionProviderType;
-  privatePensionProviderOther: string;
+  // Shared contribution period fields (public sector, stage & upload flows)
   contributionStartMonth: string;
   contributionStartYear: string;
   contributionEndMonth: string;
   contributionEndYear: string;
   averageMonthlyContribution: string;
-  employerPaidContributions: EmployerPaidType;
+  // Private sector-specific
+  privateEntryPath: PrivateEntryPathType;
+  privatePensionProvider: PrivatePensionProviderType;
+  privatePensionProviderOther: string;
   privateStatePensionRefundReceived: PrivateStatePensionRefundReceivedType;
   privateStatementValueType: PrivateStatementValueType;
   privateStatementAmount: string;
@@ -95,7 +92,6 @@ export type StepId =
   | 'federal_state'
   | 'pension_provider'
   | 'pension_scheme'
-  | 'eu_continuation'
   | 'contribution_period'
   | 'contribution_duration'
   | 'stage_pension_details'
@@ -105,8 +101,9 @@ export type StepId =
   | 'employment_end_date'
   | 'private_entry_path'
   | 'private_upload'
+  | 'private_state_pension_refund'
   | 'private_pension_provider'
-  | 'private_contribution_details';
+  | 'private_statement_amount';
 
 export interface IneligibilityInfo {
   title: string;

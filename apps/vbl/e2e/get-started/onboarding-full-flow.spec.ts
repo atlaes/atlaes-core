@@ -5,9 +5,11 @@ import {
   navigateStageToEligible,
   navigatePrivateSectorToEligible,
   selectEmploymentType,
+  selectPrivateEntryPath,
+  selectPrivateStatePensionRefund,
   selectPrivatePensionProvider,
-  fillPrivateContributionDetails,
-  expectReviewResult,
+  fillPrivateStatementAmount,
+  expectEligibleResult,
   completeCreateAccount,
   completePayment,
   completeIdentityUpload,
@@ -289,21 +291,22 @@ test.describe('Onboarding Full Flow', () => {
     ).toBeVisible({ timeout: 10_000 });
   });
 
-  test('Review result reaches create account', async ({ page }) => {
+  test('Other provider eligible result reaches create account', async ({
+    page,
+  }) => {
     await navigateToGetStarted(page);
     await selectEmploymentType(page, 'Private Sector');
+    await selectPrivateEntryPath(page, 'Answer questions');
+    await selectPrivateStatePensionRefund(page, 'No');
     await selectPrivatePensionProvider(page, 'Other', 'TestPension');
-    await fillPrivateContributionDetails(page, {
-      startMonth: 'January',
-      startYear: '2018',
-      endMonth: 'December',
-      endYear: '2020',
-      employerPaid: 'Yes',
+    await fillPrivateStatementAmount(page, {
+      statementAmount: '9000',
+      valueType: 'capital_amount',
     });
-    await expectReviewResult(page);
+    await expectEligibleResult(page);
 
     await page
-      .getByRole('button', { name: 'Proceed with review' })
+      .getByRole('button', { name: /Start Claim|Create your secure claim/i })
       .click();
 
     await expect(

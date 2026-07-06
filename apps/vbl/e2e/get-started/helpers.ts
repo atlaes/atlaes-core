@@ -87,17 +87,6 @@ export async function selectPensionProvider(page: Page, provider: string) {
   await page.getByRole('button', { name: 'Continue' }).click();
 }
 
-export async function selectEUContinuation(
-  page: Page,
-  continuing: 'Yes' | 'No'
-) {
-  await expect(
-    page.getByRole('heading', { name: 'Public-sector employment' })
-  ).toBeVisible({ timeout: 5_000 });
-  await page.getByRole('button', { name: continuing, exact: true }).click();
-  await page.getByRole('button', { name: 'Continue' }).click();
-}
-
 export async function selectPensionScheme(
   page: Page,
   plan: 'VBLklassik' | 'VBLextra'
@@ -194,7 +183,7 @@ export async function selectPrivatePensionProvider(
 ) {
   await expect(
     page.getByRole('heading', {
-      name: 'Which company pension did you contribute to?',
+      name: 'Who is your bAV provider?',
     })
   ).toBeVisible({ timeout: 5_000 });
   await page.locator('select').selectOption(provider);
@@ -204,37 +193,43 @@ export async function selectPrivatePensionProvider(
   await page.getByRole('button', { name: 'Continue' }).click();
 }
 
-export async function fillPrivateContributionDetails(
+export async function selectPrivateStatePensionRefund(
+  page: Page,
+  received: 'Yes' | 'No'
+) {
+  await expect(
+    page.getByRole('heading', {
+      name: 'Have you already received your German state pension refund?',
+    })
+  ).toBeVisible({ timeout: 5_000 });
+  const label =
+    received === 'Yes'
+      ? 'Yes, my German state pension refund has been approved'
+      : 'No, I have not received a German state pension refund';
+  await page.getByRole('button', { name: label }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+}
+
+export async function fillPrivateStatementAmount(
   page: Page,
   options: {
-    startMonth: string;
-    startYear: string;
-    endMonth: string;
-    endYear: string;
-    employerPaid: 'Yes';
-    monthlyAmount?: string;
+    statementAmount?: string;
+    valueType: 'capital_amount' | 'monthly_pension' | 'not_found';
   }
 ) {
   await expect(
-    page.getByRole('heading', { name: 'Contribution details' })
+    page.getByRole('heading', {
+      name: 'What amount is shown on your bAV statement?',
+    })
   ).toBeVisible({ timeout: 5_000 });
 
-  const selects = page.locator('select');
-  // Contribution start: month (0), year (1)
-  await selects.nth(0).selectOption(options.startMonth);
-  await selects.nth(1).selectOption(options.startYear);
-  // Contribution end: month (2), year (3)
-  await selects.nth(2).selectOption(options.endMonth);
-  await selects.nth(3).selectOption(options.endYear);
-
-  if (options.monthlyAmount) {
-    await page.getByPlaceholder('E.g., 350').fill(options.monthlyAmount);
+  if (options.statementAmount) {
+    await page.getByLabel('Pension value').fill(options.statementAmount);
   }
-
   await page
-    .getByRole('button', { name: options.employerPaid, exact: true })
-    .click();
-  await page.getByRole('button', { name: 'Continue' }).click();
+    .getByLabel('Value type shown on your document')
+    .selectOption(options.valueType);
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
 }
 
 // ============================================================
@@ -323,13 +318,11 @@ export async function navigatePrivateSectorToEligible(page: Page) {
   await navigateToGetStarted(page);
   await selectEmploymentType(page, 'Private Sector');
   await selectPrivateEntryPath(page, 'Answer questions');
+  await selectPrivateStatePensionRefund(page, 'No');
   await selectPrivatePensionProvider(page, 'BVV');
-  await fillPrivateContributionDetails(page, {
-    startMonth: 'January',
-    startYear: '2018',
-    endMonth: 'December',
-    endYear: '2020',
-    employerPaid: 'Yes',
+  await fillPrivateStatementAmount(page, {
+    statementAmount: '12400',
+    valueType: 'capital_amount',
   });
   await expectEligibleResult(page);
 }
