@@ -262,17 +262,6 @@ export async function expectNotEligibleResult(page: Page) {
   ).toBeVisible();
 }
 
-export async function expectReviewResult(page: Page) {
-  await expect(
-    page.getByRole('heading', {
-      name: 'Individual assessment required',
-    })
-  ).toBeVisible({ timeout: 5_000 });
-  await expect(
-    page.getByRole('button', { name: 'Proceed with review' })
-  ).toBeVisible();
-}
-
 export async function expectWaitingResult(page: Page) {
   await expect(
     page.getByRole('heading', {
