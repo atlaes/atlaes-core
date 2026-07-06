@@ -538,15 +538,36 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
     }
   };
 
+  // Final review fix (IMPORTANT 5): bAV/private claimants get the VBL-24/25
+  // "lump-sum settlement" copy instead of the refund-flavored copy, matching
+  // Get-Started/Private-Flow/VBL-24.png and VBL-25.png. Those two screenshots
+  // disagree on the heading and button label between the enabled (VBL-24)
+  // and disabled (VBL-25) states — VBL-24: heading "Review your bAV cash-out
+  // request", button "Submit lump-sum settlement request →"; VBL-25:
+  // heading "Review your lump-sum settlement request", button "Submit bAV
+  // cash-out request →". Per the final-review triage note, VBL-24's
+  // enabled-state wording is used for both states here (documented once,
+  // rather than swapping copy when the button becomes enabled/disabled).
+  const reviewHeading = isPrivatePensionType
+    ? 'Review your bAV cash-out request'
+    : 'Review your refund request';
+  const reviewIntro = isPrivatePensionType
+    ? 'Please review your information carefully before submitting your bAV cash-out request.'
+    : 'Please review your information before submitting your refund request.';
+  const submitButtonLabel = isPrivatePensionType
+    ? 'Submit lump-sum settlement request'
+    : 'Submit claim';
+  const infoBoxText = isPrivatePensionType
+    ? 'The information confirmed here will be used in the official lump-sum settlement request submitted to the pension provider.'
+    : null;
+
   return (
     <div className="max-w-lg mx-auto">
       <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-        Review your refund request
+        {reviewHeading}
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
-      <p className="text-gray-600 text-center mb-8">
-        Please review your information before submitting your refund request.
-      </p>
+      <p className="text-gray-600 text-center mb-8">{reviewIntro}</p>
 
       {/* Accordion Sections */}
       <div className="space-y-3 mb-8">
@@ -624,6 +645,13 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
         })}
       </div>
 
+      {/* Info Banner — bAV/private only (IMPORTANT 5, VBL-24/25) */}
+      {infoBoxText && (
+        <div className="mb-4 bg-[#F0FDE4] rounded-lg p-4 text-sm text-[#163300]">
+          {infoBoxText}
+        </div>
+      )}
+
       {/* Submit Error */}
       {submitError && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
@@ -651,7 +679,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
           </>
         ) : (
           <>
-            Submit claim
+            {submitButtonLabel}
             <ArrowRight className="w-4 h-4" />
           </>
         )}

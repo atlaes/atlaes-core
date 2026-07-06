@@ -106,10 +106,18 @@ export const StageMembershipDetails: React.FC<StageMembershipDetailsProps> = ({
       )}
 
       {/* Section 2 — Leaving employment */}
+      {/* Final review fix (MINOR, Task 10 review note): this h3 previously
+          read "Leaving stage / orchestra employment" — stale copy that
+          didn't match any design string. Per Eligibility/VBL-5.png, the
+          section heading on this screen is "Last stage or orchestra
+          employment in Germany" (the page-level H2 above, rendered outside
+          this component when !embedded, is the distinct "Leaving stage or
+          orchestra employment" copy — see the heading logic in
+          Membership.tsx / this file's own !embedded header). */}
       {showLeavingOccupation && (
         <div className="mb-6">
           <h3 className="text-base font-semibold text-[#163300] mb-4">
-            Leaving stage / orchestra employment
+            Last stage or orchestra employment in Germany
           </h3>
           <p className="text-sm text-gray-700 mb-3">
             Have you permanently stopped working in stage or orchestra

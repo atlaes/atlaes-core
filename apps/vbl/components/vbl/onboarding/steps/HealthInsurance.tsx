@@ -237,11 +237,22 @@ export const HealthInsurance: React.FC<HealthInsuranceProps> = ({
     if (file) handleFileSelect(file);
   };
 
+  // Final review fix (IMPORTANT 6): explicit remove also clears the
+  // backend-issued documentId (and documentFileName), unlike
+  // handleBackToUpload below. Without this, canProceed/isHealthInsuranceComplete
+  // (OnboardingContext.tsx) and saveAndAdvance's attachDocument call
+  // (GetStartedOnboardingFlow.tsx) could both still reference a document the
+  // user just explicitly removed — completeness gating would wrongly treat
+  // the substep as done, and submission could attach a document no longer
+  // shown in the UI. Back-to-upload (no explicit remove) intentionally still
+  // keeps documentId — a fresh re-upload overwrites it the same way it
+  // always has.
   const handleRemoveDocument = () => {
     updateHealthInsurance({
       documentFile: null,
       documentPreview: undefined,
       documentFileName: undefined,
+      documentId: undefined,
     });
     setUploadError(null);
     setPhase('upload');
@@ -251,7 +262,8 @@ export const HealthInsurance: React.FC<HealthInsuranceProps> = ({
   // rather than leaving the sub-step. Already-typed/confirmed field values
   // stay in context; a fresh upload's OCR result overwrites them the same
   // way it would on first upload (except the user-selected type, per the
-  // rule above).
+  // rule above). Unlike handleRemoveDocument above, documentId is
+  // deliberately kept here (no explicit remove happened).
   const handleBackToUpload = useCallback(() => {
     updateHealthInsurance({
       documentFile: null,

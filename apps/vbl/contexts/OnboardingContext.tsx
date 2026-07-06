@@ -349,7 +349,24 @@ function isHealthInsuranceComplete(
   );
 }
 
-export function OnboardingProvider({ children }: { children: ReactNode }) {
+export function OnboardingProvider({
+  children,
+  // Final review fix (IMPORTANT 4): OnboardingProvider is also mounted by
+  // the legacy /calculator/onboarding and /calculator-entry-a pages (see
+  // components/vbl/onboarding/OnboardingFlow.tsx consumers), which have no
+  // notion of the get-started flow's sessionStorage-backed persistence and
+  // were unconditionally restoring from / write-through-persisting to the
+  // shared vbl_onboarding_v1 key — cross-contaminating state between the
+  // legacy calculator flow and the get-started flow whenever both were used
+  // in the same browser. Persistence now defaults OFF; only
+  // app/get-started/page.tsx opts in. When disabled, restore, write-through,
+  // and the empty-state clear are all fully inert — this provider behaves
+  // exactly as it did before Task 13's sessionStorage persistence existed.
+  persistenceEnabled = false,
+}: {
+  children: ReactNode;
+  persistenceEnabled?: boolean;
+}) {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [currentSubStep, setCurrentSubStep] =
     useState<SubmitDetailsSubStep>('identity');
@@ -375,9 +392,16 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   // declared after this one — only ever observes "restored" on a render
   // where `data`/`currentStep`/`currentSubStep` already reflect the
   // restored values (see the equivalent comment in EligibilityContext for
-  // why a ref would race this).
+  // why a ref would race this). When persistence is disabled, we still flip
+  // `hasRestored` to true (there's nothing to wait for) but never touch
+  // sessionStorage.
   const [hasRestored, setHasRestored] = useState(false);
   useEffect(() => {
+    if (!persistenceEnabled) {
+      setHasRestored(true);
+      return;
+    }
+
     const persisted = loadOnboardingState();
     if (!persisted) {
       setHasRestored(true);
@@ -400,11 +424,14 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       signature: { ...prev.signature, ...persisted.data.signature },
     }));
     setHasRestored(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Write-through persistence: any data/position change re-saves the whole
   // (stripped) snapshot. Skipped until restore above has settled so we
-  // don't clobber a pending restore with pre-restore initial state.
+  // don't clobber a pending restore with pre-restore initial state. Also
+  // fully skipped when persistence is disabled (legacy calculator flows —
+  // see the persistenceEnabled prop doc above).
   //
   // Also skipped once `data.successData` has anything set. handleSubmitSuccess
   // (GetStartedOnboardingFlow.tsx) calls updateSuccessData(...) — which sets
@@ -417,6 +444,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   // "has successData" is a deterministic, no-latch signal that persistence
   // is done for this run — no extra ref/flag lifecycle needed.
   useEffect(() => {
+    if (!persistenceEnabled) return;
     if (!hasRestored) return;
     if (Object.keys(data.successData).length > 0) return;
     saveOnboardingState({
@@ -424,7 +452,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       currentSubStep,
       data: toPersistedOnboardingData(data),
     });
-  }, [hasRestored, currentStep, currentSubStep, data]);
+  }, [persistenceEnabled, hasRestored, currentStep, currentSubStep, data]);
 
   const updateData = useCallback((updates: Partial<OnboardingData>) => {
     setData((prev) => ({ ...prev, ...updates }));
@@ -831,9 +859,13 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setData(initialData);
     setEditingFromReview(false);
     // Explicit restart — drop any persisted position/data so a later
-    // refresh doesn't resurrect the abandoned run.
-    clearOnboardingState();
-  }, []);
+    // refresh doesn't resurrect the abandoned run. Inert when persistence is
+    // disabled (legacy calculator flows never wrote this key — see the
+    // persistenceEnabled prop doc above).
+    if (persistenceEnabled) {
+      clearOnboardingState();
+    }
+  }, [persistenceEnabled]);
 
   return (
     <OnboardingContext.Provider
