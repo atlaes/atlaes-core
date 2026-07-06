@@ -1,4 +1,9 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { logger } from './logger';
 
@@ -17,7 +22,9 @@ const s3Client = new S3Client({ region: REGION });
 const isS3Available = !!process.env.SST_RESOURCE_AtlaesBucket;
 
 if (!isS3Available) {
-  logger.info('S3 bucket not available (local dev) — file storage operations will be skipped');
+  logger.info(
+    'S3 bucket not available (local dev) — file storage operations will be skipped'
+  );
 }
 
 /**
@@ -61,6 +68,31 @@ export async function getPresignedUrl(key: string): Promise<string | null> {
     { expiresIn: 3600 }
   );
   return url;
+}
+
+/**
+ * Download a file from S3. Throws in local dev when no bucket is
+ * configured (mirrors `uploadFile`'s guard style, but a missing download
+ * has no safe no-op — callers need the bytes to proceed).
+ */
+export async function downloadFile(key: string): Promise<Buffer> {
+  if (!isS3Available) {
+    throw new Error(
+      `S3 download unavailable (dev mode, no bucket configured): ${key}`
+    );
+  }
+  const response = await s3Client.send(
+    new GetObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+    })
+  );
+  if (!response.Body) {
+    throw new Error(`S3 object has no body: ${key}`);
+  }
+  const bytes = await response.Body.transformToByteArray();
+  logger.info(`S3 download: ${key}`);
+  return Buffer.from(bytes);
 }
 
 /**
