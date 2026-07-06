@@ -86,6 +86,20 @@ export function GetStartedOnboardingFlow() {
     if (eligibilityData.employmentType === '') {
       const savedIdentity = loadFlowIdentity();
       if (savedIdentity?.pensionType) {
+        // Same magic-link tab boundary as above: the C1 eligibility carry-over
+        // never runs on this resume path, so restore pensionProvider from the
+        // same localStorage blob here too — but only when nothing else
+        // (in-memory state or a loaded claim) has already set it.
+        if (savedIdentity.pensionProvider && !data.membership.pensionProvider) {
+          updateData({
+            pensionType: savedIdentity.pensionType,
+            membership: {
+              ...data.membership,
+              pensionProvider: savedIdentity.pensionProvider,
+            },
+          });
+          return;
+        }
         updateData({ pensionType: savedIdentity.pensionType });
         return;
       }
@@ -98,7 +112,12 @@ export function GetStartedOnboardingFlow() {
         ? 'private'
         : 'public';
     updateData({ pensionType });
-  }, [data.pensionType, eligibilityData.employmentType, updateData]);
+  }, [
+    data.pensionType,
+    data.membership,
+    eligibilityData.employmentType,
+    updateData,
+  ]);
 
   // Carry over pension provider from eligibility to membership.
   //
