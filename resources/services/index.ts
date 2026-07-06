@@ -8,13 +8,17 @@ import { email } from '../email';
 //   AWS_PROFILE=atlaes npx sst secret set AdminMigrationToken <value> --stage <stage>
 const adminMigrationToken = new sst.Secret('AdminMigrationToken');
 
+// Lettershop (onlinebrief24.de) SFTP password for claim mailing. Set per-stage:
+//   AWS_PROFILE=atlaes npx sst secret set LettershopSftpPassword <value> --stage <stage>
+const lettershopSftpPassword = new sst.Secret('LettershopSftpPassword');
+
 export const backend = new sst.aws.Service('AtlaesBackend', {
   cluster,
   image: {
     context: 'packages/functions',
     dockerfile: 'Dockerfile',
   },
-  link: [postgres, bucket, email, adminMigrationToken],
+  link: [postgres, bucket, email, adminMigrationToken, lettershopSftpPassword],
   environment: {
     FRONTEND_URL: $app.stage === 'production'
       ? 'https://vbl.atlaes.de'
@@ -28,6 +32,13 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
       : 'sk_test_51SRpwnD86goZexmM9XSBC97ERit2aUg4XOg0TGNvag9Zhzugx7NyChKTU0AubwFyrvIHtveGkd6AnjyytKpVlQWB00s9zr78UR',
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET ?? '',
     ADMIN_MIGRATION_TOKEN: adminMigrationToken.value,
+    // Lettershop claim mailing. Staging stays in 'test' mode: the pipeline
+    // connects and uploads a vendor-rejected TESTMODE file (no cost, no real
+    // mail). Flip to 'live' only when real staging sends are intended.
+    LETTERSHOP_SFTP_HOST: 'api.onlinebrief24.de',
+    LETTERSHOP_SFTP_USER: 'info@atlaes.de',
+    LETTERSHOP_SFTP_PASSWORD: lettershopSftpPassword.value,
+    LETTERSHOP_MODE: 'test',
   },
   loadBalancer: {
     domain:
