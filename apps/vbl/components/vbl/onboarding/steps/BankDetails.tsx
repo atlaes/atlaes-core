@@ -57,7 +57,7 @@ const DESTINATION_OPTIONS: {
   },
   {
     value: 'open_free_account',
-    label: 'I want to open a free EUR account',
+    label: 'I want to open a EUR account',
     description:
       'Open a EUR account through our account-opening partner, SummitFX.',
     icon: <CreditCard className="h-6 w-6" />,

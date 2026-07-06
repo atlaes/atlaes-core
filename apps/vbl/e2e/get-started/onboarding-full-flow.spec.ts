@@ -551,7 +551,7 @@ test.describe('Onboarding Full Flow', () => {
       page.getByText('A trusted person’s EUR / SEPA account')
     ).toBeVisible();
     await expect(
-      page.getByText('I want to open a free EUR account')
+      page.getByText('I want to open a EUR account')
     ).toBeVisible();
 
     await page
@@ -577,7 +577,7 @@ test.describe('Onboarding Full Flow', () => {
       page.getByRole('heading', { name: 'Where should the refund be paid?' })
     ).toBeVisible();
     await page
-      .getByRole('button', { name: /I want to open a free EUR account/i })
+      .getByRole('button', { name: /I want to open a EUR account/i })
       .click();
     await page.getByRole('button', { name: /Continue/i }).click();
     await expect(

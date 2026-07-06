@@ -433,7 +433,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             ) : (
               <p className="text-gray-700">
                 {data.bankDetails.accountOption === 'open_free_account' &&
-                  'Will open free EUR account'}
+                  'Will open EUR account'}
                 {data.bankDetails.accountOption === 'trusted_third_party' &&
                   'Using third-party account'}
               </p>

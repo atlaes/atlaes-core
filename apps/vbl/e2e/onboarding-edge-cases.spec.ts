@@ -266,7 +266,7 @@ test.describe('Onboarding Edge Cases', () => {
       await toggle.click();
 
       // Should show 3 alternative options
-      await expect(page.getByText('Open free EUR account')).toBeVisible();
+      await expect(page.getByText('Open a EUR account')).toBeVisible();
       await expect(page.getByText(/trusted third-party/i)).toBeVisible();
       await expect(page.getByText(/add my IBAN/i)).toBeVisible();
     });
