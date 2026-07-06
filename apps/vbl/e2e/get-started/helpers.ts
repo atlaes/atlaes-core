@@ -374,9 +374,13 @@ export async function completeIdentityUpload(page: Page) {
   ).toBeVisible({ timeout: 30_000 });
 
   // Fill identity fields if empty
-  const fullNameInput = page.getByPlaceholder('John Smith');
-  if ((await fullNameInput.inputValue()) === '') {
-    await fullNameInput.fill('Test User');
+  const firstNameInput = page.getByPlaceholder('John');
+  if ((await firstNameInput.inputValue()) === '') {
+    await firstNameInput.fill('Test');
+  }
+  const lastNameInput = page.getByPlaceholder('Smith');
+  if ((await lastNameInput.inputValue()) === '') {
+    await lastNameInput.fill('User');
   }
   const dayInput = page.getByPlaceholder('Day');
   if ((await dayInput.inputValue()) === '') {

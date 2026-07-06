@@ -35,9 +35,13 @@ test.describe('VBL Onboarding Flow', () => {
     await expect(page.getByRole('heading', { name: /Confirm your details/i })).toBeVisible({ timeout: 30_000 });
 
     // Fill identity fields
-    const fullNameInput = page.getByPlaceholder('John Smith');
-    if (await fullNameInput.inputValue() === '') {
-      await fullNameInput.fill('Max Mustermann');
+    const firstNameInput = page.getByPlaceholder('John');
+    if (await firstNameInput.inputValue() === '') {
+      await firstNameInput.fill('Max');
+    }
+    const lastNameInput = page.getByPlaceholder('Smith');
+    if (await lastNameInput.inputValue() === '') {
+      await lastNameInput.fill('Mustermann');
     }
 
     const dayInput = page.getByPlaceholder('Day');

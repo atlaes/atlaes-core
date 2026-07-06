@@ -127,12 +127,23 @@ export const Identity: React.FC<IdentityProps> = ({
         // Store the document ID for later claim attachment
         updateData({ documentId: result.document.id });
 
-        // Auto-fill OCR data if available
+        // Auto-fill OCR data if available.
+        // Task 6: the OCR service (packages/functions/src/services/
+        // passport-ocr.ts) already separates firstName and lastName — it
+        // has no concept of a middle name. However, its firstName field can
+        // itself contain multiple given-name tokens (e.g. "Anna Katharina"
+        // for someone with two given names). Best-effort mapping: first
+        // token of OCR firstName -> First name, any remaining given-name
+        // tokens -> Middle name, OCR lastName -> Last name unchanged.
         if (result.ocr) {
+          const givenNameTokens = (result.ocr.firstName || '')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+          const [firstToken = '', ...restGivenNameTokens] = givenNameTokens;
           updateIdentity({
-            fullName:
-              `${result.ocr.firstName || ''} ${result.ocr.lastName || ''}`.trim(),
-            firstName: result.ocr.firstName || '',
+            firstName: firstToken,
+            middleName: restGivenNameTokens.join(' '),
             lastName: result.ocr.lastName || '',
             dateOfBirth: result.ocr.dateOfBirth || '',
             gender:
@@ -250,7 +261,9 @@ export const Identity: React.FC<IdentityProps> = ({
   }, [phase, setBackOverride, handleBackToUpload]);
 
   const missingFields = {
-    fullName: data.identity.fullName.trim() === '',
+    firstName: data.identity.firstName.trim() === '',
+    // Middle name is optional and is never flagged as missing.
+    lastName: data.identity.lastName.trim() === '',
     dateOfBirth: data.identity.dateOfBirth === '',
     gender: data.identity.gender === '',
     nationality: data.identity.nationality.trim() === '',
@@ -265,7 +278,8 @@ export const Identity: React.FC<IdentityProps> = ({
   const showMissingHighlights = phase === 'confirm';
 
   const canProceed =
-    data.identity.fullName !== '' &&
+    data.identity.firstName.trim() !== '' &&
+    data.identity.lastName.trim() !== '' &&
     data.identity.dateOfBirth !== '' &&
     isAtLeast18(data.identity.dateOfBirth) &&
     data.identity.gender !== '' &&
@@ -433,32 +447,56 @@ export const Identity: React.FC<IdentityProps> = ({
 
       {/* Form Fields */}
       <div className="space-y-4">
-        {/* Full Name */}
+        {/* Name: First / Middle (optional) / Last */}
         <div>
           <FieldLabel
-            label="Full Name"
-            showMissing={showMissingHighlights && missingFields.fullName}
+            label="First name"
+            showMissing={showMissingHighlights && missingFields.firstName}
           />
           <input
             type="text"
-            value={data.identity.fullName}
-            onChange={(e) => {
-              const fullName = e.target.value;
-              const parts = fullName.trim().split(/\s+/);
-              updateIdentity({
-                fullName,
-                firstName: parts[0] || '',
-                lastName: parts.slice(1).join(' ') || '',
-              });
-            }}
-            placeholder="John Smith"
+            value={data.identity.firstName}
+            onChange={(e) => updateIdentity({ firstName: e.target.value })}
+            placeholder="John"
             className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none ${
-              showMissingHighlights && missingFields.fullName
+              showMissingHighlights && missingFields.firstName
                 ? 'border-red-400'
                 : 'border-gray-300'
             }`}
           />
-          <MissingHint show={showMissingHighlights && missingFields.fullName} />
+          <MissingHint
+            show={showMissingHighlights && missingFields.firstName}
+          />
+        </div>
+
+        <div>
+          <FieldLabel label="Middle name (optional)" showMissing={false} />
+          <input
+            type="text"
+            value={data.identity.middleName}
+            onChange={(e) => updateIdentity({ middleName: e.target.value })}
+            placeholder="Michael"
+            className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none border-gray-300"
+          />
+        </div>
+
+        <div>
+          <FieldLabel
+            label="Last name"
+            showMissing={showMissingHighlights && missingFields.lastName}
+          />
+          <input
+            type="text"
+            value={data.identity.lastName}
+            onChange={(e) => updateIdentity({ lastName: e.target.value })}
+            placeholder="Smith"
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none ${
+              showMissingHighlights && missingFields.lastName
+                ? 'border-red-400'
+                : 'border-gray-300'
+            }`}
+          />
+          <MissingHint show={showMissingHighlights && missingFields.lastName} />
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

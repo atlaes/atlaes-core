@@ -65,18 +65,29 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
   const { data, updateBankDetails } = useOnboarding();
   const [phase, setPhase] = useState<BankDetailsPhase>('destination');
 
+  // Task 6: identity.fullName was removed in favor of separate
+  // firstName/middleName/lastName fields; assemble the display name here
+  // the same way ReviewSubmit.tsx does (skip empty middle name).
+  const identityFullName = [
+    data.identity.firstName,
+    data.identity.middleName,
+    data.identity.lastName,
+  ]
+    .filter((part) => part.trim() !== '')
+    .join(' ');
+
   // Client #14: default the account holder to the passport full name for the
   // user's own account. The trusted-person branch intentionally starts blank.
   useEffect(() => {
     if (
       data.bankDetails.accountOption === 'own_iban' &&
       !data.bankDetails.accountHolder &&
-      data.identity.fullName
+      identityFullName
     ) {
-      updateBankDetails({ accountHolder: data.identity.fullName });
+      updateBankDetails({ accountHolder: identityFullName });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.identity.fullName, data.bankDetails.accountOption]);
+  }, [identityFullName, data.bankDetails.accountOption]);
 
   const ibanIsValid = isValidIbanFormat(data.bankDetails.iban);
   const ibanShowsError = data.bankDetails.iban.length >= 4 && !ibanIsValid;
@@ -94,7 +105,7 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
     if (option === 'own_iban') {
       updateBankDetails({
         accountOption: option,
-        accountHolder: data.identity.fullName || data.bankDetails.accountHolder,
+        accountHolder: identityFullName || data.bankDetails.accountHolder,
         thirdPartyConfirmed: false,
       });
       return;

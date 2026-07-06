@@ -6,8 +6,10 @@ import React, { createContext, useContext, useState, useCallback, ReactNode } fr
 export interface OnboardingIdentity {
   documentFile?: File | null;
   documentPreview?: string;
-  fullName: string;
   firstName: string;
+  // Task 6: optional, never required — the middle-name field is never
+  // subject to the missing-field red-highlight treatment.
+  middleName: string;
   lastName: string;
   dateOfBirth: string;
   gender: 'male' | 'female' | 'other' | '';
@@ -168,8 +170,8 @@ const initialData: OnboardingData = {
   authMethod: '',
   paymentCompleted: false,
   identity: {
-    fullName: '',
     firstName: '',
+    middleName: '',
     lastName: '',
     dateOfBirth: '',
     gender: '',
@@ -336,7 +338,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
             ? stageDetailsOk
             : data.membership.membershipNumber.trim() !== '');
         return (
-          data.identity.fullName !== '' &&
+          data.identity.firstName.trim() !== '' &&
+          data.identity.lastName.trim() !== '' &&
           data.identity.dateOfBirth !== '' &&
           isAtLeast18(data.identity.dateOfBirth) &&
           data.identity.gender !== '' &&
@@ -359,7 +362,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     switch (subStep) {
       case 'identity':
         return (
-          data.identity.fullName !== '' &&
+          data.identity.firstName.trim() !== '' &&
+          data.identity.lastName.trim() !== '' &&
           data.identity.dateOfBirth !== '' &&
           isAtLeast18(data.identity.dateOfBirth) &&
           data.identity.gender !== '' &&
@@ -439,7 +443,6 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const loadFromClaim = useCallback((claim: Record<string, any>) => {
     const str = (v: unknown) => (typeof v === 'string' ? v : '');
-    const fullName = [str(claim.firstName), str(claim.lastName)].filter(Boolean).join(' ');
     const isPaid = claim.paymentStatus === 'paid';
 
     setData((prev) => ({
@@ -448,8 +451,18 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       paymentCompleted: isPaid,
       identity: {
         ...prev.identity,
-        fullName,
+        // Task 6 known limitation: there is no middleName column on the
+        // claims table, so any middle name is persisted concatenated into
+        // firstName on save (see saveAndAdvance in
+        // GetStartedOnboardingFlow.tsx). On load we cannot reliably tell
+        // where "first" ends and "middle" began inside that stored string,
+        // so — per design — we do NOT re-run whitespace-splitting here (that
+        // would reintroduce the exact bug this task fixes). Instead the
+        // entire stored firstName goes back into the First name field and
+        // middleName is left blank; the user can manually re-split it if
+        // needed.
         firstName: str(claim.firstName),
+        middleName: '',
         lastName: str(claim.lastName),
         dateOfBirth: str(claim.dateOfBirth),
         gender: (str(claim.gender) as OnboardingIdentity['gender']) || '',

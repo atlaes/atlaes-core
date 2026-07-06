@@ -161,7 +161,14 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({ onSubmitSuccess, onE
         return (
           <div className="space-y-2 text-sm pt-4 pb-2">
             <p className="text-gray-700">
-              <span className="text-gray-500">Name:</span> {data.identity.fullName || 'Not provided'}
+              <span className="text-gray-500">Name:</span>{' '}
+              {[
+                data.identity.firstName,
+                data.identity.middleName,
+                data.identity.lastName,
+              ]
+                .filter((part) => part.trim() !== '')
+                .join(' ') || 'Not provided'}
             </p>
             <p className="text-gray-700">
               <span className="text-gray-500">Date of birth:</span> {formatDate(data.identity.dateOfBirth) || 'Not provided'}

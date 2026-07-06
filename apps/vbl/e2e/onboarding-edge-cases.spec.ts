@@ -125,7 +125,7 @@ test.describe('Onboarding Edge Cases', () => {
       await expect(fileInput).toBeAttached();
     });
 
-    test('confirm phase requires full name', async ({ page }) => {
+    test('confirm phase requires first and last name', async ({ page }) => {
       // Upload a fake passport to trigger confirm phase
       const fileInput = page.locator('input[type="file"]');
       await fileInput.setInputFiles({
@@ -139,9 +139,11 @@ test.describe('Onboarding Edge Cases', () => {
         page.getByRole('heading', { name: /Confirm your details/i })
       ).toBeVisible({ timeout: 30_000 });
 
-      // Full name input should be visible
-      const fullNameInput = page.getByPlaceholder('John Smith');
-      await expect(fullNameInput).toBeVisible();
+      // First and last name inputs should be visible
+      const firstNameInput = page.getByPlaceholder('John');
+      await expect(firstNameInput).toBeVisible();
+      const lastNameInput = page.getByPlaceholder('Smith');
+      await expect(lastNameInput).toBeVisible();
     });
 
     test('confirm phase has gender select', async ({ page }) => {
@@ -194,9 +196,13 @@ test.describe('Onboarding Edge Cases', () => {
       ).toBeVisible({ timeout: 30_000 });
 
       // Fill identity
-      const fullNameInput = page.getByPlaceholder('John Smith');
-      if (await fullNameInput.inputValue() === '') {
-        await fullNameInput.fill('Test User');
+      const firstNameInput = page.getByPlaceholder('John');
+      if (await firstNameInput.inputValue() === '') {
+        await firstNameInput.fill('Test');
+      }
+      const lastNameInput = page.getByPlaceholder('Smith');
+      if (await lastNameInput.inputValue() === '') {
+        await lastNameInput.fill('User');
       }
       const dayInput = page.getByPlaceholder('Day');
       if (await dayInput.inputValue() === '') {
@@ -305,8 +311,10 @@ test.describe('Onboarding Edge Cases', () => {
       await expect(
         page.getByRole('heading', { name: /Confirm your details/i })
       ).toBeVisible({ timeout: 30_000 });
-      const fullNameInput = page.getByPlaceholder('John Smith');
-      if (await fullNameInput.inputValue() === '') await fullNameInput.fill('Test User');
+      const firstNameInput = page.getByPlaceholder('John');
+      if (await firstNameInput.inputValue() === '') await firstNameInput.fill('Test');
+      const lastNameInput = page.getByPlaceholder('Smith');
+      if (await lastNameInput.inputValue() === '') await lastNameInput.fill('User');
       const dayInput = page.getByPlaceholder('Day');
       if (await dayInput.inputValue() === '') await dayInput.fill('15');
       const yearInput = page.getByPlaceholder('Year');

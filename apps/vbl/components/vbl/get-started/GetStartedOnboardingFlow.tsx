@@ -231,14 +231,26 @@ export function GetStartedOnboardingFlow() {
     try {
       switch (currentSubStep) {
         case 'identity': {
-          const firstName =
-            data.identity.firstName ||
-            data.identity.fullName.trim().split(/\s+/)[0] ||
-            '';
-          const lastName =
-            data.identity.lastName ||
-            data.identity.fullName.trim().split(/\s+/).slice(1).join(' ') ||
-            '';
+          // Task 6: the `claims` table has no middleName column (see
+          // packages/functions/src/drizzle/schema/claims.ts) and we are not
+          // adding a migration for this task. Known limitation: the middle
+          // name is persisted concatenated into firstName as
+          // "First Middle" (trimmed when middle is empty), so it survives
+          // submission and downstream PDF generation, but the DB can no
+          // longer tell first and middle apart once saved. This mirrors,
+          // without regressing, the meaning of the firstName/lastName
+          // columns that packages/functions/src/services/claim-pdf already
+          // reads — those columns still mean "the person's name", just
+          // sometimes containing an embedded middle name now. See
+          // loadFromClaim in OnboardingContext.tsx for the corresponding
+          // (lossy) reverse mapping on resume.
+          const firstName = [
+            data.identity.firstName.trim(),
+            data.identity.middleName.trim(),
+          ]
+            .filter(Boolean)
+            .join(' ');
+          const lastName = data.identity.lastName.trim();
           await updateClaim(claimId, {
             claimType: 'own_refund',
             firstName,
