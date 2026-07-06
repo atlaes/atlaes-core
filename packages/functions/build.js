@@ -11,7 +11,7 @@ fs.mkdirSync(distPath, { recursive: true });
 
 // Use esbuild for fast compilation
 try {
-  execSync('npx esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --external:@hono/* --external:hono --external:pg --external:postgres --external:drizzle-orm --external:bcryptjs --external:jsonwebtoken --external:google-auth-library --external:redis --external:zod --external:axios --external:dotenv --external:canvas --external:mindee', {
+  execSync('npx esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --external:@hono/* --external:hono --external:pg --external:postgres --external:drizzle-orm --external:bcryptjs --external:jsonwebtoken --external:google-auth-library --external:redis --external:zod --external:axios --external:dotenv --external:canvas --external:mindee --external:pdf-lib', {
     stdio: 'inherit',
     cwd: __dirname
   });
@@ -31,6 +31,15 @@ try {
       fs.copyFileSync(srcFile, distFile);
       console.log(`Copied ${file} to dist/data/`);
     });
+  }
+
+  // Copy static assets (e.g. PDF templates) into dist so runtime code can
+  // load them via the same dual-path resolution used for src/data.
+  const srcAssetsPath = path.join(__dirname, 'src', 'assets');
+  const distAssetsPath = path.join(distPath, 'assets');
+  if (fs.existsSync(srcAssetsPath)) {
+    fs.cpSync(srcAssetsPath, distAssetsPath, { recursive: true });
+    console.log('Copied assets directory to dist/assets/');
   }
 
   // Copy Drizzle migrations into dist so the runtime migration runner can
