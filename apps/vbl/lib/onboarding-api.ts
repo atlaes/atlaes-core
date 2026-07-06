@@ -260,6 +260,18 @@ export async function getClaimWorkflowHistory(
   return data;
 }
 
+export async function generateClaimPdf(
+  claimId: string
+): Promise<{ pdfS3Key: string; downloadUrl: string }> {
+  const { data } = await apiClient.post(`/claims/${claimId}/generate-pdf`);
+  return data.data;
+}
+
+export async function getClaimPdfUrl(claimId: string): Promise<string> {
+  const { data } = await apiClient.get(`/claims/${claimId}/pdf`);
+  return data.data.downloadUrl;
+}
+
 // ============================================================
 // Payments
 // ============================================================

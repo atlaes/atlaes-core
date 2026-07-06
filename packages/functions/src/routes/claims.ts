@@ -8,6 +8,8 @@ import {
   ClaimData,
 } from '../services/claims-application';
 import { ClaimDocumentRole, ClaimStepName, ClaimWorkflowState } from '../drizzle/schema/claims';
+import { ClaimPdfService } from '../services/claim-pdf';
+import { getPresignedUrl } from '../utils/s3';
 
 const claims = new Hono();
 
@@ -678,6 +680,95 @@ claims.post('/:id/identity-form-downloaded', authMiddleware, async (c) => {
       {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to record download',
+      },
+      500
+    );
+  }
+});
+
+// ============================================================
+// Claim PDF Generation/Download
+// ============================================================
+
+// Generate (or regenerate) the combined claim PDF and return a download URL
+claims.post('/:id/generate-pdf', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    const claimId = c.req.param('id');
+
+    const { pdfS3Key } = await ClaimPdfService.generateAndStoreForClaim(
+      claimId,
+      user.id
+    );
+    const downloadUrl = await getPresignedUrl(pdfS3Key);
+
+    logger.info(`Claim PDF generated: ${claimId} for user: ${user.id}`);
+
+    return c.json({
+      success: true,
+      data: { pdfS3Key, downloadUrl },
+    });
+  } catch (error) {
+    logger.error('Generate claim PDF error:', error);
+    const message =
+      error instanceof Error ? error.message : 'Failed to generate claim PDF';
+    let status: 400 | 404 | 500 = 500;
+    if (error instanceof Error && error.message.startsWith('Claim not found')) {
+      status = 404;
+    } else if (error instanceof Error && error.message.includes('missing')) {
+      status = 400;
+    }
+    return c.json(
+      {
+        success: false,
+        error: message,
+        details: message,
+      },
+      status
+    );
+  }
+});
+
+// Get a presigned download URL for the already-generated claim PDF
+claims.get('/:id/pdf', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    const claimId = c.req.param('id');
+
+    const claim = await ClaimsApplicationService.getClaim(claimId, user.id);
+
+    if (!claim) {
+      return c.json(
+        {
+          success: false,
+          error: 'Claim not found',
+        },
+        404
+      );
+    }
+
+    if (!claim.pdfS3Key) {
+      return c.json(
+        {
+          success: false,
+          error: 'PDF not generated yet',
+        },
+        404
+      );
+    }
+
+    const downloadUrl = await getPresignedUrl(claim.pdfS3Key);
+
+    return c.json({
+      success: true,
+      data: { downloadUrl },
+    });
+  } catch (error) {
+    logger.error('Get claim PDF error:', error);
+    return c.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get claim PDF',
       },
       500
     );
