@@ -36,6 +36,8 @@ export function buildPoaText(data: PoaLetterData): string {
   const blocks = [
     TITLE,
     `Vollmachtgeber: Vorname: ${data.firstName} Nachname: ${data.lastName} Anschrift: ${data.streetAddress}, ${data.postalCode} ${data.city} Geburtsdatum: ${data.dateOfBirth} Geburtsort: ${data.placeOfBirth} VBL-Versicherungsnummer / Aktenzeichen: ${data.vblReference}`,
+    // Keep in sync with POA_HOLDER in ./constants — no split name fields
+    // exist there.
     `Bevollmächtigte: Vorname: Anna Katharina Charlotte Nachname: Kliem (geb. Böckers) Anschrift: ${POA_HOLDER.street}, ${POA_HOLDER.postalCodeCity}`,
     `Hiermit erteile ich, ${data.firstName} ${data.lastName}, geboren am ${data.dateOfBirth} in ${data.placeOfBirth} und wohnhaft in ${data.streetAddress}, ${data.postalCode} ${data.city} (nachfolgend „Vollmachtgeber" genannt), der ${POA_HOLDER.nameWithBirthName}, geboren am ${POA_HOLDER.birthDate} in ${POA_HOLDER.birthPlace} und wohnhaft in ${POA_HOLDER.street}, ${POA_HOLDER.postalCodeCity} (nachfolgend „Bevollmächtigte" genannt), die Vollmacht, alle Post der VBL in meinem Namen entgegenzunehmen und zu verwalten sowie die im Zusammenhang mit meinem Beitragserstattungsverfahren erforderliche Korrespondenz mit der VBL zu führen.`,
     'Umfang der Vollmacht: Die Bevollmächtigte ist berechtigt, folgende Handlungen in meinem Namen vorzunehmen:',
@@ -138,6 +140,8 @@ export function buildPoaLetterPlan(
   emitBlank();
 
   // Bevollmächtigte block — built entirely from POA_HOLDER constants.
+  // Keep in sync with POA_HOLDER in ./constants — no split name fields
+  // exist there.
   emitParagraph(
     `Bevollmächtigte: Vorname: Anna Katharina Charlotte Nachname: Kliem (geb. Böckers) Anschrift: ${POA_HOLDER.street}, ${POA_HOLDER.postalCodeCity}`
   );

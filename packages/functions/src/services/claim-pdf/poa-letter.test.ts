@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { PDFDocument } from 'pdf-lib';
-import { buildPoaText, renderPoaLetter } from './poa-letter';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
+import {
+  buildPoaText,
+  buildPoaLetterPlan,
+  renderPoaLetter,
+} from './poa-letter';
 
 const data = {
   firstName: 'Juan',
@@ -43,7 +47,8 @@ describe('poa letter', () => {
       (c) => c.charCodeAt(0)
     );
     await renderPoaLetter(doc, { ...data, signaturePng: png });
-    expect(doc.getPageCount()).toBeGreaterThanOrEqual(1);
+    // Typical data must fit on a single page.
+    expect(doc.getPageCount()).toBe(1);
     for (let i = 0; i < doc.getPageCount(); i++) {
       const { width, height } = doc.getPage(i).getSize();
       expect(width).toBeCloseTo(595.28, 1);
@@ -59,15 +64,31 @@ describe('poa letter', () => {
       ),
       (c) => c.charCodeAt(0)
     );
-    // Long address values increase wrapped line count, pushing the cursor
-    // past the page-break guard before the signature block.
-    await renderPoaLetter(doc, {
+    // Long address/name/place values increase wrapped line count, pushing
+    // the cursor past the page-break guard before the signature block.
+    const stressData = {
       ...data,
+      lastName: 'Dela Cruz von und zu Langenhausen-Mittelstädt-Oberndorfer',
       streetAddress:
-        'Musterstraße mit einem sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr langen Namen 123456',
-      city: 'Eine Stadt mit einem außergewöhnlich langen Namen die weit über eine Zeile hinausgeht',
+        'Musterstraße mit einem sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr langen Namen 123456',
+      city: 'Eine Stadt mit einem außergewöhnlich langen Namen die weit über eine sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr lange Zeile hinausgeht und noch weiter geht',
+      placeOfBirth:
+        'Ein Geburtsort mit einem außergewöhnlich langen Namen der auch weit über eine sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr sehr lange Zeile hinausgeht und noch weiter und noch etwas weiter',
+      vblReference: 'AB-12334567-XYZ-987654321-QRSTUV-000111222333444555',
       signaturePng: png,
-    });
-    expect(doc.getPageCount()).toBeGreaterThanOrEqual(1);
+    };
+
+    // Pure assertion: the plan itself must actually cross into a second
+    // page (this pins the page-break guard behavior independent of
+    // rendering, so deleting the guard fails this test even if pdf-lib's
+    // page count were mocked away).
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
+    const plan = buildPoaLetterPlan(stressData, font, boldFont);
+    const maxPage = plan.reduce((max, op) => Math.max(max, op.page), 0);
+    expect(maxPage).toBe(1);
+
+    await renderPoaLetter(doc, stressData);
+    expect(doc.getPageCount()).toBe(2);
   });
 });
