@@ -128,9 +128,12 @@ export class ClaimPdfService {
   }
 
   /**
-   * Loads a signature row and decodes its base64 PNG payload. Signatures
-   * are stored PNG-only (see the signatures upload route); any other
-   * image type throws a clear, signature-id-scoped error rather than
+   * Loads a signature row and decodes its base64 PNG payload. The
+   * signatures upload route (routes/signatures.ts) does NOT enforce
+   * PNG-only: it accepts any `data:image/{ext};base64,` prefix and only
+   * defaults to PNG when no data-URL prefix is present at all. This
+   * guard exists precisely because of that gap — it throws a clear,
+   * signature-id-scoped error for any non-PNG payload rather than
    * silently feeding non-PNG bytes to pdf-lib's `embedPng`.
    */
   private static async loadSignaturePng(

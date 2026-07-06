@@ -171,6 +171,22 @@ describe('ClaimPdfService', () => {
     return sig.id;
   }
 
+  async function createTestSignatureWithDataUrl(
+    userId: string,
+    dataUrl: string
+  ): Promise<string> {
+    const [sig] = await testDb
+      .insert(signatures)
+      .values({
+        userId,
+        signatureData: dataUrl,
+        isActive: true,
+      })
+      .returning();
+
+    return sig.id;
+  }
+
   async function createCompletePdfReadyClaim(
     overrides: Record<string, unknown> = {}
   ): Promise<{ userId: string; claimId: string }> {
@@ -201,6 +217,74 @@ describe('ClaimPdfService', () => {
     );
 
     return { userId, claimId: created.id };
+  }
+
+  /**
+   * Same as createCompletePdfReadyClaim, but skips attaching a passport
+   * document — used to test the missing-passport rejection path.
+   */
+  async function createPdfReadyClaimWithoutPassport(
+    overrides: Record<string, unknown> = {}
+  ): Promise<{ userId: string; claimId: string }> {
+    const userId = await createTestUser();
+    const created = await ClaimsApplicationService.createClaim(userId);
+    createdClaimIds.push(created.id);
+
+    await ClaimsApplicationService.updateClaim(created.id, userId, {
+      ...completeClaim,
+      svNummer: 'AB12334567',
+      iban: 'DE89370400440532013000',
+      ...overrides,
+    } as any);
+
+    const signatureId = await createTestSignature(userId);
+    await ClaimsApplicationService.attachSignature(
+      created.id,
+      userId,
+      signatureId
+    );
+
+    return { userId, claimId: created.id };
+  }
+
+  /**
+   * Same as createCompletePdfReadyClaim, but attaches a signature whose
+   * signatureData uses a non-PNG data URL prefix — used to test the
+   * non-PNG signature rejection path.
+   */
+  async function createPdfReadyClaimWithNonPngSignature(
+    overrides: Record<string, unknown> = {}
+  ): Promise<{ userId: string; claimId: string; signatureId: string }> {
+    const userId = await createTestUser();
+    const created = await ClaimsApplicationService.createClaim(userId);
+    createdClaimIds.push(created.id);
+
+    await ClaimsApplicationService.updateClaim(created.id, userId, {
+      ...completeClaim,
+      svNummer: 'AB12334567',
+      iban: 'DE89370400440532013000',
+      ...overrides,
+    } as any);
+
+    const passportId = await createTestDocument(userId, 'passport');
+    await ClaimsApplicationService.addDocument(
+      created.id,
+      userId,
+      passportId,
+      'passport'
+    );
+
+    const signatureId = await createTestSignatureWithDataUrl(
+      userId,
+      `data:image/jpeg;base64,${PNG_1X1.toString('base64')}`
+    );
+    await ClaimsApplicationService.attachSignature(
+      created.id,
+      userId,
+      signatureId
+    );
+
+    return { userId, claimId: created.id, signatureId };
   }
 
   describe('generateAndStoreForClaim', () => {
@@ -244,6 +328,23 @@ describe('ClaimPdfService', () => {
       await expect(
         ClaimPdfService.generateAndStoreForClaim(claimId, userId)
       ).rejects.toThrow(/iban/i);
+    });
+
+    it('rejects when the signature is not PNG-encoded, naming the signature id', async () => {
+      const { userId, claimId, signatureId } =
+        await createPdfReadyClaimWithNonPngSignature();
+
+      await expect(
+        ClaimPdfService.generateAndStoreForClaim(claimId, userId)
+      ).rejects.toThrow(new RegExp(signatureId));
+    });
+
+    it('rejects when there is no passport document, mentioning "passport"', async () => {
+      const { userId, claimId } = await createPdfReadyClaimWithoutPassport();
+
+      await expect(
+        ClaimPdfService.generateAndStoreForClaim(claimId, userId)
+      ).rejects.toThrow(/passport/i);
     });
   });
 });
