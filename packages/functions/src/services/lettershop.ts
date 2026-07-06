@@ -32,13 +32,36 @@ export class LettershopService {
   }
 
   /**
+   * True when there's a usable private key file on disk at
+   * `LETTERSHOP_SFTP_PRIVATE_KEY_PATH`. Shared by the "are we configured at
+   * all" check and the actual connect auth-method selection so the two
+   * can't drift apart.
+   */
+  private static hasReadablePrivateKey(): boolean {
+    return (
+      !!env.LETTERSHOP_SFTP_PRIVATE_KEY_PATH &&
+      existsSync(env.LETTERSHOP_SFTP_PRIVATE_KEY_PATH)
+    );
+  }
+
+  /**
+   * True when we have at least one usable auth method: a non-empty
+   * password, or a private key file that actually exists on disk.
+   */
+  private static hasCredentials(): boolean {
+    return !!env.LETTERSHOP_SFTP_PASSWORD || this.hasReadablePrivateKey();
+  }
+
+  /**
    * Sends the combined claim PDF to the lettershop provider
    * (onlinebrief24.de) over SFTP.
    *
    * Returns null when lettershop delivery is off or unconfigured (missing
-   * host/user), mirroring the s3 util's local-dev no-op guard style —
-   * this lets local dev and most test runs proceed without any lettershop
-   * credentials. Otherwise connects, uploads the PDF, and records the
+   * host/user, or missing both a password and a readable private-key
+   * file), mirroring the s3 util's local-dev no-op guard style — this lets
+   * local dev and most test runs proceed without any lettershop
+   * credentials, and avoids attempting a doomed SFTP handshake with no
+   * auth material. Otherwise connects, uploads the PDF, and records the
    * submission (claim row + audit log) atomically. Errors are logged and
    * rethrown; the caller (ClaimsApplicationService.submitClaim) treats
    * lettershop failures as non-fatal, same as PDF generation failures.
@@ -49,15 +72,18 @@ export class LettershopService {
     userId: string
   ): Promise<{ submissionId: string } | null> {
     const mode = env.LETTERSHOP_MODE;
-    const isConfigured = !!(
+    const hasHostAndUser = !!(
       env.LETTERSHOP_SFTP_HOST && env.LETTERSHOP_SFTP_USER
     );
+    const hasCredentials = this.hasCredentials();
+    const isConfigured = hasHostAndUser && hasCredentials;
 
     if (mode === 'off' || !isConfigured) {
       logger.warn('Lettershop delivery skipped (off or unconfigured)', {
         claimId,
         mode,
-        configured: isConfigured,
+        missingHostOrUser: !hasHostAndUser,
+        missingCredentials: !hasCredentials,
       });
       return null;
     }
@@ -67,9 +93,7 @@ export class LettershopService {
 
     const sftp = new SftpClient();
     try {
-      const usePrivateKey =
-        !!env.LETTERSHOP_SFTP_PRIVATE_KEY_PATH &&
-        existsSync(env.LETTERSHOP_SFTP_PRIVATE_KEY_PATH);
+      const usePrivateKey = this.hasReadablePrivateKey();
 
       await sftp.connect({
         host: env.LETTERSHOP_SFTP_HOST,

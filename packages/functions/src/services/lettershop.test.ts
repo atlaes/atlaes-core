@@ -8,6 +8,9 @@ import {
   beforeAll,
   afterAll,
 } from 'vitest';
+import { mkdtempSync, writeFileSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq } from 'drizzle-orm';
@@ -228,6 +231,60 @@ describe('LettershopService', () => {
 
       expect(result).toBeNull();
       expect(connectMock).not.toHaveBeenCalled();
+    });
+
+    it('returns null and never attempts to connect when host/user are set but no password and no private key path are configured', async () => {
+      process.env.LETTERSHOP_SFTP_HOST = 'api.onlinebrief24.de';
+      process.env.LETTERSHOP_SFTP_USER = 'test@example.com';
+      process.env.LETTERSHOP_MODE = 'live';
+      delete process.env.LETTERSHOP_SFTP_PASSWORD;
+      delete process.env.LETTERSHOP_SFTP_PRIVATE_KEY_PATH;
+
+      const { LettershopService } = await import('./lettershop');
+      const userId = await createTestUser();
+      const claimId = await createTestClaim(userId);
+
+      const result = await LettershopService.sendClaimPdf(
+        claimId,
+        new Uint8Array([1, 2, 3]),
+        userId
+      );
+
+      expect(result).toBeNull();
+      expect(connectMock).not.toHaveBeenCalled();
+      expect(putMock).not.toHaveBeenCalled();
+    });
+
+    it('connects using the private key when host/user/key-path are set but no password is configured', async () => {
+      const tempDir = mkdtempSync(join(tmpdir(), 'lettershop-test-'));
+      const keyPath = join(tempDir, 'id_rsa');
+      writeFileSync(keyPath, 'fake-private-key-contents');
+
+      try {
+        process.env.LETTERSHOP_SFTP_HOST = 'api.onlinebrief24.de';
+        process.env.LETTERSHOP_SFTP_USER = 'test@example.com';
+        process.env.LETTERSHOP_SFTP_PRIVATE_KEY_PATH = keyPath;
+        process.env.LETTERSHOP_MODE = 'test';
+        delete process.env.LETTERSHOP_SFTP_PASSWORD;
+
+        const { LettershopService } = await import('./lettershop');
+        const userId = await createTestUser();
+        const claimId = await createTestClaim(userId);
+
+        const result = await LettershopService.sendClaimPdf(
+          claimId,
+          new Uint8Array([1, 2, 3]),
+          userId
+        );
+
+        expect(result).not.toBeNull();
+        expect(connectMock).toHaveBeenCalledTimes(1);
+        const authConfig = connectMock.mock.calls[0][0];
+        expect(authConfig.privateKey).toBe(keyPath);
+        expect(authConfig.password).toBeUndefined();
+      } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
     });
 
     it('uploads the PDF via SFTP, stores the submission id, and audit-logs it (test mode)', async () => {
