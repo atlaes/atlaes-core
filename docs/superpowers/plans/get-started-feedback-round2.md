@@ -202,6 +202,7 @@ Requirements:
 
 Still parked pending client confirmation: Employer confirmation substep (`Private-Flow/VBL-3.png`) and the bAV-specific SEPA/non-SEPA bank form ("Where should your bAV payout be sent?", `VBL-6.png`). Health insurance was approved 2026-07-06 → now Task 15.
 
-## Still blocked (need assets from client)
+## Still blocked (need assets/data from client)
 
-- **Item 19 logo**: no SummitFX logo asset exists in the repo or exports (screenshots may show it, but an extractable asset file is needed for production use — screenshot-cropping is a last resort; ask client for the SVG/PNG asset).
+- **Item 19 logo**: SummitFX logo file — client has it (pasted in chat 2026-07-06) but a pasted image is not a usable file; waiting for the PNG/SVG to be dropped in ~/Downloads. Task 8 ships a styled-text wordmark with a marked swap point meanwhile.
+- **Task 1b eligibility threshold**: the bAV green/red rule needs the 2026 small-benefit ("standard") threshold from the Figma logic notes. Searched: vbl-calculation.ts, vbl-calculation-simple.ts, contributions.json, Calculator.md, all docs — not present. Per project rule (client data only, no internet/invented values), the client must supply the number (monthly-pension and/or capital-value limit). Copy/UI portions of Task 1b proceed without it; the `checkEligibility` rule lands as a follow-up once provided.
