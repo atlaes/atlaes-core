@@ -1,4 +1,4 @@
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import SftpClient from 'ssh2-sftp-client';
 import { eq } from 'drizzle-orm';
 import { db } from '../utils/db';
@@ -99,8 +99,11 @@ export class LettershopService {
         host: env.LETTERSHOP_SFTP_HOST,
         port: env.LETTERSHOP_SFTP_PORT,
         username: env.LETTERSHOP_SFTP_USER,
+        // ssh2's ConnectConfig.privateKey wants the key CONTENTS, not a
+        // filesystem path — hasReadablePrivateKey() already confirmed the
+        // file exists, so read it here.
         ...(usePrivateKey
-          ? { privateKey: env.LETTERSHOP_SFTP_PRIVATE_KEY_PATH }
+          ? { privateKey: readFileSync(env.LETTERSHOP_SFTP_PRIVATE_KEY_PATH!) }
           : { password: env.LETTERSHOP_SFTP_PASSWORD }),
       });
 
@@ -137,7 +140,17 @@ export class LettershopService {
       });
       throw error;
     } finally {
-      await sftp.end();
+      // A failure here must never mask an error from the try block above —
+      // log it at most, never throw.
+      try {
+        await sftp.end();
+      } catch (endError) {
+        logger.warn('Failed to close lettershop SFTP connection', {
+          claimId,
+          error:
+            endError instanceof Error ? endError.message : String(endError),
+        });
+      }
     }
   }
 }

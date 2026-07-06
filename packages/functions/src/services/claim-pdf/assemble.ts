@@ -36,6 +36,20 @@ const PASSPORT_IMAGE_MIME_TYPES = new Set([
 ]);
 
 /**
+ * Builds the PoA letter's `streetAddress` field from the claim's current
+ * address. The Vollmachtgeber's legal address must be complete, so line 2
+ * (e.g. apartment/suite) is appended when present.
+ */
+export function toPoaStreetAddress(claim: {
+  currentAddressLine1: string;
+  currentAddressLine2: string | null;
+}): string {
+  return claim.currentAddressLine2
+    ? `${claim.currentAddressLine1}, ${claim.currentAddressLine2}`
+    : claim.currentAddressLine1;
+}
+
+/**
  * Pure assembler: builds the full combined VBL claim PDF package from
  * already-resolved input data (no DB/S3 access). Assembly order (fixed):
  * 1 cover letter -> 2 L203 (3 pages) -> 3 PoA letter -> 4 user passport
@@ -68,6 +82,8 @@ export async function assembleClaimPdf(
     lastName: claim.lastName,
     dateOfBirth: claim.dateOfBirth,
     placeOfBirth: claim.placeOfBirth,
+    // L203 form has no field for address line 2 — deliberately mapping
+    // line1 only here; the PoA letter below includes the full address.
     addressLine1: claim.currentAddressLine1,
     postalCode: claim.currentPostalCode,
     city: claim.currentCity,
@@ -89,7 +105,7 @@ export async function assembleClaimPdf(
   await renderPoaLetter(combined, {
     firstName: claim.firstName,
     lastName: claim.lastName,
-    streetAddress: claim.currentAddressLine1,
+    streetAddress: toPoaStreetAddress(claim),
     postalCode: claim.currentPostalCode,
     city: claim.currentCity,
     dateOfBirth: formatGermanDate(claim.dateOfBirth),

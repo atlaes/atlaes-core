@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { PDFDocument } from 'pdf-lib';
 import { A4 } from './constants';
-import { assembleClaimPdf, ClaimPdfInput } from './assemble';
+import {
+  assembleClaimPdf,
+  toPoaStreetAddress,
+  ClaimPdfInput,
+} from './assemble';
 
 // 1x1 transparent PNG (same fixture used across claim-pdf tests).
 const PNG_1X1 = Uint8Array.from(
@@ -70,5 +74,25 @@ describe('assembleClaimPdf', () => {
       expect(page.getWidth()).toBeCloseTo(A4.width, 0);
       expect(page.getHeight()).toBeCloseTo(A4.height, 0);
     }
+  });
+});
+
+describe('toPoaStreetAddress', () => {
+  it('joins line1 and line2 with a comma when line2 is set', () => {
+    expect(
+      toPoaStreetAddress({
+        currentAddressLine1: 'Mabini Street 12',
+        currentAddressLine2: 'Apt. 4B',
+      })
+    ).toBe('Mabini Street 12, Apt. 4B');
+  });
+
+  it('returns line1 unchanged when line2 is null', () => {
+    expect(
+      toPoaStreetAddress({
+        currentAddressLine1: 'Mabini Street 12',
+        currentAddressLine2: null,
+      })
+    ).toBe('Mabini Street 12');
   });
 });

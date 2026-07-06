@@ -280,7 +280,11 @@ describe('LettershopService', () => {
         expect(result).not.toBeNull();
         expect(connectMock).toHaveBeenCalledTimes(1);
         const authConfig = connectMock.mock.calls[0][0];
-        expect(authConfig.privateKey).toBe(keyPath);
+        // privateKey must be the key CONTENTS (Buffer), not the file path.
+        expect(Buffer.isBuffer(authConfig.privateKey)).toBe(true);
+        expect(authConfig.privateKey.toString()).toBe(
+          'fake-private-key-contents'
+        );
         expect(authConfig.password).toBeUndefined();
       } finally {
         rmSync(tempDir, { recursive: true, force: true });
@@ -346,6 +350,30 @@ describe('LettershopService', () => {
       process.env.LETTERSHOP_MODE = 'test';
 
       putMock.mockRejectedValue(new Error('upload failed'));
+
+      const { LettershopService } = await import('./lettershop');
+      const userId = await createTestUser();
+      const claimId = await createTestClaim(userId);
+
+      await expect(
+        LettershopService.sendClaimPdf(
+          claimId,
+          new Uint8Array([1, 2, 3]),
+          userId
+        )
+      ).rejects.toThrow(/upload failed/);
+
+      expect(endMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('propagates the original error, not the end() failure, when both put() and end() reject', async () => {
+      process.env.LETTERSHOP_SFTP_HOST = 'api.onlinebrief24.de';
+      process.env.LETTERSHOP_SFTP_USER = 'test@example.com';
+      process.env.LETTERSHOP_SFTP_PASSWORD = 'fake-password';
+      process.env.LETTERSHOP_MODE = 'test';
+
+      putMock.mockRejectedValue(new Error('upload failed'));
+      endMock.mockRejectedValue(new Error('end failed'));
 
       const { LettershopService } = await import('./lettershop');
       const userId = await createTestUser();
