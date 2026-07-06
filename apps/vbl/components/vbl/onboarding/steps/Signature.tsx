@@ -1,7 +1,15 @@
 'use client';
 
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { ArrowRight, Pencil, Upload, Undo2, Redo2, Trash2, Loader2 } from 'lucide-react';
+import {
+  ArrowRight,
+  Pencil,
+  Upload,
+  Undo2,
+  Redo2,
+  Trash2,
+  Loader2,
+} from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import {
   uploadSignature as uploadSignatureApi,
@@ -49,7 +57,10 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
     contextRef.current = context;
 
     // Restore saved signature if exists
-    if (data.signature.signatureData && data.signature.signatureType === 'draw') {
+    if (
+      data.signature.signatureData &&
+      data.signature.signatureType === 'draw'
+    ) {
       const img = new Image();
       img.onload = () => {
         context.drawImage(img, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
@@ -147,6 +158,18 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
   // cached server-side signatureId. Otherwise, if the user uploaded once,
   // then undid/redid/cleared, a second Continue would attach the stale
   // (already consumed) ID to the claim and trigger an "Invalid Token" error.
+  //
+  // Item 21 follow-up: this clearing was necessary but not sufficient — the
+  // "Invalid token" error client #15 was trying to prevent kept recurring on
+  // delete + re-enter because of a separate, unrelated bug in the axios
+  // token-refresh interceptor (apps/vbl/lib/api.ts) that could corrupt the
+  // stored access token the first time it silently refreshed (which tends to
+  // happen around this last onboarding step, since the 15-minute access
+  // token has often expired by the time the user reaches Signature). Once
+  // corrupted, every request — including the retry after delete + re-enter —
+  // failed JWT verification with the same generic "Invalid token" message,
+  // regardless of whether signatureId was stale or fresh. See lib/api.ts for
+  // the fix.
   const handleUndo = useCallback(() => {
     if (historyIndex <= 0) {
       // Clear canvas
@@ -253,6 +276,16 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       if (data.claimId) {
         await attachSignatureToClaim(data.claimId, signatureId);
       }
+      // saveAndAdvance in GetStartedOnboardingFlow.tsx (this screen's
+      // onNext) used to call attachSignatureToClaim a second time for the
+      // 'signature' sub-step. That call was dead code in practice (its
+      // closure always saw a stale, not-yet-committed data.signatureId and
+      // skipped), so it was removed as cleanup, not because it caused the
+      // "Invalid token" bug (item 21) — see lib/api.ts for the actual root
+      // cause (the token-refresh interceptor read the wrong response
+      // property and stored the literal string "undefined" as the access
+      // token, so every request after the first silent refresh — including
+      // this one on a delete + re-enter retry — failed JWT verification).
       onNext();
     } catch (err: any) {
       console.error('Signature upload error:', err);
@@ -263,7 +296,13 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
     } finally {
       setIsUploading(false);
     }
-  }, [data.claimId, data.signatureId, data.signature.signatureData, updateData, onNext]);
+  }, [
+    data.claimId,
+    data.signatureId,
+    data.signature.signatureData,
+    updateData,
+    onNext,
+  ]);
 
   const canProceed =
     (!!data.signature.signatureData || !!data.signature.signatureFile) &&
@@ -276,7 +315,9 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
-        Your signature will be used to sign your refund request and authorize CompanyPension to receive correspondence from the pension provider for this process.
+        Your signature will be used to sign your refund request and authorize
+        CompanyPension to receive correspondence from the pension provider for
+        this process.
       </p>
 
       {/* Mode Toggle */}
@@ -363,7 +404,8 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       {/* Upload Mode */}
       {mode === 'upload' && (
         <div className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center">
-          {data.signature.signaturePreview && data.signature.signatureType === 'upload' ? (
+          {data.signature.signaturePreview &&
+          data.signature.signatureType === 'upload' ? (
             <div className="relative">
               <img
                 src={data.signature.signaturePreview}

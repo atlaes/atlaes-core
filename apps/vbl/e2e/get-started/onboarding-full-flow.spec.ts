@@ -732,4 +732,173 @@ test.describe('Onboarding Full Flow', () => {
     await page.getByText('Draw signature').click();
     await expect(page.locator('canvas')).toBeVisible();
   });
+
+  // ============================================================
+  // Item 21: delete + re-enter signature must not double-attach
+  // ============================================================
+
+  test('deleting and re-drawing the signature attaches it exactly once per Continue', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(90_000);
+    await mockOnboardingApi(page);
+
+    // mockOnboardingApi hardcodes the Stripe-return URL to localhost:3000;
+    // override it here so the test works against any baseURL the runner
+    // happens to use for this app.
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    let attachCount = 0;
+    await page.route('**/api/claims/claim_mock/signature', (route) => {
+      attachCount += 1;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          claim: { id: 'claim_mock' },
+        }),
+      });
+    });
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    await completeIdentityUpload(page);
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+
+    // First signature: draw and continue.
+    await completeSignature(page);
+    await expect(
+      page.getByRole('heading', { name: 'Review your refund request' })
+    ).toBeVisible({ timeout: 10_000 });
+    expect(attachCount).toBe(1);
+
+    // Go back to the signature step, delete it, and draw a new one. The
+    // review page's "Signature" section header only expands/collapses that
+    // section; the "Edit information" button inside it is what actually
+    // calls setCurrentSubStep to re-enter the step.
+    await page.getByRole('button', { name: 'Signature' }).last().click();
+    await page.getByRole('button', { name: 'Edit information' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Add your signature' })
+    ).toBeVisible({ timeout: 5_000 });
+
+    await page.getByRole('button', { name: /Clear/i }).click();
+
+    await completeSignature(page);
+    await expect(
+      page.getByRole('heading', { name: 'Review your refund request' })
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Exactly one more attach call for the re-drawn signature (total 2), not
+    // two more, confirming saveAndAdvance's removed dead re-attach branch
+    // hasn't been reintroduced.
+    expect(attachCount).toBe(2);
+  });
+
+  // ============================================================
+  // Item 21: expired-access-token refresh must not corrupt the stored token
+  // ============================================================
+
+  test('an access-token refresh during signature attach stores a usable token, not "undefined"', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(90_000);
+    await mockOnboardingApi(page);
+
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    await completeIdentityUpload(page);
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+
+    // Simulate the access token having expired by the time the user reaches
+    // the last onboarding step: the first signature-attach request 401s
+    // exactly once, forcing the axios interceptor in lib/api.ts down its
+    // refresh-and-retry path.
+    let attachAttempts = 0;
+    await page.route('**/api/claims/claim_mock/signature', (route) => {
+      attachAttempts += 1;
+      if (attachAttempts === 1) {
+        return route.fulfill({
+          status: 401,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Token expired' }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, claim: { id: 'claim_mock' } }),
+      });
+    });
+
+    await page.route('**/api/auth/refresh', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          message: 'Tokens refreshed successfully',
+          tokens: {
+            accessToken: 'refreshed-access-token',
+            refreshToken: 'refreshed-refresh-token',
+          },
+        }),
+      })
+    );
+
+    await completeSignature(page);
+
+    // The retried request must succeed (proving the interceptor picked up
+    // the real refreshed access token) and the flow must reach Review,
+    // instead of surfacing "Failed to save signature: Invalid token."
+    await expect(
+      page.getByRole('heading', { name: 'Review your refund request' })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/Invalid token/i)).not.toBeVisible();
+    expect(attachAttempts).toBe(2);
+
+    // The corrected access token must be the real value from the refresh
+    // response, not the string "undefined" that response.data.accessToken
+    // (missing the `.tokens` level) would have produced.
+    const storedAccessToken = await page.evaluate(() =>
+      window.localStorage.getItem('accessToken')
+    );
+    expect(storedAccessToken).toBe('refreshed-access-token');
+  });
 });

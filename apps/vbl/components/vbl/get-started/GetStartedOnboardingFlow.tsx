@@ -13,7 +13,6 @@ import {
   getClaim,
   updateClaim,
   attachDocument,
-  attachSignatureToClaim,
   markStepComplete,
   verifyPaymentSession,
 } from '@/lib/onboarding-api';
@@ -311,9 +310,17 @@ export function GetStartedOnboardingFlow() {
           await markStepComplete(claimId, 'bankDetails');
           break;
         case 'signature':
-          if (data.signatureId) {
-            await attachSignatureToClaim(claimId, data.signatureId);
-          }
+          // Item 21 cleanup (not the root cause — see lib/api.ts for that):
+          // Signature.tsx::handleContinue already calls
+          // attachSignatureToClaim itself (added in "Fix: attach signature to
+          // claim before submission") and only invokes onNext() (this
+          // function) after that attach resolves. This call used to
+          // re-attach the same signature a second time — in practice it was
+          // a silent no-op (onNext() runs before the parent re-renders with
+          // the freshly-set data.signatureId, so this closure always saw it
+          // as undefined and skipped), but it's dead, misleading code and a
+          // latent double-submit risk if the render timing ever changes.
+          // Removed; just mark the step complete.
           await markStepComplete(claimId, 'signDocuments');
           break;
       }
