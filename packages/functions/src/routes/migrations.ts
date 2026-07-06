@@ -40,7 +40,10 @@ migrations.post('/run', async (c) => {
     logger.info(`Running migrations from: ${migrationsFolder}`);
     await migrate(db, { migrationsFolder });
     logger.info('Migrations applied successfully');
-    return c.json({ success: true });
+    return c.json({
+      success: true,
+      latestTag: readLatestJournalTag(migrationsFolder),
+    });
   } catch (error) {
     logger.error('Migration run failed:', error as Record<string, unknown>);
     return c.json(
@@ -53,6 +56,30 @@ migrations.post('/run', async (c) => {
     );
   }
 });
+
+// Reports which migration the running container actually has bundled, by
+// reading the tag of the last entry in the SAME migrationsFolder used above.
+// CI polls this after a deploy to confirm the ALB has cut over to a new
+// container (old containers report an older/missing tag and get retried)
+// instead of trusting a bare `success:true`, which an old container with no
+// pending migrations would also return. Never fail the run over this —
+// on any read error, report `null` and let CI's tag comparison keep polling.
+function readLatestJournalTag(migrationsFolder: string): string | null {
+  try {
+    const journalPath = path.join(migrationsFolder, 'meta', '_journal.json');
+    const journal = JSON.parse(fs.readFileSync(journalPath, 'utf8')) as {
+      entries: { tag: string }[];
+    };
+    const lastEntry = journal.entries[journal.entries.length - 1];
+    return lastEntry?.tag ?? null;
+  } catch (error) {
+    logger.error(
+      'Failed to read latest journal tag:',
+      error as Record<string, unknown>
+    );
+    return null;
+  }
+}
 
 // Detect whether the connected DB is a "legacy" one that was set up via
 // `drizzle-kit push:pg` (no migration tracking) and now needs baselining.
@@ -79,7 +106,9 @@ type QueryExecutor = {
   execute(query: unknown): Promise<unknown>;
 };
 
-export async function isLegacyDB(database: QueryExecutor = db): Promise<boolean> {
+export async function isLegacyDB(
+  database: QueryExecutor = db
+): Promise<boolean> {
   const hasMigrationTracking = await tableExists(
     database,
     'drizzle',
@@ -133,7 +162,9 @@ function readExists(result: unknown): boolean {
 // marked as already applied.
 const BASELINE_BOUNDARY_IDX = 3; // mark migrations 0..2 as applied; apply 3+
 
-async function baselineDrizzleTracking(migrationsFolder: string): Promise<void> {
+async function baselineDrizzleTracking(
+  migrationsFolder: string
+): Promise<void> {
   await db.execute(sql`CREATE SCHEMA IF NOT EXISTS drizzle;`);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS drizzle.__drizzle_migrations (

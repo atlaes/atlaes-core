@@ -1,17 +1,32 @@
 // IMPORTANT: env vars before any imports that might use them.
 // Matches the pattern in src/test/setup.ts.
 process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing-purposes-only-32-chars';
+process.env.JWT_SECRET =
+  'test-jwt-secret-key-for-testing-purposes-only-32-chars';
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import postgres from 'postgres';
+import path from 'path';
+import fs from 'fs';
 import migrations from './migrations';
 import { env } from '../utils/env';
 
 const TEST_DATABASE_URL =
   process.env.DATABASE_URL ||
   'postgresql://vbl_user:vbl_password@localhost:5432/vbl_development';
+
+// Matches the (test/dev) migrationsFolder resolution in migrations.ts, so
+// the expected tag always reflects whatever migrations are actually on disk.
+const MIGRATIONS_FOLDER = path.join(process.cwd(), 'src/drizzle/migrations');
+
+function latestJournalTag(): string {
+  const journalPath = path.join(MIGRATIONS_FOLDER, 'meta', '_journal.json');
+  const journal = JSON.parse(fs.readFileSync(journalPath, 'utf8')) as {
+    entries: { tag: string }[];
+  };
+  return journal.entries[journal.entries.length - 1].tag;
+}
 
 let app: Hono;
 let sql: ReturnType<typeof postgres>;
@@ -60,10 +75,13 @@ describe('POST /api/migrations/run', () => {
   });
 
   describe('happy path', () => {
-    it('returns 200 with {success:true} when the token matches', async () => {
+    it('returns 200 with {success:true, latestTag} when the token matches', async () => {
       const res = await postRun({ 'x-admin-token': env.ADMIN_MIGRATION_TOKEN });
       expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({ success: true });
+      expect(await res.json()).toEqual({
+        success: true,
+        latestTag: latestJournalTag(),
+      });
     });
 
     it('is idempotent — a second call also succeeds without re-applying', async () => {
@@ -71,12 +89,19 @@ describe('POST /api/migrations/run', () => {
       // either way, the second call must succeed because drizzle's migrator dedupes
       // via __drizzle_migrations.hash. If this regresses, the post-deploy curl in
       // .github/workflows/deploy-staging.yml will start failing.
-      const res1 = await postRun({ 'x-admin-token': env.ADMIN_MIGRATION_TOKEN });
+      const res1 = await postRun({
+        'x-admin-token': env.ADMIN_MIGRATION_TOKEN,
+      });
       expect(res1.status).toBe(200);
 
-      const res2 = await postRun({ 'x-admin-token': env.ADMIN_MIGRATION_TOKEN });
+      const res2 = await postRun({
+        'x-admin-token': env.ADMIN_MIGRATION_TOKEN,
+      });
       expect(res2.status).toBe(200);
-      expect(await res2.json()).toEqual({ success: true });
+      expect(await res2.json()).toEqual({
+        success: true,
+        latestTag: latestJournalTag(),
+      });
     });
   });
 
@@ -97,7 +122,10 @@ describe('POST /api/migrations/run', () => {
     it('survives a fresh migrator run when schemas already exist', async () => {
       const res = await postRun({ 'x-admin-token': env.ADMIN_MIGRATION_TOKEN });
       expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({ success: true });
+      expect(await res.json()).toEqual({
+        success: true,
+        latestTag: latestJournalTag(),
+      });
 
       // Confirms the migrator wrote at least one hash row — i.e. the
       // CREATE SCHEMA statements went through the IF NOT EXISTS path
