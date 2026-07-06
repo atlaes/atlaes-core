@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import {
@@ -168,11 +169,15 @@ export default function ClaimDetailPage() {
       let downloadUrl: string;
       try {
         downloadUrl = await getClaimPdfUrl(claimId);
-      } catch {
-        // PDF not generated yet (e.g. legacy claim submitted before this
-        // feature existed) — generate it now and use the returned URL.
-        const generated = await generateClaimPdf(claimId);
-        downloadUrl = generated.downloadUrl;
+      } catch (err) {
+        if (axios.isAxiosError(err) && err.response?.status === 404) {
+          // PDF not generated yet (e.g. legacy claim submitted before this
+          // feature existed) — generate it now and use the returned URL.
+          const generated = await generateClaimPdf(claimId);
+          downloadUrl = generated.downloadUrl;
+        } else {
+          throw err;
+        }
       }
       window.open(downloadUrl, '_blank');
     } catch {
