@@ -511,18 +511,34 @@ test.describe('Onboarding Full Flow', () => {
       )
     ).toBeVisible();
 
-    await page.getByRole('button', { name: 'Back' }).last().click();
+    // Item 18a: the bottom-of-branch "Back" link is gone — only the global
+    // top-left Back remains, and it returns to the account-type selection
+    // phase (not the address sub-step) while inside a bank-details branch.
+    await page.getByRole('button', { name: 'Back' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Where should the refund be paid?' })
+    ).toBeVisible();
     await page
       .getByRole('button', { name: /I want to open a free EUR account/i })
       .click();
     await page.getByRole('button', { name: /Continue/i }).click();
     await expect(
-      page.getByRole('heading', { name: 'Open your free EUR account' })
+      page.getByRole('heading', { name: 'Open a EUR account' })
     ).toBeVisible();
     await expect(
       page.getByText(
         'SummitFX uses your mobile number to set up and activate your EUR account.'
       )
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /Continue with SummitFX/i })
+    ).toBeVisible();
+
+    // Item 18b: re-clicking the already-active "Bank Details" tab resets
+    // back to the account-type selection phase too.
+    await page.getByRole('button', { name: 'Bank Details' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Where should the refund be paid?' })
     ).toBeVisible();
   });
 

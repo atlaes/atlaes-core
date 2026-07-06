@@ -3,7 +3,10 @@
 import React, { ReactNode } from 'react';
 import { ArrowLeft, Check } from 'lucide-react';
 import { CompanyPensionLogo } from '@/components/vbl/icons/CompanyPensionLogo';
-import { SubmitDetailsSubStep, SUBMIT_DETAILS_SUBSTEPS } from '@/contexts/OnboardingContext';
+import {
+  SubmitDetailsSubStep,
+  SUBMIT_DETAILS_SUBSTEPS,
+} from '@/contexts/OnboardingContext';
 
 interface GetStartedLayoutProps {
   children: ReactNode;
@@ -11,6 +14,10 @@ interface GetStartedLayoutProps {
   onBack?: () => void;
   activeStep?: 1 | 2 | 3 | 4;
   currentSubStep?: SubmitDetailsSubStep;
+  // Item 18b: lets the top sub-step tab bar notify the flow when a tab is
+  // clicked, so re-clicking the already-active "Bank Details" tab can reset
+  // BankDetails' internal phase back to the account-type selection screen.
+  onSubStepClick?: (subStep: SubmitDetailsSubStep) => void;
 }
 
 const MAIN_STEPS = [
@@ -21,41 +28,76 @@ const MAIN_STEPS = [
 ] as const;
 
 // Icon components for sub-steps (copied from OnboardingLayout)
-const SubStepIcon: React.FC<{ icon: string; isActive: boolean; isCompleted: boolean }> = ({
-  icon,
-  isActive,
-  isCompleted,
-}) => {
+const SubStepIcon: React.FC<{
+  icon: string;
+  isActive: boolean;
+  isCompleted: boolean;
+}> = ({ icon, isActive, isCompleted }) => {
   const iconColor = isActive ? '#163300' : isCompleted ? '#163300' : '#9CA3AF';
   const bgColor = isActive ? '#9FE870' : isCompleted ? '#9FE870' : '#E5E7EB';
 
   const iconMap: Record<string, ReactNode> = {
     user: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={iconColor}
+        strokeWidth="2"
+      >
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
         <circle cx="12" cy="7" r="4" />
       </svg>
     ),
     card: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={iconColor}
+        strokeWidth="2"
+      >
         <rect x="2" y="5" width="20" height="14" rx="2" />
         <line x1="2" y1="10" x2="22" y2="10" />
       </svg>
     ),
     location: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={iconColor}
+        strokeWidth="2"
+      >
         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
         <circle cx="12" cy="10" r="3" />
       </svg>
     ),
     bank: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={iconColor}
+        strokeWidth="2"
+      >
         <rect x="1" y="4" width="22" height="16" rx="2" />
         <line x1="1" y1="10" x2="23" y2="10" />
       </svg>
     ),
     pen: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={iconColor}
+        strokeWidth="2"
+      >
         <path d="M12 19l7-7 3 3-7 7-3-3z" />
         <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
         <path d="M2 2l7.586 7.586" />
@@ -63,7 +105,14 @@ const SubStepIcon: React.FC<{ icon: string; isActive: boolean; isCompleted: bool
       </svg>
     ),
     document: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={iconColor}
+        strokeWidth="2"
+      >
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14,2 14,8 20,8" />
         <line x1="16" y1="13" x2="8" y2="13" />
@@ -88,18 +137,24 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
   onBack,
   activeStep = 1,
   currentSubStep,
+  onSubStepClick,
 }) => {
   const isStepCompleted = (stepId: number) => stepId < activeStep;
   const isStepActive = (stepId: number) => stepId === activeStep;
 
   const isSubStepCompleted = (subStepId: SubmitDetailsSubStep) => {
     if (!currentSubStep) return false;
-    const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === currentSubStep);
-    const stepIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === subStepId);
+    const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex(
+      (s) => s.id === currentSubStep
+    );
+    const stepIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex(
+      (s) => s.id === subStepId
+    );
     return stepIndex < currentIndex;
   };
 
-  const isSubStepActive = (subStepId: SubmitDetailsSubStep) => subStepId === currentSubStep;
+  const isSubStepActive = (subStepId: SubmitDetailsSubStep) =>
+    subStepId === currentSubStep;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F5F5F5] px-4 py-10">
@@ -128,8 +183,8 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
                         isStepCompleted(step.id)
                           ? 'bg-[#9FE870] text-[#163300]'
                           : isStepActive(step.id)
-                          ? 'bg-[#9FE870] text-[#163300]'
-                          : 'border-2 border-white/70 text-white'
+                            ? 'bg-[#9FE870] text-[#163300]'
+                            : 'border-2 border-white/70 text-white'
                       }`}
                     >
                       {isStepCompleted(step.id) ? (
@@ -202,7 +257,10 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
 
           {/* Sub-step Tabs for Complete Details / Sign and Submit */}
           {activeStep >= 3 && currentSubStep && (
-            <div className="flex items-stretch mb-8 rounded-[5px] overflow-hidden" style={{ border: '0.84px solid #E5E7EB' }}>
+            <div
+              className="flex items-stretch mb-8 rounded-[5px] overflow-hidden"
+              style={{ border: '0.84px solid #E5E7EB' }}
+            >
               {SUBMIT_DETAILS_SUBSTEPS.map((subStep, index) => {
                 const isActive = isSubStepActive(subStep.id);
                 const isCompleted = isSubStepCompleted(subStep.id);
@@ -210,7 +268,9 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
                 return (
                   <React.Fragment key={subStep.id}>
                     {index > 0 && <div className="w-px bg-gray-200" />}
-                    <div
+                    <button
+                      type="button"
+                      onClick={() => onSubStepClick?.(subStep.id)}
                       className={`flex items-center gap-2 px-2 sm:px-4 py-2 sm:py-3 flex-1 justify-center transition-colors ${
                         isActive ? 'bg-gray-50' : ''
                       }`}
@@ -225,13 +285,13 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
                           isActive
                             ? 'text-[#163300]'
                             : isCompleted
-                            ? 'text-[#163300]'
-                            : 'text-gray-400'
+                              ? 'text-[#163300]'
+                              : 'text-gray-400'
                         }`}
                       >
                         {subStep.label}
                       </span>
-                    </div>
+                    </button>
                   </React.Fragment>
                 );
               })}

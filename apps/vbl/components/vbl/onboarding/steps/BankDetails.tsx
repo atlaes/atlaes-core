@@ -1,17 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import {
-  ArrowLeft,
-  ArrowRight,
-  CreditCard,
-  Info,
-  User,
-} from 'lucide-react';
-import {
-  BankAccountOption,
-  useOnboarding,
-} from '@/contexts/OnboardingContext';
+import React, { useCallback, useEffect, useState } from 'react';
+import Image from 'next/image';
+import { ArrowRight, CreditCard, Info, User } from 'lucide-react';
+import { BankAccountOption, useOnboarding } from '@/contexts/OnboardingContext';
 
 // Client #14: lightweight IBAN format validator. Accepts input with spaces
 // (they are stripped), checks country + check digits + length in the ISO
@@ -25,6 +17,17 @@ const isValidIbanFormat = (raw: string): boolean => {
 
 interface BankDetailsProps {
   onNext: () => void;
+  // Item 18a: lets this step intercept the global Back button while it's on
+  // one of its internal branches (own/trusted/SummitFX), so Back returns to
+  // the account-type selection phase instead of leaving the bank-details
+  // sub-step. Pass null to release control back to the flow's default
+  // substep-level Back behavior. Same mechanism as Identity.tsx's
+  // setBackOverride.
+  setBackOverride?: (handler: (() => void) | null) => void;
+  // Item 18b: lets the top "Bank Details" tab reset this step's internal
+  // phase back to the account-type selection screen when the user re-clicks
+  // the already-active tab.
+  setPhaseReset?: (handler: (() => void) | null) => void;
 }
 
 type BankDetailsPhase =
@@ -61,7 +64,11 @@ const DESTINATION_OPTIONS: {
   },
 ];
 
-export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
+export const BankDetails: React.FC<BankDetailsProps> = ({
+  onNext,
+  setBackOverride,
+  setPhaseReset,
+}) => {
   const { data, updateBankDetails } = useOnboarding();
   const [phase, setPhase] = useState<BankDetailsPhase>('destination');
 
@@ -138,9 +145,9 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
     }
   };
 
-  const handleBackToDestination = () => {
+  const handleBackToDestination = useCallback(() => {
     setPhase('destination');
-  };
+  }, []);
 
   const renderIbanError = () =>
     ibanShowsError ? (
@@ -149,30 +156,56 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
       </p>
     ) : null;
 
-  const renderBranchBack = () => (
-    <button
-      type="button"
-      onClick={handleBackToDestination}
-      className="mx-auto mt-3 flex items-center justify-center gap-2 px-6 py-3 font-medium text-gray-600 transition-colors hover:text-gray-900"
-    >
-      <ArrowLeft className="h-4 w-4" />
-      Back
-    </button>
-  );
+  // Item 18a: register/release the global Back override while on one of the
+  // internal branches. Only the destination (account-type selection) phase
+  // relies on the flow's default Back behavior (leaving the bank-details
+  // sub-step); every other phase should return to destination instead.
+  useEffect(() => {
+    if (!setBackOverride) return;
+    if (phase !== 'destination') {
+      setBackOverride(handleBackToDestination);
+    } else {
+      setBackOverride(null);
+    }
+    return () => setBackOverride(null);
+  }, [phase, setBackOverride, handleBackToDestination]);
+
+  // Item 18b: register/release the "Bank Details" tab re-click reset handler
+  // the same way, so clicking the tab while already on this sub-step resets
+  // back to the account-type selection phase (but only from within a branch
+  // — there is nothing to reset when already on destination).
+  useEffect(() => {
+    if (!setPhaseReset) return;
+    if (phase !== 'destination') {
+      setPhaseReset(handleBackToDestination);
+    } else {
+      setPhaseReset(null);
+    }
+    return () => setPhaseReset(null);
+  }, [phase, setPhaseReset, handleBackToDestination]);
 
   if (phase === 'phone_entry') {
     return (
       <div className="mx-auto max-w-lg">
         <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">
-          Open your free EUR account
+          Open a EUR account
         </h2>
         <div className="mx-auto mb-4 h-0.5 w-16 bg-gray-200" />
         <p className="mb-8 text-center text-gray-600">
-          To receive your refund directly, you can open a EUR account with our
-          account-opening partner, SummitFX. Your IBAN is usually available
-          within 2-3 business days. You can return here and add it to your
-          claim before submission.
+          Open a EUR account with SummitFX and receive an IBAN for your pension
+          payment. After your account has been approved and your IBAN is
+          available, return to CompanyPension and add it to your claim.
         </p>
+
+        <div className="mb-8 flex justify-center">
+          <Image
+            src="/summitfx-logo.png"
+            alt="SummitFX"
+            width={149}
+            height={26}
+            unoptimized
+          />
+        </div>
 
         <div className="mb-4">
           <label className="mb-1 block text-sm font-medium text-gray-700">
@@ -181,9 +214,7 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
           <input
             type="tel"
             value={data.bankDetails.phoneNumber}
-            onChange={(e) =>
-              updateBankDetails({ phoneNumber: e.target.value })
-            }
+            onChange={(e) => updateBankDetails({ phoneNumber: e.target.value })}
             placeholder="Enter your mobile phone number"
             className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#9FE870]"
           />
@@ -227,10 +258,9 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
               : 'cursor-not-allowed bg-gray-200 text-gray-500'
           }`}
         >
-          Continue
+          Continue with SummitFX
           <ArrowRight className="h-4 w-4" />
         </button>
-        {renderBranchBack()}
       </div>
     );
   }
@@ -260,13 +290,6 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
             placeholder="Full name of the account holder"
             className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#9FE870]"
           />
-          <div className="mt-3 flex items-center gap-3 rounded-lg bg-[#F0FDE4] p-3">
-            <Info className="h-5 w-5 flex-shrink-0 text-[#163300]" />
-            <p className="text-sm text-[#163300]">
-              Enter the account holder name exactly as shown on the bank
-              account.
-            </p>
-          </div>
         </div>
 
         <div className="mb-4">
@@ -279,21 +302,15 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
             onChange={(e) =>
               updateBankDetails({ iban: e.target.value.toUpperCase() })
             }
-            placeholder="Enter the IBAN"
+            placeholder="Enter the IBAN ..."
             className={`w-full rounded-lg border px-4 py-3 outline-none focus:border-transparent focus:ring-2 focus:ring-[#9FE870] ${
               ibanShowsError ? 'border-red-400' : 'border-gray-300'
             }`}
           />
           {renderIbanError()}
-          <div className="mt-3 flex items-center gap-3 rounded-lg bg-[#F0FDE4] p-3">
-            <Info className="h-5 w-5 flex-shrink-0 text-[#163300]" />
-            <p className="text-sm text-[#163300]">
-              Only EUR / SEPA accounts are accepted for this refund.
-            </p>
-          </div>
         </div>
 
-        <label className="mb-6 flex cursor-pointer items-start gap-3">
+        <label className="mb-4 flex cursor-pointer items-start gap-3">
           <input
             type="checkbox"
             checked={data.bankDetails.thirdPartyConfirmed}
@@ -302,17 +319,18 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
             }
             className="mt-1 h-4 w-4 rounded border-gray-300 text-[#9FE870] focus:ring-[#9FE870]"
           />
-          <div>
-            <p className="text-sm text-gray-700">
-              I confirm that I have permission to use this bank account and
-              that I trust the account holder.
-            </p>
-            <p className="mt-1 text-sm italic text-gray-500">
-              The refund will be paid directly by the pension provider to this
-              account and cannot be changed once issued.
-            </p>
-          </div>
+          <p className="text-sm text-gray-700">
+            I confirm that I have permission to use this bank account and that I
+            trust the account holder.
+          </p>
         </label>
+
+        <div className="mb-6 flex items-center gap-3 rounded-lg bg-[#F0FDE4] p-3">
+          <Info className="h-5 w-5 flex-shrink-0 text-[#163300]" />
+          <p className="text-sm text-[#163300]">
+            The payment cannot be changed once issued.
+          </p>
+        </div>
 
         <button
           onClick={onNext}
@@ -326,7 +344,6 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
           Continue
           <ArrowRight className="h-4 w-4" />
         </button>
-        {renderBranchBack()}
       </div>
     );
   }
@@ -393,7 +410,6 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
           Continue
           <ArrowRight className="h-4 w-4" />
         </button>
-        {renderBranchBack()}
       </div>
     );
   }
@@ -427,7 +443,9 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
             >
               <div
                 className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg ${
-                  isSelected ? 'bg-[#9FE870] text-[#163300]' : 'bg-gray-100 text-gray-500'
+                  isSelected
+                    ? 'bg-[#9FE870] text-[#163300]'
+                    : 'bg-gray-100 text-gray-500'
                 }`}
               >
                 {option.icon}
@@ -442,6 +460,17 @@ export const BankDetails: React.FC<BankDetailsProps> = ({ onNext }) => {
           );
         })}
       </div>
+
+      {data.bankDetails.accountOption === 'trusted_third_party' && (
+        <div className="mb-8 flex items-center gap-3 rounded-lg bg-[#F0FDE4] p-3">
+          <Info className="h-5 w-5 flex-shrink-0 text-[#163300]" />
+          <p className="text-sm text-[#163300]">
+            Please make sure you fully trust the account holder. The refund will
+            be paid directly by the pension provider to this account and the
+            payment cannot be changed once issued.
+          </p>
+        </div>
+      )}
 
       <button
         onClick={handleContinueFromDestination}

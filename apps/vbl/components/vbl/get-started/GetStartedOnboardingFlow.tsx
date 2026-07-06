@@ -173,19 +173,37 @@ export function GetStartedOnboardingFlow() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showDRVModal, setShowDRVModal] = useState(false);
 
-  // Item 13: lets the active sub-step intercept the global Back button for
-  // an internal phase transition (e.g. Identity's confirm phase returning to
-  // its own upload phase) instead of leaving the sub-step entirely. A
-  // sub-step registers a handler while it wants to own Back, and clears it
-  // when it no longer does (see Identity.tsx). Mirrors, at the flow level,
-  // the same "phase-local back" idea BankDetails.tsx uses with its own
-  // in-component renderBranchBack — the difference is Identity's override
-  // must intercept the *global* Back button rather than add a second one,
-  // since its upload phase is what the global Back should already land on.
+  // Item 13/18a: lets the active sub-step intercept the global Back button
+  // for an internal phase transition (e.g. Identity's confirm phase
+  // returning to its own upload phase, or BankDetails' own/trusted/SummitFX
+  // branches returning to the account-type selection phase) instead of
+  // leaving the sub-step entirely. A sub-step registers a handler while it
+  // wants to own Back, and clears it when it no longer does (see
+  // Identity.tsx and BankDetails.tsx). Only one sub-step is ever mounted at
+  // a time, so there's no risk of two overrides being active together.
   const backOverrideRef = useRef<(() => void) | null>(null);
   const setBackOverride = useCallback((handler: (() => void) | null) => {
     backOverrideRef.current = handler;
   }, []);
+
+  // Item 18b: BankDetails registers a reset handler while it's showing one of
+  // its internal branches (own/trusted/SummitFX), so re-clicking the already-
+  // active "Bank Details" tab can return it to the account-type selection
+  // phase. Mirrors the backOverrideRef pattern above.
+  const bankDetailsResetRef = useRef<(() => void) | null>(null);
+  const setBankDetailsReset = useCallback((handler: (() => void) | null) => {
+    bankDetailsResetRef.current = handler;
+  }, []);
+
+  const handleSubStepTabClick = (subStep: SubmitDetailsSubStep) => {
+    if (
+      subStep === 'bank-details' &&
+      currentSubStep === 'bank-details' &&
+      bankDetailsResetRef.current
+    ) {
+      bankDetailsResetRef.current();
+    }
+  };
 
   const drvEligibilityDate = '15 Mar 2027';
   const isDRVEligibleNow = false;
@@ -418,7 +436,13 @@ export function GetStartedOnboardingFlow() {
       case 'address':
         return <Address onNext={saveAndAdvance} />;
       case 'bank-details':
-        return <BankDetails onNext={saveAndAdvance} />;
+        return (
+          <BankDetails
+            onNext={saveAndAdvance}
+            setBackOverride={setBackOverride}
+            setPhaseReset={setBankDetailsReset}
+          />
+        );
       case 'signature':
         return <Signature onNext={saveAndAdvance} />;
       case 'review':
@@ -442,6 +466,7 @@ export function GetStartedOnboardingFlow() {
       onBack={handleBack}
       activeStep={activeStep}
       currentSubStep={currentStep === 3 ? currentSubStep : undefined}
+      onSubStepClick={handleSubStepTabClick}
     >
       {renderStepContent()}
     </GetStartedLayout>
