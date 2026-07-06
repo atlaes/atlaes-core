@@ -1,0 +1,262 @@
+- generic [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - button "Number of jobs Count each employment period in Germany" [ref=e56] [cursor=pointer]:
+          - img [ref=e57]
+          - generic [ref=e13]:
+            - generic [ref=e14]: Number of jobs
+            - generic [ref=e15]: Count each employment period in Germany
+        - button "2 Job details(1/1) Enter employment dates, salary, and sector for each job." [ref=e59] [cursor=pointer]:
+          - generic [ref=e17]: "2"
+          - generic [ref=e18]:
+            - generic [ref=e19]: Job details(1/1)
+            - generic [ref=e20]: Enter employment dates, salary, and sector for each job.
+        - button "3 Refund estimate See your estimated refund" [disabled] [ref=e21]:
+          - generic [ref=e22]: "3"
+          - generic [ref=e23]:
+            - generic [ref=e24]: Refund estimate
+            - generic [ref=e25]: See your estimated refund
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - paragraph [ref=e29]: Need help?
+          - paragraph [ref=e30]: Our assistant is here for you.
+        - img "Chat" [ref=e32]
+    - generic [ref=e62]:
+      - generic [ref=e63]:
+        - heading "Job 1 of 1" [level=1] [ref=e64]
+        - paragraph [ref=e65]: Enter the employment period and details for this job.
+      - generic [ref=e67]:
+        - generic [ref=e68]:
+          - paragraph [ref=e69]: Start of employment
+          - generic [ref=e70]:
+            - generic [ref=e71]:
+              - generic [ref=e72]: Start Month
+              - generic [ref=e73]:
+                - combobox [ref=e74] [cursor=pointer]:
+                  - option "Select Start Month"
+                  - option "January" [selected]
+                  - option "February"
+                  - option "March"
+                  - option "April"
+                  - option "May"
+                  - option "June"
+                  - option "July"
+                  - option "August"
+                  - option "September"
+                  - option "October"
+                  - option "November"
+                  - option "December"
+                - img
+            - generic [ref=e75]:
+              - generic [ref=e76]: Start Year
+              - generic [ref=e77]:
+                - combobox [ref=e78] [cursor=pointer]:
+                  - option "Select Start Year"
+                  - option "2026"
+                  - option "2025"
+                  - option "2024"
+                  - option "2023"
+                  - option "2022"
+                  - option "2021"
+                  - option "2020" [selected]
+                  - option "2019"
+                  - option "2018"
+                  - option "2017"
+                  - option "2016"
+                  - option "2015"
+                  - option "2014"
+                  - option "2013"
+                  - option "2012"
+                  - option "2011"
+                  - option "2010"
+                  - option "2009"
+                  - option "2008"
+                  - option "2007"
+                  - option "2006"
+                  - option "2005"
+                  - option "2004"
+                  - option "2003"
+                  - option "2002"
+                  - option "2001"
+                  - option "2000"
+                  - option "1999"
+                  - option "1998"
+                  - option "1997"
+                  - option "1996"
+                  - option "1995"
+                  - option "1994"
+                  - option "1993"
+                  - option "1992"
+                  - option "1991"
+                  - option "1990"
+                  - option "1989"
+                  - option "1988"
+                  - option "1987"
+                  - option "1986"
+                  - option "1985"
+                  - option "1984"
+                  - option "1983"
+                  - option "1982"
+                  - option "1981"
+                  - option "1980"
+                  - option "1979"
+                  - option "1978"
+                  - option "1977"
+                  - option "1976"
+                  - option "1975"
+                  - option "1974"
+                  - option "1973"
+                  - option "1972"
+                  - option "1971"
+                  - option "1970"
+                  - option "1969"
+                  - option "1968"
+                  - option "1967"
+                  - option "1966"
+                  - option "1965"
+                  - option "1964"
+                  - option "1963"
+                  - option "1962"
+                  - option "1961"
+                  - option "1960"
+                - img
+        - generic [ref=e79]:
+          - paragraph [ref=e80]: End of employment
+          - generic [ref=e81]:
+            - generic [ref=e82]:
+              - generic [ref=e83]: End Month
+              - generic [ref=e84]:
+                - combobox [ref=e85] [cursor=pointer]:
+                  - option "Select End Month"
+                  - option "January"
+                  - option "February"
+                  - option "March"
+                  - option "April"
+                  - option "May"
+                  - option "June"
+                  - option "July"
+                  - option "August"
+                  - option "September"
+                  - option "October"
+                  - option "November"
+                  - option "December" [selected]
+                - img
+            - generic [ref=e86]:
+              - generic [ref=e87]: End Year
+              - generic [ref=e88]:
+                - combobox [ref=e89] [cursor=pointer]:
+                  - option "Select End Year"
+                  - option "2026"
+                  - option "2025"
+                  - option "2024"
+                  - option "2023"
+                  - option "2022" [selected]
+                  - option "2021"
+                  - option "2020"
+                  - option "2019"
+                  - option "2018"
+                  - option "2017"
+                  - option "2016"
+                  - option "2015"
+                  - option "2014"
+                  - option "2013"
+                  - option "2012"
+                  - option "2011"
+                  - option "2010"
+                  - option "2009"
+                  - option "2008"
+                  - option "2007"
+                  - option "2006"
+                  - option "2005"
+                  - option "2004"
+                  - option "2003"
+                  - option "2002"
+                  - option "2001"
+                  - option "2000"
+                  - option "1999"
+                  - option "1998"
+                  - option "1997"
+                  - option "1996"
+                  - option "1995"
+                  - option "1994"
+                  - option "1993"
+                  - option "1992"
+                  - option "1991"
+                  - option "1990"
+                  - option "1989"
+                  - option "1988"
+                  - option "1987"
+                  - option "1986"
+                  - option "1985"
+                  - option "1984"
+                  - option "1983"
+                  - option "1982"
+                  - option "1981"
+                  - option "1980"
+                  - option "1979"
+                  - option "1978"
+                  - option "1977"
+                  - option "1976"
+                  - option "1975"
+                  - option "1974"
+                  - option "1973"
+                  - option "1972"
+                  - option "1971"
+                  - option "1970"
+                  - option "1969"
+                  - option "1968"
+                  - option "1967"
+                  - option "1966"
+                  - option "1965"
+                  - option "1964"
+                  - option "1963"
+                  - option "1962"
+                  - option "1961"
+                  - option "1960"
+                - img
+        - generic [ref=e90]:
+          - generic [ref=e91]: Average gross monthly salary during this job (€)
+          - textbox "E.g., 3500" [active] [ref=e92]: "4000"
+        - generic [ref=e93]:
+          - generic [ref=e94]: Type of employer
+          - generic [ref=e95]:
+            - combobox [ref=e96] [cursor=pointer]:
+              - option "Company pension sector"
+              - option "Public Sector" [selected]
+              - option "Private sector"
+              - option "Stage/Performing Arts"
+              - option "Orchestra"
+            - img
+        - generic [ref=e105]:
+          - generic [ref=e106]: German federal state (where your employer was based)
+          - generic [ref=e107]:
+            - combobox [ref=e108] [cursor=pointer]:
+              - option "Select Federal State" [selected]
+              - option "Baden-Württemberg"
+              - option "Bavaria"
+              - option "Berlin (West)"
+              - option "Berlin (East)"
+              - option "Brandenburg"
+              - option "Bremen"
+              - option "Hamburg"
+              - option "Hesse"
+              - option "Lower Saxony"
+              - option "Mecklenburg-Vorpommern"
+              - option "North Rhine-Westphalia"
+              - option "Rhineland-Palatinate"
+              - option "Saarland"
+              - option "Saxony"
+              - option "Saxony-Anhalt"
+              - option "Schleswig-Holstein"
+              - option "Thuringia"
+            - img
+      - generic [ref=e97]:
+        - button "Back" [ref=e99] [cursor=pointer]:
+          - img [ref=e100]
+          - text: Back
+        - button "Next" [disabled] [ref=e102]:
+          - text: Next
+          - img [ref=e103]
+  - alert [ref=e55]

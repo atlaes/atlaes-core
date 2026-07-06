@@ -1,0 +1,38 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]: "1"
+          - generic [ref=e13]: Eligibility
+        - generic [ref=e18]:
+          - generic [ref=e19]: "2"
+          - generic [ref=e20]: Create Account
+        - generic [ref=e23]:
+          - generic [ref=e24]: "3"
+          - generic [ref=e25]: Start Claim
+        - generic [ref=e28]:
+          - generic [ref=e29]: "4"
+          - generic [ref=e30]: Submit Details
+    - generic [ref=e31]:
+      - button "Back" [ref=e69] [cursor=pointer]:
+        - img [ref=e70]
+        - text: Back
+      - generic [ref=e72]:
+        - heading "Which company pension did you contribute to?" [level=2] [ref=e73]
+        - paragraph [ref=e75]: Select the pension provider that managed your company pension scheme.
+        - paragraph [ref=e76]: Pension provider
+        - generic [ref=e77]:
+          - combobox [ref=e78] [cursor=pointer]:
+            - option "Select pension provider" [selected]
+            - option "Allianz"
+            - option "Axa"
+            - option "BVV"
+            - option "Swiss Life"
+            - option "Other (enter manually)"
+          - img
+        - button "Continue" [disabled] [ref=e79]:
+          - text: Continue
+          - img [ref=e80]
+  - alert [ref=e61]

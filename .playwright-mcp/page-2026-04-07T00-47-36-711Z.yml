@@ -1,0 +1,39 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e41]:
+    - generic [ref=e42]:
+      - img "Company Pension" [ref=e44]
+      - generic [ref=e46]:
+        - generic [ref=e48]:
+          - generic [ref=e49]: "1"
+          - generic [ref=e50]: Create account
+        - generic [ref=e55]:
+          - generic [ref=e56]: "2"
+          - generic [ref=e57]: Start claim
+        - generic [ref=e60]:
+          - generic [ref=e61]: "3"
+          - generic [ref=e62]: Submit Details
+    - generic [ref=e63]:
+      - button "Back" [ref=e64] [cursor=pointer]:
+        - img [ref=e65]
+        - text: Back
+      - generic [ref=e67]:
+        - heading "Create your account" [level=2] [ref=e68]
+        - paragraph [ref=e70]: Create your secure account to start your claim. We'll guide you through every step and help you prepare the required submission.
+        - generic [ref=e71]:
+          - generic [ref=e72]:
+            - generic [ref=e73]: Email address
+            - textbox "Email address" [ref=e74]:
+              - /placeholder: your.email@example.com
+          - button "Continue with email" [disabled] [ref=e75]:
+            - text: Continue with email
+            - img [ref=e76]
+          - paragraph [ref=e78]: No password needed — we'll send you a secure log in link
+        - generic [ref=e81]: or
+        - generic [ref=e83]:
+          - button "Continue with Google" [ref=e84] [cursor=pointer]:
+            - img [ref=e85]
+            - generic [ref=e90]: Continue with Google
+          - button "Continue with Apple" [ref=e91] [cursor=pointer]:
+            - img [ref=e92]
+            - generic [ref=e94]: Continue with Apple
+  - alert [ref=e39]

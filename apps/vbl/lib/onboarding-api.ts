@@ -16,12 +16,20 @@ export interface VerifyMagicLinkResponse {
   isNewUser: boolean;
 }
 
-export async function requestMagicLink(email: string, redirectUrl?: string): Promise<MagicLinkResponse> {
-  const { data } = await apiClient.post('/auth/magic-link/request', { email, redirectUrl });
+export async function requestMagicLink(
+  email: string,
+  redirectUrl?: string
+): Promise<MagicLinkResponse> {
+  const { data } = await apiClient.post('/auth/magic-link/request', {
+    email,
+    redirectUrl,
+  });
   return data;
 }
 
-export async function verifyMagicLink(token: string): Promise<VerifyMagicLinkResponse> {
+export async function verifyMagicLink(
+  token: string
+): Promise<VerifyMagicLinkResponse> {
   const { data } = await apiClient.post('/auth/magic-link/verify', { token });
   return data;
 }
@@ -72,6 +80,43 @@ export async function uploadDocument(
 }
 
 // ============================================================
+// Health Insurance Document Extraction (Task 15)
+// ============================================================
+
+export interface HealthInsuranceExtractionResponse {
+  success: boolean;
+  extraction: {
+    details: {
+      type: 'statutory' | 'private' | null;
+      providerName: string | null;
+      providerAddress: string | null;
+      insuredSinceMonth: string | null;
+      insuredSinceYear: string | null;
+      placeOfBirth: string | null;
+      countryOfBirth: string | null;
+      insuranceNumber: string | null;
+    };
+    confidence: Record<string, number>;
+    missingFields: string[];
+    model: string;
+  };
+}
+
+export async function extractHealthInsuranceDocument(
+  file: File
+): Promise<HealthInsuranceExtractionResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const { data } = await apiClient.post(
+    '/vbl/extract-health-insurance-document',
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  );
+  return data;
+}
+
+// ============================================================
 // Signatures
 // ============================================================
 
@@ -87,7 +132,9 @@ export interface SignatureUploadResponse {
 export async function uploadSignature(
   signatureData: string
 ): Promise<SignatureUploadResponse> {
-  const { data } = await apiClient.post('/signatures/upload', { signatureData });
+  const { data } = await apiClient.post('/signatures/upload', {
+    signatureData,
+  });
   return data;
 }
 
@@ -129,6 +176,15 @@ export interface Claim {
   germanPostalCode?: string;
   germanCity?: string;
   moveOutDate?: string;
+  // Health Insurance (Task 15, bAV/private pension type only)
+  healthInsuranceType?: string;
+  healthInsuranceProviderName?: string;
+  healthInsuranceProviderAddress?: string;
+  healthInsuranceInsuredSinceMonth?: string;
+  healthInsuranceInsuredSinceYear?: string;
+  healthInsurancePlaceOfBirth?: string;
+  healthInsuranceCountryOfBirth?: string;
+  healthInsuranceNumber?: string;
   // Bank
   iban?: string;
   accountHolderName?: string;
@@ -254,10 +310,20 @@ export async function getClaimDocuments(
 export async function getClaimWorkflowHistory(
   claimId: string
 ): Promise<{ success: boolean; history: WorkflowHistoryEntry[] }> {
-  const { data } = await apiClient.get(
-    `/claims/${claimId}/workflow/history`
-  );
+  const { data } = await apiClient.get(`/claims/${claimId}/workflow/history`);
   return data;
+}
+
+export async function generateClaimPdf(
+  claimId: string
+): Promise<{ pdfS3Key: string; downloadUrl: string }> {
+  const { data } = await apiClient.post(`/claims/${claimId}/generate-pdf`);
+  return data.data;
+}
+
+export async function getClaimPdfUrl(claimId: string): Promise<string> {
+  const { data } = await apiClient.get(`/claims/${claimId}/pdf`);
+  return data.data.downloadUrl;
 }
 
 // ============================================================

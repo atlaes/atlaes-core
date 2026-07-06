@@ -1,12 +1,15 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import {
   getClaim,
   getClaimDocuments,
   getClaimWorkflowHistory,
+  getClaimPdfUrl,
+  generateClaimPdf,
   Claim,
   ClaimDocument,
   WorkflowHistoryEntry,
@@ -21,7 +24,10 @@ import {
   LogOut,
   FileText,
   Clock,
+  Download,
 } from 'lucide-react';
+
+const PDF_DOWNLOADABLE_STATUSES = ['submitted', 'processing', 'completed'];
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -130,6 +136,8 @@ export default function ClaimDetailPage() {
   const [history, setHistory] = useState<WorkflowHistoryEntry[]>([]);
   const [error, setError] = useState('');
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState('');
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -153,6 +161,31 @@ export default function ClaimDetailPage() {
       .catch(() => setError('Failed to load claim details'))
       .finally(() => setIsLoadingData(false));
   }, [user, claimId]);
+
+  const handleDownloadPdf = async () => {
+    setPdfError('');
+    setIsDownloadingPdf(true);
+    try {
+      let downloadUrl: string;
+      try {
+        downloadUrl = await getClaimPdfUrl(claimId);
+      } catch (err) {
+        if (axios.isAxiosError(err) && err.response?.status === 404) {
+          // PDF not generated yet (e.g. legacy claim submitted before this
+          // feature existed) — generate it now and use the returned URL.
+          const generated = await generateClaimPdf(claimId);
+          downloadUrl = generated.downloadUrl;
+        } else {
+          throw err;
+        }
+      }
+      window.open(downloadUrl, '_blank');
+    } catch {
+      setPdfError('Failed to download claim PDF. Please try again.');
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -286,8 +319,26 @@ export default function ClaimDetailPage() {
                   <ArrowRight className="w-4 h-4" />
                 </button>
               )}
+              {PDF_DOWNLOADABLE_STATUSES.includes(claim.status) && (
+                <button
+                  onClick={handleDownloadPdf}
+                  disabled={isDownloadingPdf}
+                  className="flex items-center gap-1 py-2 px-4 bg-[#9FE870] text-[#163300] font-semibold rounded-lg hover:bg-[#8AD860] transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isDownloadingPdf ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  Download claim PDF
+                </button>
+              )}
             </div>
           </div>
+
+          {pdfError && (
+            <p className="text-sm text-red-600 mb-6">{pdfError}</p>
+          )}
 
           {/* Progress checklist */}
           {showProgress && (

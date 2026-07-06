@@ -29,29 +29,44 @@ export const EmploymentEndDate: React.FC = () => {
   const { data, goNext } = useEligibility();
   const [month, setMonth] = useState(data.employmentEndMonth || '');
   const [year, setYear] = useState(data.employmentEndYear || '');
+  const heading =
+    data.employmentType === 'public_sector'
+      ? 'When did this employment end?'
+      : 'When did your employment end?';
+  const selectedMonthIndex = MONTHS.indexOf(month);
+  const selectedYear = Number(year);
+  const now = new Date();
+  const isFutureDate =
+    selectedMonthIndex >= 0 &&
+    Number.isFinite(selectedYear) &&
+    (selectedYear > now.getFullYear() ||
+      (selectedYear === now.getFullYear() &&
+        selectedMonthIndex > now.getMonth()));
 
   const handleContinue = () => {
-    if (!month || !year) return;
+    if (!month || !year || isFutureDate) return;
     goNext({ employmentEndMonth: month, employmentEndYear: year });
   };
 
   return (
-    <div className="max-w-lg mx-auto">
-      <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-        When did your employment end?
-      </h2>
-      <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-6" />
+    <div className="mx-auto max-w-[640px]">
+      <div className="mb-9 text-center">
+        <h2 className="text-[26px] font-bold leading-tight text-[#111827]">
+          {heading}
+        </h2>
+        <div className="mx-auto mt-3 h-px w-full max-w-[560px] bg-[#D9DEE7]" />
+      </div>
 
-      <p className="text-sm font-medium text-gray-700 mb-2">
+      <p className="mb-2 text-[15px] font-semibold text-[#4A4F58]">
         Employment end date
       </p>
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      <div className="grid grid-cols-2 gap-4">
         <div className="relative">
           <select
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg appearance-none cursor-pointer focus:outline-none focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/20 transition-all text-gray-700"
+            className="h-12 w-full cursor-pointer appearance-none rounded-[8px] border border-[#D3DAE8] bg-white px-4 pr-10 text-[16px] text-[#1F2937] shadow-sm transition-all focus:border-[#9FE870] focus:outline-none focus:ring-2 focus:ring-[#9FE870]/20"
           >
             <option value="">Month</option>
             {MONTHS.map((m) => (
@@ -67,7 +82,7 @@ export const EmploymentEndDate: React.FC = () => {
           <select
             value={year}
             onChange={(e) => setYear(e.target.value)}
-            className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg appearance-none cursor-pointer focus:outline-none focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/20 transition-all text-gray-700"
+            className="h-12 w-full cursor-pointer appearance-none rounded-[8px] border border-[#D3DAE8] bg-white px-4 pr-10 text-[16px] text-[#1F2937] shadow-sm transition-all focus:border-[#9FE870] focus:outline-none focus:ring-2 focus:ring-[#9FE870]/20"
           >
             <option value="">Year</option>
             {YEARS.map((y) => (
@@ -80,13 +95,19 @@ export const EmploymentEndDate: React.FC = () => {
         </div>
       </div>
 
+      {isFutureDate && (
+        <p className="mt-3 text-sm font-medium text-red-700" aria-live="polite">
+          Employment end date cannot be in the future.
+        </p>
+      )}
+
       <button
         onClick={handleContinue}
-        disabled={!month || !year}
-        className="w-full py-3 px-6 bg-[#9FE870] text-[#163300] font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-[#8AD860] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={!month || !year || isFutureDate}
+        className="mx-auto mt-16 flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-[6px] bg-[#9FE870] px-6 text-[16px] font-bold text-[#163300] shadow-sm transition hover:bg-[#8AD860] disabled:cursor-not-allowed disabled:opacity-45"
       >
         Continue
-        <ArrowRight className="w-4 h-4" />
+        <ArrowRight className="h-5 w-5" />
       </button>
     </div>
   );

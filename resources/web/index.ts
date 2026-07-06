@@ -20,6 +20,7 @@ export const atlaesWebsite = new sst.aws.StaticSite('AtlaesWebsite', {
   path: 'apps/vbl',
   environment: {
     NEXT_PUBLIC_API_URL: $app.stage === 'production' ? 'https://api.atlaes.de' : 'https://staging.api.atlaes.de',
+    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
     STRIPE_SECRET_KEY: $app.stage === 'production' ? 'to be in secrete' : 'sk_test_51SRpwnD86goZexmM9XSBC97ERit2aUg4XOg0TGNvag9Zhzugx7NyChKTU0AubwFyrvIHtveGkd6AnjyytKpVlQWB00s9zr78UR',
     STRIPE_PUBLISHABLE_KEY: $app.stage === 'production' ? 'to be in secrete' : 'pk_test_51SRpwnD86goZexmM9tsfY1Zxlbi5W608FPL1syOFOiV2yjFco2tDyg9NwGA264oCvHuga92qWLy7CKeCvB9tjcDe00zZYwuPZQ',
   },
@@ -56,4 +57,3 @@ export const adminApp = new sst.aws.Nextjs('AdminApp', {
       ? 'admin.atlaes.de'
       : 'staging.admin.atlaes.de',
 });
-

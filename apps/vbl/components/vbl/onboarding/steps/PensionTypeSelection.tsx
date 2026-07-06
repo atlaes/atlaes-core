@@ -31,11 +31,14 @@ export const PensionTypeSelection: React.FC<PensionTypeSelectionProps> = ({
   privateProvider = '',
   publicStageProvider = '',
 }) => {
-  const { updateData } = useOnboarding();
+  const { data, updateData } = useOnboarding();
 
   const hasPublic = claimTypes.includes('public');
   const hasStage = claimTypes.includes('stage');
   const hasOrchestra = claimTypes.includes('orchestra');
+  const selectedPensionType = data.pensionType || 'private';
+  const isPublicSelected = selectedPensionType === 'public';
+  const isPrivateSelected = selectedPensionType === 'private';
 
   // Figma VBL-30/31/32: rename the left card per detected sector.
   const publicStageLabel = (() => {
@@ -94,31 +97,39 @@ export const PensionTypeSelection: React.FC<PensionTypeSelectionProps> = ({
               {/* Public Sector Option */}
               <button
                 onClick={handlePublicSector}
-                className="w-full p-4 bg-[#9FE870] rounded-xl flex items-center gap-4 hover:bg-[#8AD860] transition-colors group"
+                className={`w-full p-4 rounded-xl flex items-center gap-4 transition-colors group ${
+                  isPublicSelected
+                    ? 'bg-[#9FE870] hover:bg-[#8AD860]'
+                    : 'bg-white border border-gray-200 hover:border-gray-300'
+                }`}
               >
                 <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
                   <PublicSectorCardIcon className="w-7 h-7" />
                 </div>
                 <div className="flex-1 text-left">
-                  <p className="font-semibold text-[#163300]">{publicStageLabel}</p>
-                  <p className="text-sm text-[#163300]/70">{publicStageSubtitle}</p>
+                  <p className={`font-semibold ${isPublicSelected ? 'text-[#163300]' : 'text-gray-900'}`}>{publicStageLabel}</p>
+                  <p className={`text-sm ${isPublicSelected ? 'text-[#163300]/70' : 'text-gray-500'}`}>{publicStageSubtitle}</p>
                 </div>
-                <ArrowRight className="w-6 h-6 text-[#163300]" />
+                <ArrowRight className={`w-6 h-6 ${isPublicSelected ? 'text-[#163300]' : 'text-gray-400'}`} />
               </button>
 
               {/* Private Sector Option */}
               <button
                 onClick={handlePrivateSector}
-                className="w-full p-4 bg-white border border-gray-200 rounded-xl flex items-center gap-4 hover:border-gray-300 transition-colors group"
+                className={`w-full p-4 rounded-xl flex items-center gap-4 transition-colors group ${
+                  isPrivateSelected
+                    ? 'bg-[#9FE870] hover:bg-[#8AD860]'
+                    : 'bg-white border border-gray-200 hover:border-gray-300'
+                }`}
               >
                 <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
                   <PrivateSectorCardIcon className="w-8 h-8" />
                 </div>
                 <div className="flex-1 text-left">
-                  <p className="font-semibold text-gray-900">Private-sector settlement claim</p>
-                  <p className="text-sm text-gray-500">{privateProvider || 'BVV'}</p>
+                  <p className={`font-semibold ${isPrivateSelected ? 'text-[#163300]' : 'text-gray-900'}`}>Private-sector settlement claim</p>
+                  <p className={`text-sm ${isPrivateSelected ? 'text-[#163300]/70' : 'text-gray-500'}`}>{privateProvider || 'BVV'}</p>
                 </div>
-                <ArrowRight className="w-6 h-6 text-gray-400" />
+                <ArrowRight className={`w-6 h-6 ${isPrivateSelected ? 'text-[#163300]' : 'text-gray-400'}`} />
               </button>
             </div>
 

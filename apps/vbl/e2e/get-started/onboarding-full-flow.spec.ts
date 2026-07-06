@@ -5,9 +5,11 @@ import {
   navigateStageToEligible,
   navigatePrivateSectorToEligible,
   selectEmploymentType,
+  selectPrivateEntryPath,
+  selectPrivateStatePensionRefund,
   selectPrivatePensionProvider,
-  fillPrivateContributionDetails,
-  expectReviewResult,
+  fillPrivateStatementAmount,
+  expectEligibleResult,
   completeCreateAccount,
   completePayment,
   completeIdentityUpload,
@@ -25,6 +27,141 @@ import {
 
 let backendAvailable = false;
 
+async function mockOnboardingApi(page: import('@playwright/test').Page) {
+  const user = {
+    id: 'user_mock',
+    email: TEST_EMAIL,
+    emailVerified: true,
+  };
+  const claim = {
+    id: 'claim_mock',
+    userId: user.id,
+    status: 'draft',
+    workflowState: 'draft',
+    completedSteps: {},
+    paymentStatus: 'paid',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  const json = (body: unknown) => ({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify(body),
+  });
+
+  await page.route('**/api/auth/magic-link/request', (route) =>
+    route.fulfill(
+      json({
+        message: 'Magic link sent',
+        magicLink: 'http://localhost:3000/auth/magic-link?token=mock-token',
+      })
+    )
+  );
+  await page.route('**/api/auth/magic-link/verify', (route) =>
+    route.fulfill(
+      json({
+        message: 'Verified',
+        user,
+        tokens: {
+          accessToken: 'mock-access-token',
+          refreshToken: 'mock-refresh-token',
+        },
+        isNewUser: false,
+      })
+    )
+  );
+  await page.route('**/api/auth/me', (route) => route.fulfill(json({ user })));
+  await page.route('**/api/claims', (route) => {
+    if (route.request().method() === 'POST') {
+      return route.fulfill(json({ success: true, claim }));
+    }
+    return route.fulfill(json({ success: true, claims: [claim] }));
+  });
+  await page.route('**/api/claims/claim_mock', (route) =>
+    route.fulfill(json({ success: true, claim }))
+  );
+  await page.route('**/api/claims/claim_mock/documents', (route) =>
+    route.fulfill(json({ success: true }))
+  );
+  await page.route('**/api/claims/claim_mock/steps/**', (route) =>
+    route.fulfill(json({ success: true, claim }))
+  );
+  await page.route('**/api/claims/claim_mock/signature', (route) =>
+    route.fulfill(json({ success: true, claim }))
+  );
+  await page.route('**/api/claims/claim_mock/submit', (route) =>
+    route.fulfill(
+      json({
+        success: true,
+        message: 'Claim submitted',
+        claim: {
+          ...claim,
+          status: 'submitted',
+          submittedAt: new Date().toISOString(),
+        },
+      })
+    )
+  );
+  await page.route('**/api/payments/create-checkout-session', (route) =>
+    route.fulfill(
+      json({
+        success: true,
+        url: 'http://localhost:3000/get-started?payment=success&session_id=cs_mock',
+        sessionId: 'cs_mock',
+      })
+    )
+  );
+  await page.route('**/api/payments/verify-session', (route) =>
+    route.fulfill(
+      json({
+        success: true,
+        claimId: claim.id,
+        paymentStatus: 'paid',
+      })
+    )
+  );
+  await page.route('**/api/documents/upload', (route) =>
+    route.fulfill(
+      json({
+        success: true,
+        document: {
+          id: 'document_mock',
+          fileName: 'passport.jpg',
+          fileType: 'application/pdf',
+          fileSize: 1000,
+          documentType: 'passport',
+          status: 'processed',
+          createdAt: new Date().toISOString(),
+        },
+        ocr: {
+          firstName: 'Test',
+          lastName: 'User',
+          dateOfBirth: '1990-01-15',
+          gender: 'male',
+          placeOfBirth: 'Sydney',
+          nationality: 'Australian',
+          passportNumber: 'P1234567',
+          passportIssueDate: '',
+          passportExpiryDate: '',
+          issuingCountry: 'AU',
+        },
+      })
+    )
+  );
+  await page.route('**/api/signatures/upload', (route) =>
+    route.fulfill(
+      json({
+        success: true,
+        signature: {
+          id: 'signature_mock',
+          s3Key: 'mock-signature.png',
+          createdAt: new Date().toISOString(),
+        },
+      })
+    )
+  );
+}
+
 test.beforeAll(async ({ request }) => {
   try {
     const response = await request.get('http://localhost:3001/api/health');
@@ -32,6 +169,122 @@ test.beforeAll(async ({ request }) => {
   } catch {
     backendAvailable = false;
   }
+});
+
+test.describe('Onboarding Eligibility resource copy', () => {
+  test('secure claim screen is reachable from public eligibility without backend services', async ({
+    page,
+  }) => {
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
+      .click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Create your secure claim' })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByText(
+        "Create secure access to continue your refund request. We'll guide you step by step through the online process."
+      )
+    ).toBeVisible();
+    await expect(page.getByPlaceholder('Email...')).toBeVisible();
+  });
+
+  test('mocked public onboarding reaches review and submitted states', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await mockOnboardingApi(page);
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    await completeIdentityUpload(page);
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+    await completeSignature(page);
+
+    await expect(
+      page.getByRole('heading', { name: 'Review your refund request' })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByRole('button', { name: 'Pension details' })
+    ).toBeVisible();
+    await submitClaimOnReview(page);
+    await expect(
+      page.getByRole('heading', {
+        name: 'Your refund request has been submitted',
+      })
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(
+      page.getByRole('heading', { name: 'German State Pension Refund' })
+    ).toBeVisible();
+
+    // Task 13 fix round 1 (CRITICAL 1): submission clears both persisted
+    // blobs via clearAllFlowPersistence(), and the write-through effects
+    // must not resurrect them afterwards (they used to, racing the clear —
+    // see OnboardingContext's successData guard). A refresh on the success
+    // screen must not be able to resume a claim that's already submitted.
+    const persistedAfterSubmit = await page.evaluate(() => ({
+      onboarding: window.sessionStorage.getItem('vbl_onboarding_v1'),
+      eligibility: window.sessionStorage.getItem('vbl_eligibility_v1'),
+    }));
+    expect(persistedAfterSubmit.onboarding).toBeNull();
+    expect(persistedAfterSubmit.eligibility).toBeNull();
+  });
+
+  // ============================================================
+  // Task 13 fix round 1 (IMPORTANT 4): mid-onboarding position restore
+  // ============================================================
+
+  test('refreshing mid-onboarding restores the same sub-step and a restored field value', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await mockOnboardingApi(page);
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    await completeIdentityUpload(page);
+
+    // Now on the membership sub-step. Fill the membership number (this is
+    // pre-claim-save form state that only lives in sessionStorage until the
+    // user clicks Continue) and reload without continuing.
+    await expect(
+      page.getByRole('heading', { name: 'VBL pension details' })
+    ).toBeVisible({ timeout: 5_000 });
+    const providerSelect = page.locator('select').first();
+    if ((await providerSelect.count()) > 0) {
+      await providerSelect.selectOption('VBL');
+    }
+    const membershipInput = page.getByPlaceholder(
+      /VBL insurance number|membership number/i
+    );
+    await membershipInput.fill('VBL999888');
+
+    await page.reload();
+
+    // Still on the membership sub-step (not bounced back to identity or the
+    // eligibility start screen), and the membership number typed before the
+    // reload is still there — proving both position and pre-claim data were
+    // restored from sessionStorage, not just the identity fields already
+    // saved to the mocked backend.
+    await expect(
+      page.getByRole('heading', { name: 'VBL pension details' })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(membershipInput).toHaveValue('VBL999888');
+  });
 });
 
 test.describe('Onboarding Full Flow', () => {
@@ -54,7 +307,9 @@ test.describe('Onboarding Full Flow', () => {
     // 1. Complete eligibility
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
 
     // 2. Create Account
@@ -80,7 +335,7 @@ test.describe('Onboarding Full Flow', () => {
 
     // 9. Should reach Review your claim
     await expect(
-      page.getByRole('heading', { name: /Review your claim/i })
+      page.getByRole('heading', { name: /Review your refund request/i })
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -91,44 +346,51 @@ test.describe('Onboarding Full Flow', () => {
   test('Private eligible reaches create account', async ({ page }) => {
     await navigatePrivateSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Start Claim/i })
+      .getByRole('button', {
+        name: /Start bAV cash-out|Create your secure claim/i,
+      })
       .click();
 
     await expect(
-      page.getByRole('heading', { name: 'Create your account' })
+      page.getByRole('heading', { name: 'Create your secure claim' })
     ).toBeVisible({ timeout: 10_000 });
   });
 
-  test('Review result reaches create account', async ({ page }) => {
+  test('Other provider eligible result reaches create account', async ({
+    page,
+  }) => {
     await navigateToGetStarted(page);
     await selectEmploymentType(page, 'Private Sector');
+    await selectPrivateEntryPath(page, 'Answer questions');
+    await selectPrivateStatePensionRefund(page, 'No');
     await selectPrivatePensionProvider(page, 'Other', 'TestPension');
-    await fillPrivateContributionDetails(page, {
-      startMonth: 'January',
-      startYear: '2018',
-      endMonth: 'December',
-      endYear: '2020',
-      employerPaid: 'Yes',
+    await fillPrivateStatementAmount(page, {
+      statementAmount: '9000',
+      valueType: 'capital_amount',
     });
-    await expectReviewResult(page);
+    await expectEligibleResult(page);
 
     await page
-      .getByRole('button', { name: 'Proceed with review' })
+      .getByRole('button', {
+        name: /Start bAV cash-out|Create your secure claim/i,
+      })
       .click();
 
     await expect(
-      page.getByRole('heading', { name: 'Create your account' })
+      page.getByRole('heading', { name: 'Create your secure claim' })
     ).toBeVisible({ timeout: 10_000 });
   });
 
   test('Stage eligible reaches create account', async ({ page }) => {
     await navigateStageToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
 
     await expect(
-      page.getByRole('heading', { name: 'Create your account' })
+      page.getByRole('heading', { name: 'Create your secure claim' })
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -139,11 +401,13 @@ test.describe('Onboarding Full Flow', () => {
   test('Email required before continue', async ({ page }) => {
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
 
     await expect(
-      page.getByRole('heading', { name: 'Create your account' })
+      page.getByRole('heading', { name: 'Create your secure claim' })
     ).toBeVisible({ timeout: 10_000 });
 
     const submitBtn = page.getByRole('button', {
@@ -155,36 +419,248 @@ test.describe('Onboarding Full Flow', () => {
   test('Google and Apple buttons visible', async ({ page }) => {
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
 
     await expect(
-      page.getByRole('heading', { name: 'Create your account' })
+      page.getByRole('heading', { name: 'Create your secure claim' })
     ).toBeVisible({ timeout: 10_000 });
 
-    await expect(
-      page.getByText('Continue with Google')
-    ).toBeVisible();
-    await expect(
-      page.getByText('Continue with Apple')
-    ).toBeVisible();
+    await expect(page.getByText('Continue with Google')).toBeVisible();
+    await expect(page.getByText('Continue with Apple')).toBeVisible();
   });
 
   // ============================================================
   // Step Indicator & Sub-step Tabs
   // ============================================================
 
-  test('Step indicator shows Eligibility active initially', async ({
-    page,
-  }) => {
+  test('Step indicator shows Check active initially', async ({ page }) => {
     await navigateToGetStarted(page);
     // The step labels should be present in the header
+    await expect(page.getByText('Check', { exact: true })).toBeVisible();
+    await expect(page.getByText('Secure Claim')).toBeVisible();
+    await expect(page.getByText('Complete Details')).toBeVisible();
+    await expect(page.getByText('Sign & Submit')).toBeVisible();
+  });
+
+  test('Secure claim screen uses Eligibility resource copy', async ({
+    page,
+  }) => {
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
+      .click();
+
     await expect(
-      page.getByText('Eligibility', { exact: true })
+      page.getByRole('heading', { name: 'Create your secure claim' })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByText(
+        "Create secure access to continue your refund request. We'll guide you step by step through the online process."
+      )
     ).toBeVisible();
-    await expect(page.getByText('Create Account')).toBeVisible();
-    await expect(page.getByText('Start Claim')).toBeVisible();
-    await expect(page.getByText('Submit Details')).toBeVisible();
+    await expect(page.getByPlaceholder('Email...')).toBeVisible();
+    await expect(
+      page.getByText("No password needed — we'll send you a secure log in link")
+    ).toBeVisible();
+  });
+
+  test('Payment screen explains deposit, service fee, and guarantee copy', async ({
+    page,
+  }) => {
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
+      .click();
+
+    await completeCreateAccount(page);
+    await expect(
+      page.getByRole('heading', { name: /Start your refund claim/i })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByText(
+        'Pay the €199 deposit to start your company pension refund claim.'
+      )
+    ).toBeVisible();
+    await expect(
+      page.getByText('deposit — credited toward your service fee')
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        /Money-back guarantee:.*pension provider rejects your claim/i
+      )
+    ).toBeVisible();
+  });
+
+  test('Submit details tabs match Eligibility resource labels', async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+
+    await expect(page.getByText('Identity', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Pension Details', { exact: true })
+    ).toBeVisible();
+    await expect(page.getByText('Address', { exact: true })).toBeVisible();
+    await expect(page.getByText('Bank Details', { exact: true })).toBeVisible();
+    await expect(page.getByText('Signature', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Review & Submit', { exact: true })
+    ).toBeVisible();
+    await expect(page.getByText('Health Insurance')).not.toBeVisible();
+    await expect(page.getByText('Employer Details')).not.toBeVisible();
+  });
+
+  test('Bank details supports own, trusted-person, and SummitFX branches', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    await completeIdentityUpload(page);
+    await completeMembership(page);
+    await completeAddress(page);
+
+    await expect(
+      page.getByRole('heading', { name: 'Where should the refund be paid?' })
+    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText('My own EUR / SEPA account')).toBeVisible();
+    await expect(
+      page.getByText('A trusted person’s EUR / SEPA account')
+    ).toBeVisible();
+    await expect(
+      page.getByText('I want to open a EUR account')
+    ).toBeVisible();
+
+    await page
+      .getByRole('button', { name: /A trusted person’s EUR \/ SEPA account/i })
+      .click();
+    await page.getByRole('button', { name: /Continue/i }).click();
+    await expect(
+      page.getByRole('heading', {
+        name: 'Enter the trusted person’s bank details',
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'I confirm that I have permission to use this bank account and that I trust the account holder.'
+      )
+    ).toBeVisible();
+
+    // Item 18a: the bottom-of-branch "Back" link is gone — only the global
+    // top-left Back remains, and it returns to the account-type selection
+    // phase (not the address sub-step) while inside a bank-details branch.
+    await page.getByRole('button', { name: 'Back' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Where should the refund be paid?' })
+    ).toBeVisible();
+    await page
+      .getByRole('button', { name: /I want to open a EUR account/i })
+      .click();
+    await page.getByRole('button', { name: /Continue/i }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Open a EUR account' })
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'SummitFX uses your mobile number to set up and activate your EUR account.'
+      )
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /Continue with SummitFX/i })
+    ).toBeVisible();
+
+    // Item 18b: re-clicking the already-active "Bank Details" tab resets
+    // back to the account-type selection phase too.
+    await page.getByRole('button', { name: 'Bank Details' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Where should the refund be paid?' })
+    ).toBeVisible();
+  });
+
+  test('Review screen uses refund request copy and Submit claim CTA', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    await completeIdentityUpload(page);
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+    await completeSignature(page);
+
+    await expect(
+      page.getByRole('heading', { name: 'Review your refund request' })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByRole('button', { name: 'Pension details' })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Submit claim' })
+    ).toBeVisible();
+  });
+
+  test('Success screen uses submitted refund request copy', async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    await completeIdentityUpload(page);
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+    await completeSignature(page);
+    await submitClaimOnReview(page);
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'Your refund request has been submitted',
+      })
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(
+      page.getByText('The pension provider reviews your refund request.')
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'German State Pension Refund' })
+    ).toBeVisible();
   });
 
   test('Sub-step tabs visible only on step 4 (Submit Details)', async ({
@@ -194,12 +670,14 @@ test.describe('Onboarding Full Flow', () => {
 
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
 
     // Step 2 — Create Account: no sub-step tabs
     await expect(
-      page.getByRole('heading', { name: 'Create your account' })
+      page.getByRole('heading', { name: 'Create your secure claim' })
     ).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Identity')).not.toBeVisible();
 
@@ -228,7 +706,9 @@ test.describe('Onboarding Full Flow', () => {
 
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
     await completeCreateAccount(page);
     await completePayment(page);
@@ -251,14 +731,14 @@ test.describe('Onboarding Full Flow', () => {
   // Bank Details Expandable Options
   // ============================================================
 
-  test('Bank details has expandable alternative options', async ({
-    page,
-  }) => {
+  test('Bank details has expandable alternative options', async ({ page }) => {
     test.setTimeout(90_000);
 
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
     await completeCreateAccount(page);
     await completePayment(page);
@@ -268,16 +748,8 @@ test.describe('Onboarding Full Flow', () => {
 
     // Now on bank details
     await expect(
-      page.getByRole('heading', {
-        name: /bank account|refund be paid/i,
-      })
+      page.getByRole('heading', { name: 'Where should the refund be paid?' })
     ).toBeVisible({ timeout: 5_000 });
-
-    // Check for expandable toggle
-    const toggle = page.getByText(
-      /Don't have a EUR\/SEPA account/i
-    );
-    await expect(toggle).toBeVisible();
   });
 
   // ============================================================
@@ -289,7 +761,9 @@ test.describe('Onboarding Full Flow', () => {
 
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
     await completeCreateAccount(page);
     await completePayment(page);
@@ -304,16 +778,185 @@ test.describe('Onboarding Full Flow', () => {
     ).toBeVisible({ timeout: 5_000 });
 
     // Draw mode (default)
-    await expect(page.getByText('Draw Signature')).toBeVisible();
-    await expect(page.getByText('Upload Image')).toBeVisible();
+    await expect(page.getByText('Draw signature')).toBeVisible();
+    await expect(page.getByText('Upload signature image')).toBeVisible();
     await expect(page.locator('canvas')).toBeVisible();
 
     // Switch to upload mode
-    await page.getByText('Upload Image').click();
+    await page.getByText('Upload signature image').click();
     await expect(page.locator('input[type="file"]')).toBeAttached();
 
     // Switch back
-    await page.getByText('Draw Signature').click();
+    await page.getByText('Draw signature').click();
     await expect(page.locator('canvas')).toBeVisible();
+  });
+
+  // ============================================================
+  // Item 21: delete + re-enter signature must not double-attach
+  // ============================================================
+
+  test('deleting and re-drawing the signature attaches it exactly once per Continue', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(90_000);
+    await mockOnboardingApi(page);
+
+    // mockOnboardingApi hardcodes the Stripe-return URL to localhost:3000;
+    // override it here so the test works against any baseURL the runner
+    // happens to use for this app.
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    let attachCount = 0;
+    await page.route('**/api/claims/claim_mock/signature', (route) => {
+      attachCount += 1;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          claim: { id: 'claim_mock' },
+        }),
+      });
+    });
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    await completeIdentityUpload(page);
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+
+    // First signature: draw and continue.
+    await completeSignature(page);
+    await expect(
+      page.getByRole('heading', { name: 'Review your refund request' })
+    ).toBeVisible({ timeout: 10_000 });
+    expect(attachCount).toBe(1);
+
+    // Go back to the signature step, delete it, and draw a new one. The
+    // review page's "Signature" section header only expands/collapses that
+    // section; the "Edit information" button inside it is what actually
+    // calls setCurrentSubStep to re-enter the step.
+    await page.getByRole('button', { name: 'Signature' }).last().click();
+    await page.getByRole('button', { name: 'Edit information' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Add your signature' })
+    ).toBeVisible({ timeout: 5_000 });
+
+    await page.getByRole('button', { name: /Clear/i }).click();
+
+    await completeSignature(page);
+    await expect(
+      page.getByRole('heading', { name: 'Review your refund request' })
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Exactly one more attach call for the re-drawn signature (total 2), not
+    // two more, confirming saveAndAdvance's removed dead re-attach branch
+    // hasn't been reintroduced.
+    expect(attachCount).toBe(2);
+  });
+
+  // ============================================================
+  // Item 21: expired-access-token refresh must not corrupt the stored token
+  // ============================================================
+
+  test('an access-token refresh during signature attach stores a usable token, not "undefined"', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(90_000);
+    await mockOnboardingApi(page);
+
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    await completeIdentityUpload(page);
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+
+    // Simulate the access token having expired by the time the user reaches
+    // the last onboarding step: the first signature-attach request 401s
+    // exactly once, forcing the axios interceptor in lib/api.ts down its
+    // refresh-and-retry path.
+    let attachAttempts = 0;
+    await page.route('**/api/claims/claim_mock/signature', (route) => {
+      attachAttempts += 1;
+      if (attachAttempts === 1) {
+        return route.fulfill({
+          status: 401,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Token expired' }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, claim: { id: 'claim_mock' } }),
+      });
+    });
+
+    await page.route('**/api/auth/refresh', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          message: 'Tokens refreshed successfully',
+          tokens: {
+            accessToken: 'refreshed-access-token',
+            refreshToken: 'refreshed-refresh-token',
+          },
+        }),
+      })
+    );
+
+    await completeSignature(page);
+
+    // The retried request must succeed (proving the interceptor picked up
+    // the real refreshed access token) and the flow must reach Review,
+    // instead of surfacing "Failed to save signature: Invalid token."
+    await expect(
+      page.getByRole('heading', { name: 'Review your refund request' })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/Invalid token/i)).not.toBeVisible();
+    expect(attachAttempts).toBe(2);
+
+    // The corrected access token must be the real value from the refresh
+    // response, not the string "undefined" that response.data.accessToken
+    // (missing the `.tokens` level) would have produced.
+    const storedAccessToken = await page.evaluate(() =>
+      window.localStorage.getItem('accessToken')
+    );
+    expect(storedAccessToken).toBe('refreshed-access-token');
   });
 });

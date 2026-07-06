@@ -1,0 +1,44 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]: "1"
+          - generic [ref=e13]: Eligibility
+        - generic [ref=e18]:
+          - generic [ref=e19]: "2"
+          - generic [ref=e20]: Create Account
+        - generic [ref=e23]:
+          - generic [ref=e24]: "3"
+          - generic [ref=e25]: Start Claim
+        - generic [ref=e28]:
+          - generic [ref=e29]: "4"
+          - generic [ref=e30]: Submit Details
+    - generic [ref=e31]:
+      - button "Back" [ref=e69] [cursor=pointer]:
+        - img [ref=e70]
+        - text: Back
+      - generic [ref=e72]:
+        - heading "Which company pension did you contribute to?" [level=2] [ref=e73]
+        - paragraph [ref=e75]: Select the pension scheme you paid into during your employment.
+        - generic [ref=e76]: Company pension provider
+        - generic [ref=e82]:
+          - combobox [ref=e83] [cursor=pointer]:
+            - option "Select pension provider"
+            - option "ERGO"
+            - option "R+V"
+            - option "Nürnberger"
+            - option "HDI"
+            - option "Canada Life"
+            - option "Alte Leipziger"
+            - option "Other (enter manually)" [selected]
+          - img
+        - button "Back to main list" [ref=e84] [cursor=pointer]:
+          - img [ref=e85]
+          - text: Back to main list
+        - textbox "Pension provider name" [ref=e87]
+        - button "Continue" [disabled] [ref=e79]:
+          - text: Continue
+          - img [ref=e80]
+  - alert [ref=e60]

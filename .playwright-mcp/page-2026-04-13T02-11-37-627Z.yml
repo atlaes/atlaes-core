@@ -1,0 +1,50 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - button "Number of jobs Count each employment period in Germany" [ref=e56] [cursor=pointer]:
+          - img [ref=e57]
+          - generic [ref=e13]:
+            - generic [ref=e14]: Number of jobs
+            - generic [ref=e15]: Count each employment period in Germany
+        - button "Job details(2/2) Enter employment dates, salary, and sector for each job." [ref=e161] [cursor=pointer]:
+          - img [ref=e162]
+          - generic [ref=e18]:
+            - generic [ref=e19]: Job details(2/2)
+            - generic [ref=e20]: Enter employment dates, salary, and sector for each job.
+        - button "3 Refund estimate See your estimated refund" [disabled] [ref=e21]:
+          - generic [ref=e22]: "3"
+          - generic [ref=e23]:
+            - generic [ref=e24]: Refund estimate
+            - generic [ref=e25]: See your estimated refund
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - paragraph [ref=e29]: Need help?
+          - paragraph [ref=e30]: Our assistant is here for you.
+        - img "Chat" [ref=e32]
+    - generic [ref=e213]:
+      - generic [ref=e214]:
+        - heading "Job 2 of 2" [level=1] [ref=e215]
+        - paragraph [ref=e216]: Enter the employment period and details for this job.
+      - generic [ref=e218]:
+        - generic [ref=e219]:
+          - generic [ref=e220]: Projected monthly pension at retirement (optional)
+          - textbox "E.g., 45" [ref=e221]
+        - generic [ref=e222]:
+          - generic [ref=e223]: Capital amount / capital benefit (optional)
+          - textbox "E.g., 6500" [ref=e224]: "6500"
+        - generic [ref=e225]:
+          - generic [ref=e226]: Current contract value / transfer value (optional)
+          - textbox "E.g., 7200" [ref=e227]
+        - generic [ref=e228]:
+          - generic [ref=e229]: Estimated monthly contribution (optional)
+          - textbox "E.g., 150" [ref=e230]
+      - generic [ref=e231]:
+        - button "Back" [ref=e233] [cursor=pointer]:
+          - img [ref=e234]
+          - text: Back
+        - button "Next" [ref=e236] [cursor=pointer]:
+          - text: Next
+          - img [ref=e237]
+  - alert [ref=e55]

@@ -1,0 +1,126 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]: "1"
+          - generic [ref=e13]: Eligibility
+        - generic [ref=e18]:
+          - generic [ref=e19]: "2"
+          - generic [ref=e20]: Create Account
+        - generic [ref=e23]:
+          - generic [ref=e24]: "3"
+          - generic [ref=e25]: Start Claim
+        - generic [ref=e28]:
+          - generic [ref=e29]: "4"
+          - generic [ref=e30]: Submit Details
+    - generic [ref=e31]:
+      - button "Back" [ref=e171] [cursor=pointer]:
+        - img [ref=e172]
+        - text: Back
+      - generic [ref=e193]:
+        - heading "Contribution details" [level=2] [ref=e194]
+        - paragraph [ref=e196]: Provide the contribution details for this company pension.
+        - paragraph [ref=e197]: Contribution start
+        - generic [ref=e198]:
+          - generic [ref=e199]:
+            - combobox [ref=e200] [cursor=pointer]:
+              - option "Month"
+              - option "January" [selected]
+              - option "February"
+              - option "March"
+              - option "April"
+              - option "May"
+              - option "June"
+              - option "July"
+              - option "August"
+              - option "September"
+              - option "October"
+              - option "November"
+              - option "December"
+            - img
+          - generic [ref=e201]:
+            - combobox [ref=e202] [cursor=pointer]:
+              - option "Year"
+              - option "2026"
+              - option "2025"
+              - option "2024"
+              - option "2023"
+              - option "2022"
+              - option "2021"
+              - option "2020"
+              - option "2019"
+              - option "2018"
+              - option "2017"
+              - option "2016"
+              - option "2015" [selected]
+              - option "2014"
+              - option "2013"
+              - option "2012"
+              - option "2011"
+              - option "2010"
+              - option "2009"
+              - option "2008"
+              - option "2007"
+              - option "2006"
+              - option "2005"
+              - option "2004"
+            - img
+        - paragraph [ref=e203]: Contribution end
+        - generic [ref=e204]:
+          - generic [ref=e205]:
+            - combobox [ref=e206] [cursor=pointer]:
+              - option "Month"
+              - option "January"
+              - option "February"
+              - option "March"
+              - option "April"
+              - option "May"
+              - option "June"
+              - option "July"
+              - option "August"
+              - option "September"
+              - option "October"
+              - option "November"
+              - option "December" [selected]
+            - img
+          - generic [ref=e207]:
+            - combobox [ref=e208] [cursor=pointer]:
+              - option "Year"
+              - option "2026"
+              - option "2025"
+              - option "2024"
+              - option "2023"
+              - option "2022" [selected]
+              - option "2021"
+              - option "2020"
+              - option "2019"
+              - option "2018"
+              - option "2017"
+              - option "2016"
+              - option "2015"
+              - option "2014"
+              - option "2013"
+              - option "2012"
+              - option "2011"
+              - option "2010"
+              - option "2009"
+              - option "2008"
+              - option "2007"
+              - option "2006"
+              - option "2005"
+              - option "2004"
+            - img
+        - paragraph [ref=e209]: What does your pension statement show?
+        - generic [ref=e210]:
+          - button "Projected monthly pension at retirement" [ref=e211] [cursor=pointer]
+          - button "Capital amount / capital benefit" [ref=e212] [cursor=pointer]
+        - generic [ref=e213]:
+          - img [ref=e215]
+          - paragraph [ref=e217]: You can find this value on your most recent pension statement from the provider.
+        - paragraph [ref=e218]: Estimates are sufficient. Details can be verified later if needed.
+        - button "Continue" [disabled] [ref=e219]:
+          - text: Continue
+          - img [ref=e220]
+  - alert [ref=e60]

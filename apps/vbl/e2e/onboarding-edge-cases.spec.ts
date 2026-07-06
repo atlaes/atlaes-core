@@ -125,7 +125,7 @@ test.describe('Onboarding Edge Cases', () => {
       await expect(fileInput).toBeAttached();
     });
 
-    test('confirm phase requires full name', async ({ page }) => {
+    test('confirm phase requires first and last name', async ({ page }) => {
       // Upload a fake passport to trigger confirm phase
       const fileInput = page.locator('input[type="file"]');
       await fileInput.setInputFiles({
@@ -139,9 +139,11 @@ test.describe('Onboarding Edge Cases', () => {
         page.getByRole('heading', { name: /Confirm your details/i })
       ).toBeVisible({ timeout: 30_000 });
 
-      // Full name input should be visible
-      const fullNameInput = page.getByPlaceholder('John Smith');
-      await expect(fullNameInput).toBeVisible();
+      // First and last name inputs should be visible
+      const firstNameInput = page.getByPlaceholder('John');
+      await expect(firstNameInput).toBeVisible();
+      const lastNameInput = page.getByPlaceholder('Smith');
+      await expect(lastNameInput).toBeVisible();
     });
 
     test('confirm phase has gender select', async ({ page }) => {
@@ -194,25 +196,45 @@ test.describe('Onboarding Edge Cases', () => {
       ).toBeVisible({ timeout: 30_000 });
 
       // Fill identity
-      const fullNameInput = page.getByPlaceholder('John Smith');
-      if (await fullNameInput.inputValue() === '') {
-        await fullNameInput.fill('Test User');
+      const firstNameInput = page.getByPlaceholder('John');
+      if (await firstNameInput.inputValue() === '') {
+        await firstNameInput.fill('Test');
       }
-      const dobInput = page.locator('input[type="date"]');
-      if (await dobInput.inputValue() === '') {
-        await dobInput.fill('1990-01-15');
+      const lastNameInput = page.getByPlaceholder('Smith');
+      if (await lastNameInput.inputValue() === '') {
+        await lastNameInput.fill('User');
       }
-      const genderSelect = page.locator('select').first();
+      const dayInput = page.getByPlaceholder('Day');
+      if (await dayInput.inputValue() === '') {
+        await dayInput.fill('15');
+      }
+      const yearInput = page.getByPlaceholder('Year');
+      if (await yearInput.inputValue() === '') {
+        await yearInput.fill('1990');
+      }
+      const selects = page.locator('select');
+      const birthMonthSelect = selects.first();
+      if (await birthMonthSelect.inputValue() === '') {
+        await birthMonthSelect.selectOption('January');
+      }
+      const genderSelect = selects.nth(1);
       if (await genderSelect.inputValue() === '') {
         await genderSelect.selectOption('male');
       }
+      await page.getByPlaceholder('Enter document number').fill('P1234567');
+      await page.getByPlaceholder('e.g. Australian').fill('Australian');
+      await page.getByPlaceholder('e.g. Sydney').fill('Sydney');
       await page.getByRole('button', { name: /Continue/i }).click();
 
       // Membership
       await expect(
         page.getByRole('heading', { name: 'Pension membership details' })
       ).toBeVisible({ timeout: 5_000 });
-      await page.locator('select').first().selectOption('VBL');
+      const providerSelect = page.locator('select').first();
+      if (await providerSelect.count() > 0) {
+        await providerSelect.selectOption('VBL');
+      }
+      await page.getByPlaceholder(/membership number/i).fill('VBL123456');
       await page.getByRole('button', { name: /Continue/i }).click();
 
       // Address
@@ -244,7 +266,7 @@ test.describe('Onboarding Edge Cases', () => {
       await toggle.click();
 
       // Should show 3 alternative options
-      await expect(page.getByText('Open free EUR account')).toBeVisible();
+      await expect(page.getByText('Open a EUR account')).toBeVisible();
       await expect(page.getByText(/trusted third-party/i)).toBeVisible();
       await expect(page.getByText(/add my IBAN/i)).toBeVisible();
     });
@@ -289,19 +311,35 @@ test.describe('Onboarding Edge Cases', () => {
       await expect(
         page.getByRole('heading', { name: /Confirm your details/i })
       ).toBeVisible({ timeout: 30_000 });
-      const fullNameInput = page.getByPlaceholder('John Smith');
-      if (await fullNameInput.inputValue() === '') await fullNameInput.fill('Test User');
-      const dobInput = page.locator('input[type="date"]');
-      if (await dobInput.inputValue() === '') await dobInput.fill('1990-01-15');
-      const genderSelect = page.locator('select').first();
+      const firstNameInput = page.getByPlaceholder('John');
+      if (await firstNameInput.inputValue() === '') await firstNameInput.fill('Test');
+      const lastNameInput = page.getByPlaceholder('Smith');
+      if (await lastNameInput.inputValue() === '') await lastNameInput.fill('User');
+      const dayInput = page.getByPlaceholder('Day');
+      if (await dayInput.inputValue() === '') await dayInput.fill('15');
+      const yearInput = page.getByPlaceholder('Year');
+      if (await yearInput.inputValue() === '') await yearInput.fill('1990');
+      const selects = page.locator('select');
+      const birthMonthSelect = selects.first();
+      if (await birthMonthSelect.inputValue() === '') {
+        await birthMonthSelect.selectOption('January');
+      }
+      const genderSelect = selects.nth(1);
       if (await genderSelect.inputValue() === '') await genderSelect.selectOption('male');
+      await page.getByPlaceholder('Enter document number').fill('P1234567');
+      await page.getByPlaceholder('e.g. Australian').fill('Australian');
+      await page.getByPlaceholder('e.g. Sydney').fill('Sydney');
       await page.getByRole('button', { name: /Continue/i }).click();
 
       // Membership
       await expect(
         page.getByRole('heading', { name: 'Pension membership details' })
       ).toBeVisible({ timeout: 5_000 });
-      await page.locator('select').first().selectOption('VBL');
+      const providerSelect = page.locator('select').first();
+      if (await providerSelect.count() > 0) {
+        await providerSelect.selectOption('VBL');
+      }
+      await page.getByPlaceholder(/membership number/i).fill('VBL123456');
       await page.getByRole('button', { name: /Continue/i }).click();
 
       // Address

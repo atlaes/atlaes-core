@@ -1,0 +1,180 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - button "Number of jobs Count each employment period in Germany" [ref=e56] [cursor=pointer]:
+          - img [ref=e57]
+          - generic [ref=e13]:
+            - generic [ref=e14]: Number of jobs
+            - generic [ref=e15]: Count each employment period in Germany
+        - button "Job details(1/1) Enter employment dates, salary, and sector for each job." [ref=e118] [cursor=pointer]:
+          - img [ref=e119]
+          - generic [ref=e18]:
+            - generic [ref=e19]: Job details(1/1)
+            - generic [ref=e20]: Enter employment dates, salary, and sector for each job.
+        - button "3 Refund estimate See your estimated refund" [disabled] [ref=e21]:
+          - generic [ref=e22]: "3"
+          - generic [ref=e23]:
+            - generic [ref=e24]: Refund estimate
+            - generic [ref=e25]: See your estimated refund
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - paragraph [ref=e29]: Need help?
+          - paragraph [ref=e30]: Our assistant is here for you.
+        - img "Chat" [ref=e32]
+    - generic [ref=e143]:
+      - generic [ref=e144]:
+        - heading "Job 1 of 1" [level=1] [ref=e145]
+        - paragraph [ref=e146]: Enter the employment period and details for this job.
+      - generic [ref=e148]:
+        - generic [ref=e149]:
+          - paragraph [ref=e150]: Start of employment
+          - generic [ref=e151]:
+            - generic [ref=e152]:
+              - generic [ref=e153]: Start Month
+              - generic [ref=e154]:
+                - combobox [ref=e155] [cursor=pointer]:
+                  - option "Select Start Month"
+                  - option "January" [selected]
+                  - option "February"
+                  - option "March"
+                  - option "April"
+                  - option "May"
+                  - option "June"
+                  - option "July"
+                  - option "August"
+                  - option "September"
+                  - option "October"
+                  - option "November"
+                  - option "December"
+                - img
+            - generic [ref=e156]:
+              - generic [ref=e157]: Start Year
+              - generic [ref=e158]:
+                - combobox [ref=e159] [cursor=pointer]:
+                  - option "Select Start Year"
+                  - option "2026"
+                  - option "2025" [selected]
+                  - option "2024"
+                  - option "2023"
+                  - option "2022"
+                  - option "2021"
+                  - option "2020"
+                  - option "2019"
+                  - option "2018"
+                  - option "2017"
+                  - option "2016"
+                  - option "2015"
+                  - option "2014"
+                  - option "2013"
+                  - option "2012"
+                  - option "2011"
+                  - option "2010"
+                  - option "2009"
+                  - option "2008"
+                  - option "2007"
+                  - option "2006"
+                  - option "2005"
+                  - option "2004"
+                - img
+        - generic [ref=e160]:
+          - paragraph [ref=e161]: End of employment
+          - generic [ref=e162]:
+            - generic [ref=e163]:
+              - generic [ref=e164]: End Month
+              - generic [ref=e165]:
+                - combobox [ref=e166] [cursor=pointer]:
+                  - option "Select End Month"
+                  - option "January"
+                  - option "February"
+                  - option "March"
+                  - option "April"
+                  - option "May"
+                  - option "June"
+                  - option "July"
+                  - option "August"
+                  - option "September"
+                  - option "October"
+                  - option "November"
+                  - option "December" [selected]
+                - img
+            - generic [ref=e167]:
+              - generic [ref=e168]: End Year
+              - generic [ref=e169]:
+                - combobox [ref=e170] [cursor=pointer]:
+                  - option "Select End Year"
+                  - option "2026"
+                  - option "2025" [selected]
+                  - option "2024"
+                  - option "2023"
+                  - option "2022"
+                  - option "2021"
+                  - option "2020"
+                  - option "2019"
+                  - option "2018"
+                  - option "2017"
+                  - option "2016"
+                  - option "2015"
+                  - option "2014"
+                  - option "2013"
+                  - option "2012"
+                  - option "2011"
+                  - option "2010"
+                  - option "2009"
+                  - option "2008"
+                  - option "2007"
+                  - option "2006"
+                  - option "2005"
+                  - option "2004"
+                - img
+        - generic [ref=e171]:
+          - generic [ref=e172]: Average gross monthly salary during this job (€)
+          - textbox "E.g., 3500" [ref=e173]: "1000"
+        - generic [ref=e174]:
+          - generic [ref=e175]: Type of employer
+          - generic [ref=e176]:
+            - combobox [ref=e177] [cursor=pointer]:
+              - option "Company pension sector"
+              - option "Public Sector"
+              - option "Private sector"
+              - option "Stage/Performing Arts" [selected]
+              - option "Orchestra"
+            - img
+        - generic [ref=e178]:
+          - generic [ref=e179]: German federal state (where your employer was based)
+          - generic [ref=e180]:
+            - combobox [ref=e181] [cursor=pointer]:
+              - option "Select Federal State"
+              - option "Baden-Württemberg"
+              - option "Bavaria" [selected]
+              - option "Berlin (West)"
+              - option "Berlin (East)"
+              - option "Brandenburg"
+              - option "Bremen"
+              - option "Hamburg"
+              - option "Hesse"
+              - option "Lower Saxony"
+              - option "Mecklenburg-Vorpommern"
+              - option "North Rhine-Westphalia"
+              - option "Rhineland-Palatinate"
+              - option "Saarland"
+              - option "Saxony"
+              - option "Saxony-Anhalt"
+              - option "Schleswig-Holstein"
+              - option "Thuringia"
+            - img
+        - generic [ref=e201]:
+          - generic [ref=e202]: Company pension
+          - generic [ref=e203]: VddB
+        - generic [ref=e204]:
+          - generic [ref=e206]: i
+          - paragraph [ref=e207]: This scheme applies to stage and performing arts employment.
+      - generic [ref=e191]:
+        - button "Back" [ref=e193] [cursor=pointer]:
+          - img [ref=e194]
+          - text: Back
+        - button "Next" [ref=e196] [cursor=pointer]:
+          - text: Next
+          - img [ref=e197]
+  - alert [ref=e55]

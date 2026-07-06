@@ -44,7 +44,22 @@ apiClient.interceptors.response.use(
             }
           );
 
-          const { accessToken } = response.data;
+          // Item 21: POST /api/auth/refresh (packages/functions/src/routes/
+          // auth.ts) responds with `{ message, tokens: { accessToken,
+          // refreshToken } }` — the access token is nested under `tokens`,
+          // not top-level. Destructuring `accessToken` directly off
+          // response.data read undefined, so `localStorage.setItem` stored
+          // the literal string "undefined" as the access token. Every
+          // subsequent request (including the retried one below) then sent
+          // `Authorization: Bearer undefined`, which fails JWT verification
+          // with a generic "Invalid token" 401 — and keeps failing for the
+          // rest of the session since the corrupted value persists in
+          // localStorage. This is what the user saw as "Invalid token" when
+          // deleting and re-drawing the signature: the access token expires
+          // around the last onboarding step, the refresh silently corrupts
+          // itself, and every later request (including the delete + re-enter
+          // retry) inherits the broken token.
+          const { accessToken } = response.data.tokens;
           localStorage.setItem('accessToken', accessToken);
 
           // Retry the original request with new token

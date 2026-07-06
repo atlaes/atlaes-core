@@ -1,0 +1,32 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]: "1"
+          - generic [ref=e13]: Eligibility
+        - generic [ref=e18]:
+          - generic [ref=e19]: "2"
+          - generic [ref=e20]: Create Account
+        - generic [ref=e23]:
+          - generic [ref=e24]: "3"
+          - generic [ref=e25]: Start Claim
+        - generic [ref=e28]:
+          - generic [ref=e29]: "4"
+          - generic [ref=e30]: Submit Details
+    - generic [ref=e31]:
+      - button "Back" [ref=e64] [cursor=pointer]:
+        - img [ref=e65]
+        - text: Back
+      - generic [ref=e77]:
+        - heading "How many months did you contribute in total?" [level=2] [ref=e78]
+        - paragraph [ref=e80]: Contribution duration
+        - generic [ref=e81]:
+          - button "Less than 12 months" [ref=e82] [cursor=pointer]: Less than 12 months
+          - button "12 to 35 months" [ref=e84] [cursor=pointer]: 12 to 35 months
+          - button "36 months or more" [ref=e86] [cursor=pointer]: 36 months or more
+        - button "Continue" [disabled] [ref=e88]:
+          - text: Continue
+          - img [ref=e89]
+  - alert [ref=e61]

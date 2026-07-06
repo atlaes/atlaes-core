@@ -1,0 +1,32 @@
+- generic [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]: "1"
+          - generic [ref=e13]: Eligibility
+        - generic [ref=e18]:
+          - generic [ref=e19]: "2"
+          - generic [ref=e20]: Create Account
+        - generic [ref=e23]:
+          - generic [ref=e24]: "3"
+          - generic [ref=e25]: Start Claim
+        - generic [ref=e28]:
+          - generic [ref=e29]: "4"
+          - generic [ref=e30]: Submit Details
+    - generic [ref=e31]:
+      - button "Back" [ref=e171] [cursor=pointer]:
+        - img [ref=e172]
+        - text: Back
+      - generic [ref=e184]:
+        - heading "Have your German statutory pension contributions already been refunded?" [level=2] [ref=e185]:
+          - text: Have your German statutory pension contributions
+          - text: already been refunded?
+        - generic [ref=e187]:
+          - button "Yes" [ref=e188] [cursor=pointer]
+          - button "No" [active] [ref=e189] [cursor=pointer]
+        - button "Continue" [ref=e190] [cursor=pointer]:
+          - text: Continue
+          - img [ref=e191]
+  - alert [ref=e60]

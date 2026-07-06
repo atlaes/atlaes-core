@@ -58,6 +58,18 @@ export interface ClaimGermanAddress {
   deregistrationServiceRequested?: boolean;
 }
 
+// Task 15: Health Insurance (bAV/private pension type only)
+export interface ClaimHealthInsurance {
+  healthInsuranceType?: 'statutory' | 'private' | 'not_sure';
+  healthInsuranceProviderName?: string;
+  healthInsuranceProviderAddress?: string;
+  healthInsuranceInsuredSinceMonth?: string;
+  healthInsuranceInsuredSinceYear?: string;
+  healthInsurancePlaceOfBirth?: string;
+  healthInsuranceCountryOfBirth?: string;
+  healthInsuranceNumber?: string;
+}
+
 export interface ClaimBankDetails {
   preferredCurrency?: string;
   accountHolderName?: string;
@@ -72,7 +84,12 @@ export interface ClaimBankDetails {
   bankCountry?: string;
 }
 
-export interface ClaimData extends ClaimPersonalInfo, ClaimCurrentAddress, ClaimGermanAddress, ClaimBankDetails {
+export interface ClaimData
+  extends ClaimPersonalInfo,
+    ClaimCurrentAddress,
+    ClaimGermanAddress,
+    ClaimHealthInsurance,
+    ClaimBankDetails {
   svNummer?: string;
   certifyingAuthority?: CertifyingAuthority;
   confirmationAccuracyAccepted?: boolean;
@@ -117,6 +134,16 @@ export interface Claim {
   abmeldungMethod: string | null;
   deregistrationServiceRequested: boolean | null;
 
+  // Health Insurance (Task 15, bAV/private pension type only)
+  healthInsuranceType: string | null;
+  healthInsuranceProviderName: string | null;
+  healthInsuranceProviderAddress: string | null;
+  healthInsuranceInsuredSinceMonth: string | null;
+  healthInsuranceInsuredSinceYear: string | null;
+  healthInsurancePlaceOfBirth: string | null;
+  healthInsuranceCountryOfBirth: string | null;
+  healthInsuranceNumber: string | null;
+
   // Bank Details
   preferredCurrency: string | null;
   accountHolderName: string | null;
@@ -151,6 +178,9 @@ export interface Claim {
 
   // Submission
   submittedAt: Date | null;
+
+  // Combined claim PDF
+  pdfS3Key: string | null;
 
   // Timestamps
   createdAt: Date | null;
@@ -219,6 +249,14 @@ function mapRowToClaim(row: any): Claim {
     moveOutDate: row.moveOutDate,
     abmeldungMethod: row.abmeldungMethod,
     deregistrationServiceRequested: row.deregistrationServiceRequested,
+    healthInsuranceType: row.healthInsuranceType,
+    healthInsuranceProviderName: row.healthInsuranceProviderName,
+    healthInsuranceProviderAddress: row.healthInsuranceProviderAddress,
+    healthInsuranceInsuredSinceMonth: row.healthInsuranceInsuredSinceMonth,
+    healthInsuranceInsuredSinceYear: row.healthInsuranceInsuredSinceYear,
+    healthInsurancePlaceOfBirth: row.healthInsurancePlaceOfBirth,
+    healthInsuranceCountryOfBirth: row.healthInsuranceCountryOfBirth,
+    healthInsuranceNumber: row.healthInsuranceNumber,
     preferredCurrency: row.preferredCurrency,
     accountHolderName: row.accountHolderName,
     bankName: row.bankName,
@@ -242,9 +280,40 @@ function mapRowToClaim(row: any): Claim {
     paidAt: row.paidAt,
     serviceFee: row.serviceFee,
     submittedAt: row.submittedAt,
+    pdfS3Key: row.pdfS3Key,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+function calculateAge(dateOfBirth: string, now = new Date()): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateOfBirth);
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const birthDate = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    birthDate.getUTCFullYear() !== year ||
+    birthDate.getUTCMonth() !== month - 1 ||
+    birthDate.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  let age = today.getUTCFullYear() - year;
+  const birthdayThisYear = new Date(Date.UTC(today.getUTCFullYear(), month - 1, day));
+
+  if (today < birthdayThisYear) {
+    age -= 1;
+  }
+
+  return age;
 }
 
 export class ClaimsApplicationService {
@@ -772,6 +841,16 @@ export class ClaimsApplicationService {
       if (!claim.firstName) errors.push('First name is required');
       if (!claim.lastName) errors.push('Last name is required');
       if (!claim.dateOfBirth) errors.push('Date of birth is required');
+      if (claim.dateOfBirth) {
+        const age = calculateAge(claim.dateOfBirth);
+        if (age === null) {
+          errors.push('Date of birth is invalid');
+        } else if (age < 18) {
+          errors.push('Applicant must be at least 18 years old');
+        }
+      }
+      if (!claim.nationality) errors.push('Nationality is required');
+      if (!claim.placeOfBirth) errors.push('Place of birth is required');
       if (!claim.passportNumber) errors.push('Passport number is required');
       if (!claim.currentAddressLine1) errors.push('Current address is required');
       if (!claim.currentCity) errors.push('Current city is required');
@@ -882,6 +961,45 @@ export class ClaimsApplicationService {
       });
 
       logger.info(`Claim submitted: ${claimId}`);
+
+      // Generate the combined claim PDF after a successful submission.
+      // Failure here must NOT roll back or fail the submission — the PDF
+      // can be regenerated later via POST /api/claims/:id/generate-pdf.
+      // Uses a lazy dynamic import: './claim-pdf' imports
+      // ClaimsApplicationService from this module, so a static top-level
+      // import here would create a circular import.
+      try {
+        const { ClaimPdfService } = await import('./claim-pdf');
+        const { bytes } = await ClaimPdfService.generateAndStoreForClaim(
+          claimId,
+          userId
+        );
+
+        // Deliver the combined claim PDF to the lettershop provider
+        // (onlinebrief24.de) for printing/mailing. Same non-fatal contract
+        // as PDF generation above: a lettershop failure must never fail
+        // submission. Lazy import avoids a cycle (lettershop.ts imports
+        // the claims schema/db, and this module is imported widely).
+        try {
+          const { LettershopService } = await import('./lettershop');
+          await LettershopService.sendClaimPdf(claimId, bytes, userId);
+        } catch (lettershopError) {
+          logger.warn('Failed to submit claim PDF to lettershop', {
+            claimId,
+            error:
+              lettershopError instanceof Error
+                ? lettershopError.message
+                : String(lettershopError),
+          });
+        }
+      } catch (pdfError) {
+        logger.warn('Failed to generate claim PDF after submission', {
+          claimId,
+          error:
+            pdfError instanceof Error ? pdfError.message : String(pdfError),
+        });
+      }
+
       return mapRowToClaim(result);
     } catch (error) {
       logger.error('Error submitting claim:', error);

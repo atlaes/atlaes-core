@@ -2,7 +2,10 @@
 
 import { Suspense, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { EligibilityProvider, useEligibility } from '@/contexts/EligibilityContext';
+import {
+  EligibilityProvider,
+  useEligibility,
+} from '@/contexts/EligibilityContext';
 import { OnboardingProvider } from '@/contexts/OnboardingContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { EligibilityFlow } from '@/components/vbl/get-started/EligibilityFlow';
@@ -35,7 +38,12 @@ function GetStartedFlow() {
 export default function GetStartedPage() {
   return (
     <EligibilityProvider>
-      <OnboardingProvider>
+      {/* Final review fix (IMPORTANT 4): persistenceEnabled defaults to
+          false — only /get-started opts in to the sessionStorage-backed
+          restore/write-through, so the legacy /calculator/onboarding and
+          /calculator-entry-a pages (which also mount OnboardingProvider)
+          never read or write vbl_onboarding_v1. */}
+      <OnboardingProvider persistenceEnabled>
         <Suspense>
           <GetStartedFlow />
         </Suspense>

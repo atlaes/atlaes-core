@@ -1,0 +1,73 @@
+- generic [ref=e1]:
+  - generic [ref=e40]:
+    - generic [ref=e41]:
+      - img "Company Pension" [ref=e43]
+      - generic [ref=e45]:
+        - generic [ref=e47]:
+          - img [ref=e95]
+          - generic [ref=e49]: Create account
+        - generic [ref=e54]:
+          - img [ref=e147]
+          - generic [ref=e56]: Start claim
+        - generic [ref=e59]:
+          - generic [ref=e60]: "3"
+          - generic [ref=e61]: Submit Details
+    - generic [ref=e62]:
+      - button "Back" [ref=e63] [cursor=pointer]:
+        - img [ref=e64]
+        - text: Back
+      - generic [ref=e151]:
+        - button "Identity" [ref=e152] [cursor=pointer]:
+          - img [ref=e154]
+          - generic [ref=e157]: Identity
+        - button "Membership" [ref=e159] [cursor=pointer]:
+          - img [ref=e161]
+          - generic [ref=e163]: Membership
+        - button "Address" [ref=e165] [cursor=pointer]:
+          - img [ref=e167]
+          - generic [ref=e170]: Address
+        - button "Bank Details" [disabled] [ref=e172]:
+          - img [ref=e174]
+          - generic [ref=e176]: Bank Details
+        - button "Signature" [disabled] [ref=e178]:
+          - img [ref=e180]
+          - generic [ref=e185]: Signature
+        - button "Review & Submit" [ref=e187] [cursor=pointer]:
+          - img [ref=e189]
+          - generic [ref=e192]: Review & Submit
+      - generic [ref=e257]:
+        - heading "Which bank account should the refund be paid to?" [level=2] [ref=e258]
+        - generic [ref=e260]:
+          - generic [ref=e261]: Account holder
+          - textbox "Full name of the account holder" [ref=e262]: John Smith
+          - generic [ref=e263]:
+            - img [ref=e264]
+            - paragraph [ref=e266]: The account does not need to be in your own name.
+        - generic [ref=e267]:
+          - generic [ref=e268]: EUR / SEPA bank account (IBAN)
+          - textbox "Enter the IBAN ..." [ref=e269]
+          - generic [ref=e270]:
+            - img [ref=e271]
+            - paragraph [ref=e273]: Refunds are paid directly by the pension provider via SEPA transfer. The account may be in your own name or in the name of a trusted third party.
+        - generic [ref=e274]:
+          - button "Don't have a EUR/SEPA account anymore?" [active] [ref=e275] [cursor=pointer]:
+            - text: Don't have a EUR/SEPA account anymore?
+            - img [ref=e281]
+          - generic [ref=e283]:
+            - paragraph [ref=e284]: To pay the refund, the pension provider requires a EUR/SEPA bank account.
+            - paragraph [ref=e285]: "This can be:"
+            - list [ref=e286]:
+              - listitem [ref=e287]: Your own EUR/SEPA account or
+              - listitem [ref=e288]: The account of a trusted third party (e.g. partner, family member, close friend).
+            - paragraph [ref=e289]: Many users choose to open a free EUR account so the refund is paid directly to them.
+            - generic [ref=e290]:
+              - button "Open free EUR account" [ref=e291] [cursor=pointer]:
+                - img [ref=e294]
+                - paragraph [ref=e296]: Open free EUR account
+              - button "Use a trusted third-party account" [ref=e297] [cursor=pointer]:
+                - img [ref=e300]
+                - paragraph [ref=e303]: Use a trusted third-party account
+        - button "Continue" [disabled] [ref=e278]:
+          - text: Continue
+          - img [ref=e279]
+  - alert [ref=e38]

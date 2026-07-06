@@ -2,307 +2,370 @@ import { test, expect } from '@playwright/test';
 import {
   navigateToGetStarted,
   selectEmploymentType,
+  selectPublicEntryPath,
   selectFederalState,
   selectPensionProvider,
   selectPensionScheme,
+  selectEmploymentEndDate,
   selectStagePensionDetails,
   selectStageContributionDuration,
+  selectPrivateEntryPath,
+  selectPrivateStatePensionRefund,
   selectPrivatePensionProvider,
-  selectContributionPeriod,
-  monthsAgo,
+  expectNotEligibleResult,
 } from './helpers';
 
 test.describe('Eligibility Edge Cases', () => {
-  // ============================================================
-  // Initial State
-  // ============================================================
-
   test.describe('Initial State', () => {
-    test('Page loads with 3 employment types visible', async ({
+    test('Page loads with the start options visible', async ({ page }) => {
+      await navigateToGetStarted(page);
+      await expect(
+        page.getByText('bAV / Company Pension Cash-Out')
+      ).toBeVisible();
+      await expect(page.getByText('VBL / ZVK Refund')).toBeVisible();
+      await expect(page.getByText('VddB / VddKO Refund')).toBeVisible();
+      await expect(page.getByText('Not sure')).toBeVisible();
+    });
+
+    test('Default bAV choice opens the upload/manual choice', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
-      await expect(page.getByText('Public sector')).toBeVisible();
+      await page.getByRole('button', { name: 'Start check' }).click();
       await expect(
-        page.getByText('Stage / Performing Arts/ Orchestra')
-      ).toBeVisible();
-      await expect(page.getByText('Private Sector')).toBeVisible();
-    });
-
-    test('Continue disabled without selection', async ({ page }) => {
-      await navigateToGetStarted(page);
-      const continueBtn = page.getByRole('button', {
-        name: 'Continue',
-      });
-      await expect(continueBtn).toBeDisabled();
+        page.getByRole('heading', {
+          name: 'Upload your pension statement or continue manually',
+        })
+      ).toBeVisible({ timeout: 5_000 });
     });
   });
 
-  // ============================================================
-  // Public Sector Back Navigation
-  // ============================================================
-
   test.describe('Public Sector Back Navigation', () => {
-    test('Back from federal state → employment type', async ({
+    test('Back from upload/manual choice returns to start choice', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
-      await selectEmploymentType(page, 'Public sector');
+      await selectEmploymentType(page, 'VBL / ZVK Refund');
       await expect(
         page.getByRole('heading', {
-          name: 'Where was your employer located?',
+          name: 'Upload your pension document or continue manually',
+        })
+      ).toBeVisible({ timeout: 5_000 });
+
+      await page.getByRole('button', { name: 'Back' }).click();
+      await expect(
+        page.getByRole('heading', { name: 'What do you want to start?' })
+      ).toBeVisible({ timeout: 5_000 });
+    });
+
+    test('Back from federal state returns to upload/manual choice', async ({
+      page,
+    }) => {
+      await navigateToGetStarted(page);
+      await selectEmploymentType(page, 'VBL / ZVK Refund');
+      await selectPublicEntryPath(page, 'Answer questions');
+      await expect(
+        page.getByRole('heading', {
+          name: 'Where was your public-sector employer located?',
         })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
         page.getByRole('heading', {
-          name: "Let's check your eligibility",
+          name: 'Upload your pension document or continue manually',
         })
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from pension provider → federal state', async ({
+    test('Back from pension provider returns to federal state', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
-      await selectEmploymentType(page, 'Public sector');
+      await selectEmploymentType(page, 'VBL / ZVK Refund');
+      await selectPublicEntryPath(page, 'Answer questions');
       await selectFederalState(page, 'Bavaria');
       await expect(
-        page.getByRole('heading', {
-          name: 'Select your company pension provider',
-        })
+        page.getByRole('heading', { name: 'Select your company pension' })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
         page.getByRole('heading', {
-          name: 'Where was your employer located?',
+          name: 'Where was your public-sector employer located?',
         })
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from pension scheme → provider', async ({ page }) => {
+    test('Back from pension scheme returns to provider', async ({ page }) => {
       await navigateToGetStarted(page);
-      await selectEmploymentType(page, 'Public sector');
+      await selectEmploymentType(page, 'VBL / ZVK Refund');
+      await selectPublicEntryPath(page, 'Answer questions');
       await selectFederalState(page, 'Berlin (West)');
       await selectPensionProvider(page, 'VBL');
       await expect(
-        page.getByRole('heading', {
-          name: 'Select your pension scheme',
-        })
+        page.getByRole('heading', { name: 'Select your company pension' })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
-        page.getByRole('heading', {
-          name: 'Select your company pension provider',
-        })
+        page.getByRole('heading', { name: 'Select your company pension' })
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from contribution period → scheme (VBL)', async ({
+    test('Back from contribution period returns to employment end date', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
-      await selectEmploymentType(page, 'Public sector');
+      await selectEmploymentType(page, 'VBL / ZVK Refund');
+      await selectPublicEntryPath(page, 'Answer questions');
       await selectFederalState(page, 'Berlin (West)');
       await selectPensionProvider(page, 'VBL');
       await selectPensionScheme(page, 'VBLklassik');
+      await selectEmploymentEndDate(page, 'January', '2017');
       await expect(
-        page.getByRole('heading', { name: 'Contribution period' })
+        page.getByRole('heading', { name: 'VBL contribution period' })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
-        page.getByRole('heading', {
-          name: 'Select your pension scheme',
-        })
+        page.getByRole('heading', { name: 'When did this employment end?' })
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from contribution period → provider (non-VBL, scheme skipped)', async ({
-      page,
-    }) => {
+    test('Back from non-VBL end date returns to provider', async ({ page }) => {
       await navigateToGetStarted(page);
-      await selectEmploymentType(page, 'Public sector');
+      await selectEmploymentType(page, 'VBL / ZVK Refund');
+      await selectPublicEntryPath(page, 'Answer questions');
       await selectFederalState(page, 'Hesse');
-      await selectPensionProvider(page, 'ZVK');
-      // Pension scheme was skipped, so back should go to provider
+      await selectPensionProvider(page, 'ZVK Darmstadt');
       await expect(
-        page.getByRole('heading', { name: 'Contribution period' })
+        page.getByRole('heading', { name: 'When did this employment end?' })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
-        page.getByRole('heading', {
-          name: 'Select your company pension provider',
-        })
+        page.getByRole('heading', { name: 'Select your company pension' })
       ).toBeVisible({ timeout: 5_000 });
     });
   });
 
-  // ============================================================
-  // Stage Back Navigation
-  // ============================================================
-
   test.describe('Stage Back Navigation', () => {
-    test('Back from stage details → employment type', async ({
+    test('Back from stage details returns to upload/manual choice', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
-      await selectEmploymentType(
-        page,
-        'Stage / Performing Arts/ Orchestra'
-      );
+      await selectEmploymentType(page, 'Stage / Performing Arts/ Orchestra');
+      await selectPublicEntryPath(page, 'Answer questions');
       await expect(
         page.getByRole('heading', {
-          name: 'Stage / Orchestra pension details',
+          name: 'Select your stage or orchestra pension',
         })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
         page.getByRole('heading', {
-          name: "Let's check your eligibility",
+          name: 'Upload your pension document or continue manually',
         })
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from stage duration → details', async ({ page }) => {
+    test('Back from stage duration returns to details', async ({ page }) => {
       await navigateToGetStarted(page);
-      await selectEmploymentType(
-        page,
-        'Stage / Performing Arts/ Orchestra'
-      );
+      await selectEmploymentType(page, 'Stage / Performing Arts/ Orchestra');
+      await selectPublicEntryPath(page, 'Answer questions');
       await selectStagePensionDetails(page, 'VddB');
       await expect(
         page.getByRole('heading', {
-          name: 'How many months did you contribute in total?',
+          name: 'How many VddB contribution months do you have in total?',
         })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
         page.getByRole('heading', {
-          name: 'Stage / Orchestra pension details',
+          name: 'Select your stage or orchestra pension',
         })
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from end date → duration', async ({ page }) => {
+    test('Back from end date returns to duration', async ({ page }) => {
       await navigateToGetStarted(page);
-      await selectEmploymentType(
-        page,
-        'Stage / Performing Arts/ Orchestra'
-      );
+      await selectEmploymentType(page, 'Stage / Performing Arts/ Orchestra');
+      await selectPublicEntryPath(page, 'Answer questions');
       await selectStagePensionDetails(page, 'VddB');
       await selectStageContributionDuration(page, '12 to 35 months');
       await expect(
-        page.getByRole('heading', {
-          name: 'When did your employment end?',
-        })
+        page.getByRole('heading', { name: 'When did your employment end?' })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
         page.getByRole('heading', {
-          name: 'How many months did you contribute in total?',
+          name: 'How many VddB contribution months do you have in total?',
         })
       ).toBeVisible({ timeout: 5_000 });
     });
   });
-
-  // ============================================================
-  // Private Sector Back Navigation
-  // ============================================================
 
   test.describe('Private Sector Back Navigation', () => {
-    test('Back from private provider → employment type', async ({
+    test('Back from private upload/manual choice returns to start choice', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
       await selectEmploymentType(page, 'Private Sector');
       await expect(
         page.getByRole('heading', {
-          name: 'Which company pension did you contribute to?',
+          name: 'Upload your pension statement or continue manually',
+        })
+      ).toBeVisible({ timeout: 5_000 });
+
+      await page.getByRole('button', { name: 'Back' }).click();
+      await expect(
+        page.getByRole('heading', { name: 'What do you want to start?' })
+      ).toBeVisible({ timeout: 5_000 });
+    });
+
+    test('Back from state pension refund question returns to upload/manual choice', async ({
+      page,
+    }) => {
+      await navigateToGetStarted(page);
+      await selectEmploymentType(page, 'Private Sector');
+      await selectPrivateEntryPath(page, 'Answer questions');
+      await expect(
+        page.getByRole('heading', {
+          name: 'Have you already received your German state pension refund?',
         })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
         page.getByRole('heading', {
-          name: "Let's check your eligibility",
+          name: 'Upload your pension statement or continue manually',
         })
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from contribution details → provider', async ({
+    test('Back from private provider returns to state pension refund question', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
       await selectEmploymentType(page, 'Private Sector');
-      await selectPrivatePensionProvider(page, 'BVV');
+      await selectPrivateEntryPath(page, 'Answer questions');
+      await selectPrivateStatePensionRefund(page, 'No');
       await expect(
-        page.getByRole('heading', { name: 'Contribution details' })
+        page.getByRole('heading', {
+          name: 'Who is your bAV provider?',
+        })
       ).toBeVisible({ timeout: 5_000 });
 
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
         page.getByRole('heading', {
-          name: 'Which company pension did you contribute to?',
+          name: 'Have you already received your German state pension refund?',
+        })
+      ).toBeVisible({ timeout: 5_000 });
+    });
+
+    test('Back from statement amount returns to provider', async ({ page }) => {
+      await navigateToGetStarted(page);
+      await selectEmploymentType(page, 'Private Sector');
+      await selectPrivateEntryPath(page, 'Answer questions');
+      await selectPrivateStatePensionRefund(page, 'No');
+      await selectPrivatePensionProvider(page, 'BVV');
+      await expect(
+        page.getByRole('heading', {
+          name: 'What amount is shown on your bAV statement?',
+        })
+      ).toBeVisible({ timeout: 5_000 });
+
+      await page.getByRole('button', { name: 'Back' }).click();
+      await expect(
+        page.getByRole('heading', {
+          name: 'Who is your bAV provider?',
         })
       ).toBeVisible({ timeout: 5_000 });
     });
   });
 
-  // ============================================================
-  // Miscellaneous Edge Cases
-  // ============================================================
-
   test.describe('Misc', () => {
-    test('No back button on employment type step', async ({ page }) => {
+    test('No back button on start choice', async ({ page }) => {
       await navigateToGetStarted(page);
-      // The back button should not be present on the first step
       await expect(
         page.getByRole('button', { name: 'Back' })
       ).not.toBeVisible();
     });
 
-    test('Switching employment types before clicking continue', async ({
+    test('Switching start choices before clicking continue', async ({
       page,
     }) => {
       await navigateToGetStarted(page);
 
-      // Select Public sector
-      await page.getByText('Public sector').click();
+      await page.getByRole('button', { name: /VBL \/ ZVK Refund/i }).click();
+      await page
+        .getByRole('button', { name: /bAV \/ Company Pension Cash-Out/i })
+        .click();
+      await page.getByRole('button', { name: /VddB \/ VddKO Refund/i }).click();
 
-      // Switch to Private Sector
-      await page.getByText('Private Sector').click();
-
-      // The info banner for private should appear
-      await expect(
-        page.getByText(
-          /Private sector company pensions usually do not allow/
-        )
-      ).toBeVisible();
-
-      // Switch to Stage
-      await page.getByText('Stage / Performing Arts/ Orchestra').click();
-
-      // Private info banner should disappear
-      await expect(
-        page.getByText(
-          /Private sector company pensions usually do not allow/
-        )
-      ).not.toBeVisible();
-
-      // Continue with Stage selected → should go to stage details
-      await page.getByRole('button', { name: 'Continue' }).click();
+      await page.getByRole('button', { name: 'Start check' }).click();
       await expect(
         page.getByRole('heading', {
-          name: 'Stage / Orchestra pension details',
+          name: 'Upload your pension document or continue manually',
         })
+      ).toBeVisible({ timeout: 5_000 });
+    });
+  });
+
+  // ============================================================
+  // Task 13 (client item 22): refresh must return to the most recently
+  // active screen instead of resetting to "What do you want to start?".
+  // ============================================================
+  test.describe('Refresh Persistence', () => {
+    test('Refreshing mid-flow restores the same step instead of resetting', async ({
+      page,
+    }) => {
+      await navigateToGetStarted(page);
+      await selectEmploymentType(page, 'VBL / ZVK Refund');
+      await selectPublicEntryPath(page, 'Answer questions');
+      await selectFederalState(page, 'Berlin (West)');
+      await selectPensionProvider(page, 'VBL');
+      await expect(
+        page.getByRole('heading', { name: 'Select your company pension' })
+      ).toBeVisible({ timeout: 5_000 });
+
+      await page.reload();
+
+      // Still on the pension scheme step, not back at the start screen.
+      await expect(
+        page.getByRole('heading', { name: 'Select your company pension' })
+      ).toBeVisible({ timeout: 5_000 });
+      await expect(
+        page.getByRole('heading', { name: 'What do you want to start?' })
+      ).not.toBeVisible();
+    });
+
+    test('Return to start clears persisted progress so a later refresh starts fresh', async ({
+      page,
+    }) => {
+      await navigateToGetStarted(page);
+      await selectEmploymentType(page, 'VBL / ZVK Refund');
+      await selectPublicEntryPath(page, 'Answer questions');
+      await selectFederalState(page, 'Brandenburg');
+      await expectNotEligibleResult(page);
+
+      await page
+        .getByRole('button', { name: /Return to start|Go back/ })
+        .click();
+      await expect(
+        page.getByRole('heading', { name: 'What do you want to start?' })
+      ).toBeVisible({ timeout: 5_000 });
+
+      // A refresh after the explicit restart must not resurrect the
+      // abandoned run — the persisted blob should have been cleared.
+      await page.reload();
+      await expect(
+        page.getByRole('heading', { name: 'What do you want to start?' })
       ).toBeVisible({ timeout: 5_000 });
     });
   });

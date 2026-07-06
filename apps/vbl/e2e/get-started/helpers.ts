@@ -1,4 +1,5 @@
 import { Page, expect } from '@playwright/test';
+import { existsSync } from 'fs';
 import path from 'path';
 
 // ============================================================
@@ -7,45 +8,122 @@ import path from 'path';
 
 export const GET_STARTED_URL = '/get-started';
 export const TEST_EMAIL = 'kalibuas@gmail.com';
-export const TEST_PASSPORT_PATH = path.join(
-  __dirname,
-  '../../public/USA.pdf'
-);
+export const TEST_PASSPORT_PATH = path.join(__dirname, '../../public/USA.pdf');
 
 // ============================================================
 // Eligibility Nav Helpers
 // ============================================================
 
+async function clearFlowPersistence(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const hadState = !!(
+      window.sessionStorage.getItem('vbl_eligibility_v1') ||
+      window.sessionStorage.getItem('vbl_onboarding_v1')
+    );
+    window.sessionStorage.removeItem('vbl_eligibility_v1');
+    window.sessionStorage.removeItem('vbl_onboarding_v1');
+    return hadState;
+  });
+}
+
 export async function navigateToGetStarted(page: Page) {
+  // Task 13 (client item 22): /get-started now persists flow position to
+  // sessionStorage so an in-tab refresh resumes instead of resetting. That
+  // persistence intentionally also survives a plain re-navigation to the
+  // same URL within the same tab (sessionStorage isn't refresh-specific),
+  // which every caller of this helper relies on NOT happening — it always
+  // asserts the fresh "What do you want to start?" screen. Tests that want
+  // to exercise refresh-resumes-progress use `page.reload()` directly after
+  // an initial `navigateToGetStarted`, so clearing here only ever discards
+  // state left over from a previous test/action in the same tab.
+  //
+  // Clearing then re-navigating is occasionally racy in this harness (a few
+  // specs that register page.route() mocks before re-calling this helper
+  // can otherwise still see the pre-clear state survive a single
+  // clear-then-goto pass), so this retries the clear/goto cycle a few times
+  // until the start screen is actually reached rather than asserting once.
   await page.goto(GET_STARTED_URL);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const hadPersistedState = await clearFlowPersistence(page);
+    if (!hadPersistedState) break;
+    // Use goto() again rather than page.reload(): Chromium can serve a
+    // reload from the back/forward cache, which restores the page's
+    // in-memory JS state (including the write-through effect's closure
+    // over the pre-clear React state) and re-writes the very keys we just
+    // removed before the app re-reads sessionStorage — a plain goto()
+    // always re-runs scripts from scratch, which reload() does not
+    // guarantee.
+    await page.goto(GET_STARTED_URL);
+    const stillPersisted = await page.evaluate(
+      () => !!window.sessionStorage.getItem('vbl_eligibility_v1')
+    );
+    if (!stillPersisted) break;
+  }
   await expect(
-    page.getByRole('heading', { name: "Let's check your eligibility" })
+    page.getByRole('heading', { name: 'What do you want to start?' })
   ).toBeVisible({ timeout: 10_000 });
 }
 
 export async function selectEmploymentType(
   page: Page,
-  type: 'Public sector' | 'Stage / Performing Arts/ Orchestra' | 'Private Sector'
+  type:
+    | 'Public sector'
+    | 'VBL / ZVK Refund'
+    | 'Stage / Performing Arts/ Orchestra'
+    | 'VddB / VddKO Refund'
+    | 'Private Sector'
+    | 'bAV / Company Pension Cash-Out'
+    | 'Not sure'
 ) {
-  await page.getByText(type, { exact: false }).click();
-  await page.getByRole('button', { name: 'Continue' }).click();
+  const labelByLegacyName: Record<string, string> = {
+    'Public sector': 'VBL / ZVK Refund',
+    'Stage / Performing Arts/ Orchestra': 'VddB / VddKO Refund',
+    'Private Sector': 'bAV / Company Pension Cash-Out',
+  };
+  const label = labelByLegacyName[type] ?? type;
+
+  await page.getByRole('button', { name: new RegExp(label, 'i') }).click();
+  await page.getByRole('button', { name: /Start check|Continue/i }).click();
+}
+
+export async function selectPublicEntryPath(
+  page: Page,
+  path: 'Upload document' | 'Answer questions' = 'Answer questions'
+) {
+  await expect(
+    page.getByRole('heading', {
+      name: 'Upload your pension document or continue manually',
+    })
+  ).toBeVisible({ timeout: 5_000 });
+  await page.getByRole('button', { name: new RegExp(path, 'i') }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+}
+
+export async function selectPrivateEntryPath(
+  page: Page,
+  path: 'Upload document' | 'Answer questions' = 'Answer questions'
+) {
+  await expect(
+    page.getByRole('heading', {
+      name: 'Upload your pension statement or continue manually',
+    })
+  ).toBeVisible({ timeout: 5_000 });
+  await page.getByRole('button', { name: new RegExp(path, 'i') }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
 }
 
 export async function selectFederalState(page: Page, state: string) {
   await expect(
-    page.getByRole('heading', { name: 'Where was your employer located?' })
+    page.getByRole('heading', { name: /Where was your.*employer located/ })
   ).toBeVisible({ timeout: 5_000 });
   await page.locator('select').selectOption(state);
   await page.getByRole('button', { name: 'Continue' }).click();
 }
 
-export async function selectPensionProvider(
-  page: Page,
-  provider: 'VBL' | 'ZVK' | 'VddB' | 'VddKO'
-) {
+export async function selectPensionProvider(page: Page, provider: string) {
   await expect(
     page.getByRole('heading', {
-      name: 'Select your company pension provider',
+      name: /Select your company pension/,
     })
   ).toBeVisible({ timeout: 5_000 });
   await page.locator('select').selectOption(provider);
@@ -57,7 +135,9 @@ export async function selectPensionScheme(
   plan: 'VBLklassik' | 'VBLextra'
 ) {
   await expect(
-    page.getByRole('heading', { name: 'Select your pension scheme' })
+    page.getByRole('heading', {
+      name: /Select your company pension|Select your pension scheme/,
+    })
   ).toBeVisible({ timeout: 5_000 });
   await page.getByText(plan).click();
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -68,7 +148,9 @@ export async function selectContributionPeriod(
   consecutive: 'Yes' | 'No'
 ) {
   await expect(
-    page.getByRole('heading', { name: 'Contribution period' })
+    page.getByRole('heading', {
+      name: /VBL contribution period|Contribution period/,
+    })
   ).toBeVisible({ timeout: 5_000 });
   await page.getByRole('button', { name: consecutive, exact: true }).click();
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -80,7 +162,7 @@ export async function selectContributionDuration(
 ) {
   await expect(
     page.getByRole('heading', {
-      name: 'How many months did you contribute in total?',
+      name: /How many months did you (pay into VBL|contribute) in total/,
     })
   ).toBeVisible({ timeout: 5_000 });
   await page.getByText(duration).click();
@@ -93,7 +175,7 @@ export async function selectStagePensionDetails(
 ) {
   await expect(
     page.getByRole('heading', {
-      name: 'Stage / Orchestra pension details',
+      name: 'Select your stage or orchestra pension',
     })
   ).toBeVisible({ timeout: 5_000 });
   await page.locator('select').selectOption(provider);
@@ -105,11 +187,16 @@ export async function selectStageContributionDuration(
   duration:
     | 'Less than 12 months'
     | '12 to 35 months'
+    | '36 to 119 months'
+    | '120 months or more'
+    | 'Less than 60 months'
+    | '60 months or more'
+    | 'Less than 36 months'
     | '36 months or more'
 ) {
   await expect(
     page.getByRole('heading', {
-      name: 'How many months did you contribute in total?',
+      name: /How many ((VddB|VddKO) contribution months do you have in total|of those contribution months were after 1 January (2001|2018))/,
     })
   ).toBeVisible({ timeout: 5_000 });
   await page.getByText(duration).click();
@@ -122,7 +209,9 @@ export async function selectEmploymentEndDate(
   year: string
 ) {
   await expect(
-    page.getByRole('heading', { name: 'When did your employment end?' })
+    page.getByRole('heading', {
+      name: /When did (this|your) employment end\?/,
+    })
   ).toBeVisible({ timeout: 5_000 });
   const selects = page.locator('select');
   await selects.nth(0).selectOption(month);
@@ -137,49 +226,66 @@ export async function selectPrivatePensionProvider(
 ) {
   await expect(
     page.getByRole('heading', {
-      name: 'Which company pension did you contribute to?',
+      name: 'Who is your bAV provider?',
     })
   ).toBeVisible({ timeout: 5_000 });
-  await page.locator('select').selectOption(provider);
+  await page.getByLabel('bAV provider').selectOption(provider);
   if (provider === 'Other' && otherName) {
-    await page
-      .getByPlaceholder('Pension provider name')
-      .fill(otherName);
+    await page.getByPlaceholder('Pension provider name').fill(otherName);
   }
   await page.getByRole('button', { name: 'Continue' }).click();
 }
 
-export async function fillPrivateContributionDetails(
+export async function selectPrivateStatePensionRefund(
+  page: Page,
+  received: 'Yes' | 'No'
+) {
+  await expect(
+    page.getByRole('heading', {
+      name: 'Have you already received your German state pension refund?',
+    })
+  ).toBeVisible({ timeout: 5_000 });
+  const label =
+    received === 'Yes'
+      ? 'Yes, my German state pension refund has been approved'
+      : 'No, I have not received a German state pension refund';
+  await page.getByRole('button', { name: label }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+}
+
+export async function fillPrivateStatementAmount(
   page: Page,
   options: {
-    startMonth: string;
-    startYear: string;
-    endMonth: string;
-    endYear: string;
-    employerPaid: 'Yes' | 'Not sure';
-    monthlyAmount?: string;
+    statementAmount?: string;
+    valueType: 'capital_amount' | 'monthly_pension' | 'not_found';
   }
 ) {
   await expect(
-    page.getByRole('heading', { name: 'Contribution details' })
+    page.getByRole('heading', {
+      name: 'What amount is shown on your bAV statement?',
+    })
   ).toBeVisible({ timeout: 5_000 });
 
-  const selects = page.locator('select');
-  // Contribution start: month (0), year (1)
-  await selects.nth(0).selectOption(options.startMonth);
-  await selects.nth(1).selectOption(options.startYear);
-  // Contribution end: month (2), year (3)
-  await selects.nth(2).selectOption(options.endMonth);
-  await selects.nth(3).selectOption(options.endYear);
-
-  if (options.monthlyAmount) {
-    await page.getByPlaceholder('E.g., 350').fill(options.monthlyAmount);
-  }
-
+  const optionLabelByValueType: Record<typeof options.valueType, string> = {
+    monthly_pension: 'Projected monthly pension',
+    capital_amount: 'Capital amount / one-time value',
+    not_found: "I can't find an amount",
+  };
   await page
-    .getByRole('button', { name: options.employerPaid, exact: true })
+    .getByRole('button', { name: optionLabelByValueType[options.valueType] })
     .click();
-  await page.getByRole('button', { name: 'Continue' }).click();
+
+  if (options.statementAmount && options.valueType === 'monthly_pension') {
+    await page
+      .getByLabel('Projected monthly pension at retirement')
+      .fill(options.statementAmount);
+  }
+  if (options.statementAmount && options.valueType === 'capital_amount') {
+    await page
+      .getByLabel('Capital amount / one-time value')
+      .fill(options.statementAmount);
+  }
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
 }
 
 // ============================================================
@@ -188,41 +294,40 @@ export async function fillPrivateContributionDetails(
 
 export async function expectEligibleResult(page: Page) {
   await expect(
-    page.getByRole('heading', { name: /eligible to continue|lump-sum settlement may be possible/i })
+    page.getByRole('heading', {
+      name: /eligible to continue|bAV cash-out can be started through CompanyPension|refund can be started/i,
+    })
   ).toBeVisible({ timeout: 5_000 });
   await expect(
-    page.getByRole('button', { name: /Continue securely|Start Claim/i })
+    page.getByRole('button', {
+      name: /Continue securely|Start bAV cash-out|Create (your )?secure claim/i,
+    })
   ).toBeVisible();
 }
 
 export async function expectNotEligibleResult(page: Page) {
   await expect(
-    page.getByRole('heading', { name: /not eligible/i })
-  ).toBeVisible({ timeout: 5_000 });
-  await expect(
-    page.getByRole('button', { name: 'Go back' })
-  ).toBeVisible();
-}
-
-export async function expectReviewResult(page: Page) {
-  await expect(
     page.getByRole('heading', {
-      name: 'Individual assessment required',
+      name: /not eligible|cannot currently be claimed|cannot currently be started through CompanyPension/i,
     })
   ).toBeVisible({ timeout: 5_000 });
   await expect(
-    page.getByRole('button', { name: 'Proceed with review' })
+    page.getByRole('button', {
+      name: /Go back|Return to start|Return to homepage|Go back and edit answers/i,
+    })
   ).toBeVisible();
 }
 
 export async function expectWaitingResult(page: Page) {
   await expect(
     page.getByRole('heading', {
-      name: 'Your company pension payout is not yet available',
+      name: /Your company pension payout is not yet available|Your refund cannot be started yet/,
     })
   ).toBeVisible({ timeout: 5_000 });
   await expect(
-    page.getByRole('button', { name: /Notify me when I'm eligible/i })
+    page.getByRole('button', {
+      name: /Notify me when (I'm eligible|I can start)/i,
+    })
   ).toBeVisible();
 }
 
@@ -232,10 +337,12 @@ export async function expectWaitingResult(page: Page) {
 
 export async function navigatePublicSectorToEligible(page: Page) {
   await navigateToGetStarted(page);
-  await selectEmploymentType(page, 'Public sector');
+  await selectEmploymentType(page, 'VBL / ZVK Refund');
+  await selectPublicEntryPath(page, 'Answer questions');
   await selectFederalState(page, 'North Rhine-Westphalia');
   await selectPensionProvider(page, 'VBL');
   await selectPensionScheme(page, 'VBLklassik');
+  await selectEmploymentEndDate(page, 'January', '2017');
   await selectContributionPeriod(page, 'No');
   await selectContributionDuration(page, 'Less than 36 months');
   await expectEligibleResult(page);
@@ -244,6 +351,7 @@ export async function navigatePublicSectorToEligible(page: Page) {
 export async function navigateStageToEligible(page: Page) {
   await navigateToGetStarted(page);
   await selectEmploymentType(page, 'Stage / Performing Arts/ Orchestra');
+  await selectPublicEntryPath(page, 'Answer questions');
   await selectStagePensionDetails(page, 'VddB');
   await selectStageContributionDuration(page, '12 to 35 months');
   // Use a date far enough in the past to avoid the 24-month wait
@@ -254,13 +362,12 @@ export async function navigateStageToEligible(page: Page) {
 export async function navigatePrivateSectorToEligible(page: Page) {
   await navigateToGetStarted(page);
   await selectEmploymentType(page, 'Private Sector');
+  await selectPrivateEntryPath(page, 'Answer questions');
+  await selectPrivateStatePensionRefund(page, 'No');
   await selectPrivatePensionProvider(page, 'BVV');
-  await fillPrivateContributionDetails(page, {
-    startMonth: 'January',
-    startYear: '2018',
-    endMonth: 'December',
-    endYear: '2020',
-    employerPaid: 'Yes',
+  await fillPrivateStatementAmount(page, {
+    statementAmount: '12400',
+    valueType: 'capital_amount',
   });
   await expectEligibleResult(page);
 }
@@ -271,21 +378,26 @@ export async function navigatePrivateSectorToEligible(page: Page) {
 
 export async function completeCreateAccount(page: Page, email?: string) {
   await expect(
-    page.getByRole('heading', { name: 'Create your account' })
+    page.getByRole('heading', { name: 'Create your secure claim' })
   ).toBeVisible({ timeout: 10_000 });
-  await page
-    .getByPlaceholder('your.email@example.com')
-    .fill(email ?? TEST_EMAIL);
-  await page
-    .getByRole('button', { name: /Continue with email/i })
-    .click();
+  await page.getByLabel('Email address').fill(email ?? TEST_EMAIL);
+  await page.getByRole('button', { name: /Continue with email/i }).click();
 }
 
 export async function completePayment(page: Page) {
+  // Payment.tsx branches its heading on pensionType: public/stage claimants
+  // see "Start your refund claim" (VBL-1); bAV/private claimants see
+  // "Start your bAV cash-out request" (VBL-26). Accept either so this
+  // shared helper works for both flows.
   await expect(
-    page.getByRole('heading', { name: /Start your refund claim/i })
+    page.getByRole('heading', {
+      name: /Start your (refund claim|bAV cash-out request)/i,
+    })
   ).toBeVisible({ timeout: 10_000 });
-  await page.getByRole('button', { name: /Pay.*deposit/i }).click();
+  // Button label also branches: public/stage "Pay €199 deposit", bAV/private
+  // "Pay €199 and complete your claim" — neither contains "deposit" in the
+  // private case, so match on the common "Pay €199" prefix instead.
+  await page.getByRole('button', { name: /Pay €199/i }).click();
   // Wait for processing to finish — simulated 1.5s delay
   await expect(
     page.getByRole('heading', { name: /passport|Upload/i })
@@ -298,44 +410,77 @@ export async function completeIdentityUpload(page: Page) {
   ).toBeVisible({ timeout: 10_000 });
 
   const fileInput = page.locator('input[type="file"]');
-  await fileInput.setInputFiles(TEST_PASSPORT_PATH);
+  if (existsSync(TEST_PASSPORT_PATH)) {
+    await fileInput.setInputFiles(TEST_PASSPORT_PATH);
+  } else {
+    await fileInput.setInputFiles({
+      name: 'passport.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4\n%EOF'),
+    });
+  }
 
   // Wait for OCR processing and confirm phase
   await expect(
-    page.getByRole('heading', { name: /Confirm your details/i })
+    page.getByRole('heading', { name: /Confirm your identity details/i })
   ).toBeVisible({ timeout: 30_000 });
 
   // Fill identity fields if empty
-  const fullNameInput = page.getByPlaceholder('John Smith');
-  if ((await fullNameInput.inputValue()) === '') {
-    await fullNameInput.fill('Test User');
+  const firstNameInput = page.getByPlaceholder('John');
+  if ((await firstNameInput.inputValue()) === '') {
+    await firstNameInput.fill('Test');
   }
-  const dobInput = page.locator('input[type="date"]');
-  if ((await dobInput.inputValue()) === '') {
-    await dobInput.fill('1990-01-15');
+  const lastNameInput = page.getByPlaceholder('Smith');
+  if ((await lastNameInput.inputValue()) === '') {
+    await lastNameInput.fill('User');
   }
-  const genderSelect = page.locator('select').first();
+  const dayInput = page.getByPlaceholder('Day');
+  if ((await dayInput.inputValue()) === '') {
+    await dayInput.fill('15');
+  }
+  const yearInput = page.getByPlaceholder('Year');
+  if ((await yearInput.inputValue()) === '') {
+    await yearInput.fill('1990');
+  }
+  const selects = page.locator('select');
+  const birthMonthSelect = selects.first();
+  if ((await birthMonthSelect.inputValue()) === '') {
+    await birthMonthSelect.selectOption('January');
+  }
+  const genderSelect = selects.nth(1);
   if ((await genderSelect.inputValue()) === '') {
     await genderSelect.selectOption('male');
+  }
+  const nationalityInput = page.getByPlaceholder('e.g. Australian');
+  if ((await nationalityInput.inputValue()) === '') {
+    await nationalityInput.fill('Australian');
+  }
+  const placeOfBirthInput = page.getByPlaceholder('e.g. Sydney');
+  if ((await placeOfBirthInput.inputValue()) === '') {
+    await placeOfBirthInput.fill('Sydney');
   }
   await page.getByRole('button', { name: /Continue/i }).click();
 }
 
 export async function completeMembership(page: Page) {
   await expect(
-    page.getByRole('heading', { name: 'Pension membership details' })
+    page.getByRole('heading', { name: 'VBL pension details' })
   ).toBeVisible({ timeout: 5_000 });
-  await page.locator('select').first().selectOption('VBL');
+  const providerSelect = page.locator('select').first();
+  if ((await providerSelect.count()) > 0) {
+    await providerSelect.selectOption('VBL');
+  }
+  await page
+    .getByPlaceholder(/VBL insurance number|membership number/i)
+    .fill('VBL123456');
   await page.getByRole('button', { name: /Continue/i }).click();
 }
 
 export async function completeAddress(page: Page) {
   await expect(
-    page.getByRole('heading', { name: 'Your current address' })
+    page.getByRole('heading', { name: 'Your current residential address' })
   ).toBeVisible({ timeout: 5_000 });
-  await page
-    .getByPlaceholder('Street and house number')
-    .fill('Test St 1');
+  await page.getByPlaceholder('Street and house number').fill('Test St 1');
   await page.getByPlaceholder('Postal code').fill('50667');
   await page.getByPlaceholder('City').fill('Cologne');
   await page.locator('select').first().selectOption('DE');
@@ -344,9 +489,14 @@ export async function completeAddress(page: Page) {
 
 export async function completeBankDetails(page: Page) {
   await expect(
-    page.getByRole('heading', {
-      name: /bank account|refund be paid/i,
-    })
+    page.getByRole('heading', { name: 'Where should the refund be paid?' })
+  ).toBeVisible({ timeout: 5_000 });
+  await page
+    .getByRole('button', { name: /My own EUR \/ SEPA account/i })
+    .click();
+  await page.getByRole('button', { name: /Continue/i }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Enter your bank details' })
   ).toBeVisible({ timeout: 5_000 });
   await page.getByPlaceholder(/IBAN/i).fill('DE89370400440532013000');
   await page.getByRole('button', { name: /Continue/i }).click();
@@ -369,14 +519,15 @@ export async function completeSignature(page: Page) {
     await page.mouse.up();
   }
 
+  await page.getByLabel('I confirm that this is my legal signature.').check();
   await page.getByRole('button', { name: /Continue/i }).click();
 }
 
 export async function submitClaimOnReview(page: Page) {
   await expect(
-    page.getByRole('heading', { name: /Review your claim/i })
+    page.getByRole('heading', { name: /Review your refund request/i })
   ).toBeVisible({ timeout: 10_000 });
-  await page.getByRole('button', { name: /Submit/i }).click();
+  await page.getByRole('button', { name: /Submit claim/i }).click();
 }
 
 // ============================================================

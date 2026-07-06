@@ -149,6 +149,38 @@ describe('ClaimsApplicationService', () => {
     return sig.id;
   }
 
+  async function createSubmissionReadyVblClaim(overrides: Record<string, unknown> = {}): Promise<{
+    userId: string;
+    claimId: string;
+  }> {
+    const userId = await createTestUser();
+    const created = await ClaimsApplicationService.createClaim(userId);
+    createdClaimIds.push(created.id);
+
+    await ClaimsApplicationService.updateClaim(created.id, userId, {
+      claimType: 'own_refund',
+      firstName: 'John',
+      lastName: 'Doe',
+      dateOfBirth: '1990-03-14',
+      gender: 'male',
+      placeOfBirth: 'Sydney',
+      nationality: 'Australian',
+      passportNumber: 'P1234567',
+      currentAddressLine1: '123 Test Street',
+      currentCity: 'Sydney',
+      currentCountry: 'Australia',
+      ...overrides,
+    } as any);
+
+    const passportId = await createTestDocument(userId, 'passport');
+    await ClaimsApplicationService.addDocument(created.id, userId, passportId, 'passport');
+
+    const signatureId = await createTestSignature(userId);
+    await ClaimsApplicationService.attachSignature(created.id, userId, signatureId);
+
+    return { userId, claimId: created.id };
+  }
+
   // Helper to create user with GPR application (for FK constraint satisfaction)
   async function createUserWithApplication(email: string): Promise<{ userId: string; applicationId: string }> {
     // Save a pending session
@@ -801,6 +833,33 @@ describe('ClaimsApplicationService', () => {
       expect(validation.missingSteps).toContain('claimType');
       expect(validation.missingSteps).toContain('bankDetails');
       expect(validation.missingSteps).toContain('signDocuments');
+    });
+
+    it('requires nationality and place of birth from the passport review data', async () => {
+      const { userId, claimId } = await createSubmissionReadyVblClaim({
+        nationality: null,
+        placeOfBirth: null,
+      });
+
+      const validation = await ClaimsApplicationService.validateForSubmission(claimId, userId);
+
+      expect(validation.isValid).toBe(false);
+      expect(validation.errors).toContain('Nationality is required');
+      expect(validation.errors).toContain('Place of birth is required');
+    });
+
+    it('rejects passport confirmation for applicants under 18 years old', async () => {
+      const under18 = new Date();
+      under18.setFullYear(under18.getFullYear() - 17);
+
+      const { userId, claimId } = await createSubmissionReadyVblClaim({
+        dateOfBirth: under18.toISOString().slice(0, 10),
+      });
+
+      const validation = await ClaimsApplicationService.validateForSubmission(claimId, userId);
+
+      expect(validation.isValid).toBe(false);
+      expect(validation.errors).toContain('Applicant must be at least 18 years old');
     });
   });
 

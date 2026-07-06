@@ -22,16 +22,15 @@ function getDatabaseUrl(): string {
   }
 
   // Fallback to DATABASE_URL env var or default
-  const fallback = process.env.DATABASE_URL || 'postgresql://vbl_user:vbl_password@localhost:5432/vbl_development';
+  const fallback =
+    process.env.DATABASE_URL ||
+    'postgresql://vbl_user:vbl_password@localhost:5432/vbl_development';
   console.log('Using DATABASE_URL from environment or default');
   return fallback;
 }
 
 const envSchema = z.object({
-  DATABASE_URL: z.preprocess(
-    () => getDatabaseUrl(),
-    z.string()
-  ),
+  DATABASE_URL: z.preprocess(() => getDatabaseUrl(), z.string()),
   REDIS_URL: z.string().optional().default('redis://localhost:6379'),
   JWT_SECRET: z
     .string()
@@ -52,11 +51,18 @@ const envSchema = z.object({
   // Frontend URL for OAuth callbacks and magic links
   FRONTEND_URL: z.string().optional().default('http://localhost:3000'),
   // SES email
-  SES_FROM_EMAIL: z.string().optional().default('noreply@atlaes.de'),
+  SES_FROM_EMAIL: z.string().optional().default('noreply@companypension.de'),
   SES_REGION: z.string().optional().default('eu-central-1'),
   // Stripe
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  // Mistral OCR / extraction
+  MISTRAL_API_KEY: z.string().optional(),
+  MISTRAL_OCR_MODEL: z.string().optional().default('mistral-ocr-latest'),
+  MISTRAL_EXTRACTION_MODEL: z
+    .string()
+    .optional()
+    .default('mistral-large-latest'),
   // Admin token gating the /api/migrations/run endpoint.
   // CI/CD posts this header after each staging deploy. Rotates via SST secret.
   // Local dev keeps a known default; production requires a real value (guarded below).
@@ -64,6 +70,13 @@ const envSchema = z.object({
     .string()
     .min(32)
     .default('dev-migration-token-not-for-production-use-only'),
+  // Lettershop (onlinebrief24.de) SFTP delivery
+  LETTERSHOP_SFTP_HOST: z.string().optional(),
+  LETTERSHOP_SFTP_PORT: z.coerce.number().optional().default(22),
+  LETTERSHOP_SFTP_USER: z.string().optional(),
+  LETTERSHOP_SFTP_PASSWORD: z.string().optional(),
+  LETTERSHOP_SFTP_PRIVATE_KEY_PATH: z.string().optional(),
+  LETTERSHOP_MODE: z.enum(['test', 'live', 'off']).default('test'),
 });
 
 export const env = envSchema.parse(process.env);
@@ -73,7 +86,8 @@ export const env = envSchema.parse(process.env);
 // migration token.
 if (
   env.NODE_ENV === 'production' &&
-  env.ADMIN_MIGRATION_TOKEN === 'dev-migration-token-not-for-production-use-only'
+  env.ADMIN_MIGRATION_TOKEN ===
+    'dev-migration-token-not-for-production-use-only'
 ) {
   throw new Error(
     'ADMIN_MIGRATION_TOKEN must be set to a real secret in production (>=32 chars). ' +

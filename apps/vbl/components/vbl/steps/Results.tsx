@@ -91,8 +91,10 @@ const isStageOrOrchestra = (job: JobData): boolean =>
 //      to apply to the company pension)
 //   3. DRV === "no" AND at least one financial field filled → may_be_possible
 //      (the user is still in the scheme and we have enough hints to estimate)
-//   4. DRV === "not_sure" OR DRV === "no" with no financial fields → individual_assessment
-//      (catch-all: we don't have enough info to rule either way)
+//   4. DRV === "no" AND "I can't find either" selected → appears_unlikely
+//      (client QA: this should be a rejection result)
+//   5. DRV === "not_sure" OR DRV === "no" with no statement choice → individual_assessment
+//      (legacy/catch-all: we don't have enough info to rule either way)
 //
 // These rules are QA-material only until the client confirms. See
 // docs/client-feedback-status.md for the 6 open questions about this.
@@ -124,6 +126,12 @@ const resolvePrivateVariant = (privateJobs: JobData[]): PrivateVariant => {
       return 'private_appears_unlikely';
     if (job.statutoryPensionRefunded === 'no' && hasAnyFinancialField(job)) {
       return 'private_may_be_possible';
+    }
+    if (
+      job.statutoryPensionRefunded === 'no' &&
+      job.privateStatementChoice === 'none'
+    ) {
+      return 'private_appears_unlikely';
     }
     return 'private_individual_assessment';
   });

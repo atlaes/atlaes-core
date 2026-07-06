@@ -1,0 +1,72 @@
+- generic [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]: "1"
+          - generic [ref=e13]: Eligibility
+        - generic [ref=e18]:
+          - generic [ref=e19]: "2"
+          - generic [ref=e20]: Create Account
+        - generic [ref=e23]:
+          - generic [ref=e24]: "3"
+          - generic [ref=e25]: Start Claim
+        - generic [ref=e28]:
+          - generic [ref=e29]: "4"
+          - generic [ref=e30]: Submit Details
+    - generic [ref=e31]:
+      - button "Back" [active] [ref=e63] [cursor=pointer]:
+        - img [ref=e64]
+        - text: Back
+      - generic [ref=e141]:
+        - heading "When did your employment end?" [level=2] [ref=e142]
+        - paragraph [ref=e144]: Employment end date
+        - generic [ref=e145]:
+          - generic [ref=e146]:
+            - combobox [ref=e147] [cursor=pointer]:
+              - option "Month"
+              - option "January"
+              - option "February"
+              - option "March"
+              - option "April"
+              - option "May"
+              - option "June" [selected]
+              - option "July"
+              - option "August"
+              - option "September"
+              - option "October"
+              - option "November"
+              - option "December"
+            - img
+          - generic [ref=e148]:
+            - combobox [ref=e149] [cursor=pointer]:
+              - option "Year"
+              - option "2026"
+              - option "2025"
+              - option "2024"
+              - option "2023"
+              - option "2022"
+              - option "2021"
+              - option "2020" [selected]
+              - option "2019"
+              - option "2018"
+              - option "2017"
+              - option "2016"
+              - option "2015"
+              - option "2014"
+              - option "2013"
+              - option "2012"
+              - option "2011"
+              - option "2010"
+              - option "2009"
+              - option "2008"
+              - option "2007"
+              - option "2006"
+              - option "2005"
+              - option "2004"
+            - img
+        - button "Continue" [ref=e150] [cursor=pointer]:
+          - text: Continue
+          - img [ref=e151]
+  - alert [ref=e60]

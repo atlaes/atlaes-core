@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi } from 'vitest';
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -9,6 +9,8 @@ import { claimsTable } from '../drizzle/schema/claims';
 import claims from './claims';
 import { AuthService } from '../utils/auth';
 import { claimPersonalInfo, claimCurrentAddress, claimBankDetails, completeClaim } from '../test/fixtures';
+import { ClaimPdfService } from '../services/claim-pdf';
+import * as s3Utils from '../utils/s3';
 
 // Test database connection
 const TEST_DATABASE_URL =
@@ -950,6 +952,142 @@ describe('Claims Routes', () => {
       expect(Array.isArray(data.history)).toBe(true);
       // History includes at least the transition we made
       expect(data.history.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  // ============================================================
+  // Claim PDF Generation/Download Tests
+  // ============================================================
+
+  describe('GET /api/claims/:id/pdf', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('returns 404 when PDF has not been generated yet', async () => {
+      const { token } = await createTestUserWithToken();
+
+      const createRes = await request('POST', '/api/claims', {}, {
+        Authorization: `Bearer ${token}`,
+      });
+      const createData = await createRes.json() as any;
+      createdClaimIds.push(createData.claim.id);
+
+      const res = await request(
+        'GET',
+        `/api/claims/${createData.claim.id}/pdf`,
+        undefined,
+        { Authorization: `Bearer ${token}` }
+      );
+
+      const data = await res.json() as any;
+
+      expect(res.status).toBe(404);
+      expect(data.success).toBe(false);
+      expect(data.error).toBe('PDF not generated yet');
+    });
+  });
+
+  describe('POST /api/claims/:id/generate-pdf', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('generates and returns a download URL for the PDF', async () => {
+      const { token } = await createTestUserWithToken();
+
+      const createRes = await request('POST', '/api/claims', {}, {
+        Authorization: `Bearer ${token}`,
+      });
+      const createData = await createRes.json() as any;
+      createdClaimIds.push(createData.claim.id);
+
+      const generateSpy = vi
+        .spyOn(ClaimPdfService, 'generateAndStoreForClaim')
+        .mockResolvedValue({
+          pdfS3Key: `claims/${createData.claim.id}/vbl-claim-package-123.pdf`,
+          bytes: new Uint8Array([1, 2, 3]),
+        });
+      const presignedSpy = vi
+        .spyOn(s3Utils, 'getPresignedUrl')
+        .mockResolvedValue('https://example.com/signed-url');
+
+      const res = await request(
+        'POST',
+        `/api/claims/${createData.claim.id}/generate-pdf`,
+        undefined,
+        { Authorization: `Bearer ${token}` }
+      );
+
+      const data = await res.json() as any;
+
+      expect(res.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.data.pdfS3Key).toBe(
+        `claims/${createData.claim.id}/vbl-claim-package-123.pdf`
+      );
+      expect(data.data.downloadUrl).toBe('https://example.com/signed-url');
+      expect(generateSpy).toHaveBeenCalledWith(
+        createData.claim.id,
+        expect.any(String)
+      );
+      expect(presignedSpy).toHaveBeenCalledWith(
+        `claims/${createData.claim.id}/vbl-claim-package-123.pdf`
+      );
+    });
+
+    it('returns 404 when generating PDF for another user\'s claim', async () => {
+      const { token: token1 } = await createTestUserWithToken();
+      const { token: token2 } = await createTestUserWithToken();
+
+      const createRes = await request('POST', '/api/claims', {}, {
+        Authorization: `Bearer ${token1}`,
+      });
+      const createData = await createRes.json() as any;
+      createdClaimIds.push(createData.claim.id);
+
+      vi.spyOn(ClaimPdfService, 'generateAndStoreForClaim').mockRejectedValue(
+        new Error('Claim not found')
+      );
+
+      const res = await request(
+        'POST',
+        `/api/claims/${createData.claim.id}/generate-pdf`,
+        undefined,
+        { Authorization: `Bearer ${token2}` }
+      );
+
+      const data = await res.json() as any;
+
+      expect(res.status).toBe(404);
+      expect(data.success).toBe(false);
+    });
+
+    it('returns 400 when required fields are missing', async () => {
+      const { token } = await createTestUserWithToken();
+
+      const createRes = await request('POST', '/api/claims', {}, {
+        Authorization: `Bearer ${token}`,
+      });
+      const createData = await createRes.json() as any;
+      createdClaimIds.push(createData.claim.id);
+
+      vi.spyOn(ClaimPdfService, 'generateAndStoreForClaim').mockRejectedValue(
+        new Error('Cannot generate PDF, missing: firstName, lastName')
+      );
+
+      const res = await request(
+        'POST',
+        `/api/claims/${createData.claim.id}/generate-pdf`,
+        undefined,
+        { Authorization: `Bearer ${token}` }
+      );
+
+      const data = await res.json() as any;
+
+      expect(res.status).toBe(400);
+      expect(data.success).toBe(false);
+      expect(data.details).toContain('missing');
     });
   });
 });

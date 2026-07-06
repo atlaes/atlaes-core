@@ -1,0 +1,26 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]: "1"
+          - generic [ref=e13]: Eligibility
+        - generic [ref=e18]:
+          - generic [ref=e19]: "2"
+          - generic [ref=e20]: Create Account
+        - generic [ref=e23]:
+          - generic [ref=e24]: "3"
+          - generic [ref=e25]: Start Claim
+        - generic [ref=e28]:
+          - generic [ref=e29]: "4"
+          - generic [ref=e30]: Submit Details
+    - generic [ref=e224]:
+      - img [ref=e226]
+      - heading "A lump-sum settlement may be possible" [level=2] [ref=e228]
+      - paragraph [ref=e229]: Based on your answers, a lump-sum settlement (Abfindung) of your company pension may be possible.
+      - paragraph [ref=e231]: Final eligibility depends on confirmation by the pension provider and your former employer.
+      - button "Start Claim" [ref=e232] [cursor=pointer]:
+        - text: Start Claim
+        - img [ref=e233]
+  - alert [ref=e60]

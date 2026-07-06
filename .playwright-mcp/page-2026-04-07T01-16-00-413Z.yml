@@ -1,0 +1,36 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Company Pension" [ref=e7]
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]: "1"
+          - generic [ref=e13]: Eligibility
+        - generic [ref=e18]:
+          - generic [ref=e19]: "2"
+          - generic [ref=e20]: Create Account
+        - generic [ref=e23]:
+          - generic [ref=e24]: "3"
+          - generic [ref=e25]: Start Claim
+        - generic [ref=e28]:
+          - generic [ref=e29]: "4"
+          - generic [ref=e30]: Submit Details
+    - generic [ref=e31]:
+      - button "Back" [ref=e64] [cursor=pointer]:
+        - img [ref=e65]
+        - text: Back
+      - generic [ref=e87]:
+        - heading "Select your pension scheme" [level=2] [ref=e88]
+        - paragraph [ref=e90]: Choose the scheme(s) you contributed to during your employment.
+        - paragraph [ref=e91]: Company pension
+        - generic [ref=e92]:
+          - generic [ref=e93]: VBL
+          - img
+        - paragraph [ref=e94]: Which VBL plan do you have?
+        - generic [ref=e95]:
+          - button "VBLklassik" [ref=e96] [cursor=pointer]
+          - button "VBLextra" [ref=e97] [cursor=pointer]
+        - button "Continue" [disabled] [ref=e98]:
+          - text: Continue
+          - img [ref=e99]
+  - alert [ref=e61]

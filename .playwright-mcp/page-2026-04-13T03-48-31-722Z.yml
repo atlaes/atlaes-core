@@ -1,0 +1,23 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - img "Company Pension" [ref=e7]
+    - generic [ref=e9]:
+      - heading "Which claim would you like to start first?" [level=2] [ref=e10]
+      - paragraph [ref=e12]: You can only submit one claim at a time. Please choose which claim you want to start first. You can start the other claim afterwards.
+      - generic [ref=e13]:
+        - button "Public sector refund claim" [ref=e14] [cursor=pointer]:
+          - img [ref=e16]
+          - generic [ref=e19]:
+            - paragraph [ref=e20]: Public sector refund claim
+            - paragraph
+          - img [ref=e21]
+        - button "Private-sector settlement claim BVV" [ref=e23] [cursor=pointer]:
+          - img [ref=e25]
+          - generic [ref=e29]:
+            - paragraph [ref=e30]: Private-sector settlement claim
+            - paragraph [ref=e31]: BVV
+          - img [ref=e32]
+      - generic [ref=e34]:
+        - img [ref=e35]
+        - paragraph [ref=e37]: These claims are legally separate and must be submitted one at a time.
+  - alert [ref=e38]
