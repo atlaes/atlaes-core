@@ -383,7 +383,10 @@ export function GetStartedOnboardingFlow() {
 
   return (
     <GetStartedLayout
-      showBack={true}
+      // Item 11: the paygate (step 2) has no local Back button, and the
+      // global back control is hidden while it's active — every other
+      // step keeps it.
+      showBack={currentStep !== 2}
       onBack={handleBack}
       activeStep={activeStep}
       currentSubStep={currentStep === 3 ? currentSubStep : undefined}
