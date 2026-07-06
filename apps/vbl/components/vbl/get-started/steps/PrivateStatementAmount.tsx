@@ -1,22 +1,65 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, ChevronDown, Info } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Info } from 'lucide-react';
 import { useEligibility } from '@/contexts/EligibilityContext';
 import { PrivateStatementValueType } from '@/components/vbl/get-started/flows';
 
 const VALUE_TYPE_OPTIONS: {
   id: Exclude<PrivateStatementValueType, ''>;
-  label: string;
+  title: string;
+  description: string;
 }[] = [
-  { id: 'capital_amount', label: 'Surrender value — Rückkaufswert' },
-  { id: 'monthly_pension', label: 'Monthly pension — monatliche Rente' },
-  { id: 'not_found', label: 'No statement value shown / unclear' },
+  {
+    id: 'monthly_pension',
+    title: 'Projected monthly pension',
+    description: 'Monthly pension expected at retirement.',
+  },
+  {
+    id: 'capital_amount',
+    title: 'Capital amount / one-time value',
+    description: 'A lump-sum, capital value or one-time payout amount.',
+  },
+  {
+    id: 'not_found',
+    title: "I can't find an amount",
+    description: '',
+  },
 ];
 
 function isAmountRequired(valueType: PrivateStatementValueType): boolean {
   return valueType !== 'not_found';
 }
+
+interface NumberInputProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}
+
+const NumberInput: React.FC<NumberInputProps> = ({
+  label,
+  value,
+  onChange,
+  placeholder,
+}) => (
+  <label className="block text-left">
+    <span className="mb-2 block text-[14px] font-semibold text-[#4A4F58]">
+      {label}
+    </span>
+    <input
+      aria-label={label}
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={value}
+      onChange={(event) => onChange(event.target.value.replace(/[^\d]/g, ''))}
+      placeholder={placeholder}
+      className="h-12 w-full rounded-[8px] border border-[#D3DAE8] bg-white px-4 text-[16px] text-[#1F2937] shadow-sm transition-all focus:border-[#9FE870] focus:outline-none focus:ring-2 focus:ring-[#9FE870]/20"
+    />
+  </label>
+);
 
 export const PrivateStatementAmount: React.FC = () => {
   const { data, goBack, goNext } = useEligibility();
@@ -47,63 +90,70 @@ export const PrivateStatementAmount: React.FC = () => {
         </h2>
         <div className="mx-auto mt-3 h-px w-full max-w-[560px] bg-[#D9DEE7]" />
         <p className="mx-auto mt-4 max-w-[560px] text-[16px] leading-6 text-[#4B5563]">
-          Please share the details needed for the first cash-out check.
+          Choose the value type you can find on your pension document.
         </p>
       </div>
 
-      <div className="space-y-5">
-        <label className="block text-left">
-          <span className="mb-2 block text-[14px] font-semibold text-[#4A4F58]">
-            Pension value
-          </span>
-          <input
-            aria-label="Pension value"
-            type="text"
-            inputMode="numeric"
-            value={statementAmount}
-            onChange={(event) =>
-              setStatementAmount(event.target.value.replace(/[^\d]/g, ''))
-            }
-            placeholder="Pension value"
-            className="h-12 w-full rounded-[8px] border border-[#D3DAE8] bg-white px-4 text-[16px] text-[#1F2937] shadow-sm transition-all focus:border-[#9FE870] focus:outline-none focus:ring-2 focus:ring-[#9FE870]/20"
-          />
-        </label>
+      <div className="space-y-4">
+        {VALUE_TYPE_OPTIONS.map((option) => {
+          const isSelected = statementValueType === option.id;
 
-        <label className="block text-left">
-          <span className="mb-2 block text-[14px] font-semibold text-[#4A4F58]">
-            Value type shown on your document
-          </span>
-          <span className="relative block">
-            <select
-              aria-label="Value type shown on your document"
-              value={statementValueType}
-              onChange={(event) =>
-                setStatementValueType(
-                  event.target.value as PrivateStatementValueType
-                )
-              }
-              className="h-12 w-full cursor-pointer appearance-none rounded-[8px] border border-[#D3DAE8] bg-white px-4 pr-10 text-[16px] text-[#1F2937] shadow-sm transition-all focus:border-[#9FE870] focus:outline-none focus:ring-2 focus:ring-[#9FE870]/20"
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setStatementValueType(option.id)}
+              className={`flex min-h-[76px] w-full items-center gap-6 rounded-[8px] border px-7 py-5 text-left transition ${
+                isSelected
+                  ? 'border-[#163300] bg-[#9FE870] text-[#163300]'
+                  : 'border-[#AEB4BF] bg-white text-[#111827] hover:border-[#163300]'
+              }`}
             >
-              <option value="">Select value type</option>
-              {VALUE_TYPE_OPTIONS.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#6B7280]" />
-          </span>
-        </label>
-
-        <div className="flex items-start gap-2 text-left text-[14px] leading-5 text-[#4B5563]">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#4B5563]" />
-          <p>
-            Enter the value shown on your bAV statement. If several values
-            are shown, choose the one that looks most relevant. The provider
-            confirms the final cash-out amount later.
-          </p>
-        </div>
+              <span>
+                <span className="block text-[17px] font-bold">
+                  {option.title}
+                </span>
+                {option.description && (
+                  <span className="mt-1 block text-[16px] leading-6 text-[#4B5563]">
+                    {option.description}
+                  </span>
+                )}
+              </span>
+            </button>
+          );
+        })}
       </div>
+
+      {statementValueType === 'monthly_pension' && (
+        <div className="mt-5">
+          <NumberInput
+            label="Projected monthly pension at retirement"
+            value={statementAmount}
+            onChange={setStatementAmount}
+            placeholder="E.g., 45"
+          />
+        </div>
+      )}
+
+      {statementValueType === 'capital_amount' && (
+        <div className="mt-5 space-y-3">
+          <NumberInput
+            label="Capital amount / one-time value"
+            value={statementAmount}
+            onChange={setStatementAmount}
+            placeholder="E.g., 8,500"
+          />
+          <div className="flex items-start gap-3 rounded-[8px] bg-[#EEF6EA] px-5 py-3 text-left text-[#4A4F58]">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#5A9A23]">
+              <Info className="h-3.5 w-3.5 text-white" />
+            </span>
+            <p className="text-[14px] leading-5">
+              Enter the amount shown on your statement. A rough number is enough
+              for this check.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="mt-14 flex items-center justify-between gap-4">
         <button

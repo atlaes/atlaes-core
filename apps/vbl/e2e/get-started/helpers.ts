@@ -186,7 +186,7 @@ export async function selectPrivatePensionProvider(
       name: 'Who is your bAV provider?',
     })
   ).toBeVisible({ timeout: 5_000 });
-  await page.locator('select').selectOption(provider);
+  await page.getByLabel('bAV provider').selectOption(provider);
   if (provider === 'Other' && otherName) {
     await page.getByPlaceholder('Pension provider name').fill(otherName);
   }
@@ -223,12 +223,25 @@ export async function fillPrivateStatementAmount(
     })
   ).toBeVisible({ timeout: 5_000 });
 
-  if (options.statementAmount) {
-    await page.getByLabel('Pension value').fill(options.statementAmount);
-  }
+  const optionLabelByValueType: Record<typeof options.valueType, string> = {
+    monthly_pension: 'Projected monthly pension',
+    capital_amount: 'Capital amount / one-time value',
+    not_found: "I can't find an amount",
+  };
   await page
-    .getByLabel('Value type shown on your document')
-    .selectOption(options.valueType);
+    .getByRole('button', { name: optionLabelByValueType[options.valueType] })
+    .click();
+
+  if (options.statementAmount && options.valueType === 'monthly_pension') {
+    await page
+      .getByLabel('Projected monthly pension at retirement')
+      .fill(options.statementAmount);
+  }
+  if (options.statementAmount && options.valueType === 'capital_amount') {
+    await page
+      .getByLabel('Capital amount / one-time value')
+      .fill(options.statementAmount);
+  }
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
 }
 
@@ -239,12 +252,12 @@ export async function fillPrivateStatementAmount(
 export async function expectEligibleResult(page: Page) {
   await expect(
     page.getByRole('heading', {
-      name: /eligible to continue|lump-sum settlement may be possible|refund can be started/i,
+      name: /eligible to continue|bAV cash-out can be started through CompanyPension|refund can be started/i,
     })
   ).toBeVisible({ timeout: 5_000 });
   await expect(
     page.getByRole('button', {
-      name: /Continue securely|Start Claim|Create (your )?secure claim/i,
+      name: /Continue securely|Start bAV cash-out|Create (your )?secure claim/i,
     })
   ).toBeVisible();
 }
@@ -252,12 +265,12 @@ export async function expectEligibleResult(page: Page) {
 export async function expectNotEligibleResult(page: Page) {
   await expect(
     page.getByRole('heading', {
-      name: /not eligible|cannot currently be claimed/i,
+      name: /not eligible|cannot currently be claimed|cannot currently be started through CompanyPension/i,
     })
   ).toBeVisible({ timeout: 5_000 });
   await expect(
     page.getByRole('button', {
-      name: /Go back|Return to start|Return to homepage/i,
+      name: /Go back|Return to start|Return to homepage|Go back and edit answers/i,
     })
   ).toBeVisible();
 }

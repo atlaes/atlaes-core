@@ -62,14 +62,15 @@ async function mockOnboardingApi(page: import('@playwright/test').Page) {
       json({
         message: 'Verified',
         user,
-        tokens: { accessToken: 'mock-access-token', refreshToken: 'mock-refresh-token' },
+        tokens: {
+          accessToken: 'mock-access-token',
+          refreshToken: 'mock-refresh-token',
+        },
         isNewUser: false,
       })
     )
   );
-  await page.route('**/api/auth/me', (route) =>
-    route.fulfill(json({ user }))
-  );
+  await page.route('**/api/auth/me', (route) => route.fulfill(json({ user })));
   await page.route('**/api/claims', (route) => {
     if (route.request().method() === 'POST') {
       return route.fulfill(json({ success: true, claim }));
@@ -176,7 +177,9 @@ test.describe('Onboarding Eligibility resource copy', () => {
   }) => {
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
 
     await expect(
@@ -246,7 +249,9 @@ test.describe('Onboarding Full Flow', () => {
     // 1. Complete eligibility
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
 
     // 2. Create Account
@@ -283,7 +288,9 @@ test.describe('Onboarding Full Flow', () => {
   test('Private eligible reaches create account', async ({ page }) => {
     await navigatePrivateSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Start Claim|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Start bAV cash-out|Create your secure claim/i,
+      })
       .click();
 
     await expect(
@@ -306,7 +313,9 @@ test.describe('Onboarding Full Flow', () => {
     await expectEligibleResult(page);
 
     await page
-      .getByRole('button', { name: /Start Claim|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Start bAV cash-out|Create your secure claim/i,
+      })
       .click();
 
     await expect(
@@ -317,7 +326,9 @@ test.describe('Onboarding Full Flow', () => {
   test('Stage eligible reaches create account', async ({ page }) => {
     await navigateStageToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
 
     await expect(
@@ -332,7 +343,9 @@ test.describe('Onboarding Full Flow', () => {
   test('Email required before continue', async ({ page }) => {
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
 
     await expect(
@@ -348,33 +361,27 @@ test.describe('Onboarding Full Flow', () => {
   test('Google and Apple buttons visible', async ({ page }) => {
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
 
     await expect(
       page.getByRole('heading', { name: 'Create your secure claim' })
     ).toBeVisible({ timeout: 10_000 });
 
-    await expect(
-      page.getByText('Continue with Google')
-    ).toBeVisible();
-    await expect(
-      page.getByText('Continue with Apple')
-    ).toBeVisible();
+    await expect(page.getByText('Continue with Google')).toBeVisible();
+    await expect(page.getByText('Continue with Apple')).toBeVisible();
   });
 
   // ============================================================
   // Step Indicator & Sub-step Tabs
   // ============================================================
 
-  test('Step indicator shows Check active initially', async ({
-    page,
-  }) => {
+  test('Step indicator shows Check active initially', async ({ page }) => {
     await navigateToGetStarted(page);
     // The step labels should be present in the header
-    await expect(
-      page.getByText('Check', { exact: true })
-    ).toBeVisible();
+    await expect(page.getByText('Check', { exact: true })).toBeVisible();
     await expect(page.getByText('Secure Claim')).toBeVisible();
     await expect(page.getByText('Complete Details')).toBeVisible();
     await expect(page.getByText('Sign & Submit')).toBeVisible();
@@ -385,7 +392,9 @@ test.describe('Onboarding Full Flow', () => {
   }) => {
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
 
     await expect(
@@ -407,7 +416,9 @@ test.describe('Onboarding Full Flow', () => {
   }) => {
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
 
     await completeCreateAccount(page);
@@ -415,13 +426,17 @@ test.describe('Onboarding Full Flow', () => {
       page.getByRole('heading', { name: /Start your refund claim/i })
     ).toBeVisible({ timeout: 10_000 });
     await expect(
-      page.getByText('Pay the €199 deposit to start your company pension refund claim.')
+      page.getByText(
+        'Pay the €199 deposit to start your company pension refund claim.'
+      )
     ).toBeVisible();
     await expect(
       page.getByText('deposit — credited toward your service fee')
     ).toBeVisible();
     await expect(
-      page.getByText(/Money-back guarantee:.*pension provider rejects your claim/i)
+      page.getByText(
+        /Money-back guarantee:.*pension provider rejects your claim/i
+      )
     ).toBeVisible();
   });
 
@@ -432,17 +447,23 @@ test.describe('Onboarding Full Flow', () => {
 
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
     await completeCreateAccount(page);
     await completePayment(page);
 
     await expect(page.getByText('Identity', { exact: true })).toBeVisible();
-    await expect(page.getByText('Pension Details', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Pension Details', { exact: true })
+    ).toBeVisible();
     await expect(page.getByText('Address', { exact: true })).toBeVisible();
     await expect(page.getByText('Bank Details', { exact: true })).toBeVisible();
     await expect(page.getByText('Signature', { exact: true })).toBeVisible();
-    await expect(page.getByText('Review & Submit', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Review & Submit', { exact: true })
+    ).toBeVisible();
     await expect(page.getByText('Health Insurance')).not.toBeVisible();
     await expect(page.getByText('Employer Details')).not.toBeVisible();
   });
@@ -454,7 +475,9 @@ test.describe('Onboarding Full Flow', () => {
 
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
     await completeCreateAccount(page);
     await completePayment(page);
@@ -466,26 +489,40 @@ test.describe('Onboarding Full Flow', () => {
       page.getByRole('heading', { name: 'Where should the refund be paid?' })
     ).toBeVisible({ timeout: 5_000 });
     await expect(page.getByText('My own EUR / SEPA account')).toBeVisible();
-    await expect(page.getByText("A trusted person’s EUR / SEPA account")).toBeVisible();
-    await expect(page.getByText('I want to open a free EUR account')).toBeVisible();
-
-    await page.getByRole('button', { name: /A trusted person’s EUR \/ SEPA account/i }).click();
-    await page.getByRole('button', { name: /Continue/i }).click();
     await expect(
-      page.getByRole('heading', { name: "Enter the trusted person’s bank details" })
+      page.getByText('A trusted person’s EUR / SEPA account')
     ).toBeVisible();
     await expect(
-      page.getByText('I confirm that I have permission to use this bank account and that I trust the account holder.')
+      page.getByText('I want to open a free EUR account')
+    ).toBeVisible();
+
+    await page
+      .getByRole('button', { name: /A trusted person’s EUR \/ SEPA account/i })
+      .click();
+    await page.getByRole('button', { name: /Continue/i }).click();
+    await expect(
+      page.getByRole('heading', {
+        name: 'Enter the trusted person’s bank details',
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'I confirm that I have permission to use this bank account and that I trust the account holder.'
+      )
     ).toBeVisible();
 
     await page.getByRole('button', { name: 'Back' }).last().click();
-    await page.getByRole('button', { name: /I want to open a free EUR account/i }).click();
+    await page
+      .getByRole('button', { name: /I want to open a free EUR account/i })
+      .click();
     await page.getByRole('button', { name: /Continue/i }).click();
     await expect(
       page.getByRole('heading', { name: 'Open your free EUR account' })
     ).toBeVisible();
     await expect(
-      page.getByText('SummitFX uses your mobile number to set up and activate your EUR account.')
+      page.getByText(
+        'SummitFX uses your mobile number to set up and activate your EUR account.'
+      )
     ).toBeVisible();
   });
 
@@ -496,7 +533,9 @@ test.describe('Onboarding Full Flow', () => {
 
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
     await completeCreateAccount(page);
     await completePayment(page);
@@ -524,7 +563,9 @@ test.describe('Onboarding Full Flow', () => {
 
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
     await completeCreateAccount(page);
     await completePayment(page);
@@ -536,7 +577,9 @@ test.describe('Onboarding Full Flow', () => {
     await submitClaimOnReview(page);
 
     await expect(
-      page.getByRole('heading', { name: 'Your refund request has been submitted' })
+      page.getByRole('heading', {
+        name: 'Your refund request has been submitted',
+      })
     ).toBeVisible({ timeout: 20_000 });
     await expect(
       page.getByText('The pension provider reviews your refund request.')
@@ -553,7 +596,9 @@ test.describe('Onboarding Full Flow', () => {
 
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
 
     // Step 2 — Create Account: no sub-step tabs
@@ -587,7 +632,9 @@ test.describe('Onboarding Full Flow', () => {
 
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
     await completeCreateAccount(page);
     await completePayment(page);
@@ -610,14 +657,14 @@ test.describe('Onboarding Full Flow', () => {
   // Bank Details Expandable Options
   // ============================================================
 
-  test('Bank details has expandable alternative options', async ({
-    page,
-  }) => {
+  test('Bank details has expandable alternative options', async ({ page }) => {
     test.setTimeout(90_000);
 
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
     await completeCreateAccount(page);
     await completePayment(page);
@@ -640,7 +687,9 @@ test.describe('Onboarding Full Flow', () => {
 
     await navigatePublicSectorToEligible(page);
     await page
-      .getByRole('button', { name: /Continue securely|Create your secure claim/i })
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
       .click();
     await completeCreateAccount(page);
     await completePayment(page);

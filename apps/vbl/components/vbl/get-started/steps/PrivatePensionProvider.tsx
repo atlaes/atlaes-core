@@ -14,7 +14,7 @@ const PROVIDERS: { id: PrivatePensionProviderType; label: string }[] = [
   { id: 'Nuernberger', label: 'Nürnberger' },
   { id: 'HDI', label: 'HDI' },
   { id: 'BVV', label: 'BVV' },
-  { id: 'Other', label: 'Other (enter manually)' },
+  { id: 'Other', label: 'Other provider' },
 ];
 
 export const PrivatePensionProvider: React.FC = () => {
@@ -47,12 +47,11 @@ export const PrivatePensionProvider: React.FC = () => {
         Select the pension provider that managed your company pension scheme.
       </p>
 
-      <p className="text-sm font-medium text-gray-700 mb-2">
-        Pension provider
-      </p>
+      <p className="text-sm font-medium text-gray-700 mb-2">bAV provider</p>
 
       <div className="relative mb-4">
         <select
+          aria-label="bAV provider"
           value={selected}
           onChange={(e) => {
             setSelected(e.target.value as PrivatePensionProviderType);

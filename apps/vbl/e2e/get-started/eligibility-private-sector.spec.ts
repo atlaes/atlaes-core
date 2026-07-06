@@ -160,7 +160,7 @@ test.describe('Private Sector Eligibility', () => {
     await expectEligibleResult(page);
     // Private eligible has specific text
     await expect(
-      page.getByText('A lump-sum settlement may be possible')
+      page.getByText('Your bAV cash-out can be started through CompanyPension')
     ).toBeVisible();
   });
 
@@ -202,7 +202,7 @@ test.describe('Private Sector Eligibility', () => {
       })
     ).toBeVisible({ timeout: 5_000 });
 
-    await page.locator('select').selectOption('Other');
+    await page.getByLabel('bAV provider').selectOption('Other');
 
     // Continue button should be disabled without provider name
     const continueBtn = page.getByRole('button', { name: 'Continue' });
@@ -246,9 +246,7 @@ test.describe('Private Sector Eligibility', () => {
       })
     ).toBeVisible({ timeout: 5_000 });
 
-    await page
-      .getByLabel('Value type shown on your document')
-      .selectOption('not_found');
+    await page.getByRole('button', { name: "I can't find an amount" }).click();
 
     // Continue should be enabled even without a pension value
     const continueBtn = page.getByRole('button', { name: 'Continue' });
