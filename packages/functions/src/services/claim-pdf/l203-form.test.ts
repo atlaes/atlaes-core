@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { PDFDocument } from 'pdf-lib';
 import { loadL203Template } from './assets';
-import { fillL203, fillL203Fields } from './l203-form';
+import { fillL203, fillL203Fields, selectButtonExport } from './l203-form';
 
 const PNG_1X1 = Uint8Array.from(
   atob(
@@ -66,10 +66,39 @@ describe('L203 form filling', () => {
     // which is the mechanism `fillL203Fields` actually uses to select an
     // option (see l203-form.ts for why `.check()`/`.select()` can't be
     // used directly either).
-    const optionsfeld2 = form.getCheckBox(
-      'topmostSubform[0].Page2[0].Optionsfeld2[0]'
-    );
-    expect(optionsfeld2.acroField.getValue().toString()).toBe('/nein');
+    const getButtonValue = (n: string) =>
+      form
+        .getCheckBox(`topmostSubform[0].Page2[0].${n}[0]`)
+        .acroField.getValue()
+        .toString();
+    expect(getButtonValue('Optionsfeld2')).toBe('/nein');
+    // Highest-risk value: adjudicated against the task brief's wrong
+    // presumption (see Step-0 finding 3 in l203-form.ts) -- /liegtbei
+    // sits in the "ja" column and /wirdnachgereicht in the "nein"
+    // column for this field, unlike every other Optionsfeld.
+    expect(getButtonValue('Optionsfeld3')).toBe('/wirdnachgereicht');
+    expect(getButtonValue('Optionsfeld4')).toBe('/nein');
+    expect(getButtonValue('Optionsfeld5')).toBe('/2');
+  });
+
+  it('throws a descriptive error for a bogus export value', async () => {
+    const doc = await PDFDocument.load(loadL203Template());
+    fillL203Fields(doc, data);
+    const form = doc.getForm();
+    expect(() =>
+      selectButtonExport(
+        form,
+        'topmostSubform[0].Page2[0].Optionsfeld3[0]',
+        'liegtbei-typo'
+      )
+    ).toThrowError(/Optionsfeld3.*liegtbei-typo|liegtbei-typo.*Optionsfeld3/s);
+    expect(() =>
+      selectButtonExport(
+        form,
+        'topmostSubform[0].Page2[0].Optionsfeld3[0]',
+        'liegtbei-typo'
+      )
+    ).toThrowError(/available on-values/i);
   });
 
   it('produces a flattened 3-page A4 document with no remaining form fields', async () => {

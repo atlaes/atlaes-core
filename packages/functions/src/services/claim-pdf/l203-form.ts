@@ -4,6 +4,8 @@ import {
   PDFName,
   PDFRef,
   PDFArray,
+  PDFHexString,
+  PDFString,
   StandardFonts,
 } from 'pdf-lib';
 import { loadL203Template } from './assets';
@@ -140,19 +142,39 @@ const ANLAGEN_TEXT = 'Kopie Ausweisdokument, Postempfangsvollmacht';
  * bypasses `PDFAcroCheckBox.setValue()`'s single-on-value validation,
  * which would otherwise reject every export value except the first
  * widget's.
+ *
+ * Because the direct `/V` write skips pdf-lib's own validation, we
+ * independently validate `exportValue` against the field's actual
+ * widget on-values first: a typo'd export value would otherwise be
+ * written to `/V` without error, and at flatten time every widget's
+ * `/V` lookup would fall through to its `/Off` appearance -- silently
+ * rendering the field blank on the printed/mailed form.
  */
-function selectButtonExport(
+export function selectButtonExport(
   form: ReturnType<PDFDocument['getForm']>,
   fieldName: string,
   exportValue: string
 ): void {
   try {
     const field = form.getCheckBox(fieldName);
+    const onValues = field.acroField
+      .getWidgets()
+      .map((widget) => widget.getOnValue()?.asString())
+      .filter((v): v is string => v !== undefined);
+
+    if (!onValues.includes(`/${exportValue}`)) {
+      throw new Error(
+        `Export value "${exportValue}" is not a valid on-value for ` +
+          `button field "${fieldName}". Available on-values: ` +
+          `${onValues.join(', ') || '(none found)'}`
+      );
+    }
+
     field.acroField.dict.set(PDFName.of('V'), PDFName.of(exportValue));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     throw new Error(
-      `Failed to select "${exportValue}" on radio field "${fieldName}": ${message}`
+      `Failed to select "${exportValue}" on button field "${fieldName}": ${message}`
     );
   }
 }
@@ -172,7 +194,9 @@ function repairOrphanFieldTree(doc: PDFDocument): void {
 
   const getFieldName = (dict: PDFDict): string | undefined => {
     const t = dict.get(PDFName.of('T'));
-    if (t && 'decodeText' in t) return (t as any).decodeText();
+    if (t instanceof PDFHexString || t instanceof PDFString) {
+      return t.decodeText();
+    }
     const parentRef = dict.get(PDFName.of('Parent'));
     if (!parentRef) return undefined;
     const parentDict = context.lookup(parentRef as PDFRef) as
