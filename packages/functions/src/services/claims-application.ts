@@ -152,6 +152,9 @@ export interface Claim {
   // Submission
   submittedAt: Date | null;
 
+  // Combined claim PDF
+  pdfS3Key: string | null;
+
   // Timestamps
   createdAt: Date | null;
   updatedAt: Date | null;
@@ -242,6 +245,7 @@ function mapRowToClaim(row: any): Claim {
     paidAt: row.paidAt,
     serviceFee: row.serviceFee,
     submittedAt: row.submittedAt,
+    pdfS3Key: row.pdfS3Key,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -922,6 +926,24 @@ export class ClaimsApplicationService {
       });
 
       logger.info(`Claim submitted: ${claimId}`);
+
+      // Generate the combined claim PDF after a successful submission.
+      // Failure here must NOT roll back or fail the submission — the PDF
+      // can be regenerated later via POST /api/claims/:id/generate-pdf.
+      // Uses a lazy dynamic import: './claim-pdf' imports
+      // ClaimsApplicationService from this module, so a static top-level
+      // import here would create a circular import.
+      try {
+        const { ClaimPdfService } = await import('./claim-pdf');
+        await ClaimPdfService.generateAndStoreForClaim(claimId, userId);
+      } catch (pdfError) {
+        logger.warn('Failed to generate claim PDF after submission', {
+          claimId,
+          error:
+            pdfError instanceof Error ? pdfError.message : String(pdfError),
+        });
+      }
+
       return mapRowToClaim(result);
     } catch (error) {
       logger.error('Error submitting claim:', error);
