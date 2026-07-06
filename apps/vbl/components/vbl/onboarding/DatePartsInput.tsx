@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, AlertCircle } from 'lucide-react';
 
 const MONTHS = [
   'January',
@@ -53,6 +53,10 @@ interface DatePartsInputProps {
   onChange: (value: string) => void;
   helperText?: string;
   disableFuture?: boolean;
+  // Item 25: highlights this field as a missing required value (red label +
+  // red outline + short "Required" hint), matching the "Confirm extracted
+  // details" missing-details pattern used elsewhere on this form.
+  showMissing?: boolean;
 }
 
 export const DatePartsInput: React.FC<DatePartsInputProps> = ({
@@ -61,6 +65,7 @@ export const DatePartsInput: React.FC<DatePartsInputProps> = ({
   onChange,
   helperText,
   disableFuture = true,
+  showMissing = false,
 }) => {
   const parsed = parseDateParts(value);
   const [day, setDay] = useState(parsed.day);
@@ -68,7 +73,11 @@ export const DatePartsInput: React.FC<DatePartsInputProps> = ({
   const [year, setYear] = useState(parsed.year);
   const [touched, setTouched] = useState(false);
 
-  const updateParts = (nextDay: string, nextMonth: string, nextYear: string) => {
+  const updateParts = (
+    nextDay: string,
+    nextMonth: string,
+    nextYear: string
+  ) => {
     setTouched(true);
     const isoDate = toIsoDate(nextDay, nextMonth, nextYear);
 
@@ -88,10 +97,20 @@ export const DatePartsInput: React.FC<DatePartsInputProps> = ({
   const hasAnyValue = day !== '' || month !== '' || year !== '';
   const isComplete = day !== '' && month !== '' && year !== '';
   const hasError = touched && hasAnyValue && !value;
+  const showMissingHint = showMissing && !hasError;
+  const inputBorderClass = hasError
+    ? 'border-red-400'
+    : showMissing
+      ? 'border-red-400'
+      : 'border-gray-300';
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+      <label
+        className={`block text-sm font-medium mb-1 ${
+          showMissing ? 'text-red-700' : 'text-gray-700'
+        }`}
+      >
         {label}
       </label>
       <div className="grid grid-cols-[0.8fr_1.4fr_1fr] gap-3">
@@ -106,7 +125,7 @@ export const DatePartsInput: React.FC<DatePartsInputProps> = ({
             updateParts(next, month, year);
           }}
           placeholder="Day"
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none ${inputBorderClass}`}
         />
         <div className="relative">
           <select
@@ -116,7 +135,7 @@ export const DatePartsInput: React.FC<DatePartsInputProps> = ({
               setMonth(next);
               updateParts(day, next, year);
             }}
-            className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white"
+            className={`w-full px-4 py-3 pr-10 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white ${inputBorderClass}`}
           >
             <option value="">Month</option>
             {MONTHS.map((monthName, index) => (
@@ -138,12 +157,10 @@ export const DatePartsInput: React.FC<DatePartsInputProps> = ({
             updateParts(day, month, next);
           }}
           placeholder="Year"
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none ${inputBorderClass}`}
         />
       </div>
-      {helperText && (
-        <p className="mt-2 text-xs text-gray-500">{helperText}</p>
-      )}
+      {helperText && <p className="mt-2 text-xs text-gray-500">{helperText}</p>}
       {hasError && (
         <p className="mt-2 text-sm font-medium text-red-700">
           {isComplete
@@ -151,6 +168,12 @@ export const DatePartsInput: React.FC<DatePartsInputProps> = ({
               ? 'Enter a valid date that is not in the future.'
               : 'Enter a valid date.'
             : 'Enter day, month, and a 4-digit year.'}
+        </p>
+      )}
+      {showMissingHint && (
+        <p className="mt-2 flex items-center gap-1 text-sm font-medium text-red-700">
+          <AlertCircle className="h-3.5 w-3.5" />
+          Required
         </p>
       )}
     </div>

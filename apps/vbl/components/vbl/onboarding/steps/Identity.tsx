@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   ArrowRight,
   X,
@@ -15,6 +15,11 @@ import { DatePartsInput } from '../DatePartsInput';
 
 interface IdentityProps {
   onNext: () => void;
+  // Item 13: lets this step intercept the global Back button while it's on
+  // the confirm phase, so Back returns to the upload phase instead of
+  // leaving the identity sub-step. Pass null to release control back to the
+  // flow's default substep-level Back behavior.
+  setBackOverride?: (handler: (() => void) | null) => void;
 }
 
 type IdentityPhase = 'upload' | 'processing' | 'confirm';
@@ -45,7 +50,43 @@ function isAtLeast18(dateOfBirth: string): boolean {
   return age >= 18;
 }
 
-export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
+// Item 25: shared label + "Required" hint for the missing-field pattern
+// (red label + red input outline + short red hint), matching the "SCREEN 4
+// — Confirm extracted details" missing-details design. The input itself
+// still needs its own conditional border class since inputs are plain
+// <input>/<select> elements here rather than a shared field component.
+function FieldLabel({
+  label,
+  showMissing,
+}: {
+  label: string;
+  showMissing: boolean;
+}) {
+  return (
+    <label
+      className={`block text-sm font-medium mb-1 ${
+        showMissing ? 'text-red-700' : 'text-gray-700'
+      }`}
+    >
+      {label}
+    </label>
+  );
+}
+
+function MissingHint({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <p className="mt-1 flex items-center gap-1 text-sm font-medium text-red-700">
+      <AlertCircle className="h-3.5 w-3.5" />
+      Required
+    </p>
+  );
+}
+
+export const Identity: React.FC<IdentityProps> = ({
+  onNext,
+  setBackOverride,
+}) => {
   const { data, updateData, updateIdentity } = useOnboarding();
   const [phase, setPhase] = useState<IdentityPhase>(
     data.identity.documentPreview ? 'confirm' : 'upload'
@@ -178,6 +219,50 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
     setUploadError(null);
     setPhase('upload');
   };
+
+  // Item 13: Back from the confirm phase returns to a clean upload phase
+  // instead of leaving the identity sub-step. Decision: clear the uploaded
+  // file (and its preview/chip) rather than prompting — simpler and
+  // unambiguous. Already-typed/confirmed form values (name, DOB, etc.) stay
+  // in context; a fresh upload's OCR result overwrites them the same way it
+  // would on first upload.
+  const handleBackToUpload = useCallback(() => {
+    updateIdentity({
+      documentFile: null,
+      documentPreview: undefined,
+    });
+    setUploadError(null);
+    setFileTypeError(null);
+    setPhase('upload');
+  }, [updateIdentity]);
+
+  // Register/release the confirm-phase Back override with the parent flow.
+  // Only the confirm phase needs to own Back; upload keeps the flow's
+  // default (go to the previous sub-step / step 2).
+  useEffect(() => {
+    if (!setBackOverride) return;
+    if (phase === 'confirm') {
+      setBackOverride(handleBackToUpload);
+    } else {
+      setBackOverride(null);
+    }
+    return () => setBackOverride(null);
+  }, [phase, setBackOverride, handleBackToUpload]);
+
+  const missingFields = {
+    fullName: data.identity.fullName.trim() === '',
+    dateOfBirth: data.identity.dateOfBirth === '',
+    gender: data.identity.gender === '',
+    nationality: data.identity.nationality.trim() === '',
+    placeOfBirth: data.identity.placeOfBirth.trim() === '',
+  };
+  // Item 25: the missing-field highlight is live for the whole confirm
+  // phase, so it's visible immediately for anything OCR left empty on
+  // arrival, and stays visible through any attempted Continue click (the
+  // button is disabled via canProceed below until every required field is
+  // filled). Matches the "SCREEN 4 — Confirm extracted details"
+  // missing-details pattern: red label + red outline + short hint.
+  const showMissingHighlights = phase === 'confirm';
 
   const canProceed =
     data.identity.fullName !== '' &&
@@ -350,9 +435,10 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
       <div className="space-y-4">
         {/* Full Name */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Full Name
-          </label>
+          <FieldLabel
+            label="Full Name"
+            showMissing={showMissingHighlights && missingFields.fullName}
+          />
           <input
             type="text"
             value={data.identity.fullName}
@@ -366,33 +452,54 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
               });
             }}
             placeholder="John Smith"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none ${
+              showMissingHighlights && missingFields.fullName
+                ? 'border-red-400'
+                : 'border-gray-300'
+            }`}
           />
+          <MissingHint show={showMissingHighlights && missingFields.fullName} />
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nationality
-            </label>
+            <FieldLabel
+              label="Nationality"
+              showMissing={showMissingHighlights && missingFields.nationality}
+            />
             <input
               type="text"
               value={data.identity.nationality}
               onChange={(e) => updateIdentity({ nationality: e.target.value })}
               placeholder="e.g. Australian"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none ${
+                showMissingHighlights && missingFields.nationality
+                  ? 'border-red-400'
+                  : 'border-gray-300'
+              }`}
+            />
+            <MissingHint
+              show={showMissingHighlights && missingFields.nationality}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Place of birth
-            </label>
+            <FieldLabel
+              label="Place of birth"
+              showMissing={showMissingHighlights && missingFields.placeOfBirth}
+            />
             <input
               type="text"
               value={data.identity.placeOfBirth}
               onChange={(e) => updateIdentity({ placeOfBirth: e.target.value })}
               placeholder="e.g. Sydney"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none ${
+                showMissingHighlights && missingFields.placeOfBirth
+                  ? 'border-red-400'
+                  : 'border-gray-300'
+              }`}
+            />
+            <MissingHint
+              show={showMissingHighlights && missingFields.placeOfBirth}
             />
           </div>
         </div>
@@ -404,6 +511,7 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
             value={data.identity.dateOfBirth}
             onChange={(value) => updateIdentity({ dateOfBirth: value })}
             helperText="Use the date of birth shown on your passport."
+            showMissing={showMissingHighlights && missingFields.dateOfBirth}
           />
           {isUnder18 && (
             <p className="text-sm font-medium text-red-700">
@@ -411,9 +519,10 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
             </p>
           )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Gender
-            </label>
+            <FieldLabel
+              label="Gender"
+              showMissing={showMissingHighlights && missingFields.gender}
+            />
             <div className="relative">
               <select
                 value={data.identity.gender}
@@ -422,7 +531,11 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
                     gender: e.target.value as 'male' | 'female' | 'other' | '',
                   })
                 }
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white"
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white ${
+                  showMissingHighlights && missingFields.gender
+                    ? 'border-red-400'
+                    : 'border-gray-300'
+                }`}
               >
                 <option value="">Select</option>
                 <option value="male">Male</option>
@@ -431,6 +544,7 @@ export const Identity: React.FC<IdentityProps> = ({ onNext }) => {
               </select>
               <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
             </div>
+            <MissingHint show={showMissingHighlights && missingFields.gender} />
           </div>
         </div>
       </div>

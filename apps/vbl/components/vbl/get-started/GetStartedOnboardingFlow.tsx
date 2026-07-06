@@ -1,8 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useOnboarding, SUBMIT_DETAILS_SUBSTEPS, SubmitDetailsSubStep } from '@/contexts/OnboardingContext';
+import {
+  useOnboarding,
+  SUBMIT_DETAILS_SUBSTEPS,
+  SubmitDetailsSubStep,
+} from '@/contexts/OnboardingContext';
 import { useEligibility } from '@/contexts/EligibilityContext';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -65,7 +69,10 @@ export function GetStartedOnboardingFlow() {
 
   // Carry over pension provider from eligibility to membership
   useEffect(() => {
-    if (eligibilityData.pensionProvider && data.membership.pensionProvider === '') {
+    if (
+      eligibilityData.pensionProvider &&
+      data.membership.pensionProvider === ''
+    ) {
       const provider = eligibilityData.pensionProvider;
       // Map eligibility provider to membership provider value
       let mappedProvider = provider;
@@ -79,7 +86,12 @@ export function GetStartedOnboardingFlow() {
         },
       });
     }
-  }, [eligibilityData.pensionProvider, eligibilityData.vblPlan, data.membership, updateData]);
+  }, [
+    eligibilityData.pensionProvider,
+    eligibilityData.vblPlan,
+    data.membership,
+    updateData,
+  ]);
 
   // Restore provider/type details after the Stripe redirect reloads the page.
   useEffect(() => {
@@ -161,6 +173,20 @@ export function GetStartedOnboardingFlow() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showDRVModal, setShowDRVModal] = useState(false);
 
+  // Item 13: lets the active sub-step intercept the global Back button for
+  // an internal phase transition (e.g. Identity's confirm phase returning to
+  // its own upload phase) instead of leaving the sub-step entirely. A
+  // sub-step registers a handler while it wants to own Back, and clears it
+  // when it no longer does (see Identity.tsx). Mirrors, at the flow level,
+  // the same "phase-local back" idea BankDetails.tsx uses with its own
+  // in-component renderBranchBack — the difference is Identity's override
+  // must intercept the *global* Back button rather than add a second one,
+  // since its upload phase is what the global Back should already land on.
+  const backOverrideRef = useRef<(() => void) | null>(null);
+  const setBackOverride = useCallback((handler: (() => void) | null) => {
+    backOverrideRef.current = handler;
+  }, []);
+
   const drvEligibilityDate = '15 Mar 2027';
   const isDRVEligibleNow = false;
 
@@ -187,7 +213,9 @@ export function GetStartedOnboardingFlow() {
       return;
     }
 
-    const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === currentSubStep);
+    const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex(
+      (s) => s.id === currentSubStep
+    );
     if (currentIndex < SUBMIT_DETAILS_SUBSTEPS.length - 1) {
       setCurrentSubStep(SUBMIT_DETAILS_SUBSTEPS[currentIndex + 1].id);
     }
@@ -268,6 +296,10 @@ export function GetStartedOnboardingFlow() {
   };
 
   const handleBack = () => {
+    if (backOverrideRef.current) {
+      backOverrideRef.current();
+      return;
+    }
     if (currentStep === 1) {
       // Go back to eligibility flow
       resetEligibility();
@@ -280,7 +312,9 @@ export function GetStartedOnboardingFlow() {
         setCurrentStep(1);
       }
     } else if (currentStep === 3) {
-      const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === currentSubStep);
+      const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex(
+        (s) => s.id === currentSubStep
+      );
       if (currentIndex > 0) {
         setCurrentSubStep(SUBMIT_DETAILS_SUBSTEPS[currentIndex - 1].id);
       } else {
@@ -323,7 +357,11 @@ export function GetStartedOnboardingFlow() {
   // Success screen
   if (showSuccess) {
     return (
-      <GetStartedLayout showBack={false} activeStep={4} currentSubStep={currentSubStep}>
+      <GetStartedLayout
+        showBack={false}
+        activeStep={4}
+        currentSubStep={currentSubStep}
+      >
         <SuccessScreen
           onGoToDashboard={handleGoToDashboard}
           onStartDRVClaim={handleStartDRVClaim}
@@ -360,7 +398,9 @@ export function GetStartedOnboardingFlow() {
   const renderSubStep = () => {
     switch (currentSubStep) {
       case 'identity':
-        return <Identity onNext={saveAndAdvance} />;
+        return (
+          <Identity onNext={saveAndAdvance} setBackOverride={setBackOverride} />
+        );
       case 'membership':
         return <Membership onNext={saveAndAdvance} />;
       case 'address':
