@@ -8,6 +8,7 @@ import {
   ChevronDown,
   FileText,
   Info,
+  Loader2,
   UploadCloud,
 } from 'lucide-react';
 import { useEligibility } from '@/contexts/EligibilityContext';
@@ -167,8 +168,7 @@ function getContributionMonths(form: StageUploadForm): number {
     return 0;
   }
 
-  const start =
-    Number(form.startYear) * 12 + getMonthIndex(form.startMonth);
+  const start = Number(form.startYear) * 12 + getMonthIndex(form.startMonth);
   const end = Number(form.endYear) * 12 + getMonthIndex(form.endMonth);
 
   if (end < start) return 0;
@@ -187,12 +187,12 @@ function getStageContributionDuration(
 function hasCompleteRequiredDetails(form: StageUploadForm): boolean {
   return Boolean(
     form.provider &&
-      form.startMonth &&
-      form.startYear &&
-      form.endMonth &&
-      form.endYear &&
-      form.employmentEndMonth &&
-      form.employmentEndYear
+    form.startMonth &&
+    form.startYear &&
+    form.endMonth &&
+    form.endYear &&
+    form.employmentEndMonth &&
+    form.employmentEndYear
   );
 }
 
@@ -204,8 +204,7 @@ function hasInvalidContributionRange(form: StageUploadForm): boolean {
     return false;
   }
 
-  const start =
-    Number(form.startYear) * 12 + getMonthIndex(form.startMonth);
+  const start = Number(form.startYear) * 12 + getMonthIndex(form.startMonth);
   const end = Number(form.endYear) * 12 + getMonthIndex(form.endMonth);
 
   return end < start;
@@ -527,8 +526,8 @@ export const StageUploadDocument: React.FC = () => {
           </h2>
           <div className="mx-auto mt-3 h-px w-full max-w-[560px] bg-[#D9DEE7]" />
           <p className="mx-auto mt-4 max-w-[520px] text-[16px] leading-6 text-[#4B5563]">
-            VddB/VddKO uses contribution-period rules based on how long and
-            when contributions were paid.
+            VddB/VddKO uses contribution-period rules based on how long and when
+            contributions were paid.
           </p>
         </div>
 
@@ -540,8 +539,10 @@ export const StageUploadDocument: React.FC = () => {
             onSelect={(value) =>
               updateContributionCheck({
                 total: value,
-                post2001: value === '36_to_119' ? contributionCheck.post2001 : '',
-                post2018: value === '36_to_119' ? contributionCheck.post2018 : '',
+                post2001:
+                  value === '36_to_119' ? contributionCheck.post2001 : '',
+                post2018:
+                  value === '36_to_119' ? contributionCheck.post2018 : '',
               })
             }
           />
@@ -604,7 +605,9 @@ export const StageUploadDocument: React.FC = () => {
           />
 
           {!reviewIsMissing && (
-            <InfoNote>Use the pension institution shown on your document.</InfoNote>
+            <InfoNote>
+              Use the pension institution shown on your document.
+            </InfoNote>
           )}
 
           <div className="text-left">
@@ -702,7 +705,9 @@ export const StageUploadDocument: React.FC = () => {
             </span>
             <input
               value={form.employerName}
-              onChange={(event) => updateForm({ employerName: event.target.value })}
+              onChange={(event) =>
+                updateForm({ employerName: event.target.value })
+              }
               placeholder="Employer, stage or orchestra"
               className="h-12 w-full rounded-[8px] border border-[#D3DAE8] bg-white px-4 text-[16px] text-[#1F2937] shadow-sm transition-all focus:border-[#9FE870] focus:outline-none focus:ring-2 focus:ring-[#9FE870]/20"
             />
@@ -734,6 +739,23 @@ export const StageUploadDocument: React.FC = () => {
     );
   }
 
+  if (isExtracting) {
+    return (
+      <div className="mx-auto max-w-[640px]">
+        <h2 className="text-[26px] font-bold leading-tight text-center text-[#111827] mb-2">
+          Reading your document
+        </h2>
+        <div className="mx-auto mt-3 mb-2 h-px w-16 bg-[#D9DEE7]" />
+        <p className="mx-auto max-w-[560px] text-center text-[16px] leading-6 text-[#4B5563] mb-8">
+          This can take up to a minute. Please don't close this window.
+        </p>
+        <div className="flex flex-col items-center gap-4 py-12">
+          <Loader2 className="w-12 h-12 text-[#9FE870] animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-[640px]">
       <div className="mb-8 text-center">
@@ -742,8 +764,8 @@ export const StageUploadDocument: React.FC = () => {
         </h2>
         <div className="mx-auto mt-3 h-px w-full max-w-[560px] bg-[#D9DEE7]" />
         <p className="mx-auto mt-4 max-w-[560px] text-[16px] leading-6 text-[#4B5563]">
-          Upload your VddB, VddKO, Bühnenversorgung or Kulturorchester
-          document so we can check whether your refund can be started.
+          Upload your VddB, VddKO, Bühnenversorgung or Kulturorchester document
+          so we can check whether your refund can be started.
         </p>
       </div>
 
@@ -754,7 +776,10 @@ export const StageUploadDocument: React.FC = () => {
         onDragOver={(event) => event.preventDefault()}
         className="flex min-h-[220px] w-full flex-col items-center justify-center rounded-[8px] border-2 border-dashed border-[#8D8D8D] bg-white px-6 text-center transition hover:border-[#163300] focus:outline-none focus:ring-2 focus:ring-[#9FE870]/30"
       >
-        <UploadCloud className="mb-5 h-11 w-11 text-[#8D8D8D]" strokeWidth={2} />
+        <UploadCloud
+          className="mb-5 h-11 w-11 text-[#8D8D8D]"
+          strokeWidth={2}
+        />
         <p className="text-[16px] font-medium text-[#3F464F]">
           Drag and drop your file here or browse
         </p>
@@ -799,8 +824,7 @@ export const StageUploadDocument: React.FC = () => {
       <FooterActions
         onBack={goBack}
         onContinue={() => void handleExtract()}
-        canContinue={Boolean(selectedFile) && !isExtracting}
-        continueText={isExtracting ? 'Reading document' : 'Continue'}
+        canContinue={Boolean(selectedFile)}
       />
     </div>
   );
