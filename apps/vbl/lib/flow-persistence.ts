@@ -30,6 +30,7 @@ import type {
   StepId,
 } from '@/components/vbl/get-started/flows';
 import type {
+  HealthInsuranceType,
   OnboardingAddress,
   OnboardingBankDetails,
   OnboardingData,
@@ -162,6 +163,23 @@ export interface PersistedOnboardingSignature {
   legalConfirmed: boolean;
 }
 
+// Serializable subset of OnboardingHealthInsurance — deliberately excludes
+// documentFile (File) and documentPreview (object URL), same rule as
+// identity's document fields above. documentId (backend-issued) is kept —
+// it's just a string, same treatment as the top-level documentId/claimId.
+export interface PersistedOnboardingHealthInsurance {
+  documentFileName?: string;
+  documentId?: string;
+  type: HealthInsuranceType;
+  providerName: string;
+  providerAddress: string;
+  insuredSinceMonth: string;
+  insuredSinceYear: string;
+  placeOfBirth: string;
+  countryOfBirth: string;
+  insuranceNumber: string;
+}
+
 export interface PersistedOnboardingData {
   pensionType: 'public' | 'private' | '';
   email: string;
@@ -171,6 +189,7 @@ export interface PersistedOnboardingData {
   identity: PersistedOnboardingIdentity;
   membership: OnboardingMembership; // includes stageDetails — client-only, no backend column
   address: OnboardingAddress;
+  healthInsurance: PersistedOnboardingHealthInsurance;
   bankDetails: OnboardingBankDetails;
   signature: PersistedOnboardingSignature;
   userId?: string;
@@ -214,6 +233,18 @@ export function toPersistedOnboardingData(
     },
     membership: data.membership,
     address: data.address,
+    healthInsurance: {
+      documentFileName: data.healthInsurance.documentFileName,
+      documentId: data.healthInsurance.documentId,
+      type: data.healthInsurance.type,
+      providerName: data.healthInsurance.providerName,
+      providerAddress: data.healthInsurance.providerAddress,
+      insuredSinceMonth: data.healthInsurance.insuredSinceMonth,
+      insuredSinceYear: data.healthInsurance.insuredSinceYear,
+      placeOfBirth: data.healthInsurance.placeOfBirth,
+      countryOfBirth: data.healthInsurance.countryOfBirth,
+      insuranceNumber: data.healthInsurance.insuranceNumber,
+    },
     bankDetails: data.bankDetails,
     signature: {
       signatureType: data.signature.signatureType,

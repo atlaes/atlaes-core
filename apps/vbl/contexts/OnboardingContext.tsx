@@ -64,6 +64,30 @@ export interface OnboardingAddress {
   country: string;
 }
 
+// Task 15: Health Insurance substep — bAV/private pension type only (see
+// design-index.md: the Eligibility folder's shared VBL/ZVK/VddB/VddKO
+// review accordion has no Health insurance section, so this only applies
+// to the Private-Flow / bAV cash-out journey).
+export type HealthInsuranceType = 'statutory' | 'private' | 'not_sure' | '';
+
+export interface OnboardingHealthInsurance {
+  documentFile?: File | null;
+  documentPreview?: string;
+  documentFileName?: string;
+  // Backend document ID (mirrors data.documentId for identity), tracked
+  // per-substep here since a bAV claimant uploads two separate documents
+  // (passport + health insurance) with distinct claim_documents roles.
+  documentId?: string;
+  type: HealthInsuranceType;
+  providerName: string;
+  providerAddress: string;
+  insuredSinceMonth: string;
+  insuredSinceYear: string;
+  placeOfBirth: string;
+  countryOfBirth: string;
+  insuranceNumber: string;
+}
+
 export type BankAccountOption =
   | 'own_iban'
   | 'open_free_account'
@@ -112,6 +136,7 @@ export interface OnboardingData {
   identity: OnboardingIdentity;
   membership: OnboardingMembership;
   address: OnboardingAddress;
+  healthInsurance: OnboardingHealthInsurance;
   bankDetails: OnboardingBankDetails;
   signature: OnboardingSignature;
 
@@ -130,10 +155,17 @@ export type SubmitDetailsSubStep =
   | 'identity'
   | 'membership'
   | 'address'
+  | 'health-insurance'
   | 'bank-details'
   | 'signature'
   | 'review';
 
+// Base (unfiltered) list of sub-steps. Kept for backward compatibility with
+// the legacy calculator onboarding flow (components/vbl/onboarding/
+// OnboardingFlow.tsx + OnboardingLayout.tsx), which does not have a Health
+// Insurance step. The get-started flow (GetStartedOnboardingFlow.tsx +
+// GetStartedLayout.tsx) uses getSubmitDetailsSubsteps(pensionType) below,
+// which conditionally inserts 'health-insurance' after 'address'.
 export const SUBMIT_DETAILS_SUBSTEPS: {
   id: SubmitDetailsSubStep;
   label: string;
@@ -146,6 +178,32 @@ export const SUBMIT_DETAILS_SUBSTEPS: {
   { id: 'signature', label: 'Signature', icon: 'pen' },
   { id: 'review', label: 'Review & Submit', icon: 'document' },
 ];
+
+const HEALTH_INSURANCE_SUBSTEP: {
+  id: SubmitDetailsSubStep;
+  label: string;
+  icon: string;
+} = { id: 'health-insurance', label: 'Health Insurance', icon: 'health' };
+
+// Task 15: Health Insurance is gated to the bAV/private pension type only.
+// The design-index's Eligibility folder (shared VBL/ZVK/VddB/VddKO review
+// wizard) has no Health insurance accordion section in its July export, so
+// this substep never applies to 'public' pensionType claimants.
+export function getSubmitDetailsSubsteps(
+  pensionType: OnboardingData['pensionType']
+): typeof SUBMIT_DETAILS_SUBSTEPS {
+  if (pensionType !== 'private') {
+    return SUBMIT_DETAILS_SUBSTEPS;
+  }
+  const addressIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex(
+    (s) => s.id === 'address'
+  );
+  return [
+    ...SUBMIT_DETAILS_SUBSTEPS.slice(0, addressIndex + 1),
+    HEALTH_INSURANCE_SUBSTEP,
+    ...SUBMIT_DETAILS_SUBSTEPS.slice(addressIndex + 1),
+  ];
+}
 
 interface OnboardingContextType {
   // Current step state
@@ -167,6 +225,7 @@ interface OnboardingContextType {
   updateMembership: (updates: Partial<OnboardingMembership>) => void;
   updateStageDetails: (updates: Partial<OnboardingStageDetails>) => void;
   updateAddress: (updates: Partial<OnboardingAddress>) => void;
+  updateHealthInsurance: (updates: Partial<OnboardingHealthInsurance>) => void;
   updateBankDetails: (updates: Partial<OnboardingBankDetails>) => void;
   updateSignature: (updates: Partial<OnboardingSignature>) => void;
   updateSuccessData: (updates: Partial<OnboardingSuccessData>) => void;
@@ -221,6 +280,16 @@ const initialData: OnboardingData = {
     city: '',
     country: '',
   },
+  healthInsurance: {
+    type: '',
+    providerName: '',
+    providerAddress: '',
+    insuredSinceMonth: '',
+    insuredSinceYear: '',
+    placeOfBirth: '',
+    countryOfBirth: '',
+    insuranceNumber: '',
+  },
   bankDetails: {
     accountHolder: '',
     iban: '',
@@ -261,6 +330,23 @@ function isAtLeast18(dateOfBirth: string): boolean {
   }
 
   return age >= 18;
+}
+
+// Task 15 / ReviewSubmit incomplete-state rule: complete once a type is
+// chosen AND either a document was uploaded or a provider name was entered
+// (manually or via OCR). Used by both canProceedFromStep (step 3 overall
+// gate) and canProceedFromSubStep so the review screen and the substep gate
+// agree. Only ever consulted for private/bAV claimants — see
+// getSubmitDetailsSubsteps.
+function isHealthInsuranceComplete(
+  healthInsurance: OnboardingHealthInsurance
+): boolean {
+  return (
+    healthInsurance.type !== '' &&
+    (!!healthInsurance.documentFile ||
+      !!healthInsurance.documentId ||
+      healthInsurance.providerName.trim() !== '')
+  );
 }
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
@@ -306,6 +392,10 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       identity: { ...prev.identity, ...persisted.data.identity },
       membership: persisted.data.membership,
       address: persisted.data.address,
+      healthInsurance: {
+        ...prev.healthInsurance,
+        ...persisted.data.healthInsurance,
+      },
       bankDetails: persisted.data.bankDetails,
       signature: { ...prev.signature, ...persisted.data.signature },
     }));
@@ -377,6 +467,16 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const updateHealthInsurance = useCallback(
+    (updates: Partial<OnboardingHealthInsurance>) => {
+      setData((prev) => ({
+        ...prev,
+        healthInsurance: { ...prev.healthInsurance, ...updates },
+      }));
+    },
+    []
+  );
+
   const updateBankDetails = useCallback(
     (updates: Partial<OnboardingBankDetails>) => {
       setData((prev) => ({
@@ -440,6 +540,11 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
             (isStage
               ? stageDetailsOk
               : data.membership.membershipNumber.trim() !== '');
+          // Health Insurance only gates step 3 completion for bAV/private
+          // claimants — see getSubmitDetailsSubsteps.
+          const healthInsuranceOk =
+            data.pensionType !== 'private' ||
+            isHealthInsuranceComplete(data.healthInsurance);
           return (
             data.identity.firstName.trim() !== '' &&
             data.identity.lastName.trim() !== '' &&
@@ -452,6 +557,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
             data.address.streetAndNumber !== '' &&
             data.address.city !== '' &&
             data.address.country !== '' &&
+            healthInsuranceOk &&
             (data.bankDetails.iban !== '' ||
               data.bankDetails.accountOption !== 'own_iban') &&
             (!!data.signature.signatureData ||
@@ -508,6 +614,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
             data.address.city !== '' &&
             data.address.country !== ''
           );
+        case 'health-insurance':
+          return isHealthInsuranceComplete(data.healthInsurance);
         case 'bank-details':
           // Own IBAN: just need IBAN
           if (data.bankDetails.accountOption === 'own_iban') {
@@ -631,6 +739,46 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         city: claimOrPrev(claim.currentCity, prev.address.city),
         country: claimOrPrev(claim.currentCountry, prev.address.country),
       },
+      healthInsurance: {
+        ...prev.healthInsurance,
+        type:
+          (str(
+            claim.healthInsuranceType
+          ) as OnboardingHealthInsurance['type']) || prev.healthInsurance.type,
+        providerName: claimOrPrev(
+          claim.healthInsuranceProviderName,
+          prev.healthInsurance.providerName
+        ),
+        providerAddress: claimOrPrev(
+          claim.healthInsuranceProviderAddress,
+          prev.healthInsurance.providerAddress
+        ),
+        insuredSinceMonth: claimOrPrev(
+          claim.healthInsuranceInsuredSinceMonth,
+          prev.healthInsurance.insuredSinceMonth
+        ),
+        insuredSinceYear: claimOrPrev(
+          claim.healthInsuranceInsuredSinceYear,
+          prev.healthInsurance.insuredSinceYear
+        ),
+        placeOfBirth: claimOrPrev(
+          claim.healthInsurancePlaceOfBirth,
+          prev.healthInsurance.placeOfBirth
+        ),
+        countryOfBirth: claimOrPrev(
+          claim.healthInsuranceCountryOfBirth,
+          prev.healthInsurance.countryOfBirth
+        ),
+        insuranceNumber: claimOrPrev(
+          claim.healthInsuranceNumber,
+          prev.healthInsurance.insuranceNumber
+        ),
+        // documentId isn't a claim column (documents are tracked via the
+        // claim_documents junction table, same as identity's passport) so
+        // there's nothing to restore from `claim` here; keep whatever is
+        // already in memory/session.
+        documentId: prev.healthInsurance.documentId,
+      },
       bankDetails: {
         ...prev.bankDetails,
         iban: claimOrPrev(claim.iban, prev.bankDetails.iban),
@@ -647,22 +795,34 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Determine which substep to resume at based on completedSteps
+    // Determine which substep to resume at based on completedSteps.
+    // Task 15: for bAV/private claimants, a 'healthInsurance' completed step
+    // sits between 'currentAddress' and 'bankDetails' (see
+    // getSubmitDetailsSubsteps / SUBMIT_DETAILS_SUBSTEPS order). pensionType
+    // isn't a claim column — it's read from local state (already restored by
+    // the sessionStorage effect or the eligibility carry-over effect, both of
+    // which run before/independently of this claim resume).
     const steps = (claim.completedSteps as Record<string, boolean>) || {};
     setCurrentStep(3);
-    if (steps.signDocuments) {
-      setCurrentSubStep('review');
-    } else if (steps.bankDetails) {
-      setCurrentSubStep('signature');
-    } else if (steps.currentAddress) {
-      setCurrentSubStep('bank-details');
-    } else if (steps.germanSocialInsurance) {
-      setCurrentSubStep('address');
-    } else if (steps.passportUpload) {
-      setCurrentSubStep('membership');
-    } else {
-      setCurrentSubStep('identity');
-    }
+    setData((prev) => {
+      const isPrivate = prev.pensionType === 'private';
+      if (steps.signDocuments) {
+        setCurrentSubStep('review');
+      } else if (steps.bankDetails) {
+        setCurrentSubStep('signature');
+      } else if (isPrivate && steps.healthInsurance) {
+        setCurrentSubStep('bank-details');
+      } else if (steps.currentAddress) {
+        setCurrentSubStep(isPrivate ? 'health-insurance' : 'bank-details');
+      } else if (steps.germanSocialInsurance) {
+        setCurrentSubStep('address');
+      } else if (steps.passportUpload) {
+        setCurrentSubStep('membership');
+      } else {
+        setCurrentSubStep('identity');
+      }
+      return prev;
+    });
   }, []);
 
   const resetOnboarding = useCallback(() => {
@@ -690,6 +850,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         updateMembership,
         updateStageDetails,
         updateAddress,
+        updateHealthInsurance,
         updateBankDetails,
         updateSignature,
         updateSuccessData,

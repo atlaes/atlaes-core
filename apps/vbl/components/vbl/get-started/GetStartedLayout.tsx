@@ -18,6 +18,11 @@ interface GetStartedLayoutProps {
   // clicked, so re-clicking the already-active "Bank Details" tab can reset
   // BankDetails' internal phase back to the account-type selection screen.
   onSubStepClick?: (subStep: SubmitDetailsSubStep) => void;
+  // Task 15: the caller (GetStartedOnboardingFlow) passes the pensionType-
+  // filtered list (getSubmitDetailsSubsteps) so the tab bar only shows
+  // Health Insurance for bAV/private claimants. Defaults to the unfiltered
+  // base list for other callers (e.g. none currently — kept for safety).
+  subSteps?: typeof SUBMIT_DETAILS_SUBSTEPS;
 }
 
 const MAIN_STEPS = [
@@ -119,6 +124,21 @@ const SubStepIcon: React.FC<{
         <line x1="16" y1="17" x2="8" y2="17" />
       </svg>
     ),
+    // Task 15: Health Insurance sub-step tab icon (shield/cross).
+    health: (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={iconColor}
+        strokeWidth="2"
+      >
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <line x1="12" y1="8" x2="12" y2="14" />
+        <line x1="9" y1="11" x2="15" y2="11" />
+      </svg>
+    ),
   };
 
   return (
@@ -138,18 +158,15 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
   activeStep = 1,
   currentSubStep,
   onSubStepClick,
+  subSteps = SUBMIT_DETAILS_SUBSTEPS,
 }) => {
   const isStepCompleted = (stepId: number) => stepId < activeStep;
   const isStepActive = (stepId: number) => stepId === activeStep;
 
   const isSubStepCompleted = (subStepId: SubmitDetailsSubStep) => {
     if (!currentSubStep) return false;
-    const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex(
-      (s) => s.id === currentSubStep
-    );
-    const stepIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex(
-      (s) => s.id === subStepId
-    );
+    const currentIndex = subSteps.findIndex((s) => s.id === currentSubStep);
+    const stepIndex = subSteps.findIndex((s) => s.id === subStepId);
     return stepIndex < currentIndex;
   };
 
@@ -261,7 +278,7 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
               className="flex items-stretch mb-8 rounded-[5px] overflow-hidden"
               style={{ border: '0.84px solid #E5E7EB' }}
             >
-              {SUBMIT_DETAILS_SUBSTEPS.map((subStep, index) => {
+              {subSteps.map((subStep, index) => {
                 const isActive = isSubStepActive(subStep.id);
                 const isCompleted = isSubStepCompleted(subStep.id);
 

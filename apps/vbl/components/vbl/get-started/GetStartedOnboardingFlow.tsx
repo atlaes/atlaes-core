@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   useOnboarding,
-  SUBMIT_DETAILS_SUBSTEPS,
+  getSubmitDetailsSubsteps,
   SubmitDetailsSubStep,
 } from '@/contexts/OnboardingContext';
 import { useEligibility } from '@/contexts/EligibilityContext';
@@ -23,6 +23,7 @@ import { Payment } from '@/components/vbl/onboarding/steps/Payment';
 import { Identity } from '@/components/vbl/onboarding/steps/Identity';
 import { Membership } from '@/components/vbl/onboarding/steps/Membership';
 import { Address } from '@/components/vbl/onboarding/steps/Address';
+import { HealthInsurance } from '@/components/vbl/onboarding/steps/HealthInsurance';
 import { BankDetails } from '@/components/vbl/onboarding/steps/BankDetails';
 import { Signature } from '@/components/vbl/onboarding/steps/Signature';
 import { ReviewSubmit } from '@/components/vbl/onboarding/steps/ReviewSubmit';
@@ -46,6 +47,10 @@ export function GetStartedOnboardingFlow() {
     updateSuccessData,
     loadFromClaim,
   } = useOnboarding();
+
+  // Task 15: Health Insurance only appears for bAV/private pension type
+  // claimants — see getSubmitDetailsSubsteps in OnboardingContext.tsx.
+  const submitDetailsSubsteps = getSubmitDetailsSubsteps(data.pensionType);
 
   // Auto-advance past CreateAccount when user is already authenticated
   // (e.g. arriving via magic link redirect back to /get-started)
@@ -231,11 +236,11 @@ export function GetStartedOnboardingFlow() {
       return;
     }
 
-    const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex(
+    const currentIndex = submitDetailsSubsteps.findIndex(
       (s) => s.id === currentSubStep
     );
-    if (currentIndex < SUBMIT_DETAILS_SUBSTEPS.length - 1) {
-      setCurrentSubStep(SUBMIT_DETAILS_SUBSTEPS[currentIndex + 1].id);
+    if (currentIndex < submitDetailsSubsteps.length - 1) {
+      setCurrentSubStep(submitDetailsSubsteps[currentIndex + 1].id);
     }
   };
 
@@ -303,6 +308,24 @@ export function GetStartedOnboardingFlow() {
           });
           await markStepComplete(claimId, 'currentAddress');
           break;
+        case 'health-insurance': {
+          const hi = data.healthInsurance;
+          await updateClaim(claimId, {
+            healthInsuranceType: hi.type || undefined,
+            healthInsuranceProviderName: hi.providerName || undefined,
+            healthInsuranceProviderAddress: hi.providerAddress || undefined,
+            healthInsuranceInsuredSinceMonth: hi.insuredSinceMonth || undefined,
+            healthInsuranceInsuredSinceYear: hi.insuredSinceYear || undefined,
+            healthInsurancePlaceOfBirth: hi.placeOfBirth || undefined,
+            healthInsuranceCountryOfBirth: hi.countryOfBirth || undefined,
+            healthInsuranceNumber: hi.insuranceNumber || undefined,
+          });
+          if (hi.documentId) {
+            await attachDocument(claimId, hi.documentId, 'health_insurance');
+          }
+          await markStepComplete(claimId, 'healthInsurance');
+          break;
+        }
         case 'bank-details':
           await updateClaim(claimId, {
             iban: data.bankDetails.iban || undefined,
@@ -350,11 +373,11 @@ export function GetStartedOnboardingFlow() {
         setCurrentStep(1);
       }
     } else if (currentStep === 3) {
-      const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex(
+      const currentIndex = submitDetailsSubsteps.findIndex(
         (s) => s.id === currentSubStep
       );
       if (currentIndex > 0) {
-        setCurrentSubStep(SUBMIT_DETAILS_SUBSTEPS[currentIndex - 1].id);
+        setCurrentSubStep(submitDetailsSubsteps[currentIndex - 1].id);
       } else {
         // Don't go back to Payment if already paid — go to eligibility instead
         if (data.paymentCompleted) {
@@ -452,6 +475,13 @@ export function GetStartedOnboardingFlow() {
         );
       case 'address':
         return <Address onNext={saveAndAdvance} />;
+      case 'health-insurance':
+        return (
+          <HealthInsurance
+            onNext={saveAndAdvance}
+            setBackOverride={setBackOverride}
+          />
+        );
       case 'bank-details':
         return (
           <BankDetails
@@ -484,6 +514,7 @@ export function GetStartedOnboardingFlow() {
       activeStep={activeStep}
       currentSubStep={currentStep === 3 ? currentSubStep : undefined}
       onSubStepClick={handleSubStepTabClick}
+      subSteps={submitDetailsSubsteps}
     >
       {renderStepContent()}
     </GetStartedLayout>

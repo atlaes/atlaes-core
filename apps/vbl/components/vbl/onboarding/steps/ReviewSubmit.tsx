@@ -11,6 +11,8 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
+  ShieldPlus,
+  AlertCircle,
 } from 'lucide-react';
 import {
   useOnboarding,
@@ -43,6 +45,12 @@ const REASON_FOR_LEAVING_LABELS: Record<string, string> = {
   retirement: 'Retirement',
   relocation: 'Relocation',
   other: 'Other (please specify)',
+};
+
+const HEALTH_INSURANCE_TYPE_LABELS: Record<string, string> = {
+  statutory: 'Statutory health insurance / public health fund',
+  private: 'Private health insurance',
+  not_sure: 'I am not sure',
 };
 
 interface ReviewSection {
@@ -89,6 +97,16 @@ const EMPLOYMENT_DETAILS_SECTION: ReviewSection = {
   title: 'Employment Details',
   subStep: 'membership',
   icon: <CardIcon className="w-5 h-5" />,
+};
+
+// Task 15: Health insurance — bAV/private pension type claimants only. Per
+// design VBL-24/VBL-25, it sits after Pension details / Address and before
+// Bank details in the accordion.
+const HEALTH_INSURANCE_SECTION: ReviewSection = {
+  id: 'health-insurance',
+  title: 'Health insurance',
+  subStep: 'health-insurance',
+  icon: <ShieldPlus className="w-5 h-5" />,
 };
 
 const SIGNATURE_SECTION: ReviewSection = {
@@ -151,9 +169,16 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
     data.membership.pensionProvider === 'VddB' ||
     data.membership.pensionProvider === 'VddKO';
 
-  const reviewSections: ReviewSection[] = isStageProvider
-    ? [...BASE_REVIEW_SECTIONS, EMPLOYMENT_DETAILS_SECTION, SIGNATURE_SECTION]
-    : [...BASE_REVIEW_SECTIONS, SIGNATURE_SECTION];
+  // Task 15: Health insurance only applies to bAV/private pension type
+  // claimants (see getSubmitDetailsSubsteps in OnboardingContext.tsx).
+  const isPrivatePensionType = data.pensionType === 'private';
+
+  const reviewSections: ReviewSection[] = [
+    ...BASE_REVIEW_SECTIONS,
+    ...(isPrivatePensionType ? [HEALTH_INSURANCE_SECTION] : []),
+    ...(isStageProvider ? [EMPLOYMENT_DETAILS_SECTION] : []),
+    SIGNATURE_SECTION,
+  ];
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
@@ -319,6 +344,78 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             </button>
           </div>
         );
+      case 'health-insurance': {
+        // Task 15: incomplete state (VBL-25) shows a red callout + "Fix
+        // health insurance details" link instead of the field summary.
+        const hi = data.healthInsurance;
+        const isComplete = isSectionComplete('health-insurance');
+        if (!isComplete) {
+          return (
+            <div className="pt-4 pb-2">
+              <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-red-700">
+                  <p>
+                    We couldn't find a completed health insurance upload or
+                    confirmation. Please review and confirm your health
+                    insurance details before submitting your request.
+                  </p>
+                  <button
+                    onClick={() => handleEditSection(section.subStep)}
+                    className="mt-2 font-medium underline hover:no-underline"
+                  >
+                    Fix health insurance details →
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="space-y-2 text-sm pt-4 pb-2">
+            <p className="text-gray-700">
+              <span className="text-gray-500">Type of health insurance:</span>{' '}
+              {HEALTH_INSURANCE_TYPE_LABELS[hi.type] || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">Health insurance provider:</span>{' '}
+              {hi.providerName || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">
+                Health insurance provider address:
+              </span>{' '}
+              {hi.providerAddress || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">Insured since:</span>{' '}
+              {hi.insuredSinceMonth || hi.insuredSinceYear
+                ? [hi.insuredSinceMonth, hi.insuredSinceYear]
+                    .filter(Boolean)
+                    .join(' ')
+                : 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">Place of birth:</span>{' '}
+              {hi.placeOfBirth || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">Country of birth:</span>{' '}
+              {hi.countryOfBirth || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">Health insurance number:</span>{' '}
+              {hi.insuranceNumber || 'Not provided'}
+            </p>
+            <button
+              onClick={() => handleEditSection(section.subStep)}
+              className="text-[#163300] font-medium hover:underline mt-2"
+            >
+              Edit information
+            </button>
+          </div>
+        );
+      }
       case 'bank':
         return (
           <div className="space-y-2 text-sm pt-4 pb-2">
@@ -454,13 +551,23 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
       {/* Accordion Sections */}
       <div className="space-y-3 mb-8">
         {reviewSections.map((section) => {
-          const isExpanded = expandedSections.has(section.id);
+          // Task 15 (VBL-25): the Health insurance section auto-expands and
+          // gets red-highlighted styling + an inline error label while
+          // incomplete, instead of the default green accordion look.
           const isComplete = isSectionComplete(section.subStep);
+          const isIncompleteHealthInsurance =
+            section.id === 'health-insurance' && !isComplete;
+          const isExpanded =
+            expandedSections.has(section.id) || isIncompleteHealthInsurance;
 
           return (
             <div
               key={section.id}
-              className="border border-[#9FE870] rounded-xl overflow-hidden bg-[#F0FDE4]"
+              className={`rounded-xl overflow-hidden border ${
+                isIncompleteHealthInsurance
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-[#9FE870] bg-[#F0FDE4]'
+              }`}
             >
               {/* Section Header */}
               <button
@@ -468,14 +575,38 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
                 className="w-full px-5 py-4 flex items-center justify-between"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-[#9FE870] rounded-lg flex items-center justify-center text-[#163300]">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      isIncompleteHealthInsurance
+                        ? 'bg-red-200 text-red-700'
+                        : 'bg-[#9FE870] text-[#163300]'
+                    }`}
+                  >
                     {section.icon}
                   </div>
-                  <span className="font-semibold text-[#163300]">
+                  <span
+                    className={`font-semibold ${
+                      isIncompleteHealthInsurance
+                        ? 'text-red-700'
+                        : 'text-[#163300]'
+                    }`}
+                  >
                     {section.title}
                   </span>
+                  {isIncompleteHealthInsurance && (
+                    <span className="flex items-center gap-1 text-sm font-medium text-red-700">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      Health insurance confirmation required
+                    </span>
+                  )}
                 </div>
-                <div className="text-[#9FE870]">
+                <div
+                  className={
+                    isIncompleteHealthInsurance
+                      ? 'text-red-600'
+                      : 'text-[#9FE870]'
+                  }
+                >
                   {isExpanded ? (
                     <ChevronUp className="w-5 h-5" />
                   ) : (
@@ -501,9 +632,16 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
       )}
 
       {/* Submit Button */}
+      {/* Task 15 (VBL-25): disabled while the bAV/private Health insurance
+          section is incomplete — type + (document OR provider name) must be
+          present, mirrored from isHealthInsuranceComplete in
+          OnboardingContext.tsx via canProceedFromSubStep. */}
       <button
         onClick={handleSubmit}
-        disabled={isSubmitting}
+        disabled={
+          isSubmitting ||
+          (isPrivatePensionType && !isSectionComplete('health-insurance'))
+        }
         className="w-full py-4 px-6 bg-[#9FE870] text-[#163300] font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-[#8AD860] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting ? (
