@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi } from 'vitest';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq, sql } from 'drizzle-orm';
@@ -7,6 +7,7 @@ import { claimsTable, claimDocuments, claimWorkflowStates } from '../drizzle/sch
 import { users, profiles, documents, auditLogs, signatures } from '../drizzle/schema/shared';
 import { ClaimsApplicationService } from './claims-application';
 import { GPRApplicationService } from './gpr-application';
+import { logger } from '../utils/logger';
 import {
   completeClaim,
   claimPersonalInfo,
@@ -279,6 +280,56 @@ describe('ClaimsApplicationService', () => {
 
       expect(logs.length).toBe(1);
       expect(logs[0].action).toBe('claim_created');
+    });
+
+    // Regression test for the staging incident where bAV (pensionType
+    // 'private') users hit "Failed to create claim" on the paygate. Root
+    // cause was schema drift: the `claims.claims` table on staging was
+    // missing the Task 15 health-insurance columns that
+    // `.insert(claimsTable).values(...).returning()` implicitly selects
+    // (Drizzle's `.returning()` lists every column declared in schema.ts,
+    // not `RETURNING *`), so the INSERT's RETURNING clause failed with a
+    // Postgres "column does not exist" error. This broke claim creation for
+    // *every* pensionType — bAV was simply the first flow re-tested after
+    // the drift was introduced. The error was swallowed into a generic
+    // "Failed to create claim" with no trace of the real Postgres error in
+    // the logs, because `logger.error('...', error)` passed a raw Error as
+    // the log `meta`, and `JSON.stringify(new Error(...))` serializes to
+    // `{}` (message/stack are non-enumerable) — see utils/logger.ts.
+    it('logs the real underlying error when the insert fails (e.g. schema drift), instead of swallowing it', async () => {
+      const userId = await createTestUser();
+
+      // Simulate the staging schema drift: a column that schema.ts expects
+      // (and that `.returning()` therefore requests) is missing from the
+      // physical table.
+      await testClient`
+        ALTER TABLE claims.claims DROP COLUMN IF EXISTS health_insurance_type
+      `;
+
+      const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+
+      try {
+        await expect(
+          ClaimsApplicationService.createClaim(userId)
+        ).rejects.toThrow('Failed to create claim');
+
+        // The client-facing message stays generic (no internals leaked),
+        // but the server log must carry the real Postgres error so this is
+        // debuggable without a full code trace next time.
+        expect(errorSpy).toHaveBeenCalledWith(
+          'Error creating claim:',
+          expect.objectContaining({
+            error: expect.stringContaining('health_insurance_type'),
+          })
+        );
+      } finally {
+        errorSpy.mockRestore();
+        // Restore the column so the rest of the suite (and other files
+        // sharing this DB) are unaffected.
+        await testClient`
+          ALTER TABLE claims.claims ADD COLUMN IF NOT EXISTS health_insurance_type varchar(20)
+        `;
+      }
     });
   });
 

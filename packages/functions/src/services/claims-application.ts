@@ -11,7 +11,7 @@ import {
   CertifyingAuthority,
 } from '../drizzle/schema/claims';
 import { auditLogs, documents, users, profiles } from '../drizzle/schema/shared';
-import { logger } from '../utils/logger';
+import { logger, toErrorMeta } from '../utils/logger';
 
 // Types for completed steps tracking
 export interface CompletedSteps {
@@ -367,7 +367,7 @@ export class ClaimsApplicationService {
       logger.info(`Claim created for user: ${userId}, claim: ${result.id}`);
       return mapRowToClaim(result);
     } catch (error) {
-      logger.error('Error creating claim:', error);
+      logger.error('Error creating claim:', toErrorMeta(error));
       throw new Error('Failed to create claim');
     }
   }
