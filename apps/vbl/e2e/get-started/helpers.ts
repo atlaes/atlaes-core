@@ -385,10 +385,19 @@ export async function completeCreateAccount(page: Page, email?: string) {
 }
 
 export async function completePayment(page: Page) {
+  // Payment.tsx branches its heading on pensionType: public/stage claimants
+  // see "Start your refund claim" (VBL-1); bAV/private claimants see
+  // "Start your bAV cash-out request" (VBL-26). Accept either so this
+  // shared helper works for both flows.
   await expect(
-    page.getByRole('heading', { name: /Start your refund claim/i })
+    page.getByRole('heading', {
+      name: /Start your (refund claim|bAV cash-out request)/i,
+    })
   ).toBeVisible({ timeout: 10_000 });
-  await page.getByRole('button', { name: /Pay.*deposit/i }).click();
+  // Button label also branches: public/stage "Pay €199 deposit", bAV/private
+  // "Pay €199 and complete your claim" — neither contains "deposit" in the
+  // private case, so match on the common "Pay €199" prefix instead.
+  await page.getByRole('button', { name: /Pay €199/i }).click();
   // Wait for processing to finish — simulated 1.5s delay
   await expect(
     page.getByRole('heading', { name: /passport|Upload/i })
