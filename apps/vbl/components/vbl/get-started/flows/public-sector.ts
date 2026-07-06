@@ -9,21 +9,6 @@ const INELIGIBLE_STATES = [
   'Thuringia',
 ];
 
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
 function endedInOrAfter2018(data: EligibilityData): boolean {
   const endYear = Number(data.employmentEndYear);
   return Number.isFinite(endYear) && endYear >= 2018;
@@ -32,17 +17,17 @@ function endedInOrAfter2018(data: EligibilityData): boolean {
 function hasConfirmedUploadCheckData(data: EligibilityData): boolean {
   return Boolean(
     data.publicEntryPath === 'upload' &&
-      data.federalState &&
-      data.pensionProvider &&
-      data.employmentEndMonth &&
-      data.employmentEndYear &&
-      data.contributionStartMonth &&
-      data.contributionStartYear &&
-      data.contributionEndMonth &&
-      data.contributionEndYear &&
-      data.consecutiveContribution &&
-      data.contributionDuration &&
-      (data.pensionProvider !== 'VBL' || data.vblPlan)
+    data.federalState &&
+    data.pensionProvider &&
+    data.employmentEndMonth &&
+    data.employmentEndYear &&
+    data.contributionStartMonth &&
+    data.contributionStartYear &&
+    data.contributionEndMonth &&
+    data.contributionEndYear &&
+    data.consecutiveContribution &&
+    data.contributionDuration &&
+    (data.pensionProvider !== 'VBL' || data.vblPlan)
   );
 }
 
@@ -82,30 +67,6 @@ function checkPublicEligibility(data: EligibilityData) {
         'Based on your information, your supplementary pension is vested under the rules that apply from 2018 onward and cannot be paid out as a lump sum.',
       secondaryMessage:
         'Periods that ended before 2018 may still be reviewed because earlier contributions can be counted differently.',
-    };
-  }
-
-  return null;
-}
-
-function checkPublicWaiting(data: EligibilityData) {
-  if (!data.employmentEndMonth || !data.employmentEndYear) return null;
-
-  const monthIndex = MONTHS.indexOf(data.employmentEndMonth);
-  const year = Number(data.employmentEndYear);
-  if (monthIndex < 0 || !Number.isFinite(year)) return null;
-
-  const eligibleDate = new Date(year, monthIndex + 24);
-  if (eligibleDate > new Date()) {
-    const formattedDate = eligibleDate.toLocaleDateString('en-GB', {
-      month: 'long',
-      year: 'numeric',
-    });
-    return {
-      title: 'Your refund is not yet available',
-      message:
-        'A 24-month waiting period must pass after your public-sector employment ends before this refund can be requested.',
-      eligibleDate: formattedDate,
     };
   }
 
@@ -212,15 +173,9 @@ export const publicSectorFlow: FlowConfig = {
     }
   },
 
-  checkWaiting(stepId: StepId, data: EligibilityData) {
-    if (stepId === 'public_upload' && hasConfirmedUploadCheckData(data)) {
-      return checkPublicWaiting(data);
-    }
-
-    if (stepId === 'employment_end_date') {
-      return checkPublicWaiting(data);
-    }
-
-    return null;
-  },
+  // Item 9: VBL/ZVK (public-sector) has no 24-month waiting rule — users
+  // can never land on result === 'waiting' here. Do not add a
+  // checkWaiting() back without re-confirming with the client; the
+  // stage flow's own waiting calculation (flows/stage.ts) is unrelated
+  // and must stay untouched.
 };

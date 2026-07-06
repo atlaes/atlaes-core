@@ -59,7 +59,9 @@ async function mockPublicUploadExtraction(
   });
 }
 
-async function uploadPublicPensionDocument(page: import('@playwright/test').Page) {
+async function uploadPublicPensionDocument(
+  page: import('@playwright/test').Page
+) {
   await expect(
     page.getByRole('heading', { name: 'Upload your pension document' })
   ).toBeVisible({ timeout: 5_000 });
@@ -129,16 +131,17 @@ test.describe('Public Sector Eligibility', () => {
       })
     ).toBeVisible();
     await expect(
-      page.getByText('Please check the details needed for the first refund check.')
+      page.getByText(
+        'Please check the details needed for the first refund check.'
+      )
     ).toBeVisible();
     await expect(page.getByLabel('Pension scheme')).toHaveValue('VBL');
-    await expect(page.getByRole('button', { name: 'VBLklassik' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
-    await expect(page.getByLabel('Federal state or employer location')).toHaveValue(
-      'Bavaria'
-    );
+    await expect(
+      page.getByRole('button', { name: 'VBLklassik' })
+    ).toHaveAttribute('aria-pressed', 'true');
+    await expect(
+      page.getByLabel('Federal state or employer location')
+    ).toHaveValue('Bavaria');
 
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await expectEligibleResult(page);
@@ -172,15 +175,21 @@ test.describe('Public Sector Eligibility', () => {
         'We could not confirm everything from your document. Please add the missing details so we can check whether your refund can be started.'
       )
     ).toBeVisible();
-    await expect(page.getByLabel('Pension scheme shown on your document')).toHaveValue(
-      'ZVK'
-    );
+    await expect(
+      page.getByLabel('Pension scheme shown on your document')
+    ).toHaveValue('ZVK');
     await expect(page.getByText('VBL plan')).toHaveCount(0);
-    await expect(page.getByText('Missing details', { exact: true })).toHaveCount(4);
+    await expect(
+      page.getByText('Missing details', { exact: true })
+    ).toHaveCount(4);
 
-    await page.getByLabel('Start month', { exact: true }).selectOption('January');
+    await page
+      .getByLabel('Start month', { exact: true })
+      .selectOption('January');
     await page.getByLabel('Start year', { exact: true }).selectOption('2016');
-    await page.getByLabel('End month', { exact: true }).selectOption('December');
+    await page
+      .getByLabel('End month', { exact: true })
+      .selectOption('December');
     await page.getByLabel('End year', { exact: true }).selectOption('2017');
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
@@ -235,6 +244,30 @@ test.describe('Public Sector Eligibility', () => {
     await expectEligibleResult(page);
   });
 
+  test('Recent employment end date does not trigger a waiting result (item 9: no 24-month rule for VBL/ZVK)', async ({
+    page,
+  }) => {
+    await selectFederalState(page, 'North Rhine-Westphalia');
+    await selectPensionProvider(page, 'VBL');
+    await selectPensionScheme(page, 'VBLklassik');
+    // Employment end date is this month — well within what used to be the
+    // 24-month waiting window. VBL/ZVK no longer has a waiting rule, so
+    // this must resolve straight to eligible/not-eligible, never 'waiting'.
+    const now = new Date();
+    const currentMonth = now.toLocaleDateString('en-US', { month: 'long' });
+    await selectEmploymentEndDate(
+      page,
+      currentMonth,
+      String(now.getFullYear())
+    );
+    await selectContributionPeriod(page, 'No');
+    await selectContributionDuration(page, 'Less than 36 months');
+    await expectEligibleResult(page);
+    await expect(
+      page.getByRole('heading', { name: 'Your refund cannot be started yet' })
+    ).toHaveCount(0);
+  });
+
   test('Non-VBL state provider skips pension scheme → eligible', async ({
     page,
   }) => {
@@ -278,7 +311,9 @@ test.describe('Public Sector Eligibility', () => {
       await selectFederalState(page, state);
       await expectNotEligibleResult(page);
       await expect(
-        page.getByText('This refund cannot currently be claimed with CompanyPension')
+        page.getByText(
+          'This refund cannot currently be claimed with CompanyPension'
+        )
       ).toBeVisible();
     });
   }
@@ -293,7 +328,9 @@ test.describe('Public Sector Eligibility', () => {
     await selectPensionScheme(page, 'VBLextra');
     await expectNotEligibleResult(page);
     await expect(
-      page.getByText('This refund cannot currently be claimed with CompanyPension')
+      page.getByText(
+        'This refund cannot currently be claimed with CompanyPension'
+      )
     ).toBeVisible();
   });
 

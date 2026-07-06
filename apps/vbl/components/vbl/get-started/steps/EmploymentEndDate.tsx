@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ArrowRight, ChevronDown, Info } from 'lucide-react';
+import { ArrowRight, ChevronDown } from 'lucide-react';
 import { useEligibility } from '@/contexts/EligibilityContext';
 
 const MONTHS = [
@@ -94,18 +94,6 @@ export const EmploymentEndDate: React.FC = () => {
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
         </div>
       </div>
-
-      {month && year && !isFutureDate && (
-        <div className="mt-3 flex items-start gap-4 rounded-[10px] bg-[#EEF6EA] px-6 py-4 text-[#3F464F]">
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5A9A23]">
-            <Info className="h-4 w-4 text-white" />
-          </div>
-          <p className="text-[15px] leading-6">
-            Your employment end date is needed to check whether the 24-month
-            waiting period has been met.
-          </p>
-        </div>
-      )}
 
       {isFutureDate && (
         <p className="mt-3 text-sm font-medium text-red-700" aria-live="polite">
