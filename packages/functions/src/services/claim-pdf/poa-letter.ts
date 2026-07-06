@@ -220,11 +220,17 @@ export async function renderPoaLetter(
   for (const op of plan) {
     const page = pages[op.page];
     if (op.kind === 'text') {
+      const opFont = op.bold ? boldFont : font;
+      // op.yTop is a pdftotext yMin (the top of the glyph box), which sits
+      // one font ascent above the baseline — not one fontSize above it.
+      // Using `size` here (as opposed to the font's actual ascent) under-
+      // shoots the ascent by ~3pt at size 11, pushing every line too low.
+      const ascent = opFont.heightAtSize(op.size, { descender: false });
       page.drawText(op.text, {
         x: op.x,
-        y: A4.height - op.yTop - op.size,
+        y: A4.height - op.yTop - ascent,
         size: op.size,
-        font: op.bold ? boldFont : font,
+        font: opFont,
       });
     } else {
       const scale = op.height / signatureImage.height;
