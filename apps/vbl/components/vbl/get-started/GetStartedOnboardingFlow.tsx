@@ -16,6 +16,7 @@ import {
   markStepComplete,
   verifyPaymentSession,
 } from '@/lib/onboarding-api';
+import { clearAllFlowPersistence } from '@/lib/flow-persistence';
 import { GetStartedLayout } from './GetStartedLayout';
 import { CreateAccount } from '@/components/vbl/onboarding/steps/CreateAccount';
 import { Payment } from '@/components/vbl/onboarding/steps/Payment';
@@ -370,6 +371,10 @@ export function GetStartedOnboardingFlow() {
       submittedAt: new Date().toISOString(),
       drvEligibilityDate: drvEligibilityDate,
     });
+    // Claim is submitted — nothing left to resume. Clear both persisted
+    // blobs so a refresh on the success screen (or a later visit) doesn't
+    // try to resurrect a completed run.
+    clearAllFlowPersistence();
     setShowSuccess(true);
   };
 

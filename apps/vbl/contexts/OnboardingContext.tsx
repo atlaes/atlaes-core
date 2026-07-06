@@ -1,6 +1,19 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  ReactNode,
+} from 'react';
+import {
+  loadOnboardingState,
+  saveOnboardingState,
+  clearOnboardingState,
+  toPersistedOnboardingData,
+} from '@/lib/flow-persistence';
 
 // Types for onboarding data
 export interface OnboardingIdentity {
@@ -51,7 +64,10 @@ export interface OnboardingAddress {
   country: string;
 }
 
-export type BankAccountOption = 'own_iban' | 'open_free_account' | 'trusted_third_party';
+export type BankAccountOption =
+  | 'own_iban'
+  | 'open_free_account'
+  | 'trusted_third_party';
 
 export interface OnboardingBankDetails {
   accountHolder: string;
@@ -118,7 +134,11 @@ export type SubmitDetailsSubStep =
   | 'signature'
   | 'review';
 
-export const SUBMIT_DETAILS_SUBSTEPS: { id: SubmitDetailsSubStep; label: string; icon: string }[] = [
+export const SUBMIT_DETAILS_SUBSTEPS: {
+  id: SubmitDetailsSubStep;
+  label: string;
+  icon: string;
+}[] = [
   { id: 'identity', label: 'Identity', icon: 'user' },
   { id: 'membership', label: 'Pension Details', icon: 'card' },
   { id: 'address', label: 'Address', icon: 'location' },
@@ -245,9 +265,64 @@ function isAtLeast18(dateOfBirth: string): boolean {
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
-  const [currentSubStep, setCurrentSubStep] = useState<SubmitDetailsSubStep>('identity');
+  const [currentSubStep, setCurrentSubStep] =
+    useState<SubmitDetailsSubStep>('identity');
   const [data, setData] = useState<OnboardingData>(initialData);
   const [editingFromReview, setEditingFromReview] = useState(false);
+
+  // Restore position + pre-claim data from sessionStorage on mount.
+  //
+  // Precedence (see lib/flow-persistence.ts for the full rationale): the
+  // backend claim resume path (loadFromClaim, triggered from
+  // GetStartedOnboardingFlow's "resume draft" effect once `user` and
+  // `vbl_draft_claimId` are available) always wins over this sessionStorage
+  // restore for the fields it covers, because it runs in a *later* effect
+  // (it depends on `user`, which is only set once auth resolves — after
+  // this mount-time restore has already applied) and its setData calls are
+  // shallow-merged on top of whatever this restore already applied. This
+  // restore's job is solely to cover the gap loadFromClaim can't: position
+  // and data *before* a claim exists (pre-payment) and anything
+  // loadFromClaim doesn't own (e.g. membership.stageDetails, which has no
+  // backend column at all).
+  //
+  // `hasRestored` is state (not a ref) so the write-through effect below —
+  // declared after this one — only ever observes "restored" on a render
+  // where `data`/`currentStep`/`currentSubStep` already reflect the
+  // restored values (see the equivalent comment in EligibilityContext for
+  // why a ref would race this).
+  const [hasRestored, setHasRestored] = useState(false);
+  useEffect(() => {
+    const persisted = loadOnboardingState();
+    if (!persisted) {
+      setHasRestored(true);
+      return;
+    }
+
+    setCurrentStep(persisted.currentStep);
+    setCurrentSubStep(persisted.currentSubStep);
+    setData((prev) => ({
+      ...prev,
+      ...persisted.data,
+      identity: { ...prev.identity, ...persisted.data.identity },
+      membership: persisted.data.membership,
+      address: persisted.data.address,
+      bankDetails: persisted.data.bankDetails,
+      signature: { ...prev.signature, ...persisted.data.signature },
+    }));
+    setHasRestored(true);
+  }, []);
+
+  // Write-through persistence: any data/position change re-saves the whole
+  // (stripped) snapshot. Skipped until restore above has settled so we
+  // don't clobber a pending restore with pre-restore initial state.
+  useEffect(() => {
+    if (!hasRestored) return;
+    saveOnboardingState({
+      currentStep,
+      currentSubStep,
+      data: toPersistedOnboardingData(data),
+    });
+  }, [hasRestored, currentStep, currentSubStep, data]);
 
   const updateData = useCallback((updates: Partial<OnboardingData>) => {
     setData((prev) => ({ ...prev, ...updates }));
@@ -260,22 +335,28 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const updateMembership = useCallback((updates: Partial<OnboardingMembership>) => {
-    setData((prev) => ({
-      ...prev,
-      membership: { ...prev.membership, ...updates },
-    }));
-  }, []);
+  const updateMembership = useCallback(
+    (updates: Partial<OnboardingMembership>) => {
+      setData((prev) => ({
+        ...prev,
+        membership: { ...prev.membership, ...updates },
+      }));
+    },
+    []
+  );
 
-  const updateStageDetails = useCallback((updates: Partial<OnboardingStageDetails>) => {
-    setData((prev) => ({
-      ...prev,
-      membership: {
-        ...prev.membership,
-        stageDetails: { ...prev.membership.stageDetails, ...updates },
-      },
-    }));
-  }, []);
+  const updateStageDetails = useCallback(
+    (updates: Partial<OnboardingStageDetails>) => {
+      setData((prev) => ({
+        ...prev,
+        membership: {
+          ...prev.membership,
+          stageDetails: { ...prev.membership.stageDetails, ...updates },
+        },
+      }));
+    },
+    []
+  );
 
   const updateAddress = useCallback((updates: Partial<OnboardingAddress>) => {
     setData((prev) => ({
@@ -284,39 +365,115 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const updateBankDetails = useCallback((updates: Partial<OnboardingBankDetails>) => {
-    setData((prev) => ({
-      ...prev,
-      bankDetails: { ...prev.bankDetails, ...updates },
-    }));
-  }, []);
+  const updateBankDetails = useCallback(
+    (updates: Partial<OnboardingBankDetails>) => {
+      setData((prev) => ({
+        ...prev,
+        bankDetails: { ...prev.bankDetails, ...updates },
+      }));
+    },
+    []
+  );
 
-  const updateSignature = useCallback((updates: Partial<OnboardingSignature>) => {
-    setData((prev) => ({
-      ...prev,
-      signature: { ...prev.signature, ...updates },
-    }));
-  }, []);
+  const updateSignature = useCallback(
+    (updates: Partial<OnboardingSignature>) => {
+      setData((prev) => ({
+        ...prev,
+        signature: { ...prev.signature, ...updates },
+      }));
+    },
+    []
+  );
 
-  const updateSuccessData = useCallback((updates: Partial<OnboardingSuccessData>) => {
-    setData((prev) => ({
-      ...prev,
-      successData: { ...prev.successData, ...updates },
-    }));
-  }, []);
+  const updateSuccessData = useCallback(
+    (updates: Partial<OnboardingSuccessData>) => {
+      setData((prev) => ({
+        ...prev,
+        successData: { ...prev.successData, ...updates },
+      }));
+    },
+    []
+  );
 
-  const canProceedFromStep = useCallback((step: 1 | 2 | 3): boolean => {
-    switch (step) {
-      case 1:
-        return data.email !== '' && data.authMethod !== '';
-      case 2:
-        return data.paymentCompleted;
-      case 3:
-        // All sub-steps must be complete
-        const isStage =
-          data.membership.pensionProvider === 'VddB' ||
-          data.membership.pensionProvider === 'VddKO';
-        const stageDetailsOk = (() => {
+  const canProceedFromStep = useCallback(
+    (step: 1 | 2 | 3): boolean => {
+      switch (step) {
+        case 1:
+          return data.email !== '' && data.authMethod !== '';
+        case 2:
+          return data.paymentCompleted;
+        case 3:
+          // All sub-steps must be complete
+          const isStage =
+            data.membership.pensionProvider === 'VddB' ||
+            data.membership.pensionProvider === 'VddKO';
+          const stageDetailsOk = (() => {
+            const s = data.membership.stageDetails;
+            const reasonOk =
+              s.reasonForLeaving !== '' &&
+              (s.reasonForLeaving !== 'other' ||
+                s.reasonForLeavingOther.trim() !== '');
+            return (
+              s.stageName.trim() !== '' &&
+              s.rolePosition.trim() !== '' &&
+              s.employmentEndDate !== '' &&
+              s.permanentlyStopped !== '' &&
+              reasonOk &&
+              s.currentOccupation.trim() !== '' &&
+              s.unableToWorkHealth !== ''
+            );
+          })();
+          const pensionDetailsOk =
+            data.membership.pensionProvider !== '' &&
+            (isStage
+              ? stageDetailsOk
+              : data.membership.membershipNumber.trim() !== '');
+          return (
+            data.identity.firstName.trim() !== '' &&
+            data.identity.lastName.trim() !== '' &&
+            data.identity.dateOfBirth !== '' &&
+            isAtLeast18(data.identity.dateOfBirth) &&
+            data.identity.gender !== '' &&
+            data.identity.nationality.trim() !== '' &&
+            data.identity.placeOfBirth.trim() !== '' &&
+            pensionDetailsOk &&
+            data.address.streetAndNumber !== '' &&
+            data.address.city !== '' &&
+            data.address.country !== '' &&
+            (data.bankDetails.iban !== '' ||
+              data.bankDetails.accountOption !== 'own_iban') &&
+            (!!data.signature.signatureData ||
+              !!data.signature.signatureFile) &&
+            data.signature.legalConfirmed
+          );
+        default:
+          return false;
+      }
+    },
+    [data]
+  );
+
+  const canProceedFromSubStep = useCallback(
+    (subStep: SubmitDetailsSubStep): boolean => {
+      switch (subStep) {
+        case 'identity':
+          return (
+            data.identity.firstName.trim() !== '' &&
+            data.identity.lastName.trim() !== '' &&
+            data.identity.dateOfBirth !== '' &&
+            isAtLeast18(data.identity.dateOfBirth) &&
+            data.identity.gender !== '' &&
+            data.identity.nationality.trim() !== '' &&
+            data.identity.placeOfBirth.trim() !== ''
+          );
+        case 'membership': {
+          if (data.membership.pensionProvider === '') return false;
+          // Stage / orchestra providers (VddB, VddKO) require the extended
+          // sub-form in addition to the membership number.
+          const isStage =
+            data.membership.pensionProvider === 'VddB' ||
+            data.membership.pensionProvider === 'VddKO';
+          if (!isStage) return data.membership.membershipNumber.trim() !== '';
           const s = data.membership.stageDetails;
           const reasonOk =
             s.reasonForLeaving !== '' &&
@@ -331,104 +488,49 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
             s.currentOccupation.trim() !== '' &&
             s.unableToWorkHealth !== ''
           );
-        })();
-        const pensionDetailsOk =
-          data.membership.pensionProvider !== '' &&
-          (isStage
-            ? stageDetailsOk
-            : data.membership.membershipNumber.trim() !== '');
-        return (
-          data.identity.firstName.trim() !== '' &&
-          data.identity.lastName.trim() !== '' &&
-          data.identity.dateOfBirth !== '' &&
-          isAtLeast18(data.identity.dateOfBirth) &&
-          data.identity.gender !== '' &&
-          data.identity.nationality.trim() !== '' &&
-          data.identity.placeOfBirth.trim() !== '' &&
-          pensionDetailsOk &&
-          data.address.streetAndNumber !== '' &&
-          data.address.city !== '' &&
-          data.address.country !== '' &&
-          (data.bankDetails.iban !== '' || data.bankDetails.accountOption !== 'own_iban') &&
-          (!!data.signature.signatureData || !!data.signature.signatureFile) &&
-          data.signature.legalConfirmed
-        );
-      default:
-        return false;
-    }
-  }, [data]);
-
-  const canProceedFromSubStep = useCallback((subStep: SubmitDetailsSubStep): boolean => {
-    switch (subStep) {
-      case 'identity':
-        return (
-          data.identity.firstName.trim() !== '' &&
-          data.identity.lastName.trim() !== '' &&
-          data.identity.dateOfBirth !== '' &&
-          isAtLeast18(data.identity.dateOfBirth) &&
-          data.identity.gender !== '' &&
-          data.identity.nationality.trim() !== '' &&
-          data.identity.placeOfBirth.trim() !== ''
-        );
-      case 'membership': {
-        if (data.membership.pensionProvider === '') return false;
-        // Stage / orchestra providers (VddB, VddKO) require the extended
-        // sub-form in addition to the membership number.
-        const isStage =
-          data.membership.pensionProvider === 'VddB' ||
-          data.membership.pensionProvider === 'VddKO';
-        if (!isStage) return data.membership.membershipNumber.trim() !== '';
-        const s = data.membership.stageDetails;
-        const reasonOk =
-          s.reasonForLeaving !== '' &&
-          (s.reasonForLeaving !== 'other' || s.reasonForLeavingOther.trim() !== '');
-        return (
-          s.stageName.trim() !== '' &&
-          s.rolePosition.trim() !== '' &&
-          s.employmentEndDate !== '' &&
-          s.permanentlyStopped !== '' &&
-          reasonOk &&
-          s.currentOccupation.trim() !== '' &&
-          s.unableToWorkHealth !== ''
-        );
-      }
-      case 'address':
-        return (
-          data.address.streetAndNumber !== '' &&
-          data.address.postalCode !== '' &&
-          data.address.city !== '' &&
-          data.address.country !== ''
-        );
-      case 'bank-details':
-        // Own IBAN: just need IBAN
-        if (data.bankDetails.accountOption === 'own_iban') {
-          return data.bankDetails.iban !== '';
         }
-        // Open free EUR account: need phone number and consent
-        if (data.bankDetails.accountOption === 'open_free_account') {
-          return data.bankDetails.phoneNumber !== '' && data.bankDetails.phoneConsent;
-        }
-        // Trusted third-party: need account holder, IBAN, and confirmation
-        if (data.bankDetails.accountOption === 'trusted_third_party') {
+        case 'address':
           return (
-            data.bankDetails.accountHolder !== '' &&
-            data.bankDetails.iban !== '' &&
-            data.bankDetails.thirdPartyConfirmed
+            data.address.streetAndNumber !== '' &&
+            data.address.postalCode !== '' &&
+            data.address.city !== '' &&
+            data.address.country !== ''
           );
-        }
-        return false;
-      case 'signature':
-        return (
-          (!!data.signature.signatureData ||
-            !!data.signature.signatureFile) &&
-          data.signature.legalConfirmed
-        );
-      case 'review':
-        return true; // Review page is always valid
-      default:
-        return false;
-    }
-  }, [data]);
+        case 'bank-details':
+          // Own IBAN: just need IBAN
+          if (data.bankDetails.accountOption === 'own_iban') {
+            return data.bankDetails.iban !== '';
+          }
+          // Open free EUR account: need phone number and consent
+          if (data.bankDetails.accountOption === 'open_free_account') {
+            return (
+              data.bankDetails.phoneNumber !== '' &&
+              data.bankDetails.phoneConsent
+            );
+          }
+          // Trusted third-party: need account holder, IBAN, and confirmation
+          if (data.bankDetails.accountOption === 'trusted_third_party') {
+            return (
+              data.bankDetails.accountHolder !== '' &&
+              data.bankDetails.iban !== '' &&
+              data.bankDetails.thirdPartyConfirmed
+            );
+          }
+          return false;
+        case 'signature':
+          return (
+            (!!data.signature.signatureData ||
+              !!data.signature.signatureFile) &&
+            data.signature.legalConfirmed
+          );
+        case 'review':
+          return true; // Review page is always valid
+        default:
+          return false;
+      }
+    },
+    [data]
+  );
 
   const getCompletedSubSteps = useCallback((): SubmitDetailsSubStep[] => {
     const completed: SubmitDetailsSubStep[] = [];
@@ -518,6 +620,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setCurrentSubStep('identity');
     setData(initialData);
     setEditingFromReview(false);
+    // Explicit restart — drop any persisted position/data so a later
+    // refresh doesn't resurrect the abandoned run.
+    clearOnboardingState();
   }, []);
 
   return (

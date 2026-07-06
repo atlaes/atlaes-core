@@ -14,8 +14,51 @@ export const TEST_PASSPORT_PATH = path.join(__dirname, '../../public/USA.pdf');
 // Eligibility Nav Helpers
 // ============================================================
 
+async function clearFlowPersistence(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const hadState = !!(
+      window.sessionStorage.getItem('vbl_eligibility_v1') ||
+      window.sessionStorage.getItem('vbl_onboarding_v1')
+    );
+    window.sessionStorage.removeItem('vbl_eligibility_v1');
+    window.sessionStorage.removeItem('vbl_onboarding_v1');
+    return hadState;
+  });
+}
+
 export async function navigateToGetStarted(page: Page) {
+  // Task 13 (client item 22): /get-started now persists flow position to
+  // sessionStorage so an in-tab refresh resumes instead of resetting. That
+  // persistence intentionally also survives a plain re-navigation to the
+  // same URL within the same tab (sessionStorage isn't refresh-specific),
+  // which every caller of this helper relies on NOT happening — it always
+  // asserts the fresh "What do you want to start?" screen. Tests that want
+  // to exercise refresh-resumes-progress use `page.reload()` directly after
+  // an initial `navigateToGetStarted`, so clearing here only ever discards
+  // state left over from a previous test/action in the same tab.
+  //
+  // Clearing then re-navigating is occasionally racy in this harness (a few
+  // specs that register page.route() mocks before re-calling this helper
+  // can otherwise still see the pre-clear state survive a single
+  // clear-then-goto pass), so this retries the clear/goto cycle a few times
+  // until the start screen is actually reached rather than asserting once.
   await page.goto(GET_STARTED_URL);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const hadPersistedState = await clearFlowPersistence(page);
+    if (!hadPersistedState) break;
+    // Use goto() again rather than page.reload(): Chromium can serve a
+    // reload from the back/forward cache, which restores the page's
+    // in-memory JS state (including the write-through effect's closure
+    // over the pre-clear React state) and re-writes the very keys we just
+    // removed before the app re-reads sessionStorage — a plain goto()
+    // always re-runs scripts from scratch, which reload() does not
+    // guarantee.
+    await page.goto(GET_STARTED_URL);
+    const stillPersisted = await page.evaluate(
+      () => !!window.sessionStorage.getItem('vbl_eligibility_v1')
+    );
+    if (!stillPersisted) break;
+  }
   await expect(
     page.getByRole('heading', { name: 'What do you want to start?' })
   ).toBeVisible({ timeout: 10_000 });

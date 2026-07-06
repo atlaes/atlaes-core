@@ -12,6 +12,7 @@ import {
   selectPrivateEntryPath,
   selectPrivateStatePensionRefund,
   selectPrivatePensionProvider,
+  expectNotEligibleResult,
 } from './helpers';
 
 test.describe('Eligibility Edge Cases', () => {
@@ -312,6 +313,59 @@ test.describe('Eligibility Edge Cases', () => {
         page.getByRole('heading', {
           name: 'Upload your pension document or continue manually',
         })
+      ).toBeVisible({ timeout: 5_000 });
+    });
+  });
+
+  // ============================================================
+  // Task 13 (client item 22): refresh must return to the most recently
+  // active screen instead of resetting to "What do you want to start?".
+  // ============================================================
+  test.describe('Refresh Persistence', () => {
+    test('Refreshing mid-flow restores the same step instead of resetting', async ({
+      page,
+    }) => {
+      await navigateToGetStarted(page);
+      await selectEmploymentType(page, 'VBL / ZVK Refund');
+      await selectPublicEntryPath(page, 'Answer questions');
+      await selectFederalState(page, 'Berlin (West)');
+      await selectPensionProvider(page, 'VBL');
+      await expect(
+        page.getByRole('heading', { name: 'Select your company pension' })
+      ).toBeVisible({ timeout: 5_000 });
+
+      await page.reload();
+
+      // Still on the pension scheme step, not back at the start screen.
+      await expect(
+        page.getByRole('heading', { name: 'Select your company pension' })
+      ).toBeVisible({ timeout: 5_000 });
+      await expect(
+        page.getByRole('heading', { name: 'What do you want to start?' })
+      ).not.toBeVisible();
+    });
+
+    test('Return to start clears persisted progress so a later refresh starts fresh', async ({
+      page,
+    }) => {
+      await navigateToGetStarted(page);
+      await selectEmploymentType(page, 'VBL / ZVK Refund');
+      await selectPublicEntryPath(page, 'Answer questions');
+      await selectFederalState(page, 'Brandenburg');
+      await expectNotEligibleResult(page);
+
+      await page
+        .getByRole('button', { name: /Return to start|Go back/ })
+        .click();
+      await expect(
+        page.getByRole('heading', { name: 'What do you want to start?' })
+      ).toBeVisible({ timeout: 5_000 });
+
+      // A refresh after the explicit restart must not resurrect the
+      // abandoned run — the persisted blob should have been cleared.
+      await page.reload();
+      await expect(
+        page.getByRole('heading', { name: 'What do you want to start?' })
       ).toBeVisible({ timeout: 5_000 });
     });
   });

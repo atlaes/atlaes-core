@@ -5,6 +5,7 @@ import React, {
   useContext,
   useState,
   useCallback,
+  useEffect,
   ReactNode,
 } from 'react';
 import {
@@ -18,6 +19,11 @@ import {
 import { publicSectorFlow } from '@/components/vbl/get-started/flows/public-sector';
 import { stageFlow } from '@/components/vbl/get-started/flows/stage';
 import { privateSectorFlow } from '@/components/vbl/get-started/flows/private-sector';
+import {
+  loadEligibilityState,
+  saveEligibilityState,
+  clearAllFlowPersistence,
+} from '@/lib/flow-persistence';
 
 const initialData: EligibilityData = {
   employmentType: '',
@@ -59,7 +65,12 @@ function getFlowConfig(employmentType: string): FlowConfig | null {
   }
 }
 
-type EligibilityResult = 'eligible' | 'not_eligible' | 'waiting' | 'review' | null;
+type EligibilityResult =
+  | 'eligible'
+  | 'not_eligible'
+  | 'waiting'
+  | 'review'
+  | null;
 
 interface EligibilityContextType {
   data: EligibilityData;
@@ -91,6 +102,53 @@ export function EligibilityProvider({ children }: { children: ReactNode }) {
   const [reviewInfo, setReviewInfo] = useState<ReviewInfo | null>(null);
   const [eligibilityConfirmed, setEligibilityConfirmed] = useState(false);
 
+  // Restore from sessionStorage on mount (client-only — Next.js SSR guard).
+  // This runs once; there is no backend equivalent for pre-eligibility-
+  // confirmation state, so sessionStorage is the sole source of truth here.
+  //
+  // `hasRestored` is real React state (not a ref) precisely so that flipping
+  // it to `true` schedules a re-render: the write-through effect below reads
+  // it from its own render's closure, so it only ever sees `true` once the
+  // setState calls from restoration below have already been flushed into
+  // `data`/`currentStepIndex`/etc. A ref would flip synchronously within
+  // this same effect and let the write-through effect (which runs right
+  // after, in the same commit) observe "restored" while `data` still held
+  // its pre-restore initial value — clobbering the just-read blob.
+  const [hasRestored, setHasRestored] = useState(false);
+  useEffect(() => {
+    const persisted = loadEligibilityState();
+    if (!persisted) {
+      setHasRestored(true);
+      return;
+    }
+
+    setData(persisted.data);
+    setCurrentStepIndex(persisted.currentStepIndex);
+    setStepHistory(persisted.stepHistory);
+    setResult(persisted.result);
+    setEligibilityConfirmed(persisted.eligibilityConfirmed);
+    // ineligibilityInfo/waitingInfo/reviewInfo are re-derivable copy blobs
+    // rather than form data; if the user landed on a result screen we accept
+    // re-deriving these lazily is unnecessary — but since checkEligibility/
+    // checkWaiting/checkReview require the full flow context and data to
+    // recompute, and result already tells the UI which branch to render,
+    // we recompute them from the flow config using the restored data.
+    const restoredFlow = getFlowConfig(persisted.data.employmentType);
+    if (restoredFlow && persisted.currentStepIndex >= 0) {
+      const stepId = restoredFlow.steps[persisted.currentStepIndex];
+      if (persisted.result === 'not_eligible') {
+        setIneligibilityInfo(
+          restoredFlow.checkEligibility(stepId, persisted.data)
+        );
+      } else if (persisted.result === 'review' && restoredFlow.checkReview) {
+        setReviewInfo(restoredFlow.checkReview(stepId, persisted.data));
+      } else if (persisted.result === 'waiting' && restoredFlow.checkWaiting) {
+        setWaitingInfo(restoredFlow.checkWaiting(stepId, persisted.data));
+      }
+    }
+    setHasRestored(true);
+  }, []);
+
   const flow = getFlowConfig(data.employmentType);
 
   const currentStepId: StepId | 'employment_type' | null = (() => {
@@ -98,6 +156,30 @@ export function EligibilityProvider({ children }: { children: ReactNode }) {
     if (!flow) return null;
     return flow.steps[currentStepIndex] ?? null;
   })();
+
+  // Write-through persistence: any state change re-saves the whole snapshot.
+  // Skipped until the initial restore effect has run so we don't clobber a
+  // pending restore with the pre-restore initial state. Debounce is
+  // unnecessary here — this blob is small and writes are cheap.
+  useEffect(() => {
+    if (!hasRestored) return;
+    saveEligibilityState({
+      data,
+      currentStepIndex,
+      stepHistory,
+      result,
+      currentStepId,
+      eligibilityConfirmed,
+    });
+  }, [
+    hasRestored,
+    data,
+    currentStepIndex,
+    stepHistory,
+    result,
+    currentStepId,
+    eligibilityConfirmed,
+  ]);
 
   const updateData = useCallback((updates: Partial<EligibilityData>) => {
     setData((prev) => ({ ...prev, ...updates }));
@@ -146,10 +228,7 @@ export function EligibilityProvider({ children }: { children: ReactNode }) {
       let nextIndex = currentStepIndex + 1;
       while (nextIndex < currentFlow.steps.length) {
         if (
-          !currentFlow.shouldSkipStep(
-            currentFlow.steps[nextIndex],
-            updatedData
-          )
+          !currentFlow.shouldSkipStep(currentFlow.steps[nextIndex], updatedData)
         ) {
           break;
         }
@@ -190,6 +269,11 @@ export function EligibilityProvider({ children }: { children: ReactNode }) {
     setWaitingInfo(null);
     setReviewInfo(null);
     setEligibilityConfirmed(false);
+    // reset() is the "Return to start" / "Go back" action from
+    // EligibilityResult — the canonical explicit-restart entry point for
+    // the whole get-started flow, so it also clears any persisted
+    // onboarding position/data alongside eligibility's own blob.
+    clearAllFlowPersistence();
   }, []);
 
   return (
