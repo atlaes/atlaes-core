@@ -1,7 +1,33 @@
 # VBL Client Feedback — Implementation Status
 
-_Last updated: 2026-04-13_
-_Source: client feedback round on calculator + onboarding flows (items 1–19 + email rebrand)_
+_Last updated: 2026-07-07_
+
+## Round 2 — get-started manual flow test results (27 items, 2026-07-06)
+
+Branch `kalib/adoring-mestorf-2338a0`, 33 commits `a7a065f..8420d87`. Plan + per-item mapping: `docs/superpowers/plans/get-started-feedback-round2.md`. Design truth: July 2 Figma exports (`apps/vbl/app_resource/`, committed).
+
+**Done (all reviewed, final whole-branch review passed after 2 fix waves):** items 1–5, 7–9, 11–18, 20–27, plus client-approved Health Insurance substep (bAV) with Mistral OCR autofill (migration `0005_tiny_ricochet.sql`) and item 6 (bAV paygate variant per `Private-Flow/VBL-26.png`).
+
+**Waiting on client:**
+- Item 3 eligibility rule: the 2026 small-benefit threshold (Figma logic notes: "DRV refund = No + value above threshold → red") is not in the codebase/Calculator.md — need the number (monthly-pension figure; capital-value equivalent if different). Screens are pre-wired; rule is a small isolated change once provided.
+- Item 24: removed the stage employment-end info box per the written instruction, but the July design still shows one — confirm which is right.
+- EUR account option label says "free EUR account"; July design says "a EUR account" — confirm wording ("free" is compliance-sensitive next to a partner product).
+
+**Notable fixes beyond the item list:**
+- "Invalid token" (item 21) root cause was a token-refresh bug storing the literal string "undefined" as the access token — affected ALL post-refresh requests, not just signatures. Same bug existed in apps/gpr (fixed in a separate session).
+- Final review caught a cross-task seam: the bAV flow's provider never reached onboarding, dead-ending paid users at Pension Details; also fixed the magic-link new-tab path losing pension type/provider (now bridged via `vbl_flow_identity_v1` localStorage).
+
+**Known follow-ups (ticketable):**
+1. `middleName` column migration — L203 "Vorname" currently carries "First Middle" merged (priority: reaches official PDFs).
+2. Persist `pensionType` + `pensionProvider` on the claim record (three features now depend on client-side survival).
+3. Stage employment details (`stageDetails`) not persisted server-side — sessionStorage only.
+4. bAV e2e spec `bav-membership-carryover.spec.ts` is static-trace-validated — needs one green run against a full local stack (backend on :3001 unavailable in the authoring sandbox).
+5. Dead-code batch: `getCompletedSubSteps` (no callers), generic waiting branch in `EligibilityResult.tsx:248-281`; extract shared `FieldLabel`/missing-hint (3 copies).
+6. Magic-link resume path has no automated coverage (dev-mode auto-verify is same-tab) — recommend one manual device/email test before go-live.
+
+---
+
+_Round 1 below: 2026-04-13, calculator + onboarding flows (items 1–19 + email rebrand)_
 
 ## ✅ Committed & deployed to staging
 
