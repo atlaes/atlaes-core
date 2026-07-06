@@ -8,10 +8,10 @@ Branch `kalib/adoring-mestorf-2338a0`, 33 commits `a7a065f..8420d87`. Plan + per
 
 **Done (all reviewed, final whole-branch review passed after 2 fix waves):** items 1–5, 7–9, 11–18, 20–27, plus client-approved Health Insurance substep (bAV) with Mistral OCR autofill (migration `0005_tiny_ricochet.sql`) and item 6 (bAV paygate variant per `Private-Flow/VBL-26.png`).
 
-**Waiting on client:**
-- Item 3 eligibility rule: the 2026 small-benefit threshold (Figma logic notes: "DRV refund = No + value above threshold → red") is not in the codebase/Calculator.md — need the number (monthly-pension figure; capital-value equivalent if different). Screens are pre-wired; rule is a small isolated change once provided.
-- Item 24: removed the stage employment-end info box per the written instruction, but the July design still shows one — confirm which is right.
-- EUR account option label says "free EUR account"; July design says "a EUR account" — confirm wording ("free" is compliance-sensitive next to a partner product).
+**Client decisions (2026-07-07):** written feedback always governs design mockups (item 24 stays as instructed: info box removed); EUR option label per client's item 19 text — "I want to open a EUR account" ("free" dropped, commit `1236ccf`).
+
+**Still waiting on client:**
+- Item 3 eligibility rule: the 2026 small-benefit threshold (Figma logic notes: "DRV refund = No + value above threshold → red") is not in the codebase/Calculator.md — need two numbers: the 2026 monthly-pension limit (€/month) and the capital-value equivalent (one-off €) if different. Screens are pre-wired; rule is a small isolated change once provided. Until then every bAV amount passes the check.
 
 **Notable fixes beyond the item list:**
 - "Invalid token" (item 21) root cause was a token-refresh bug storing the literal string "undefined" as the access token — affected ALL post-refresh requests, not just signatures. Same bug existed in apps/gpr (fixed in a separate session).
