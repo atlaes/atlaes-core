@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ArrowRight, ChevronDown, Info } from 'lucide-react';
+import { ArrowRight, Info } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { StageMembershipDetails } from './StageMembershipDetails';
 
@@ -28,51 +28,58 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
     data.membership.pensionProvider === 'VddB' ||
     data.membership.pensionProvider === 'VddKO';
 
-  // Pension provider is pre-selected from eligibility flow
-  const isProviderPreset = data.membership.pensionProvider !== '';
   const canProceed = canProceedFromSubStep('membership');
 
-  // Get the selected provider for dynamic labeling
+  // Client #15: the pension provider is always known by this point — it's
+  // set during eligibility (public flow) or the calculator bridge
+  // (sessionStorage) before the user ever reaches this screen. There is no
+  // provider dropdown here anymore; we only ever show the locked, read-only
+  // institution display. If the provider is somehow empty (edge case), we
+  // still render the read-only block with whatever is in context rather
+  // than falling back to a picker.
   const selectedProvider = PENSION_PROVIDERS.find(
     (p) => p.value === data.membership.pensionProvider
   );
 
-  const providerLabel = selectedProvider?.label || data.membership.pensionProvider || '';
-  const displayProviderLabel = providerLabel === 'VBL' ? 'VBLklassik' : providerLabel;
+  const providerLabel =
+    selectedProvider?.label || data.membership.pensionProvider || '';
+  const displayProviderLabel =
+    providerLabel === 'VBL' ? 'VBLklassik' : providerLabel;
   const isVblProvider =
     providerLabel === 'VBL' ||
     providerLabel === 'VBLklassik' ||
     providerLabel === 'VBLextra';
 
+  // All copy on this screen is derived dynamically from the actual
+  // provider name substituted in, per the design reference helper copy
+  // pattern ("You can find this number on letters or statements from VBL.").
+  const providerNameForCopy = isVblProvider ? 'VBL' : providerLabel;
+
   // Dynamic membership number label and helper text based on selection
   const membershipNumberLabel = isVblProvider
     ? 'VBL insurance number'
     : providerLabel
-    ? `${providerLabel} membership number`
-    : 'Membership number';
+      ? `${providerLabel} membership number`
+      : 'Membership number';
 
-  const membershipNumberPlaceholder = isVblProvider
-    ? 'Enter your VBL insurance number'
-    : providerLabel
-    ? `Enter your ${providerLabel} membership number`
+  const membershipNumberPlaceholder = providerNameForCopy
+    ? `Enter your ${providerNameForCopy} ${isVblProvider ? 'insurance' : 'membership'} number`
     : 'Enter your membership number';
 
-  const helperText = isVblProvider
-    ? 'You can find this number on your VBL letters or statements.'
-    : providerLabel
-    ? `You can find this number on letters or statements from ${providerLabel}.`
+  const helperText = providerNameForCopy
+    ? `You can find this number on letters or statements from ${providerNameForCopy}.`
     : 'You can find this number on letters or statements from your pension provider.';
 
   const heading = isStageProvider
     ? 'Stage or orchestra employment details'
-    : isVblProvider
-    ? 'VBL pension details'
-    : 'Pension details';
+    : providerNameForCopy
+      ? `${providerNameForCopy} pension details`
+      : 'Pension details';
   const intro = isStageProvider
     ? 'Please provide details about your last stage or orchestra employment in Germany.'
-    : isVblProvider
-    ? 'Enter the details from your VBL document.'
-    : 'Enter the details from your pension document.';
+    : providerNameForCopy
+      ? `Enter the details from your ${providerNameForCopy} document.`
+      : 'Enter the details from your pension document.';
 
   return (
     <div className="max-w-lg mx-auto">
@@ -80,46 +87,26 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
         {heading}
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
-      <p className="text-gray-600 text-center mb-8">
-        {intro}
-      </p>
+      <p className="text-gray-600 text-center mb-8">{intro}</p>
 
       {/* Form Fields */}
       <div className="space-y-6">
-        {/* Pension Provider — read-only if pre-selected from eligibility */}
+        {/* Pension Provider — always a locked, read-only display. Client
+            #15: the institution is fixed by the time the user reaches this
+            screen (eligibility sets it for the public flow; the calculator
+            bridge sets it via sessionStorage for the others), so it is
+            never re-editable here — there is no dropdown fallback, even if
+            the provider were somehow empty in context. */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Selected company pension
           </label>
-          {/* Client #12: when the provider is carried over from the calculator
-              or eligibility flow, show it as locked display — the user cannot
-              change it here because it's tied to the claim they're filing. */}
-          {isProviderPreset ? (
-            <div
-              className="w-full px-4 py-3 rounded-lg text-gray-700 font-medium"
-              style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)' }}
-            >
-              {displayProviderLabel}
-            </div>
-          ) : (
-            <div className="relative">
-              <select
-                value={data.membership.pensionProvider}
-                onChange={(e) =>
-                  updateMembership({ pensionProvider: e.target.value })
-                }
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white"
-              >
-                <option value="">Select company pension provider</option>
-                {PENSION_PROVIDERS.map((provider) => (
-                  <option key={provider.value} value={provider.value}>
-                    {provider.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-            </div>
-          )}
+          <div
+            className="w-full px-4 py-3 rounded-lg text-gray-700 font-medium"
+            style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)' }}
+          >
+            {displayProviderLabel}
+          </div>
         </div>
 
         {!isStageProvider && (
@@ -129,17 +116,21 @@ export const Membership: React.FC<MembershipProps> = ({ onNext }) => {
             </label>
             <input
               type="text"
+              name="membership-reference"
+              autoComplete="off"
+              data-1p-ignore
+              data-lpignore="true"
               value={data.membership.membershipNumber}
-              onChange={(e) => updateMembership({ membershipNumber: e.target.value })}
+              onChange={(e) =>
+                updateMembership({ membershipNumber: e.target.value })
+              }
               placeholder={membershipNumberPlaceholder}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
             />
             {/* Info Banner */}
             <div className="mt-3 bg-[#F0FDE4] rounded-lg p-3 flex items-center gap-3">
               <Info className="w-5 h-5 text-[#163300] flex-shrink-0" />
-              <p className="text-sm text-[#163300]">
-                {helperText}
-              </p>
+              <p className="text-sm text-[#163300]">{helperText}</p>
             </div>
           </div>
         )}
