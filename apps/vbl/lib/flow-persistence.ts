@@ -32,6 +32,7 @@ import type {
 import type {
   OnboardingAddress,
   OnboardingBankDetails,
+  OnboardingData,
   OnboardingMembership,
   SubmitDetailsSubStep,
 } from '@/contexts/OnboardingContext';
@@ -99,9 +100,30 @@ export interface PersistedEligibilityState {
   eligibilityConfirmed: boolean;
 }
 
+// True when the state is indistinguishable from the pristine initial state
+// (no employment type chosen yet and no steps taken). Checked before every
+// write so that resetting the flow (reset()/resetOnboarding() clear the key,
+// then the write-through effect immediately re-fires on the reset state)
+// doesn't put a freshly-versioned-but-empty blob right back under the key —
+// the key stays genuinely absent after a reset, matching a real fresh start.
+function isEmptyEligibilityState(
+  state: Omit<PersistedEligibilityState, 'version'>
+): boolean {
+  return (
+    state.data.employmentType === '' &&
+    state.currentStepIndex === -1 &&
+    state.stepHistory.length === 0 &&
+    state.result === null
+  );
+}
+
 export function saveEligibilityState(
   state: Omit<PersistedEligibilityState, 'version'>
 ): void {
+  if (isEmptyEligibilityState(state)) {
+    clearEligibilityState();
+    return;
+  }
   safeWrite(ELIGIBILITY_KEY, { version: VERSION, ...state });
 }
 
@@ -166,8 +188,12 @@ export interface PersistedOnboardingState {
 
 // Strips non-serializable / sensitive fields (File objects, previews, data
 // URLs) from the live OnboardingData shape before writing to sessionStorage.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function toPersistedOnboardingData(data: any): PersistedOnboardingData {
+// Typed as OnboardingData (not `any`) so that adding a new File-like field to
+// OnboardingData without also whitelisting it here is caught at compile time
+// rather than silently passing through (or silently omitted unnoticed).
+export function toPersistedOnboardingData(
+  data: OnboardingData
+): PersistedOnboardingData {
   return {
     pensionType: data.pensionType,
     email: data.email,
@@ -200,9 +226,38 @@ export function toPersistedOnboardingData(data: any): PersistedOnboardingData {
   };
 }
 
+// True when the state is indistinguishable from the pristine initial state
+// (still on step 1 / the first substep, and none of the meaningful form
+// sections have anything in them yet). Same rationale as
+// isEmptyEligibilityState above — prevents resetOnboarding() from having its
+// just-cleared key immediately resurrected with an empty-but-versioned blob
+// by the write-through effect's next run.
+function isEmptyOnboardingState(
+  state: Omit<PersistedOnboardingState, 'version'>
+): boolean {
+  const { data } = state;
+  return (
+    state.currentStep === 1 &&
+    state.currentSubStep === 'identity' &&
+    data.pensionType === '' &&
+    data.email === '' &&
+    !data.paymentCompleted &&
+    data.identity.firstName === '' &&
+    data.identity.lastName === '' &&
+    data.membership.pensionProvider === '' &&
+    data.address.streetAndNumber === '' &&
+    data.bankDetails.iban === '' &&
+    data.signature.signatureType === ''
+  );
+}
+
 export function saveOnboardingState(
   state: Omit<PersistedOnboardingState, 'version'>
 ): void {
+  if (isEmptyOnboardingState(state)) {
+    clearOnboardingState();
+    return;
+  }
   safeWrite(ONBOARDING_KEY, { version: VERSION, ...state });
 }
 

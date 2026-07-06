@@ -315,8 +315,20 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   // Write-through persistence: any data/position change re-saves the whole
   // (stripped) snapshot. Skipped until restore above has settled so we
   // don't clobber a pending restore with pre-restore initial state.
+  //
+  // Also skipped once `data.successData` has anything set. handleSubmitSuccess
+  // (GetStartedOnboardingFlow.tsx) calls updateSuccessData(...) — which sets
+  // `data.successData` — immediately before clearAllFlowPersistence(). Both
+  // are state changes on `data`/its dependents, so without this guard this
+  // effect fires again right after the clear (same render batch/next tick)
+  // and re-persists the just-cleared, now-submitted blob: a refresh on the
+  // success screen would then resurrect a claim that has already been
+  // submitted. `successData` is only ever populated at/after submission, so
+  // "has successData" is a deterministic, no-latch signal that persistence
+  // is done for this run — no extra ref/flag lifecycle needed.
   useEffect(() => {
     if (!hasRestored) return;
+    if (Object.keys(data.successData).length > 0) return;
     saveOnboardingState({
       currentStep,
       currentSubStep,
@@ -545,11 +557,22 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const loadFromClaim = useCallback((claim: Record<string, any>) => {
     const str = (v: unknown) => (typeof v === 'string' ? v : '');
+    // Merge rule: the claim (backend) wins for any field where it actually
+    // has a non-empty value; otherwise we KEEP whatever is already in
+    // memory. That in-memory value may itself have just come from the
+    // sessionStorage restore (see flow-persistence.ts precedence notes),
+    // which runs synchronously on mount, before this effect (gated on
+    // `user`) has a chance to fire. Without this fallback, `str(claim.field)
+    // || ''` unconditionally overwrote every field with '' whenever the
+    // backend simply hadn't seen that field yet, blanking out progress the
+    // user had already entered pre-claim.
+    const claimOrPrev = (claimVal: unknown, prevVal: string) =>
+      str(claimVal) || prevVal;
     const isPaid = claim.paymentStatus === 'paid';
 
     setData((prev) => ({
       ...prev,
-      claimId: str(claim.id),
+      claimId: str(claim.id) || prev.claimId,
       paymentCompleted: isPaid,
       identity: {
         ...prev.identity,
@@ -563,31 +586,58 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         // entire stored firstName goes back into the First name field and
         // middleName is left blank; the user can manually re-split it if
         // needed.
-        firstName: str(claim.firstName),
+        firstName: claimOrPrev(claim.firstName, prev.identity.firstName),
         middleName: '',
-        lastName: str(claim.lastName),
-        dateOfBirth: str(claim.dateOfBirth),
-        gender: (str(claim.gender) as OnboardingIdentity['gender']) || '',
-        passportNumber: str(claim.passportNumber),
-        nationality: str(claim.nationality),
-        placeOfBirth: str(claim.placeOfBirth),
-        passportIssueDate: str(claim.passportIssueDate),
-        passportExpiryDate: str(claim.passportExpiryDate),
+        lastName: claimOrPrev(claim.lastName, prev.identity.lastName),
+        dateOfBirth: claimOrPrev(claim.dateOfBirth, prev.identity.dateOfBirth),
+        gender:
+          (str(claim.gender) as OnboardingIdentity['gender']) ||
+          prev.identity.gender,
+        passportNumber: claimOrPrev(
+          claim.passportNumber,
+          prev.identity.passportNumber
+        ),
+        nationality: claimOrPrev(claim.nationality, prev.identity.nationality),
+        placeOfBirth: claimOrPrev(
+          claim.placeOfBirth,
+          prev.identity.placeOfBirth
+        ),
+        passportIssueDate: claimOrPrev(
+          claim.passportIssueDate,
+          prev.identity.passportIssueDate
+        ),
+        passportExpiryDate: claimOrPrev(
+          claim.passportExpiryDate,
+          prev.identity.passportExpiryDate
+        ),
       },
       membership: {
         ...prev.membership,
-        membershipNumber: str(claim.svNummer),
+        membershipNumber: claimOrPrev(
+          claim.svNummer,
+          prev.membership.membershipNumber
+        ),
       },
       address: {
-        streetAndNumber: str(claim.currentAddressLine1),
-        postalCode: str(claim.currentPostalCode),
-        city: str(claim.currentCity),
-        country: str(claim.currentCountry),
+        ...prev.address,
+        streetAndNumber: claimOrPrev(
+          claim.currentAddressLine1,
+          prev.address.streetAndNumber
+        ),
+        postalCode: claimOrPrev(
+          claim.currentPostalCode,
+          prev.address.postalCode
+        ),
+        city: claimOrPrev(claim.currentCity, prev.address.city),
+        country: claimOrPrev(claim.currentCountry, prev.address.country),
       },
       bankDetails: {
         ...prev.bankDetails,
-        iban: str(claim.iban),
-        accountHolder: str(claim.accountHolderName),
+        iban: claimOrPrev(claim.iban, prev.bankDetails.iban),
+        accountHolder: claimOrPrev(
+          claim.accountHolderName,
+          prev.bankDetails.accountHolder
+        ),
       },
     }));
 

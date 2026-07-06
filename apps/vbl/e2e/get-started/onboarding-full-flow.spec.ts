@@ -226,6 +226,64 @@ test.describe('Onboarding Eligibility resource copy', () => {
     await expect(
       page.getByRole('heading', { name: 'German State Pension Refund' })
     ).toBeVisible();
+
+    // Task 13 fix round 1 (CRITICAL 1): submission clears both persisted
+    // blobs via clearAllFlowPersistence(), and the write-through effects
+    // must not resurrect them afterwards (they used to, racing the clear —
+    // see OnboardingContext's successData guard). A refresh on the success
+    // screen must not be able to resume a claim that's already submitted.
+    const persistedAfterSubmit = await page.evaluate(() => ({
+      onboarding: window.sessionStorage.getItem('vbl_onboarding_v1'),
+      eligibility: window.sessionStorage.getItem('vbl_eligibility_v1'),
+    }));
+    expect(persistedAfterSubmit.onboarding).toBeNull();
+    expect(persistedAfterSubmit.eligibility).toBeNull();
+  });
+
+  // ============================================================
+  // Task 13 fix round 1 (IMPORTANT 4): mid-onboarding position restore
+  // ============================================================
+
+  test('refreshing mid-onboarding restores the same sub-step and a restored field value', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await mockOnboardingApi(page);
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    await completeIdentityUpload(page);
+
+    // Now on the membership sub-step. Fill the membership number (this is
+    // pre-claim-save form state that only lives in sessionStorage until the
+    // user clicks Continue) and reload without continuing.
+    await expect(
+      page.getByRole('heading', { name: 'VBL pension details' })
+    ).toBeVisible({ timeout: 5_000 });
+    const providerSelect = page.locator('select').first();
+    if ((await providerSelect.count()) > 0) {
+      await providerSelect.selectOption('VBL');
+    }
+    const membershipInput = page.getByPlaceholder(
+      /VBL insurance number|membership number/i
+    );
+    await membershipInput.fill('VBL999888');
+
+    await page.reload();
+
+    // Still on the membership sub-step (not bounced back to identity or the
+    // eligibility start screen), and the membership number typed before the
+    // reload is still there — proving both position and pre-claim data were
+    // restored from sessionStorage, not just the identity fields already
+    // saved to the mocked backend.
+    await expect(
+      page.getByRole('heading', { name: 'VBL pension details' })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(membershipInput).toHaveValue('VBL999888');
   });
 });
 
