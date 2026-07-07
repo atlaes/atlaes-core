@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { PDFDocument } from 'pdf-lib';
 import { loadL203Template } from './assets';
-import { fillL203, fillL203Fields, selectButtonExport } from './l203-form';
+import {
+  fillL203,
+  fillL203Fields,
+  selectButtonExport,
+  resolveStreetAndHouseNumber,
+} from './l203-form';
 
 const PNG_1X1 = Uint8Array.from(
   atob(
@@ -109,6 +114,71 @@ describe('L203 form filling', () => {
       expect(page.getWidth()).toBeCloseTo(595.3, 0);
       expect(page.getHeight()).toBeCloseTo(841.9, 0);
     }
+  });
+
+  it('fills Straße/Hausnr/Länderkennz for a UK claimant (leading number in line 1)', async () => {
+    const doc = await PDFDocument.load(loadL203Template());
+    fillL203Fields(doc, {
+      ...data,
+      addressLine1: '111 Abbey Road',
+      addressLine2: null,
+      country: 'United Kingdom',
+    });
+    const get = (n: string) =>
+      doc
+        .getForm()
+        .getTextField(`topmostSubform[0].Page1[0].${n}[0]`)
+        .getText();
+    expect(get('Straße')).toBe('Abbey Road');
+    expect(get('Hausnr')).toBe('111');
+    expect(get('Länderkennz')).toBe('GBR');
+  });
+
+  it('uses address line 2 as the house number when line 1 has none', async () => {
+    const doc = await PDFDocument.load(loadL203Template());
+    fillL203Fields(doc, {
+      ...data,
+      addressLine1: 'Abbey Road',
+      addressLine2: '111',
+      country: 'United Kingdom',
+    });
+    const get = (n: string) =>
+      doc
+        .getForm()
+        .getTextField(`topmostSubform[0].Page1[0].${n}[0]`)
+        .getText();
+    expect(get('Straße')).toBe('Abbey Road');
+    expect(get('Hausnr')).toBe('111');
+    expect(get('Länderkennz')).toBe('GBR');
+  });
+
+  it('resolves street/house number from line 1 and line 2', () => {
+    expect(resolveStreetAndHouseNumber('Kaskelstraße 46')).toEqual({
+      street: 'Kaskelstraße',
+      houseNumber: '46',
+    });
+    expect(resolveStreetAndHouseNumber('111 Abbey Road')).toEqual({
+      street: 'Abbey Road',
+      houseNumber: '111',
+    });
+    expect(resolveStreetAndHouseNumber('Abbey Road', '111')).toEqual({
+      street: 'Abbey Road',
+      houseNumber: '111',
+    });
+    expect(resolveStreetAndHouseNumber('Abbey Road', '12a')).toEqual({
+      street: 'Abbey Road',
+      houseNumber: '12a',
+    });
+    // Line 2 that isn't a plausible house number is ignored.
+    expect(resolveStreetAndHouseNumber('Abbey Road', 'Flat 2')).toEqual({
+      street: 'Abbey Road',
+      houseNumber: '',
+    });
+    // A house number already in line 1 wins over line 2.
+    expect(resolveStreetAndHouseNumber('Baker Street 221', '99')).toEqual({
+      street: 'Baker Street',
+      houseNumber: '221',
+    });
   });
 
   it('leaves Kontoinhaber empty when account holder equals the claimant', async () => {
