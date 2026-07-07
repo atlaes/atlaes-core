@@ -82,9 +82,12 @@ export async function assembleClaimPdf(
     lastName: claim.lastName,
     dateOfBirth: claim.dateOfBirth,
     placeOfBirth: claim.placeOfBirth,
-    // L203 form has no field for address line 2 — deliberately mapping
-    // line1 only here; the PoA letter below includes the full address.
+    // The L203 form splits Straße / Hausnr from line 1; line 2 is passed
+    // as a fallback house-number source for UK/US addresses that split the
+    // number into line 2 (e.g. line1="Abbey Road", line2="111"). See
+    // resolveStreetAndHouseNumber in l203-form.ts.
     addressLine1: claim.currentAddressLine1,
+    addressLine2: claim.currentAddressLine2,
     postalCode: claim.currentPostalCode,
     city: claim.currentCity,
     country: claim.currentCountry,
