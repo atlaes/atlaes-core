@@ -342,8 +342,9 @@ export async function navigatePublicSectorToEligible(page: Page) {
   await selectFederalState(page, 'North Rhine-Westphalia');
   await selectPensionProvider(page, 'VBL');
   await selectPensionScheme(page, 'VBLklassik');
+  // Pre-2018 end date: the consecutive-contribution question is skipped, so
+  // the flow goes straight from employment end date to contribution duration.
   await selectEmploymentEndDate(page, 'January', '2017');
-  await selectContributionPeriod(page, 'No');
   await selectContributionDuration(page, 'Less than 36 months');
   await expectEligibleResult(page);
 }

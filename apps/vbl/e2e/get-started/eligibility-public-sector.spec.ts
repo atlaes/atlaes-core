@@ -226,8 +226,8 @@ test.describe('Public Sector Eligibility', () => {
     await selectFederalState(page, 'North Rhine-Westphalia');
     await selectPensionProvider(page, 'VBL');
     await selectPensionScheme(page, 'VBLklassik');
+    // Pre-2018 end date skips the consecutive-contribution question.
     await selectEmploymentEndDate(page, 'January', '2017');
-    await selectContributionPeriod(page, 'No');
     await selectContributionDuration(page, 'Less than 36 months');
     await expectEligibleResult(page);
   });
@@ -238,8 +238,8 @@ test.describe('Public Sector Eligibility', () => {
     await selectFederalState(page, 'Bavaria');
     await selectPensionProvider(page, 'VBL');
     await selectPensionScheme(page, 'VBLklassik');
+    // Pre-2018 end date skips the consecutive-contribution question.
     await selectEmploymentEndDate(page, 'December', '2017');
-    await selectContributionPeriod(page, 'No');
     await selectContributionDuration(page, '36 to 59 months');
     await expectEligibleResult(page);
   });
@@ -274,8 +274,8 @@ test.describe('Public Sector Eligibility', () => {
     await selectFederalState(page, 'Hesse');
     await selectPensionProvider(page, 'ZVK Darmstadt');
     // Pension scheme step should be skipped for non-VBL providers.
+    // Pre-2018 end date also skips the consecutive-contribution question.
     await selectEmploymentEndDate(page, 'January', '2016');
-    await selectContributionPeriod(page, 'No');
     await selectContributionDuration(page, 'Less than 36 months');
     await expectEligibleResult(page);
   });
@@ -346,13 +346,20 @@ test.describe('Public Sector Eligibility', () => {
     await expectNotEligibleResult(page);
   });
 
-  test('Consecutive contribution yes with pre-2018 end date continues', async ({
+  test('Pre-2018 end date skips the consecutive-contribution question', async ({
     page,
   }) => {
     await selectFederalState(page, 'Hesse');
     await selectPensionProvider(page, 'ZVK Darmstadt');
     await selectEmploymentEndDate(page, 'December', '2017');
-    await selectContributionPeriod(page, 'Yes');
+    // The consecutive-contribution question is skipped for pre-2018 periods
+    // (its 'yes' answer only blocks eligibility from 2018 onward), so the flow
+    // goes straight to the total contribution duration screen.
+    await expect(
+      page.getByRole('heading', {
+        name: /VBL contribution period|Contribution period/,
+      })
+    ).toHaveCount(0);
     await selectContributionDuration(page, 'Less than 36 months');
     await expectEligibleResult(page);
   });
@@ -361,8 +368,8 @@ test.describe('Public Sector Eligibility', () => {
     await selectFederalState(page, 'Bremen');
     await selectPensionProvider(page, 'VBL');
     await selectPensionScheme(page, 'VBLklassik');
+    // Pre-2018 end date skips the consecutive-contribution question.
     await selectEmploymentEndDate(page, 'January', '2017');
-    await selectContributionPeriod(page, 'No');
     await selectContributionDuration(page, '60 months or more');
     await expectNotEligibleResult(page);
   });
