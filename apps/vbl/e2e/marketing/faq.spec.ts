@@ -2,9 +2,16 @@ import { test, expect } from '@playwright/test';
 
 test('faq renders hero and the category cards', async ({ page }) => {
   await page.goto('/faq');
-  await expect(page.locator('h1')).toContainText(
+  await expect(page.locator('h1')).toHaveText(
     'German company pension questions, answered'
   );
+  // Hero CTAs route to the claim flow and the calculator.
+  await expect(
+    page.getByRole('link', { name: 'Start your claim' }).first()
+  ).toHaveAttribute('href', '/get-started');
+  await expect(
+    page.getByRole('link', { name: 'Calculate my refund' }).first()
+  ).toHaveAttribute('href', '/calculator');
   // All six category cards from the design render.
   for (const category of [
     'General questions',
@@ -56,8 +63,11 @@ test('faq accordion shows the first answer and expands another item', async ({
 test('faq closing CTA band links to the claim flow', async ({ page }) => {
   await page.goto('/faq');
   await expect(page.getByText('Start online', { exact: true })).toBeVisible();
-  // The closing band is the last "Start your claim" link on the page.
+  // The closing band is the last of each CTA on the page.
   await expect(
     page.getByRole('link', { name: 'Start your claim' }).last()
   ).toHaveAttribute('href', '/get-started');
+  await expect(
+    page.getByRole('link', { name: 'Calculate my refund' }).last()
+  ).toHaveAttribute('href', '/calculator');
 });
