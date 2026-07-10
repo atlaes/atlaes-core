@@ -948,6 +948,91 @@ export default function RefundCalculatorPage() {
         </div>
       </section>
 
+      {/* ---- PLATFORM SCOPE (Figma 1364:3163) ----
+          COPY_PENDING: the design's "LAST REVIEWED [Add actual review date]" /
+          "REVIEWED BY [Add reviewer name and role]" strip (nodes 1364:3235,
+          1364:3245) carries bracketed placeholder values; omitted until real
+          values are supplied — must not ship placeholder text. */}
+      <section className="bg-white">
+        <div className={`${CONTAINER} py-20 sm:py-24`}>
+          <div className="text-brand">
+            <SectionHeading
+              align="left"
+              eyebrow="Platform scope"
+              title="A refund estimate and digital application platform"
+            />
+          </div>
+          <div className="mt-8 max-w-4xl space-y-4 text-base leading-relaxed text-gray-600">
+            <p>
+              The calculator provides a preliminary estimate using the documents
+              and information you provide.
+            </p>
+            <p>
+              It does not approve your refund and does not replace the records
+              or assessment of VBL, your ZVK, VddB or VddKO.
+            </p>
+            <p className="font-semibold text-brand">
+              If you continue into the full refund process:
+            </p>
+            <ul className="space-y-3">
+              {[
+                'The platform prepares the application from the information you provide.',
+                'You review and sign the application yourself.',
+                'You remain the applicant and claimant.',
+                'The signed application is technically transmitted through the CompanyPension platform.',
+                'The pension scheme or institution makes the final decision.',
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-3">
+                  <span
+                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand"
+                    aria-hidden="true"
+                  />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+            <p>
+              CompanyPension does not provide pension, legal, tax, insurance or
+              financial advice.
+            </p>
+            <p>
+              CompanyPension does not receive, hold or forward approved pension
+              money.
+            </p>
+          </div>
+
+          <h3 className="mt-12 text-2xl font-bold tracking-tight text-brand">
+            Limited authorization
+          </h3>
+          <div className="mt-5 max-w-4xl space-y-4 text-base leading-relaxed text-gray-600">
+            <p>You may give ATLAES GmbH limited authorization to:</p>
+            <ul className="space-y-3">
+              {[
+                'Receive and forward relevant correspondence',
+                'Receive information about the final decision',
+                'Receive information about the approved amount',
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-3">
+                  <span
+                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand"
+                    aria-hidden="true"
+                  />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+            <p>
+              This allows the platform to display follow-up requests and
+              calculate the agreed service fee.
+            </p>
+            <p>
+              The authorization does not make ATLAES GmbH the applicant or
+              claimant.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* ---- IMPORTANT INFORMATION (Figma footer disclaimer 1365:3282) ---- */}
       <ImportantCallout>
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
