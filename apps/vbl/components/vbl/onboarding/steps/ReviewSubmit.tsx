@@ -149,11 +149,17 @@ function getSubmitErrorMessage(error: unknown): string {
 interface ReviewSubmitProps {
   onSubmitSuccess?: () => void;
   onEditSection?: (subStep: SubmitDetailsSubStep) => void;
+  // When provided (public/stage get-started flow, where a Confirm step and a
+  // terminal Signature step now follow Review), the primary button advances to
+  // the next substep instead of submitting the claim here. Legacy / bAV flows
+  // omit this prop and keep Review as the terminal submit step.
+  onContinue?: () => void;
 }
 
 export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
   onSubmitSuccess,
   onEditSection,
+  onContinue,
 }) => {
   const { data, updateSuccessData, setCurrentSubStep, canProceedFromSubStep } =
     useOnboarding();
@@ -173,11 +179,17 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
   // claimants (see getSubmitDetailsSubsteps in OnboardingContext.tsx).
   const isPrivatePensionType = data.pensionType === 'private';
 
+  // In the new public/stage order (onContinue provided), the Signature step
+  // comes AFTER Review (Review → Confirm → Signature), so a Signature
+  // accordion section here would be meaningless — and its "Edit information"
+  // link was a Confirm bypass (jump straight to the terminal Signature step,
+  // draw, Continue → submit without the Confirm declarations ever being
+  // completed). Don't render it at all in that mode.
   const reviewSections: ReviewSection[] = [
     ...BASE_REVIEW_SECTIONS,
     ...(isPrivatePensionType ? [HEALTH_INSURANCE_SECTION] : []),
     ...(isStageProvider ? [EMPLOYMENT_DETAILS_SECTION] : []),
-    SIGNATURE_SECTION,
+    ...(onContinue ? [] : [SIGNATURE_SECTION]),
   ];
 
   const formatDate = (dateString: string) => {
@@ -512,10 +524,19 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
       case 'signature':
         return (
           <div className="pt-4 pb-2">
-            <div className="flex items-center gap-2 text-sm text-gray-700 mb-3">
-              <Check className="w-4 h-4 text-[#9FE870]" />
-              <span>Signature Completed</span>
-            </div>
+            {/* Only claim "Completed" when a signature actually exists —
+                previously this rendered the green check unconditionally. */}
+            {data.signature.signatureData || data.signature.signatureFile ? (
+              <div className="flex items-center gap-2 text-sm text-gray-700 mb-3">
+                <Check className="w-4 h-4 text-[#9FE870]" />
+                <span>Signature Completed</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-red-700 mb-3">
+                <AlertCircle className="w-4 h-4" />
+                <span>No signature added yet</span>
+              </div>
+            )}
             {data.signature.signatureData && (
               <div className="border border-gray-200 rounded-lg p-4 bg-white mb-3">
                 <img
@@ -659,31 +680,44 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
         </div>
       )}
 
-      {/* Submit Button */}
-      {/* Task 15 (VBL-25): disabled while the bAV/private Health insurance
+      {/* Primary Button.
+          - onContinue provided (public/stage confirm flow): advance to the
+            Confirm step; Review is no longer terminal, so no submit here.
+          - otherwise (legacy / bAV): submit the claim.
+          Task 15 (VBL-25): disabled while the bAV/private Health insurance
           section is incomplete — type + (document OR provider name) must be
           present, mirrored from isHealthInsuranceComplete in
           OnboardingContext.tsx via canProceedFromSubStep. */}
-      <button
-        onClick={handleSubmit}
-        disabled={
-          isSubmitting ||
-          (isPrivatePensionType && !isSectionComplete('health-insurance'))
-        }
-        className="w-full py-4 px-6 bg-[#9FE870] text-[#163300] font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-[#8AD860] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isSubmitting ? (
-          <>
-            <div className="w-5 h-5 border-2 border-[#163300] border-t-transparent rounded-full animate-spin" />
-            Submitting...
-          </>
-        ) : (
-          <>
-            {submitButtonLabel}
-            <ArrowRight className="w-4 h-4" />
-          </>
-        )}
-      </button>
+      {onContinue ? (
+        <button
+          onClick={onContinue}
+          className="w-full py-4 px-6 bg-[#9FE870] text-[#163300] font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-[#8AD860] transition-colors"
+        >
+          Continue to confirmation
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      ) : (
+        <button
+          onClick={handleSubmit}
+          disabled={
+            isSubmitting ||
+            (isPrivatePensionType && !isSectionComplete('health-insurance'))
+          }
+          className="w-full py-4 px-6 bg-[#9FE870] text-[#163300] font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-[#8AD860] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isSubmitting ? (
+            <>
+              <div className="w-5 h-5 border-2 border-[#163300] border-t-transparent rounded-full animate-spin" />
+              Submitting...
+            </>
+          ) : (
+            <>
+              {submitButtonLabel}
+              <ArrowRight className="w-4 h-4" />
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 };

@@ -282,6 +282,18 @@ export async function submitClaim(
   return data;
 }
 
+// Confirm step: stop the refund application when the user changes one of the
+// four Section-1 answers to "Yes". `reasons` are the answer keys that
+// triggered the stop. The claim is marked stopped (rejected) and the user is
+// emailed; the €199 deposit refund is executed manually by ops.
+export async function stopClaim(
+  claimId: string,
+  reasons: string[]
+): Promise<ClaimResponse & { message: string }> {
+  const { data } = await apiClient.post(`/claims/${claimId}/stop`, { reasons });
+  return data;
+}
+
 export async function markStepComplete(
   claimId: string,
   stepName: string

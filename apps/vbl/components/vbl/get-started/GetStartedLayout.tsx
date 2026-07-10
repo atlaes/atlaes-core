@@ -139,6 +139,20 @@ const SubStepIcon: React.FC<{
         <line x1="9" y1="11" x2="15" y2="11" />
       </svg>
     ),
+    // Confirm sub-step tab icon (shield with a check).
+    confirm: (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={iconColor}
+        strokeWidth="2"
+      >
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <polyline points="9 12 11 14 15 10" />
+      </svg>
+    ),
   };
 
   return (
