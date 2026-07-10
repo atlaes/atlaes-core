@@ -175,16 +175,12 @@ export default function VddbVddkoRefundPage() {
         }
       />
 
-      {/* ---- HERO FOLLOW-ON: framing + DRV-separation callout (Figma 1080:10699 / 1080:5807) ---- */}
+      {/* ---- HERO FOLLOW-ON: DRV-separation callout (Figma 1080:5807) ----
+          Node 1080:10699 ("The key question is usually not whether…") is
+          hidden="true" in the design and intentionally excluded. */}
       <section className="bg-white">
         <div className={`${CONTAINER} py-16 sm:py-20`}>
-          <p className="mx-auto max-w-3xl text-center text-lg font-medium leading-relaxed text-brand">
-            The key question is usually not whether your contributions can be
-            refunded in the same way as a public-sector pension. The real
-            question is whether your private-sector company pension can be paid
-            out as a lump sum.
-          </p>
-          <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-brand/20 bg-neutral-50 p-8">
+          <div className="mx-auto max-w-3xl rounded-2xl border border-brand/20 bg-neutral-50 p-8">
             <span className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-white px-4 py-2 text-sm font-medium text-brand">
               <Info className="h-4 w-4" aria-hidden="true" />
               Important
