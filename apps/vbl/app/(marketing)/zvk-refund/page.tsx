@@ -734,7 +734,11 @@ export default function ZvkRefundPage() {
                 {
                   label: 'bAV',
                   values: [
-                    'German company pension from an employer, ofte handled as a cash-out case.',
+                    // Design typo at node 1118:882 ("ofte" — unambiguous
+                    // truncation of "often"; the frame spells "often" correctly
+                    // at 1118:868 and 1118:1741). Fixed per artifact precedent;
+                    // client to correct Figma.
+                    'German company pension from an employer, often handled as a cash-out case.',
                     'Start a bAV cash-out check.',
                   ],
                 },
@@ -962,10 +966,9 @@ export default function ZvkRefundPage() {
       </ImportantCallout>
 
       {/* ---- CLOSING CTA BAND (Figma 1118:1867) ----
-          COPY-GAP: the design also carries a tertiary cross-link "Check what DRV
-          did not cover" (1118:1882). CtaBand exposes no slot for a third link
-          and the DRV comparison is already linked twice above (hero callout +
-          DRV vs ZVK section), so it is intentionally not duplicated here. */}
+          The tertiary cross-link "Check what DRV did not cover" (1118:1882)
+          is intentionally not rendered: its parent frame 1118:1880 is
+          hidden="true" in the design XML, and hidden nodes are never shipped. */}
       <CtaBand
         title="Ready to check your ZVK refund?"
         body="Start online with your ZVK, Zusatzversorgung or Zusatzversorgungskasse document. CompanyPension guides you through the right refund process and shows what information is still needed."
