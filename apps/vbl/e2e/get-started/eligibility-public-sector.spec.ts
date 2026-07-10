@@ -280,22 +280,21 @@ test.describe('Public Sector Eligibility', () => {
     await expectEligibleResult(page);
   });
 
-  test('Hamburg only offers Hamburgisches Zusatzversorgungsgesetz', async ({
+  test('Hamburg is not offered in the public-sector federal-state dropdown', async ({
     page,
   }) => {
-    await selectFederalState(page, 'Hamburg');
     await expect(
-      page
-        .locator('select option')
-        .filter({ hasText: 'Hamburgisches Zusatzversorgungsgesetz' })
-    ).toHaveCount(1);
+      page.getByRole('heading', { name: /Where was your.*employer located/ })
+    ).toBeVisible({ timeout: 5_000 });
     await expect(
-      page.locator('select option').filter({ hasText: /^VBL$/ })
+      page.locator('select option').filter({ hasText: /^Hamburg$/ })
     ).toHaveCount(0);
   });
 
   // ============================================================
-  // Eastern States — Not Eligible
+  // Eastern States — removed from the public dropdown (the "My state is not
+  // listed" notice covers them instead). The upload path keeps the
+  // ineligibility backstop; here we only assert they cannot be selected.
   // ============================================================
 
   const EASTERN_STATES = [
@@ -307,14 +306,17 @@ test.describe('Public Sector Eligibility', () => {
   ];
 
   for (const state of EASTERN_STATES) {
-    test(`Eastern state (${state}) → not eligible`, async ({ page }) => {
-      await selectFederalState(page, state);
-      await expectNotEligibleResult(page);
+    test(`Eastern state (${state}) is not offered in the public dropdown`, async ({
+      page,
+    }) => {
       await expect(
-        page.getByText(
-          'This refund cannot currently be claimed with CompanyPension'
-        )
-      ).toBeVisible();
+        page.getByRole('heading', { name: /Where was your.*employer located/ })
+      ).toBeVisible({ timeout: 5_000 });
+      await expect(
+        page
+          .locator('select option')
+          .filter({ hasText: new RegExp(`^${state}$`) })
+      ).toHaveCount(0);
     });
   }
 
@@ -337,8 +339,8 @@ test.describe('Public Sector Eligibility', () => {
   test('Consecutive contribution yes with 2018+ end date → not eligible', async ({
     page,
   }) => {
-    await selectFederalState(page, 'Hamburg');
-    await selectPensionProvider(page, 'Hamburgisches Zusatzversorgungsgesetz');
+    await selectFederalState(page, 'Hesse');
+    await selectPensionProvider(page, 'ZVK Darmstadt');
     await selectEmploymentEndDate(page, 'January', '2018');
     await selectContributionPeriod(page, 'Yes');
     await expectNotEligibleResult(page);
@@ -347,8 +349,8 @@ test.describe('Public Sector Eligibility', () => {
   test('Consecutive contribution yes with pre-2018 end date continues', async ({
     page,
   }) => {
-    await selectFederalState(page, 'Hamburg');
-    await selectPensionProvider(page, 'Hamburgisches Zusatzversorgungsgesetz');
+    await selectFederalState(page, 'Hesse');
+    await selectPensionProvider(page, 'ZVK Darmstadt');
     await selectEmploymentEndDate(page, 'December', '2017');
     await selectContributionPeriod(page, 'Yes');
     await selectContributionDuration(page, 'Less than 36 months');
@@ -370,7 +372,9 @@ test.describe('Public Sector Eligibility', () => {
   // ============================================================
 
   test('Go back from ineligible resets flow', async ({ page }) => {
-    await selectFederalState(page, 'Brandenburg');
+    await selectFederalState(page, 'Berlin (West)');
+    await selectPensionProvider(page, 'VBL');
+    await selectPensionScheme(page, 'VBLextra');
     await expectNotEligibleResult(page);
 
     await page.getByRole('button', { name: /Return to start|Go back/ }).click();

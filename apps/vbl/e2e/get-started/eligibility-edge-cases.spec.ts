@@ -351,7 +351,9 @@ test.describe('Eligibility Edge Cases', () => {
       await navigateToGetStarted(page);
       await selectEmploymentType(page, 'VBL / ZVK Refund');
       await selectPublicEntryPath(page, 'Answer questions');
-      await selectFederalState(page, 'Brandenburg');
+      await selectFederalState(page, 'Berlin (West)');
+      await selectPensionProvider(page, 'VBL');
+      await selectPensionScheme(page, 'VBLextra');
       await expectNotEligibleResult(page);
 
       await page

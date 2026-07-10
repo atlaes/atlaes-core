@@ -25,10 +25,14 @@ import {
   PensionDocumentType,
 } from '../../lib/vbl-pension-document-extraction-api';
 import { CompanyPensionLogo } from './icons/CompanyPensionLogo';
+import {
+  PUBLIC_FEDERAL_STATES,
+  PUBLIC_PENSION_PROVIDERS_BY_STATE,
+} from './company-pension-providers';
 
 type PensionType = 'public' | 'stage' | '';
 type EntryMethod = 'manual' | 'upload' | '';
-type PublicProvider = 'VBL' | 'ZVK' | '';
+type PublicProvider = string;
 type StageProvider = 'VddB' | 'VddKO' | '';
 type VBLPlan = 'VBLklassik' | 'VBLextra' | '';
 type Threshold36 = 'less_than_36' | '36_or_more' | '';
@@ -85,18 +89,24 @@ const MONTHS = [
   'December',
 ];
 
-const FEDERAL_STATES = [
+const ALL_FEDERAL_STATES = [
   'Baden-Württemberg',
   'Bavaria',
   'Berlin (West)',
+  'Berlin (East)',
+  'Brandenburg',
   'Bremen',
   'Hamburg',
   'Hesse',
   'Lower Saxony',
+  'Mecklenburg-Vorpommern',
   'North Rhine-Westphalia',
   'Rhineland-Palatinate',
   'Saarland',
+  'Saxony',
+  'Saxony-Anhalt',
   'Schleswig-Holstein',
+  'Thuringia',
 ];
 
 const EAST_STATES = [
@@ -108,7 +118,22 @@ const EAST_STATES = [
   'Thuringia',
 ];
 
-const UPLOAD_FEDERAL_STATES = ['Berlin', ...FEDERAL_STATES, ...EAST_STATES];
+// Federal-state options for the given pension type. Public (VBL/ZVK) is limited
+// to the states CompanyPension supports; stage (VddB/VddKO) is available in all
+// states. East states stay visible on the upload-review dropdown so OCR values
+// still render (public then hits an early stop) — see handleContinue.
+const getFederalStateOptions = (pensionType: PensionType) =>
+  pensionType === 'stage' ? ALL_FEDERAL_STATES : PUBLIC_FEDERAL_STATES;
+
+const getUploadFederalStates = (pensionType: PensionType) =>
+  pensionType === 'stage'
+    ? ['Berlin', ...ALL_FEDERAL_STATES]
+    : ['Berlin', ...PUBLIC_FEDERAL_STATES, ...EAST_STATES];
+
+const getProviderOptions = (form: ManualFormData) =>
+  form.pensionType === 'stage'
+    ? ['VddB', 'VddKO']
+    : (PUBLIC_PENSION_PROVIDERS_BY_STATE[form.federalState] ?? ['VBL']);
 
 const YEARS = Array.from(
   { length: new Date().getFullYear() - 2004 + 1 },
@@ -171,8 +196,10 @@ const shouldShowAdditionalContributionCheck = (form: ManualFormData) => {
 const getNextScreenAfterPeriod = (form: ManualFormData): CalculatorScreen => {
   const months = getContributionMonthCount(form);
 
-  if (months < 12) return 'blocked';
+  // The 12-month minimum only applies to stage pensions (VddB/VddKO). Public
+  // VBL/ZVK periods of any length reach the estimate.
   if (form.pensionType !== 'stage') return 'salary';
+  if (months < 12) return 'blocked';
   if (shouldShowAdditionalContributionCheck(form)) return 'thresholds';
   if (startsIn2018OrLater(form) && months >= 36) return 'blocked';
   if (months >= 120) return 'blocked';
@@ -789,6 +816,7 @@ export const ManualVBLCalculator: React.FC = () => {
     } else if (screen === 'blocked') {
       if (
         form.entryMethod === 'upload' &&
+        form.pensionType === 'public' &&
         EAST_STATES.includes(form.federalState)
       ) {
         setScreen('upload-review');
@@ -847,7 +875,10 @@ export const ManualVBLCalculator: React.FC = () => {
         setScreen('vested');
         return;
       }
-      if (EAST_STATES.includes(form.federalState)) {
+      if (
+        form.pensionType === 'public' &&
+        EAST_STATES.includes(form.federalState)
+      ) {
         setScreen('blocked');
         return;
       }
@@ -1117,11 +1148,7 @@ export const ManualVBLCalculator: React.FC = () => {
                             : '',
                       });
                     }}
-                    options={
-                      form.pensionType === 'stage'
-                        ? ['VddB', 'VddKO']
-                        : ['VBL', 'ZVK']
-                    }
+                    options={getProviderOptions(form)}
                     placeholder="Select company pension provider"
                   />
 
@@ -1151,31 +1178,38 @@ export const ManualVBLCalculator: React.FC = () => {
                   <SelectField
                     label="German federal state"
                     value={form.federalState}
-                    onChange={(value) => updateForm({ federalState: value })}
-                    options={UPLOAD_FEDERAL_STATES}
+                    onChange={(value) =>
+                      updateForm({
+                        federalState: value,
+                        publicProvider: '',
+                        vblPlan: '',
+                      })
+                    }
+                    options={getUploadFederalStates(form.pensionType)}
                     placeholder="Select federal state"
                   />
 
-                  {EAST_STATES.includes(form.federalState) && (
-                    <div className="flex items-start gap-5 rounded-xl bg-[#EEF6EA] px-7 py-6 text-left">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#4E8F21] text-white">
-                        <Info className="h-6 w-6" />
+                  {form.pensionType === 'public' &&
+                    EAST_STATES.includes(form.federalState) && (
+                      <div className="flex items-start gap-5 rounded-xl bg-[#EEF6EA] px-7 py-6 text-left">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#4E8F21] text-white">
+                          <Info className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-bold leading-6 text-[#444844]">
+                            This refund cannot currently be estimated with
+                            CompanyPension
+                          </p>
+                          <p className="mt-2 text-lg leading-7 text-[#4C504D]">
+                            CompanyPension currently checks VBL West
+                            contribution refunds. If your contributions were
+                            paid only while working in a state that is not
+                            listed, this refund cannot currently continue
+                            through the online calculator.
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-lg font-bold leading-6 text-[#444844]">
-                          This refund cannot currently be estimated with
-                          CompanyPension
-                        </p>
-                        <p className="mt-2 text-lg leading-7 text-[#4C504D]">
-                          CompanyPension currently checks VBL West contribution
-                          refunds. If your contributions were paid only while
-                          working in a state that is not listed, this refund
-                          cannot currently continue through the online
-                          calculator.
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                    )}
 
                   <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
                     <SelectField
@@ -1263,8 +1297,14 @@ export const ManualVBLCalculator: React.FC = () => {
                 <SelectField
                   label="Employer’s federal state"
                   value={form.federalState}
-                  onChange={(value) => updateForm({ federalState: value })}
-                  options={FEDERAL_STATES}
+                  onChange={(value) =>
+                    updateForm({
+                      federalState: value,
+                      publicProvider: '',
+                      vblPlan: '',
+                    })
+                  }
+                  options={getFederalStateOptions(form.pensionType)}
                   placeholder="Select federal state"
                 />
                 <button
@@ -1323,11 +1363,7 @@ export const ManualVBLCalculator: React.FC = () => {
                           vblPlan: '',
                         })
                   }
-                  options={
-                    form.pensionType === 'stage'
-                      ? ['VddB', 'VddKO']
-                      : ['VBL', 'ZVK']
-                  }
+                  options={getProviderOptions(form)}
                   placeholder="Select company pension"
                 />
 
