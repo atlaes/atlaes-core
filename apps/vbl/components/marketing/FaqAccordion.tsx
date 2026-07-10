@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 
 export interface FaqAccordionItem {
@@ -24,12 +24,15 @@ export function FaqAccordion({
   defaultOpenIndex = 0,
 }: FaqAccordionProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(defaultOpenIndex);
+  // Unique per accordion instance so panel ids don't collide when a page
+  // renders more than one FaqAccordion (e.g. one per FAQ category).
+  const idPrefix = useId();
 
   return (
     <div className="space-y-4">
       {items.map((item, index) => {
         const open = openIndex === index;
-        const panelId = `faq-panel-${index}`;
+        const panelId = `${idPrefix}-faq-panel-${index}`;
         return (
           <div key={item.question} className="rounded-2xl bg-white px-8 py-6">
             <button

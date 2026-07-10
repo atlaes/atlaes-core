@@ -7,6 +7,8 @@ interface CtaLink {
 }
 
 export interface CtaBandProps {
+  /** Optional pill rendered above the title (FAQ band's "Start online"). */
+  eyebrow?: string;
   title: ReactNode;
   body?: ReactNode;
   cta: CtaLink;
@@ -20,6 +22,7 @@ export interface CtaBandProps {
  * Full-width closing call-to-action band on the dark brand background.
  */
 export function CtaBand({
+  eyebrow,
   title,
   body,
   cta,
@@ -29,6 +32,11 @@ export function CtaBand({
   return (
     <section className="bg-brand text-white">
       <div className="mx-auto flex max-w-[1200px] flex-col items-center px-6 py-20 text-center sm:py-24">
+        {eyebrow ? (
+          <span className="mb-6 inline-flex items-center rounded-full border border-accent/40 bg-white/5 px-5 py-2 text-sm font-medium text-accent">
+            {eyebrow}
+          </span>
+        ) : null}
         <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
           {title}
         </h2>
