@@ -24,8 +24,6 @@ import {
   type FaqAccordionItem,
 } from '@/components/marketing/FaqAccordion';
 
-export const dynamic = 'force-dynamic';
-
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
 /**
