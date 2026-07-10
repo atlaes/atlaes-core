@@ -43,6 +43,7 @@ type CalculatorScreen =
   | 'thresholds'
   | 'salary'
   | 'result'
+  | 'vested'
   | 'blocked';
 
 interface ManualFormData {
@@ -88,23 +89,26 @@ const FEDERAL_STATES = [
   'Baden-Württemberg',
   'Bavaria',
   'Berlin (West)',
-  'Berlin (East)',
-  'Brandenburg',
   'Bremen',
   'Hamburg',
   'Hesse',
   'Lower Saxony',
-  'Mecklenburg-Vorpommern',
   'North Rhine-Westphalia',
   'Rhineland-Palatinate',
   'Saarland',
+  'Schleswig-Holstein',
+];
+
+const EAST_STATES = [
+  'Berlin (East)',
+  'Brandenburg',
+  'Mecklenburg-Vorpommern',
   'Saxony',
   'Saxony-Anhalt',
-  'Schleswig-Holstein',
   'Thuringia',
 ];
 
-const UPLOAD_FEDERAL_STATES = ['Berlin', ...FEDERAL_STATES];
+const UPLOAD_FEDERAL_STATES = ['Berlin', ...FEDERAL_STATES, ...EAST_STATES];
 
 const YEARS = Array.from(
   { length: new Date().getFullYear() - 2004 + 1 },
@@ -780,8 +784,19 @@ export const ManualVBLCalculator: React.FC = () => {
       setScreen(
         shouldShowAdditionalContributionCheck(form) ? 'thresholds' : 'period'
       );
+    } else if (screen === 'vested') {
+      setScreen(form.entryMethod === 'upload' ? 'upload-review' : 'provider');
     } else if (screen === 'blocked') {
-      setScreen('thresholds');
+      if (
+        form.entryMethod === 'upload' &&
+        EAST_STATES.includes(form.federalState)
+      ) {
+        setScreen('upload-review');
+      } else if (shouldShowAdditionalContributionCheck(form)) {
+        setScreen('thresholds');
+      } else {
+        setScreen('period');
+      }
     }
   };
 
@@ -828,6 +843,14 @@ export const ManualVBLCalculator: React.FC = () => {
         setScreen('federal-state');
       }
     } else if (screen === 'upload-review') {
+      if (form.vblPlan === 'VBLextra') {
+        setScreen('vested');
+        return;
+      }
+      if (EAST_STATES.includes(form.federalState)) {
+        setScreen('blocked');
+        return;
+      }
       const nextScreen = getNextScreenAfterPeriod(form);
       if (nextScreen === 'salary') {
         void calculateEstimate();
@@ -835,8 +858,9 @@ export const ManualVBLCalculator: React.FC = () => {
         setScreen(nextScreen);
       }
     } else if (screen === 'federal-state') setScreen('provider');
-    else if (screen === 'provider') setScreen('period');
-    else if (screen === 'period') {
+    else if (screen === 'provider') {
+      setScreen(form.vblPlan === 'VBLextra' ? 'vested' : 'period');
+    } else if (screen === 'period') {
       setScreen(getNextScreenAfterPeriod(form));
     } else if (screen === 'thresholds') {
       setScreen(isThresholdBlocked ? 'blocked' : 'salary');
@@ -903,7 +927,11 @@ export const ManualVBLCalculator: React.FC = () => {
       isDateRangeValid(form) &&
       form.averageMonthlyGrossSalary !== '') ||
     (screen === 'federal-state' && form.federalState !== '') ||
-    (screen === 'provider' && getSelectedProvider(form) !== '') ||
+    (screen === 'provider' &&
+      getSelectedProvider(form) !== '' &&
+      (form.pensionType !== 'public' ||
+        form.publicProvider !== 'VBL' ||
+        form.vblPlan !== '')) ||
     (screen === 'period' && isDateRangeValid(form)) ||
     (screen === 'thresholds' &&
       form.post2018Months !== '' &&
@@ -1128,6 +1156,27 @@ export const ManualVBLCalculator: React.FC = () => {
                     placeholder="Select federal state"
                   />
 
+                  {EAST_STATES.includes(form.federalState) && (
+                    <div className="flex items-start gap-5 rounded-xl bg-[#EEF6EA] px-7 py-6 text-left">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#4E8F21] text-white">
+                        <Info className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold leading-6 text-[#444844]">
+                          This refund cannot currently be estimated with
+                          CompanyPension
+                        </p>
+                        <p className="mt-2 text-lg leading-7 text-[#4C504D]">
+                          CompanyPension currently checks VBL West contribution
+                          refunds. If your contributions were paid only while
+                          working in a state that is not listed, this refund
+                          cannot currently continue through the online
+                          calculator.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
                     <SelectField
                       label="Start month"
@@ -1281,6 +1330,27 @@ export const ManualVBLCalculator: React.FC = () => {
                   }
                   placeholder="Select company pension"
                 />
+
+                {form.pensionType === 'public' &&
+                  form.publicProvider === 'VBL' && (
+                    <div className="mt-5">
+                      <p className="mb-3 text-sm font-medium text-gray-800">
+                        VBL plan
+                      </p>
+                      <div className="flex flex-wrap gap-3">
+                        <PlanChip
+                          label="VBLklassik"
+                          selected={form.vblPlan === 'VBLklassik'}
+                          onClick={() => updateForm({ vblPlan: 'VBLklassik' })}
+                        />
+                        <PlanChip
+                          label="VBLextra"
+                          selected={form.vblPlan === 'VBLextra'}
+                          onClick={() => updateForm({ vblPlan: 'VBLextra' })}
+                        />
+                      </div>
+                    </div>
+                  )}
               </FormShell>
             )}
 
@@ -1421,6 +1491,41 @@ export const ManualVBLCalculator: React.FC = () => {
                   />
                 </label>
               </FormShell>
+            )}
+
+            {screen === 'vested' && (
+              <div className="mx-auto w-full max-w-[560px] text-center">
+                <div className="mx-auto mb-8 flex h-[122px] w-[122px] items-center justify-center rounded-full bg-[#F1CFCB]">
+                  <div className="flex h-[94px] w-[94px] items-center justify-center rounded-full bg-[#B91C0B]">
+                    <X className="h-14 w-14 text-white" />
+                  </div>
+                </div>
+                <h1
+                  className="mx-auto max-w-[560px] text-[25px] font-bold leading-tight text-gray-950"
+                  style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
+                >
+                  Not eligible for a supplementary pension refund
+                </h1>
+                <p className="mx-auto mt-6 max-w-[560px] text-lg leading-7 text-[#4C504D]">
+                  Based on your information, your supplementary pension is
+                  vested. When contributions to VBLextra exist, any VBLklassik
+                  contributions are preserved as a future pension entitlement
+                  and cannot be refunded as a lump sum.
+                </p>
+                <p className="mx-auto mt-6 max-w-[560px] text-lg leading-7 text-[#4C504D]">
+                  This means your pension remains credited to you and may be
+                  paid out later as a regular pension benefit when you reach the
+                  German retirement age.
+                </p>
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="mx-auto mt-9 flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-md bg-[#9FE870] font-semibold text-[#163300] shadow-md transition hover:bg-[#8AD860]"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  Go back
+                </button>
+              </div>
             )}
 
             {screen === 'blocked' && (
