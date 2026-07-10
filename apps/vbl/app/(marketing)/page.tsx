@@ -19,10 +19,89 @@ import {
 import { Hero } from '@/components/marketing/Hero';
 import { SectionHeading } from '@/components/marketing/SectionHeading';
 import { CtaBand } from '@/components/marketing/CtaBand';
+import {
+  FaqAccordion,
+  type FaqAccordionItem,
+} from '@/components/marketing/FaqAccordion';
 
 export const dynamic = 'force-dynamic';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
+
+/**
+ * Home FAQ (Figma 1178:541, transcribed from the rendered canvas — the XML
+ * export only carries un-overridden component defaults). Q1's answer is shown
+ * expanded in the design. Q3's answer is the verbatim transcription of the
+ * identical question on the how-it-works frame (its item 1, expanded there).
+ * The design shows the remaining items collapsed, so their answers are not
+ * readable from the anonymous Figma view; until the client supplies them,
+ * those items point to the FAQ page. FLAGGED as a copy gap in the task report.
+ */
+const FAQ_ANSWER_PENDING = (
+  <p>
+    You can find the answer on our{' '}
+    <Link href="/faq" className="font-semibold text-brand underline">
+      FAQ page
+    </Link>
+    .
+  </p>
+);
+
+const HOME_FAQ_ITEMS: FaqAccordionItem[] = [
+  {
+    question: 'Can I get money back from my German company pension?',
+    answer: (
+      <>
+        <p>
+          It may be possible, depending on the type of pension and the
+          applicable rules.
+        </p>
+        <p className="mt-2">
+          VBL, ZVK, VddB and VddKO cases are usually handled as contribution
+          refunds. bAV cases from Allianz, AXA, Swiss Life, ERGO, R+V,
+          Nürnberger, HDI, BVV and other providers need a separate cash-out
+          check.
+        </p>
+      </>
+    ),
+  },
+  {
+    question:
+      'I already received a German state pension refund. Can I also get money from my company pension?',
+    answer: FAQ_ANSWER_PENDING,
+  },
+  {
+    question: 'Do I need to use the calculator first?',
+    answer: (
+      <>
+        <p>
+          No. You can start your claim directly if you already know your pension
+          type or provider.
+        </p>
+        <p className="mt-2">
+          The quick check is helpful if you want a refund estimate first or want
+          to see whether your bAV cash-out can be started.
+        </p>
+      </>
+    ),
+  },
+  {
+    question: 'How long does it usually take?',
+    answer: FAQ_ANSWER_PENDING,
+  },
+  {
+    question: 'Do I need a German bank account?',
+    answer: FAQ_ANSWER_PENDING,
+  },
+  {
+    question: 'Can I cash out a bAV after leaving Germany?',
+    answer: FAQ_ANSWER_PENDING,
+  },
+  {
+    question: 'Will CompanyPension receive my pension money?',
+    answer: FAQ_ANSWER_PENDING,
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Local, page-only card shapes (richer than the shared FeatureCard).
@@ -635,25 +714,24 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ---- FAQ teaser (Figma 1178:541) ---- */}
+      {/* ---- FAQ (Figma 1178:541 — real copy from rendered canvas) ---- */}
       <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center">
             <SectionHeading title="Frequently asked questions" />
-            <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/70">
-              Find answers about pricing, timelines, documents and what happens
-              after you submit. See the full list of questions and answers on
-              our FAQ page.
-            </p>
-            <div className="mt-9">
-              <Link
-                href="/faq"
-                className="inline-flex items-center gap-2 rounded-brand bg-accent px-6 py-4 text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
-              >
-                Go to FAQ
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-            </div>
+          </div>
+
+          <div className="mx-auto mt-12 max-w-4xl">
+            <FaqAccordion items={HOME_FAQ_ITEMS} defaultOpenIndex={0} />
+          </div>
+
+          <div className="mt-12 flex justify-center">
+            <Link
+              href="/faq"
+              className="rounded-brand bg-accent px-16 py-4 text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
+            >
+              Go to FAQ
+            </Link>
           </div>
         </div>
       </section>
