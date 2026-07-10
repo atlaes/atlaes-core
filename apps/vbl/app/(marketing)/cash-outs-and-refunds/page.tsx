@@ -169,11 +169,15 @@ function RouteCard({
 export default function CashOutsAndRefundsPage() {
   return (
     <>
-      {/* ---- HERO (Figma 1270:129) ---- */}
+      {/* ---- HERO (Figma 1270:129) ----
+          Hero body is the VISIBLE node 1270:478. The alternate sentence "The
+          key question is usually not whether…" (1270:485) is hidden="true" in
+          the XML (discarded copy, also appears hidden on other frames) and is
+          excluded per the hidden-node binding rule. */}
       <Hero
         eyebrow="Cash-outs & refunds"
         title="Cash out or refund your German company pension online"
-        body="The key question is usually not whether your contributions can be refunded in the same way as a public-sector pension. The real question is whether your private-sector company pension can be paid out as a lump sum."
+        body="Upload your pension document or answer guided questions. The platform identifies whether your case belongs to a bAV cash-out, VBL or ZVK refund, or VddB or VddKO refund and adapts the next steps accordingly."
         primaryCta={{ label: 'Start your claim', href: START_HREF }}
         secondaryCta={{ label: 'Calculate my refund', href: CALC_HREF }}
         footnote={
@@ -191,16 +195,12 @@ export default function CashOutsAndRefundsPage() {
         }
       />
 
-      {/* ---- INTRO / PLATFORM (Figma 1270:478, 1271:5355, 1271:5363) ---- */}
+      {/* ---- INTRO / PLATFORM (Figma 1271:5355, 1271:5363) ----
+          1270:478 belongs to the hero (it renders once in the design) and was
+          moved there; this section keeps its own visible nodes only. */}
       <section className="bg-white">
         <div className={`${CONTAINER} py-16 sm:py-20`}>
           <div className="mx-auto max-w-3xl space-y-5 text-center">
-            <p className="text-lg font-semibold text-brand">
-              Upload your pension document or answer guided questions. The
-              platform identifies whether your case belongs to a bAV cash-out,
-              VBL or ZVK refund, or VddB or VddKO refund and adapts the next
-              steps accordingly.
-            </p>
             <p className="text-base leading-relaxed text-gray-600">
               CompanyPension is a secure digital application platform for German
               company pension cash-outs and refunds. Start with the provider
