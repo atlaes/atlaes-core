@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Check, Info } from 'lucide-react';
+import { ArrowRight, Calendar, Check, Info, User } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
 import { SectionHeading } from '@/components/marketing/SectionHeading';
 import { FeatureCard } from '@/components/marketing/FeatureCard';
@@ -1147,9 +1147,10 @@ export default function CompanyPensionVsDrvPage() {
       </ImportantCallout>
 
       {/* ---- IMPORTANT INFORMATION 2 / SOURCE BASIS (Figma 1392:1064) ----
-          The design carries "[Add actual review date]" / "[Add reviewer name
-          and role]" bracketed placeholders; these are authoring instructions,
-          not shippable copy, and are intentionally omitted. */}
+          PUBLICATION_PENDING: "LAST REVIEWED" (1392:1106) and "REVIEWED BY"
+          (1392:1116) carry bracketed placeholders in the design ("[Add actual
+          review date]", "[Add reviewer name and role]"); rendered verbatim and
+          flagged for the client to complete before publication. */}
       <ImportantCallout>
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
           Source basis
@@ -1182,6 +1183,36 @@ export default function CompanyPensionVsDrvPage() {
           This page provides general information and does not replace individual
           legal, pension, tax, insurance or financial advice.
         </div>
+        <dl className="mt-8 grid gap-6 sm:grid-cols-2">
+          <div className="flex items-start gap-3">
+            <Calendar
+              className="mt-0.5 h-5 w-5 shrink-0 text-brand"
+              aria-hidden="true"
+            />
+            <div>
+              <dt className="text-sm font-semibold uppercase tracking-wide text-brand">
+                LAST REVIEWED
+              </dt>
+              <dd className="mt-2 text-base text-gray-600">
+                [Add actual review date]
+              </dd>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <User
+              className="mt-0.5 h-5 w-5 shrink-0 text-brand"
+              aria-hidden="true"
+            />
+            <div>
+              <dt className="text-sm font-semibold uppercase tracking-wide text-brand">
+                REVIEWED BY
+              </dt>
+              <dd className="mt-2 text-base text-gray-600">
+                [Add reviewer name and role]
+              </dd>
+            </div>
+          </div>
+        </dl>
       </ImportantCallout>
 
       {/* ---- CLOSING CTA BAND (Figma 1392:1125) ---- */}
