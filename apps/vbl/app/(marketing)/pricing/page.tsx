@@ -206,7 +206,7 @@ export default function PricingPage() {
 
           <div className="mx-auto mt-14 grid max-w-5xl gap-8 lg:grid-cols-2">
             <PriceCard
-              price="bAV cash-outs"
+              badge="bAV cash-outs"
               title="Company pension cash-outs"
               bullets={[
                 '€199 deposit to activate the full process',
@@ -227,7 +227,7 @@ export default function PricingPage() {
               cta={{ label: 'Start bAV cash-out', href: '/get-started' }}
             />
             <PriceCard
-              price="Contribution refunds"
+              badge="Contribution refunds"
               title="VBL, ZVK, VddB and VddKO refunds"
               bullets={[
                 '€199 deposit to activate the full process',

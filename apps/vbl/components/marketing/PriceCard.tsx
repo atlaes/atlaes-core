@@ -13,10 +13,10 @@ export interface PriceCardProps {
   /** Large headline for the plan (e.g. "Company pension cash-outs"). */
   title: ReactNode;
   /**
-   * Prominent claim-type tag rendered as a pill above the title
-   * (e.g. "bAV cash-outs"). Optional — this design has no monetary price line.
+   * Claim-type pill rendered above the title (e.g. "bAV cash-outs",
+   * "Contribution refunds").
    */
-  price?: ReactNode;
+  badge?: ReactNode;
   /** Optional supporting text under the title. */
   description?: ReactNode;
   /** Feature list, rendered with accent check bullets. */
@@ -34,7 +34,7 @@ export interface PriceCardProps {
  */
 export function PriceCard({
   title,
-  price,
+  badge,
   description,
   bullets,
   note,
@@ -42,9 +42,9 @@ export function PriceCard({
 }: PriceCardProps) {
   return (
     <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
-      {price ? (
+      {badge ? (
         <span className="inline-flex w-fit items-center rounded-full bg-accent/20 px-4 py-1.5 text-sm font-semibold text-brand">
-          {price}
+          {badge}
         </span>
       ) : null}
 
