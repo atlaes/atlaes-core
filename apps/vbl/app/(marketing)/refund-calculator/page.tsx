@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Check, Info, X } from 'lucide-react';
+import { ArrowRight, Calendar, Check, Info, User, X } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
 import { SectionHeading } from '@/components/marketing/SectionHeading';
 import { StepCard } from '@/components/marketing/StepCard';
@@ -949,10 +949,11 @@ export default function RefundCalculatorPage() {
       </section>
 
       {/* ---- PLATFORM SCOPE (Figma 1364:3163) ----
-          COPY_PENDING: the design's "LAST REVIEWED [Add actual review date]" /
-          "REVIEWED BY [Add reviewer name and role]" strip (nodes 1364:3235,
-          1364:3245) carries bracketed placeholder values; omitted until real
-          values are supplied — must not ship placeholder text. */}
+          PUBLICATION_PENDING: the "Source basis" review-metadata row (nodes
+          1364:3235, 1364:3245) ships the design's bracketed placeholder values
+          verbatim per wave-wide precedent (Tasks 13/14). Replace "[Add actual
+          review date]" and "[Add reviewer name and role]" with real values
+          before publication. */}
       <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="text-brand">
@@ -1029,6 +1030,36 @@ export default function RefundCalculatorPage() {
               The authorization does not make ATLAES GmbH the applicant or
               claimant.
             </p>
+          </div>
+
+          {/* Source-basis review-metadata row (Figma 1364:3225–3246). */}
+          <div className="mt-12 flex max-w-4xl flex-col gap-8 border-t border-neutral-400 pt-10 sm:flex-row sm:gap-16">
+            <div className="flex items-center gap-4">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-brand bg-accent/20 text-brand">
+                <Calendar className="h-7 w-7" aria-hidden="true" />
+              </span>
+              <span>
+                <span className="block text-sm font-semibold uppercase tracking-wide text-brand">
+                  LAST REVIEWED
+                </span>
+                <span className="mt-1 block text-base text-gray-600">
+                  [Add actual review date]
+                </span>
+              </span>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-brand bg-accent/20 text-brand">
+                <User className="h-7 w-7" aria-hidden="true" />
+              </span>
+              <span>
+                <span className="block text-sm font-semibold uppercase tracking-wide text-brand">
+                  REVIEWED BY
+                </span>
+                <span className="mt-1 block text-base text-gray-600">
+                  [Add reviewer name and role]
+                </span>
+              </span>
+            </div>
           </div>
         </div>
       </section>
