@@ -294,6 +294,55 @@ export async function stopClaim(
   return data;
 }
 
+// ============================================================
+// Contract Withdrawal (EU-legal electronic withdrawal)
+// ============================================================
+
+export interface WithdrawalContract {
+  claimId: string;
+  fullName: string;
+  email: string;
+  pensionTypeOrInstitution: string;
+  contractDate: string | null;
+  paymentDate: string | null;
+  applicationAlreadySubmitted: boolean;
+  declarationText: string;
+  alreadyWithdrawn: boolean;
+}
+
+export interface IdentifyWithdrawalInput {
+  fullName: string;
+  email: string;
+  claimId: string;
+  pensionTypeOrInstitution: string;
+}
+
+// Public identification. Returns the identified contract on a full match, or
+// throws on the generic 404 (never revealing which field failed).
+export async function identifyWithdrawal(
+  input: IdentifyWithdrawalInput
+): Promise<{ success: boolean; contract: WithdrawalContract }> {
+  const { data } = await apiClient.post('/withdrawals/identify', input);
+  return data;
+}
+
+// Second-step confirmation. On the public path pass the identify payload; a
+// logged-in owner needs only the claimId (the auth token is attached
+// automatically). Withdrawal completes ONLY on this call.
+export async function confirmWithdrawal(input: {
+  claimId: string;
+  fullName?: string;
+  email?: string;
+  pensionTypeOrInstitution?: string;
+}): Promise<{
+  success: boolean;
+  contract: WithdrawalContract;
+  message: string;
+}> {
+  const { data } = await apiClient.post('/withdrawals/confirm', input);
+  return data;
+}
+
 export async function markStepComplete(
   claimId: string,
   stepName: string

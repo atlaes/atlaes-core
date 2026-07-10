@@ -218,6 +218,12 @@ export default function HomePage() {
               <h3 className="text-xl font-semibold mb-4">Legal</h3>
               <p className="text-gray-400">Privacy Policy</p>
               <p className="text-gray-400">Terms of Service</p>
+              <a
+                href="/withdraw-contract"
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                Withdraw contract
+              </a>
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">

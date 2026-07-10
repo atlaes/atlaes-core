@@ -47,10 +47,7 @@ const STEP_LABELS: Record<string, string> = {
 
 const TOTAL_STEPS = Object.keys(STEP_LABELS).length;
 
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; className: string }
-> = {
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   draft: { label: 'Draft', className: 'bg-gray-100 text-gray-700' },
   ready: {
     label: 'Ready to Submit',
@@ -209,16 +206,11 @@ export default function ClaimDetailPage() {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
         <div className="w-full max-w-[1000px] bg-white rounded-2xl shadow-xl overflow-hidden">
-          <div
-            className="px-8 py-6"
-            style={{ backgroundColor: '#163300' }}
-          >
+          <div className="px-8 py-6" style={{ backgroundColor: '#163300' }}>
             <CompanyPensionLogo />
           </div>
           <div className="p-8 text-center">
-            <p className="text-red-600 mb-4">
-              {error || 'Claim not found'}
-            </p>
+            <p className="text-red-600 mb-4">{error || 'Claim not found'}</p>
             <button
               onClick={() => router.push('/dashboard')}
               className="text-sm font-medium text-[#163300] hover:opacity-70"
@@ -231,8 +223,7 @@ export default function ClaimDetailPage() {
     );
   }
 
-  const statusConfig =
-    STATUS_CONFIG[claim.status] || STATUS_CONFIG.draft;
+  const statusConfig = STATUS_CONFIG[claim.status] || STATUS_CONFIG.draft;
   const displayName =
     claim.firstName && claim.lastName
       ? `${claim.firstName} ${claim.lastName}`
@@ -240,8 +231,7 @@ export default function ClaimDetailPage() {
   const isDraft = claim.status === 'draft';
   const showProgress = isDraft || claim.status === 'ready';
   const completedSteps = claim.completedSteps || {};
-  const completedCount =
-    Object.values(completedSteps).filter(Boolean).length;
+  const completedCount = Object.values(completedSteps).filter(Boolean).length;
 
   const hasPersonalInfo =
     claim.firstName ||
@@ -251,20 +241,25 @@ export default function ClaimDetailPage() {
     claim.nationality ||
     claim.passportNumber;
   const hasAddress =
-    claim.currentAddressLine1 ||
-    claim.currentCity ||
-    claim.currentCountry;
+    claim.currentAddressLine1 || claim.currentCity || claim.currentCountry;
   const hasBankDetails =
     claim.iban || claim.accountHolderName || claim.bankName;
+
+  // Offer contract withdrawal from successful payment until 14 days after.
+  // paidAt drives the window; a claim already stopped/withdrawn ('rejected')
+  // is excluded.
+  const paidAt = claim.paidAt ? new Date(claim.paidAt) : null;
+  const withinWithdrawalWindow =
+    !!paidAt &&
+    !Number.isNaN(paidAt.getTime()) &&
+    Date.now() <= paidAt.getTime() + 14 * 24 * 60 * 60 * 1000;
+  const canWithdraw = withinWithdrawalWindow && claim.status !== 'rejected';
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="w-full max-w-[1000px] bg-white rounded-2xl shadow-xl overflow-hidden">
         {/* Header */}
-        <div
-          className="px-8 py-6"
-          style={{ backgroundColor: '#163300' }}
-        >
+        <div className="px-8 py-6" style={{ backgroundColor: '#163300' }}>
           <div className="flex items-center justify-between">
             <CompanyPensionLogo />
             <button
@@ -307,10 +302,7 @@ export default function ClaimDetailPage() {
               {isDraft && (
                 <button
                   onClick={() => {
-                    localStorage.setItem(
-                      'vbl_draft_claimId',
-                      claim.id
-                    );
+                    localStorage.setItem('vbl_draft_claimId', claim.id);
                     router.push('/get-started');
                   }}
                   className="flex items-center gap-1 py-2 px-4 bg-[#9FE870] text-[#163300] font-semibold rounded-lg hover:bg-[#8AD860] transition-colors text-sm"
@@ -333,12 +325,20 @@ export default function ClaimDetailPage() {
                   Download claim PDF
                 </button>
               )}
+              {canWithdraw && (
+                <button
+                  onClick={() =>
+                    router.push(`/withdraw-contract?claimId=${claim.id}`)
+                  }
+                  className="flex items-center gap-1 py-2 px-4 border border-gray-300 text-gray-600 font-medium rounded-lg hover:border-gray-400 hover:text-[#163300] transition-colors text-sm"
+                >
+                  Withdraw from Contract
+                </button>
+              )}
             </div>
           </div>
 
-          {pdfError && (
-            <p className="text-sm text-red-600 mb-6">{pdfError}</p>
-          )}
+          {pdfError && <p className="text-sm text-red-600 mb-6">{pdfError}</p>}
 
           {/* Progress checklist */}
           {showProgress && (
@@ -363,19 +363,14 @@ export default function ClaimDetailPage() {
                 {Object.entries(STEP_LABELS).map(([key, label]) => {
                   const done = completedSteps[key] === true;
                   return (
-                    <div
-                      key={key}
-                      className="flex items-center gap-2 text-sm"
-                    >
+                    <div key={key} className="flex items-center gap-2 text-sm">
                       {done ? (
                         <CheckCircle className="w-4 h-4 text-[#9FE870] shrink-0" />
                       ) : (
                         <Circle className="w-4 h-4 text-gray-300 shrink-0" />
                       )}
                       <span
-                        className={
-                          done ? 'text-[#163300]' : 'text-gray-400'
-                        }
+                        className={done ? 'text-[#163300]' : 'text-gray-400'}
                       >
                         {label}
                       </span>
@@ -404,18 +399,12 @@ export default function ClaimDetailPage() {
                   }
                 />
                 <InfoField label="Gender" value={claim.gender} />
-                <InfoField
-                  label="Nationality"
-                  value={claim.nationality}
-                />
+                <InfoField label="Nationality" value={claim.nationality} />
                 <InfoField
                   label="Passport Number"
                   value={claim.passportNumber}
                 />
-                <InfoField
-                  label="Place of Birth"
-                  value={claim.placeOfBirth}
-                />
+                <InfoField label="Place of Birth" value={claim.placeOfBirth} />
               </div>
             </div>
           )}
@@ -427,10 +416,7 @@ export default function ClaimDetailPage() {
                 Current Address
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <InfoField
-                  label="Street"
-                  value={claim.currentAddressLine1}
-                />
+                <InfoField label="Street" value={claim.currentAddressLine1} />
                 {claim.currentAddressLine2 && (
                   <InfoField
                     label="Street (Line 2)"
@@ -442,10 +428,7 @@ export default function ClaimDetailPage() {
                   label="Postal Code"
                   value={claim.currentPostalCode}
                 />
-                <InfoField
-                  label="Country"
-                  value={claim.currentCountry}
-                />
+                <InfoField label="Country" value={claim.currentCountry} />
               </div>
             </div>
           )}

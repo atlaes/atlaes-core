@@ -3,6 +3,7 @@
 import React, { ReactNode } from 'react';
 import { ArrowLeft, Check } from 'lucide-react';
 import { CompanyPensionLogo } from '@/components/vbl/icons/CompanyPensionLogo';
+import { FlowFooterLinks } from '@/components/vbl/FlowFooterLinks';
 import {
   SubmitDetailsSubStep,
   SUBMIT_DETAILS_SUBSTEPS,
@@ -188,7 +189,7 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
     subStepId === currentSubStep;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F5F5F5] px-4 py-10">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#F5F5F5] px-4 py-10">
       <div className="w-full max-w-[1260px] overflow-hidden rounded-[20px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
         {/* Dark Green Header */}
         <div
@@ -332,6 +333,10 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
           {children}
         </div>
       </div>
+
+      {/* Persistent legal / withdrawal links on the grey background, below the
+          flow card (never inside it). */}
+      <FlowFooterLinks />
     </div>
   );
 };
