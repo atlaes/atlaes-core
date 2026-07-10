@@ -80,34 +80,145 @@ const isStageOrOrchestra = (job: JobData): boolean =>
   job.employmentType === 'Stage / Performing Arts' ||
   job.employmentType === 'Orchestra';
 
-// PROVISIONAL — pending client confirmation of the exact decision table.
-// Picks one of the 3 Figma private-result variants based on the inputs
-// collected across the private-sector sub-steps. Rules applied in order:
+// 2026 small-benefit ("Kleinbetragsrente" / Abfindung) thresholds for the
+// company pension (bAV), per § 3 Abs. 2 BetrAVG. Both are derived from the
+// official 2026 monatliche Bezugsgröße of €3,955 (SVBezGrV 2026):
+//   - monthly pension limit = 1% of the Bezugsgröße = €39.55 / month
+//   - one-off capital limit  = 120% (12/10) of the Bezugsgröße = €4,746
+// A company-pension benefit AT or BELOW the applicable limit may be paid out
+// as a lump sum (Abfindung); a benefit clearly ABOVE it may not. Statutory
+// values confirmed 2026-07; client sign-off on the numbers still welcome.
+const BAV_MONTHLY_PENSION_THRESHOLD_2026 = 39.55;
+const BAV_CAPITAL_THRESHOLD_2026 = 4746;
+
+// Parse a user- or legacy-entered monetary amount into a number. Defensive by
+// design: the live inputs are digit-stripped, but legacy/pasted values may
+// carry currency symbols, whitespace and either German ("1.234,56") or
+// English ("1,234.56") grouping. Returns null when nothing numeric is present
+// or the value can't be parsed — callers must treat null as "unknown", never
+// as "above threshold".
+const parseMonetaryAmount = (raw: string | undefined): number | null => {
+  if (raw == null) return null;
+  // Drop everything except digits and separators (strips €, EUR, spaces, …).
+  let s = String(raw).replace(/[^0-9.,-]/g, '');
+  if (s === '') return null;
+
+  const hasComma = s.includes(',');
+  const hasDot = s.includes('.');
+
+  if (hasComma && hasDot) {
+    // Mixed separators: the LAST one is the decimal separator.
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+      // German "1.234,56" → dot = thousands, comma = decimal.
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      // English "1,234.56" → comma = thousands, dot = decimal.
+      s = s.replace(/,/g, '');
+    }
+  } else if (hasComma) {
+    const parts = s.split(',');
+    // "39,55" / "39,5" → decimal; "1,234" or "1,234,567" → thousands grouping.
+    if (parts.length === 2 && parts[1].length !== 3) {
+      s = s.replace(',', '.');
+    } else {
+      s = s.replace(/,/g, '');
+    }
+  } else if (hasDot) {
+    const parts = s.split('.');
+    // "39.55" → decimal; "1.234" or "1.234.567" → thousands grouping.
+    if (parts.length === 2 && parts[1].length === 3) {
+      s = s.replace(/\./g, '');
+    } else if (parts.length > 2) {
+      s = s.replace(/\./g, '');
+    }
+  }
+
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : null;
+};
+
+// Picks one of the 3 Figma private-result variants for a single private job,
+// implementing the 2026 small-benefit rule (Figma logic notes:
+// "DRV refund = No + value above threshold → red"; "unlikely only if values
+// are clearly above the standard thresholds").
 //
-//   1. Provider === "Others"           → individual_assessment
-//      (we can't map the scheme to known rules, so always review manually)
-//   2. DRV statutoryPensionRefunded === "yes" → appears_unlikely
-//      (user has already been refunded on DRV — small-benefit rule unlikely
-//      to apply to the company pension)
-//   3. DRV === "no" AND at least one financial field filled → may_be_possible
-//      (the user is still in the scheme and we have enough hints to estimate)
-//   4. DRV === "no" AND "I can't find either" selected → appears_unlikely
-//      (client QA: this should be a rejection result)
-//   5. DRV === "not_sure" OR DRV === "no" with no statement choice → individual_assessment
-//      (legacy/catch-all: we don't have enough info to rule either way)
+// Decision table (statutoryPensionRefunded):
+//   - "yes"      → appears_unlikely  (already refunded on DRV; unchanged)
+//   - "not_sure" → individual_assessment
+//                  (do NOT show the unlikely screen just because the user
+//                   answered "Not sure"; unchanged)
+//   - "no" + a benefit value WITHIN its threshold  → may_be_possible (green)
+//   - "no" + a benefit value ABOVE its threshold   → appears_unlikely (red)
+//   - "no" + "I can't find either" (statement 'none') → appears_unlikely
+//   - "no" + only a contribution / no benefit value  → individual_assessment
+//   - anything else (catch-all)                       → individual_assessment
 //
-// These rules are QA-material only until the client confirms. See
-// docs/client-feedback-status.md for the 6 open questions about this.
+// Threshold selection: projectedMonthlyPension is a monthly benefit and is
+// compared against BAV_MONTHLY_PENSION_THRESHOLD_2026; capitalAmount and the
+// legacy contractValue are one-off capital values compared against
+// BAV_CAPITAL_THRESHOLD_2026. estimatedMonthlyContribution is a CONTRIBUTION,
+// not a benefit — it can't be judged against a benefit threshold, so if it is
+// the only value present the job resolves to individual_assessment.
+// Unparseable values are treated as "unknown" (individual_assessment), never
+// as above-threshold.
 type PrivateVariant =
   | 'private_may_be_possible'
   | 'private_individual_assessment'
   | 'private_appears_unlikely';
 
-const hasAnyFinancialField = (job: JobData): boolean =>
-  (job.projectedMonthlyPension || '').trim() !== '' ||
-  (job.capitalAmount || '').trim() !== '' ||
-  (job.contractValue || '').trim() !== '' ||
-  (job.estimatedMonthlyContribution || '').trim() !== '';
+const resolvePrivateJobVariant = (job: JobData): PrivateVariant => {
+  if (job.statutoryPensionRefunded === 'yes') return 'private_appears_unlikely';
+
+  // "not_sure" (and any non-"no" answer) → manual review, never a rejection.
+  if (job.statutoryPensionRefunded !== 'no')
+    return 'private_individual_assessment';
+
+  // From here: statutoryPensionRefunded === 'no'. Evaluate benefit values
+  // against the small-benefit thresholds. Each entry is (parsed, threshold).
+  const benefitChecks: Array<{ parsed: number | null; threshold: number }> = [];
+  if ((job.projectedMonthlyPension || '').trim() !== '') {
+    benefitChecks.push({
+      parsed: parseMonetaryAmount(job.projectedMonthlyPension),
+      threshold: BAV_MONTHLY_PENSION_THRESHOLD_2026,
+    });
+  }
+  if ((job.capitalAmount || '').trim() !== '') {
+    benefitChecks.push({
+      parsed: parseMonetaryAmount(job.capitalAmount),
+      threshold: BAV_CAPITAL_THRESHOLD_2026,
+    });
+  }
+  // contractValue is a legacy capital field (not currently populated by the
+  // UI) — treat it as a capital value if a session ever carries one.
+  if ((job.contractValue || '').trim() !== '') {
+    benefitChecks.push({
+      parsed: parseMonetaryAmount(job.contractValue),
+      threshold: BAV_CAPITAL_THRESHOLD_2026,
+    });
+  }
+
+  if (benefitChecks.length === 0) {
+    // No benefit value to judge. "I can't find either" is an explicit
+    // rejection; a lone contribution or an unanswered statement can't be
+    // judged against a benefit threshold → individual review.
+    if (job.privateStatementChoice === 'none')
+      return 'private_appears_unlikely';
+    return 'private_individual_assessment';
+  }
+
+  // A value AT the threshold is WITHIN it (within → green); only clearly
+  // ABOVE is red. Unparseable values are ignored (unknown, not above).
+  let anyParseable = false;
+  let anyAbove = false;
+  for (const { parsed, threshold } of benefitChecks) {
+    if (parsed == null) continue;
+    anyParseable = true;
+    if (parsed > threshold) anyAbove = true;
+  }
+  if (!anyParseable) return 'private_individual_assessment';
+  if (anyAbove) return 'private_appears_unlikely';
+  return 'private_may_be_possible';
+};
 
 const resolvePrivateVariant = (privateJobs: JobData[]): PrivateVariant => {
   if (privateJobs.length === 0) return 'private_individual_assessment';
@@ -121,20 +232,7 @@ const resolvePrivateVariant = (privateJobs: JobData[]): PrivateVariant => {
   }
 
   // Most pessimistic variant wins across multiple private jobs.
-  const variants = privateJobs.map((job): PrivateVariant => {
-    if (job.statutoryPensionRefunded === 'yes')
-      return 'private_appears_unlikely';
-    if (job.statutoryPensionRefunded === 'no' && hasAnyFinancialField(job)) {
-      return 'private_may_be_possible';
-    }
-    if (
-      job.statutoryPensionRefunded === 'no' &&
-      job.privateStatementChoice === 'none'
-    ) {
-      return 'private_appears_unlikely';
-    }
-    return 'private_individual_assessment';
-  });
+  const variants = privateJobs.map(resolvePrivateJobVariant);
 
   if (variants.includes('private_appears_unlikely'))
     return 'private_appears_unlikely';
@@ -461,7 +559,10 @@ export const Results: React.FC = () => {
     // POST below fails (e.g., backend unreachable). Onboarding still works,
     // just without the richer server-side hydration.
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem('calculator-selection', JSON.stringify(calculatorSelection));
+      sessionStorage.setItem(
+        'calculator-selection',
+        JSON.stringify(calculatorSelection)
+      );
     }
 
     // Persist full calculator state server-side so onboarding can hydrate
@@ -484,7 +585,10 @@ export const Results: React.FC = () => {
       });
       sessionToken = result.token;
     } catch (err) {
-      console.warn('Failed to create VBL pending calculator session — proceeding with sessionStorage only', err);
+      console.warn(
+        'Failed to create VBL pending calculator session — proceeding with sessionStorage only',
+        err
+      );
     }
 
     const target = sessionToken
