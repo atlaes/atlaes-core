@@ -602,7 +602,8 @@ export default function AboutPage() {
           can…"), and the Figma canvas is unreachable from a headless browser
           (CloudFront 403), so the real question/answer copy cannot be
           transcribed. Per copy governance we do not invent FAQ copy; the
-          section renders its header and routes to the dedicated FAQ page.
+          section renders its header (eyebrow 1240:740, title 1240:742, body
+          1240:743 verbatim) and routes to the dedicated FAQ page.
           FLAGGED as a copy gap in the task report. */}
       <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
@@ -610,7 +611,7 @@ export default function AboutPage() {
             <SectionHeading
               eyebrow="FAQ"
               title="Questions about CompanyPension"
-              body="Find answers about how the platform works, what it does and does not do, and how your company pension cash-out or refund is handled."
+              body="CompanyPension is built as a technology platform rather than a traditional claims or advisory service."
             />
             <Link
               href="/faq"
