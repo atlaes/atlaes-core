@@ -17,4 +17,10 @@ test('how-it-works lists the five-step process', async ({ page }) => {
     page.getByText('Complete your company pension claim online in five steps')
   ).toBeVisible();
   await expect(page.getByText('Step 5')).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'View pricing details' })
+  ).toHaveAttribute('href', '/pricing');
+  await expect(
+    page.getByRole('link', { name: 'See All FAQs' })
+  ).toHaveAttribute('href', '/faq');
 });

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import Image from 'next/image';
 
 export interface StepCardProps {
-  /** Step label shown in the accent pill, e.g. "Step 1". */
+  /** Step label shown in the dark badge, e.g. "Step 1". */
   number: string;
   title: string;
   body: ReactNode;
@@ -35,7 +35,7 @@ export function StepCard({ number, title, body, image }: StepCardProps) {
         </div>
       ) : null}
 
-      <span className="inline-flex w-fit items-center rounded-full bg-accent px-4 py-1.5 text-sm font-semibold text-brand">
+      <span className="inline-flex w-fit items-center rounded-lg bg-brand px-4 py-1.5 text-sm font-semibold text-white">
         {number}
       </span>
 

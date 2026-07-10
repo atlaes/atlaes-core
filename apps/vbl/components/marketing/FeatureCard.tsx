@@ -12,7 +12,13 @@ export interface FeatureCardProps {
   title: ReactNode;
   body: ReactNode;
   bullets?: string[];
+  /** Optional lead-in label rendered above the bullet list (e.g. "Available for:"). */
+  bulletsLabel?: string;
+  /** Optional muted info note rendered below the bullets, inside the card. */
+  note?: ReactNode;
   cta?: CardCta;
+  /** CTA style; defaults to the solid accent button. */
+  ctaVariant?: 'solid' | 'outline';
 }
 
 /**
@@ -25,7 +31,10 @@ export function FeatureCard({
   title,
   body,
   bullets,
+  bulletsLabel,
+  note,
   cta,
+  ctaVariant = 'solid',
 }: FeatureCardProps) {
   return (
     <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
@@ -37,8 +46,12 @@ export function FeatureCard({
 
       <p className="mt-3 text-base leading-relaxed text-gray-600">{body}</p>
 
+      {bulletsLabel ? (
+        <p className="mt-6 text-base text-gray-600">{bulletsLabel}</p>
+      ) : null}
+
       {bullets && bullets.length > 0 ? (
-        <ul className="mt-6 space-y-3">
+        <ul className={`${bulletsLabel ? 'mt-3' : 'mt-6'} space-y-3`}>
           {bullets.map((bullet) => (
             <li key={bullet} className="flex items-start gap-3 text-gray-700">
               <Check
@@ -51,14 +64,25 @@ export function FeatureCard({
         </ul>
       ) : null}
 
+      {note ? (
+        <div className="mt-6 rounded-brand bg-neutral-50 px-4 py-3 text-sm text-gray-600">
+          {note}
+        </div>
+      ) : null}
+
       {cta ? (
-        <Link
-          href={cta.href}
-          className="mt-8 inline-flex items-center gap-2 self-start rounded-brand bg-accent px-6 py-3 text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
-        >
-          {cta.label}
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </Link>
+        <div className="mt-8 flex flex-1 items-end">
+          <Link
+            href={cta.href}
+            className={
+              ctaVariant === 'outline'
+                ? 'w-full rounded-brand border border-neutral-400 bg-white px-6 py-3 text-center text-base font-semibold text-brand transition-colors hover:bg-neutral-50'
+                : 'w-full rounded-brand bg-accent px-6 py-3 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover'
+            }
+          >
+            {cta.label}
+          </Link>
+        </div>
       ) : null}
     </div>
   );
