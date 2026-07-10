@@ -11,6 +11,8 @@ export interface ComparisonTableProps {
   /** Column headers. The first entry heads the row-label column. */
   columns: string[];
   rows: ComparisonTableRow[];
+  /** Optional visually-hidden table caption for assistive tech. */
+  caption?: string;
 }
 
 /**
@@ -19,10 +21,15 @@ export interface ComparisonTableProps {
  * row label emphasised. Below md the table keeps its natural width and scrolls
  * inside its own container so the page never scrolls horizontally.
  */
-export function ComparisonTable({ columns, rows }: ComparisonTableProps) {
+export function ComparisonTable({
+  columns,
+  rows,
+  caption,
+}: ComparisonTableProps) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-neutral-400">
       <table className="w-full min-w-[640px] border-collapse text-left">
+        {caption && <caption className="sr-only">{caption}</caption>}
         <thead>
           <tr className="bg-brand text-white">
             {columns.map((column) => (

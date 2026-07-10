@@ -201,7 +201,10 @@ export default function VblRefundPage() {
             </div>
           </div>
           <div className="mt-12 flex justify-center">
-            <ArrowLink href={START_HREF}>Start my VBL refund</ArrowLink>
+            {/* Exact design casing per Figma node 1244:3298 ("Start My VBL
+                Refund"); other CTA instances on this page use design's
+                sentence-case wording and are unaffected. */}
+            <ArrowLink href={START_HREF}>Start My VBL Refund</ArrowLink>
           </div>
         </div>
       </section>
@@ -635,6 +638,7 @@ export default function VblRefundPage() {
 
           <div className="mt-12">
             <ComparisonTable
+              caption="Your DRV refund does not include your VBL refund"
               columns={['Question', 'VBL refund', 'DRV state pension refund']}
               rows={[
                 {
@@ -683,7 +687,9 @@ export default function VblRefundPage() {
             separate processes with different rules.
           </p>
           <div className="mt-10 flex justify-center">
-            <ArrowLink href={START_HREF}>Start my VBL refund</ArrowLink>
+            {/* Exact design casing per Figma node 1248:6080 ("Start My VBL
+                Refund"). */}
+            <ArrowLink href={START_HREF}>Start My VBL Refund</ArrowLink>
           </div>
         </div>
       </section>
