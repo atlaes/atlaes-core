@@ -7,6 +7,7 @@ import { StepCard } from '@/components/marketing/StepCard';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import { ImportantCallout } from '@/components/marketing/ImportantCallout';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
+import { GlossaryCard } from '@/components/marketing/GlossaryCard';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -108,16 +109,6 @@ function BulletCard({
       <div className="mt-6">
         <CheckList items={items} />
       </div>
-    </div>
-  );
-}
-
-/** Definition card for the glossary grid. */
-function GlossaryCard({ term, body }: { term: string; body: string }) {
-  return (
-    <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-6">
-      <h3 className="text-lg font-semibold text-brand">{term}</h3>
-      <p className="mt-3 text-base leading-relaxed text-gray-600">{body}</p>
     </div>
   );
 }
