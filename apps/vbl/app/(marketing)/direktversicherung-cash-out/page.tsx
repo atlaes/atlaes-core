@@ -7,6 +7,7 @@ import { StepCard } from '@/components/marketing/StepCard';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import { ImportantCallout } from '@/components/marketing/ImportantCallout';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
+import { GlossaryCard } from '@/components/marketing/GlossaryCard';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -76,16 +77,6 @@ function Pill({ children }: { children: ReactNode }) {
   );
 }
 
-/** Definition card for the glossary grid. */
-function GlossaryCard({ term, body }: { term: string; body: string }) {
-  return (
-    <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-6">
-      <h3 className="text-lg font-semibold text-brand">{term}</h3>
-      <p className="mt-3 text-base leading-relaxed text-gray-600">{body}</p>
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Page (Figma frame 1118:7990 — "Direktversicherung Cash-Out CompanyPension")
 // Copy verbatim from the design XML; sections in Figma y-order. bAV cash-out
@@ -146,7 +137,8 @@ export default function DirektversicherungCashOutPage() {
                 href={START_HREF}
                 className="inline-flex items-center gap-2 text-base font-medium text-brand hover:underline"
               >
-                Already received your DRV refund? Compare company pension vs DRV.
+                Already received your DRV refund? Compare company pension vs
+                DRV.
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             </div>
@@ -186,13 +178,13 @@ export default function DirektversicherungCashOutPage() {
               </p>
               <p>
                 Small bAV amounts can sometimes be cashed out directly. For
-                larger vested Direktversicherung entitlements, an approved German
-                state pension refund can create the basis for requesting a
-                lump-sum settlement under §3(3) BetrAVG.
+                larger vested Direktversicherung entitlements, an approved
+                German state pension refund can create the basis for requesting
+                a lump-sum settlement under §3(3) BetrAVG.
               </p>
               <p>
-                CompanyPension helps you check your Direktversicherung online and
-                continue with the right cash-out process if your case can be
+                CompanyPension helps you check your Direktversicherung online
+                and continue with the right cash-out process if your case can be
                 started.
               </p>
             </div>
@@ -270,9 +262,9 @@ export default function DirektversicherungCashOutPage() {
                 />
               </div>
               <p className="mt-6 text-base leading-relaxed text-gray-600">
-                A Direktversicherung may be managed by a provider such as Allianz,
-                AXA, Swiss Life, ERGO, BVV or another German pension or insurance
-                provider.
+                A Direktversicherung may be managed by a provider such as
+                Allianz, AXA, Swiss Life, ERGO, BVV or another German pension or
+                insurance provider.
               </p>
             </div>
           </div>
@@ -302,17 +294,17 @@ export default function DirektversicherungCashOutPage() {
             </div>
             <div className="space-y-4 text-base leading-relaxed text-gray-600">
               <p>
-                Many expats search for “cancel Direktversicherung” or “cancel bAV
-                Germany.”
+                Many expats search for “cancel Direktversicherung” or “cancel
+                bAV Germany.”
               </p>
               <p>
                 In practice, the goal is usually not a normal cancellation like
-                cancelling a phone contract. The relevant question is whether your
-                Direktversicherung can be paid out as a one-time amount.
+                cancelling a phone contract. The relevant question is whether
+                your Direktversicherung can be paid out as a one-time amount.
               </p>
               <p>
-                This is often called a cash-out or, in German pension language, an
-                Abfindung.
+                This is often called a cash-out or, in German pension language,
+                an Abfindung.
               </p>
               <p className="font-semibold text-brand">
                 For users, the practical question is simple:
@@ -412,8 +404,9 @@ export default function DirektversicherungCashOutPage() {
           <div className="mx-auto mt-10 max-w-4xl">
             <InfoNote>
               Small Direktversicherung amounts can sometimes be cashed out
-              directly. For larger vested entitlements, an approved DRV refund can
-              create the basis for a separate Direktversicherung cash-out request.
+              directly. For larger vested entitlements, an approved DRV refund
+              can create the basis for a separate Direktversicherung cash-out
+              request.
             </InfoNote>
           </div>
           <div className="mt-10 flex justify-center">
@@ -455,9 +448,9 @@ export default function DirektversicherungCashOutPage() {
                 deductions depending on the contract.
               </p>
               <p>
-                CompanyPension helps you identify the relevant provider value and
-                continue with the cash-out process, but the final cash-out amount
-                is confirmed by the provider.
+                CompanyPension helps you identify the relevant provider value
+                and continue with the cash-out process, but the final cash-out
+                amount is confirmed by the provider.
               </p>
               <InfoNote>
                 Your Direktversicherung statement is useful — but the final
@@ -511,9 +504,9 @@ export default function DirektversicherungCashOutPage() {
               </div>
               <div className="mt-6">
                 <InfoNote>
-                  CompanyPension does not provide tax advice. If tax treatment is
-                  relevant for your case, you may need to check this with a tax
-                  advisor or the responsible tax office.
+                  CompanyPension does not provide tax advice. If tax treatment
+                  is relevant for your case, you may need to check this with a
+                  tax advisor or the responsible tax office.
                 </InfoNote>
               </div>
               <p className="mt-6 text-base leading-relaxed text-gray-600">
@@ -547,9 +540,9 @@ export default function DirektversicherungCashOutPage() {
                 handled separately.
               </p>
               <p>
-                For larger vested Direktversicherung entitlements, an approved DRV
-                refund can create the basis for requesting a lump-sum settlement
-                under §3(3) BetrAVG.
+                For larger vested Direktversicherung entitlements, an approved
+                DRV refund can create the basis for requesting a lump-sum
+                settlement under §3(3) BetrAVG.
               </p>
               <p>
                 CompanyPension helps you check whether your completed DRV refund
@@ -582,8 +575,9 @@ export default function DirektversicherungCashOutPage() {
                 Which providers can Direktversicherung cases involve?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
-                Your Direktversicherung may appear under the name of an insurance
-                provider, pension institution or employer pension contract.
+                Your Direktversicherung may appear under the name of an
+                insurance provider, pension institution or employer pension
+                contract.
               </p>
               <div className="mt-8">
                 <ArrowLink href={START_HREF}>Start with my provider</ArrowLink>
@@ -612,8 +606,8 @@ export default function DirektversicherungCashOutPage() {
               <div className="mt-6">
                 <InfoNote>
                   The provider name helps identify the right next step, but it
-                  does not change the main category: a Direktversicherung is a bAV
-                  cash-out case.
+                  does not change the main category: a Direktversicherung is a
+                  bAV cash-out case.
                 </InfoNote>
               </div>
             </div>
@@ -631,9 +625,9 @@ export default function DirektversicherungCashOutPage() {
                 Does your former employer need to be involved?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
-                Sometimes. A Direktversicherung was usually arranged through your
-                employer, so provider documents may still refer to the employer,
-                policyholder, salary conversion or employment history.
+                Sometimes. A Direktversicherung was usually arranged through
+                your employer, so provider documents may still refer to the
+                employer, policyholder, salary conversion or employment history.
               </p>
               <div className="mt-8">
                 <ArrowLink href={START_HREF}>Start my cash-out</ArrowLink>
@@ -658,9 +652,9 @@ export default function DirektversicherungCashOutPage() {
                 />
               </div>
               <p className="mt-6 text-base leading-relaxed text-gray-600">
-                You do not need to know all of this before starting. CompanyPension
-                guides you through the online flow and shows what information is
-                needed for your case.
+                You do not need to know all of this before starting.
+                CompanyPension guides you through the online flow and shows what
+                information is needed for your case.
               </p>
             </div>
           </div>
@@ -713,9 +707,9 @@ export default function DirektversicherungCashOutPage() {
                 </p>
                 <p>
                   If your German state pension refund has already been approved,
-                  that may support a separate Direktversicherung cash-out check in
-                  some higher-value cases, depending on the contract and other
-                  case details.
+                  that may support a separate Direktversicherung cash-out check
+                  in some higher-value cases, depending on the contract and
+                  other case details.
                 </p>
               </div>
             </div>
@@ -754,8 +748,8 @@ export default function DirektversicherungCashOutPage() {
               </div>
               <div className="mt-6">
                 <InfoNote>
-                  That does not always mean a cash-out is impossible. It means the
-                  case needs to be checked carefully and may not result in a
+                  That does not always mean a cash-out is impossible. It means
+                  the case needs to be checked carefully and may not result in a
                   one-time cash-out.
                 </InfoNote>
               </div>
@@ -868,8 +862,9 @@ export default function DirektversicherungCashOutPage() {
           </div>
           <div className="mx-auto mt-10 max-w-4xl">
             <InfoNote>
-              Do not worry if you do not have every document yet. Start with what
-              you have, and CompanyPension will show you what is still missing.
+              Do not worry if you do not have every document yet. Start with
+              what you have, and CompanyPension will show you what is still
+              missing.
             </InfoNote>
           </div>
           <div className="mt-10 flex justify-center">
@@ -892,7 +887,9 @@ export default function DirektversicherungCashOutPage() {
             <div className="flex flex-wrap items-end justify-center gap-6 text-brand">
               <div className="text-center">
                 <span className="text-4xl font-bold">€199</span>
-                <span className="mt-1 block text-sm text-gray-600">deposit</span>
+                <span className="mt-1 block text-sm text-gray-600">
+                  deposit
+                </span>
               </div>
               <span className="pb-6 text-3xl font-bold text-gray-400">+</span>
               <div className="text-center">
@@ -921,7 +918,9 @@ export default function DirektversicherungCashOutPage() {
                 </div>
               </div>
               <div>
-                <p className="text-lg font-semibold text-brand">This includes:</p>
+                <p className="text-lg font-semibold text-brand">
+                  This includes:
+                </p>
                 <div className="mt-4">
                   <CheckList
                     items={[
@@ -963,7 +962,8 @@ export default function DirektversicherungCashOutPage() {
             </div>
             <p className="mt-6 text-center text-sm leading-relaxed text-gray-600">
               If approved, the money is paid directly to the bank account you
-              provide. CompanyPension does not receive or hold your pension money.
+              provide. CompanyPension does not receive or hold your pension
+              money.
             </p>
           </div>
         </div>
@@ -1117,8 +1117,8 @@ export default function DirektversicherungCashOutPage() {
               </p>
               <p>
                 A DRV refund covers statutory German state pension contributions
-                only and does not include bAV, Direktversicherung, VBL, ZVK, VddB
-                or VddKO.
+                only and does not include bAV, Direktversicherung, VBL, ZVK,
+                VddB or VddKO.
               </p>
               <p>
                 CompanyPension uses these categories to guide users toward the
@@ -1127,7 +1127,7 @@ export default function DirektversicherungCashOutPage() {
                 insurance or financial advice.
               </p>
             </div>
-            {/* CONTENT_PENDING: Figma nodes 1124:1558 / 1124:1568 carry
+            {/* PUBLICATION_PENDING: Figma nodes 1124:1558 / 1124:1568 carry
                 pre-publication placeholders — render verbatim until the content
                 team supplies the real review date, reviewer name and role. */}
             <div className="mt-8 grid gap-6 sm:grid-cols-2">
@@ -1169,13 +1169,13 @@ export default function DirektversicherungCashOutPage() {
           </li>
           <li>
             CompanyPension does not decide whether a cash-out or refund is
-            approved, does not claim funds as a legal representative and does not
-            receive, hold or forward approved pension money.
+            approved, does not claim funds as a legal representative and does
+            not receive, hold or forward approved pension money.
           </li>
         </ul>
         <div className="mt-8 rounded-2xl bg-white p-6 text-base leading-relaxed text-gray-600">
-          If legal services are required for a specific case, they are carried out
-          separately by the responsible legal partner.
+          If legal services are required for a specific case, they are carried
+          out separately by the responsible legal partner.
         </div>
       </ImportantCallout>
 

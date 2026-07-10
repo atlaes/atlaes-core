@@ -6,6 +6,7 @@ import { SectionHeading } from '@/components/marketing/SectionHeading';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import { ImportantCallout } from '@/components/marketing/ImportantCallout';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
+import { GlossaryCard } from '@/components/marketing/GlossaryCard';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -81,16 +82,6 @@ function ChipList({ items }: { items: string[] }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-/** Definition card for the glossary grid. */
-function GlossaryCard({ term, body }: { term: string; body: string }) {
-  return (
-    <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-6">
-      <h3 className="text-lg font-semibold text-brand">{term}</h3>
-      <p className="mt-3 text-base leading-relaxed text-gray-600">{body}</p>
-    </div>
   );
 }
 
@@ -948,7 +939,7 @@ export default function VblVsDrvPage() {
       </section>
 
       {/* ---- IMPORTANT INFORMATION (Figma 1153:6904) ----
-          REVIEW_META_PENDING: the design's "Source basis" block carries editorial
+          PUBLICATION_PENDING: the design's "Source basis" block carries editorial
           placeholders ("[Add actual review date before publication]", "[Add
           reviewer name and role before publication]") which are omitted here
           until real review metadata is supplied. */}

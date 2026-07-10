@@ -7,6 +7,7 @@ import { StepCard } from '@/components/marketing/StepCard';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import { ImportantCallout } from '@/components/marketing/ImportantCallout';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
+import { GlossaryCard } from '@/components/marketing/GlossaryCard';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -110,16 +111,6 @@ function OutlineLink({
       {children}
       <ArrowRight className="h-4 w-4" aria-hidden="true" />
     </Link>
-  );
-}
-
-/** Definition card for the glossary grid. */
-function GlossaryCard({ term, body }: { term: string; body: string }) {
-  return (
-    <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-6">
-      <h3 className="text-lg font-semibold text-brand">{term}</h3>
-      <p className="mt-3 text-base leading-relaxed text-gray-600">{body}</p>
-    </div>
   );
 }
 
@@ -1550,7 +1541,7 @@ export default function CashOutsAndRefundsPage() {
               individual legal, pension, tax, insurance or financial advice.
             </li>
           </ul>
-          {/* COPY_PENDING: review metadata are placeholders in the design
+          {/* PUBLICATION_PENDING: review metadata are placeholders in the design
               (Figma 1325:507 / 1325:517) — kept verbatim until the client
               supplies the review date and reviewer. */}
           <dl className="mt-6 grid gap-4 sm:grid-cols-2">

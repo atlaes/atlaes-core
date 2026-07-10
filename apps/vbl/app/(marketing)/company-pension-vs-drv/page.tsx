@@ -8,6 +8,7 @@ import { StepCard } from '@/components/marketing/StepCard';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import { ImportantCallout } from '@/components/marketing/ImportantCallout';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
+import { GlossaryCard } from '@/components/marketing/GlossaryCard';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -65,16 +66,6 @@ function ArrowLink({ href, children }: { href: string; children: ReactNode }) {
       {children}
       <ArrowRight className="h-4 w-4" aria-hidden="true" />
     </Link>
-  );
-}
-
-/** Definition card for the glossary grid. */
-function GlossaryCard({ term, body }: { term: string; body: string }) {
-  return (
-    <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-6">
-      <h3 className="text-lg font-semibold text-brand">{term}</h3>
-      <p className="mt-3 text-base leading-relaxed text-gray-600">{body}</p>
-    </div>
   );
 }
 
@@ -172,7 +163,9 @@ export default function CompanyPensionVsDrvPage() {
                 already been approved and paid.
               </p>
               <div className="mt-8">
-                <ArrowLink href={START_HREF}>Check my company pension</ArrowLink>
+                <ArrowLink href={START_HREF}>
+                  Check my company pension
+                </ArrowLink>
               </div>
             </div>
             <div className="rounded-2xl border border-neutral-400 bg-white p-8">
@@ -258,9 +251,9 @@ export default function CompanyPensionVsDrvPage() {
                   Germany’s statutory pension system.
                 </p>
                 <p>
-                  If you apply for a DRV refund, you are requesting the refund of
-                  eligible statutory pension contributions recorded by Deutsche
-                  Rentenversicherung.
+                  If you apply for a DRV refund, you are requesting the refund
+                  of eligible statutory pension contributions recorded by
+                  Deutsche Rentenversicherung.
                 </p>
                 <p className="text-lg font-semibold text-brand">
                   A company pension is different.
@@ -332,8 +325,8 @@ export default function CompanyPensionVsDrvPage() {
               </div>
               <div className="mt-6">
                 <InfoNote>
-                  These rules belong to the statutory pension refund. They do not
-                  automatically determine what happens to a company pension.
+                  These rules belong to the statutory pension refund. They do
+                  not automatically determine what happens to a company pension.
                 </InfoNote>
               </div>
               <div className="mt-8">
@@ -379,12 +372,13 @@ export default function CompanyPensionVsDrvPage() {
               </h2>
               <div className="mt-6 space-y-4 text-base leading-relaxed text-gray-600">
                 <p>
-                  Many people assume that receiving their “German pension refund”
-                  finishes everything connected to their employment in Germany.
+                  Many people assume that receiving their “German pension
+                  refund” finishes everything connected to their employment in
+                  Germany.
                 </p>
                 <p>
-                  That is not necessarily true. Your company pension may still be
-                  held by a former employer, insurer, pension institution or
+                  That is not necessarily true. Your company pension may still
+                  be held by a former employer, insurer, pension institution or
                   supplementary pension scheme.
                 </p>
               </div>
@@ -395,7 +389,9 @@ export default function CompanyPensionVsDrvPage() {
                 </InfoNote>
               </div>
               <div className="mt-8">
-                <ArrowLink href={START_HREF}>Check my company pension</ArrowLink>
+                <ArrowLink href={START_HREF}>
+                  Check my company pension
+                </ArrowLink>
               </div>
             </div>
             <div className="rounded-2xl border border-neutral-400 bg-white p-8">
@@ -443,13 +439,19 @@ export default function CompanyPensionVsDrvPage() {
               icon={<Check className="h-7 w-7" aria-hidden="true" />}
               title="Direktversicherung, Pensionskasse or Pensionsfonds"
               body="These are common ways a bAV may be arranged. They are separate from DRV and normally require their own company pension cash-out check."
-              cta={{ label: 'Check my company pension cash-out', href: START_HREF }}
+              cta={{
+                label: 'Check my company pension cash-out',
+                href: START_HREF,
+              }}
             />
             <FeatureCard
               icon={<Check className="h-7 w-7" aria-hidden="true" />}
               title="Allianz, AXA, Swiss Life, ERGO, R+V, Nürnberger, HDI or BVV"
               body="Your pension may appear under the name of an insurer or pension institution rather than the term “bAV.” Start with the provider name and the pension document you have."
-              cta={{ label: 'Start with my provider document', href: START_HREF }}
+              cta={{
+                label: 'Start with my provider document',
+                href: START_HREF,
+              }}
             />
             <FeatureCard
               icon={<Check className="h-7 w-7" aria-hidden="true" />}
@@ -484,15 +486,15 @@ export default function CompanyPensionVsDrvPage() {
           <div className="mx-auto mt-10 max-w-3xl space-y-4 text-base leading-relaxed text-gray-600">
             <p>
               Small company pensions can sometimes be settled under the
-              small-benefit rules. For a larger vested bAV, an approved refund of
-              your statutory pension contributions can establish the basis for
-              requesting a lump-sum settlement under §3(3) BetrAVG.
+              small-benefit rules. For a larger vested bAV, an approved refund
+              of your statutory pension contributions can establish the basis
+              for requesting a lump-sum settlement under §3(3) BetrAVG.
             </p>
             <InfoNote>
               <div className="space-y-2">
                 <p>
-                  Germany Pension Refund is a separate service operated by ATLAES
-                  GmbH.
+                  Germany Pension Refund is a separate service operated by
+                  ATLAES GmbH.
                 </p>
                 <p>
                   An approved DRV refund can establish the legal basis for
@@ -607,9 +609,9 @@ export default function CompanyPensionVsDrvPage() {
                 DRV refund.
               </p>
               <p className="mt-4 text-base leading-relaxed text-gray-600">
-                Your VBL pension was not included in that payment. You must still
-                check whether your VBL contributions qualify for a separate
-                refund.
+                Your VBL pension was not included in that payment. You must
+                still check whether your VBL contributions qualify for a
+                separate refund.
               </p>
             </div>
           </div>
@@ -636,7 +638,8 @@ export default function CompanyPensionVsDrvPage() {
             <p>A DRV refund does not include those contributions.</p>
             <p>
               If you have a VddB or VddKO letter, contribution record or
-              membership number, check whether a separate refund may be possible.
+              membership number, check whether a separate refund may be
+              possible.
             </p>
           </div>
           <div className="mt-10 flex justify-center">
@@ -667,17 +670,22 @@ export default function CompanyPensionVsDrvPage() {
                   Each pension institution reviews only the pension money it
                   administers.
                 </p>
-                <p>One application does not automatically complete the others.</p>
+                <p>
+                  One application does not automatically complete the others.
+                </p>
               </div>
               <div className="mt-6">
                 <InfoNote>
                   Your DRV refund deals with your statutory pension
                   contributions. Your employer-related pension money remains
-                  separate until the responsible provider or scheme processes it.
+                  separate until the responsible provider or scheme processes
+                  it.
                 </InfoNote>
               </div>
               <div className="mt-8">
-                <ArrowLink href={START_HREF}>Check my company pension</ArrowLink>
+                <ArrowLink href={START_HREF}>
+                  Check my company pension
+                </ArrowLink>
               </div>
             </div>
             <div className="rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
@@ -753,7 +761,10 @@ export default function CompanyPensionVsDrvPage() {
                 },
                 {
                   label: 'Does the DRV refund include the company pension?',
-                  values: ['No', 'The company pension requires its own process'],
+                  values: [
+                    'No',
+                    'The company pension requires its own process',
+                  ],
                 },
                 {
                   label: 'Can both apply?',
@@ -802,11 +813,14 @@ export default function CompanyPensionVsDrvPage() {
                 starting.
               </p>
               <p className="mt-6 text-base leading-relaxed text-gray-600">
-                If you are still unsure, upload the document or enter the provider
-                name. The platform will guide you toward the relevant process.
+                If you are still unsure, upload the document or enter the
+                provider name. The platform will guide you toward the relevant
+                process.
               </p>
               <div className="mt-8">
-                <ArrowLink href={START_HREF}>Check my company pension</ArrowLink>
+                <ArrowLink href={START_HREF}>
+                  Check my company pension
+                </ArrowLink>
               </div>
             </div>
             <div className="rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
@@ -900,8 +914,9 @@ export default function CompanyPensionVsDrvPage() {
                 You do not need every document before starting.
               </p>
               <p className="mt-4 text-base leading-relaxed text-gray-600">
-                Begin with the clearest pension letter, statement or provider name
-                you have. The platform shows what information is still missing.
+                Begin with the clearest pension letter, statement or provider
+                name you have. The platform shows what information is still
+                missing.
               </p>
               <div className="mt-8">
                 <ArrowLink href={START_HREF}>
@@ -1096,12 +1111,13 @@ export default function CompanyPensionVsDrvPage() {
         </h2>
         <p className="mt-6 text-base leading-relaxed text-gray-600">
           CompanyPension is a digital application platform and brand operated by
-          ATLAES GmbH. The platform supports bAV cash-outs and VBL, ZVK, VddB and
-          VddKO refunds.
+          ATLAES GmbH. The platform supports bAV cash-outs and VBL, ZVK, VddB
+          and VddKO refunds.
         </p>
         <p className="mt-4 text-base leading-relaxed text-gray-600">
           A DRV refund concerns eligible statutory pension contributions paid
-          into Deutsche Rentenversicherung. It does not include company pensions.
+          into Deutsche Rentenversicherung. It does not include company
+          pensions.
         </p>
         <p className="mt-6 text-base font-semibold leading-relaxed text-brand">
           If you continue with CompanyPension:
@@ -1125,8 +1141,9 @@ export default function CompanyPensionVsDrvPage() {
           </li>
         </ul>
         <p className="mt-6 text-base leading-relaxed text-gray-600">
-          This allows the platform to display next steps and calculate the agreed
-          service fee. It does not make ATLAES GmbH the applicant or claimant.
+          This allows the platform to display next steps and calculate the
+          agreed service fee. It does not make ATLAES GmbH the applicant or
+          claimant.
         </p>
         <p className="mt-6 text-base font-semibold leading-relaxed text-brand">
           CompanyPension does not:
