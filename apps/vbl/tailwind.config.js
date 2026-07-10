@@ -5,17 +5,6 @@ module.exports = {
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
-  // Design tokens produced for the marketing route group (Task 1). Safelisted
-  // so they compile before any consuming page references them.
-  safelist: [
-    'bg-brand',
-    'bg-accent',
-    'bg-accent-hover',
-    'text-brand',
-    'bg-neutral-50',
-    'border-neutral-400',
-    'rounded-brand',
-  ],
   theme: {
     extend: {
       colors: {
