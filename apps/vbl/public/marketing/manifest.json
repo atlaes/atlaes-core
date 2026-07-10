@@ -1,0 +1,113 @@
+{
+  "/": {
+    "nodeId": "1171:315",
+    "assets": [
+      "/marketing/shared/laptop-hands-process-icons-overlay.png",
+      "/marketing/home/reichstag-berlin.png",
+      "/marketing/shared/abstract-blue-wave-small.png",
+      "/marketing/shared/abstract-blue-wave-large.png",
+      "/marketing/shared/laptop-hands-process-icons-wide.png",
+      "/marketing/shared/berlin-landmark-building-portrait.png",
+      "/marketing/shared/logo-supplementary-pension-refund.png",
+      "/marketing/shared/logo-supplementary-pension-refund-sm.png",
+      "/marketing/shared/abstract-white-ribbon-swirl-wide.png",
+      "/marketing/shared/berlin-landmark-building-landscape.png",
+      "/marketing/shared/aurora-gradient-teal-green-wide.png",
+      "/marketing/shared/abstract-white-ribbon-swirl-close.png",
+      "/marketing/home/home-asset-13.png",
+      "/marketing/home/home-asset-14.png",
+      "/marketing/home/home-asset-15.png",
+      "/marketing/shared/advisors-reviewing-documents-desk.png",
+      "/marketing/home/home-asset-17.png",
+      "/marketing/home/home-asset-18.png",
+      "/marketing/home/home-asset-19.png",
+      "/marketing/shared/aurora-gradient-teal-green.png"
+    ]
+  },
+  "/how-it-works": {
+    "nodeId": "1183:4564",
+    "assets": [
+      "/marketing/shared/aurora-gradient-teal-green.png",
+      "/marketing/shared/abstract-white-ribbon-swirl-wide.png",
+      "/marketing/shared/advisors-reviewing-documents-desk.png",
+      "/marketing/shared/logo-supplementary-pension-refund-sm.png",
+      "/marketing/shared/logo-supplementary-pension-refund.png",
+      "/marketing/shared/berlin-landmark-building-landscape.png",
+      "/marketing/shared/berlin-landmark-building-portrait.png",
+      "/marketing/how-it-works/how-it-works-asset-08.png",
+      "/marketing/how-it-works/how-it-works-asset-09.png",
+      "/marketing/how-it-works/how-it-works-asset-10.png",
+      "/marketing/shared/aurora-gradient-teal-green-wide.png",
+      "/marketing/shared/abstract-blue-wave-small.png",
+      "/marketing/shared/abstract-blue-wave-large.png",
+      "/marketing/shared/consultant-laptop-charts-writing.png",
+      "/marketing/shared/abstract-white-ribbon-swirl-close.png"
+    ]
+  },
+  "/pricing": {
+    "nodeId": "1187:3965",
+    "assets": [
+      "/marketing/shared/aurora-gradient-teal-green-wide.png",
+      "/marketing/shared/laptop-hands-process-icons-overlay.png",
+      "/marketing/pricing/pricing-asset-03.png",
+      "/marketing/shared/consultant-laptop-charts-writing.png",
+      "/marketing/shared/laptop-hands-process-icons-wide.png",
+      "/marketing/shared/advisors-reviewing-documents-desk.png",
+      "/marketing/shared/aurora-gradient-teal-green.png",
+      "/marketing/pricing/pricing-asset-08.png",
+      "/marketing/pricing/pricing-asset-09.png",
+      "/marketing/pricing/pricing-asset-10.png",
+      "/marketing/shared/abstract-white-ribbon-swirl-close.png",
+      "/marketing/shared/abstract-white-ribbon-swirl-wide.png"
+    ]
+  },
+  "/faq": {
+    "nodeId": "1199:11597",
+    "assets": [
+      "/marketing/shared/aurora-gradient-teal-green.png",
+      "/marketing/shared/abstract-white-ribbon-swirl-close.png",
+      "/marketing/shared/aurora-gradient-teal-green-wide.png",
+      "/marketing/shared/abstract-white-ribbon-swirl-wide.png"
+    ]
+  },
+  "/reviews": {
+    "nodeId": "1206:19952",
+    "assets": [
+      "/marketing/reviews/reviews-asset-01.png",
+      "/marketing/reviews/reviews-asset-02.png",
+      "/marketing/reviews/reviews-asset-03.png",
+      "/marketing/shared/aurora-gradient-teal-green.png",
+      "/marketing/reviews/reviews-asset-05.png",
+      "/marketing/reviews/reviews-asset-06.png",
+      "/marketing/shared/abstract-white-ribbon-swirl-close.png",
+      "/marketing/reviews/reviews-asset-08.png",
+      "/marketing/reviews/reviews-asset-09.png",
+      "/marketing/reviews/reviews-asset-10.png",
+      "/marketing/reviews/reviews-asset-11.png",
+      "/marketing/shared/abstract-dark-green-gradient-alt.png",
+      "/marketing/reviews/reviews-asset-13.png",
+      "/marketing/reviews/reviews-asset-14.png",
+      "/marketing/reviews/reviews-asset-15.png",
+      "/marketing/reviews/reviews-asset-16.png",
+      "/marketing/reviews/reviews-asset-17.png",
+      "/marketing/reviews/reviews-asset-18.png",
+      "/marketing/shared/abstract-dark-green-gradient.png",
+      "/marketing/reviews/reviews-asset-20.png"
+    ]
+  },
+  "/about": {
+    "nodeId": "1216:2457",
+    "assets": [
+      "/marketing/shared/aurora-gradient-teal-green.png",
+      "/marketing/shared/laptop-hands-process-icons-wide.png",
+      "/marketing/shared/aurora-gradient-teal-green-wide.png",
+      "/marketing/shared/laptop-hands-process-icons-overlay.png",
+      "/marketing/shared/berlin-landmark-building-portrait.png",
+      "/marketing/shared/abstract-white-ribbon-swirl-close.png",
+      "/marketing/shared/abstract-dark-green-gradient-alt.png",
+      "/marketing/shared/abstract-white-ribbon-swirl-wide.png",
+      "/marketing/shared/berlin-landmark-building-landscape.png",
+      "/marketing/shared/abstract-dark-green-gradient.png"
+    ]
+  }
+}
