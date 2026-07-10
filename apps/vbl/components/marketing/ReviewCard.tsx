@@ -23,9 +23,20 @@ export interface ReviewCardProps {
   initials?: string;
 }
 
+// Strips everything except Unicode letters, whitespace and periods before
+// deriving initials, so punctuation like hyphens and apostrophes never becomes
+// an "initial" and non-Latin names (Müller, Cyrillic, CJK) keep working.
+// Built via the RegExp constructor because the tsconfig target is es5, which
+// rejects the `u` flag / `\p{L}` in regex LITERALS (TS1501) — a compile-time
+// syntax check only. The constructor form is evaluated at runtime, where every
+// supported engine (Node 10+, all modern browsers) handles Unicode property
+// escapes; SWC ships regexes unchanged either way, so behavior is identical to
+// the literal /[^\p{L}\s.]/gu.
+const NON_INITIAL_CHARS = new RegExp('[^\\p{L}\\s.]', 'gu');
+
 function deriveInitials(name: string): string {
   const parts = name
-    .replace(/[^\p{L}\s.]/gu, '')
+    .replace(NON_INITIAL_CHARS, '')
     .split(/\s+/)
     .filter(Boolean);
   if (parts.length === 0) return '';
