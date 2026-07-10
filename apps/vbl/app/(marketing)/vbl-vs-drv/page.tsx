@@ -130,12 +130,14 @@ export default function VblVsDrvPage() {
   return (
     <>
       {/* ---- HERO (Figma 1153:63) ----
-          NOTE: hero body reproduces the design's typo "pid into VBL" verbatim
-          per the verbatim-copy rule; flagged for the client to correct. */}
+          DESIGN TYPO (node 1153:413): the design reads "pid into VBL" — a
+          non-word artifact fixed to "paid into VBL" per the artifact precedent
+          (Task 13), corroborated by "paid into VBL" at node 1153:1765 in the
+          same frame. Client should correct the Figma source. */}
       <Hero
         eyebrow="VBL vs DRV"
         title="VBL and DRV are not the same pension"
-        body="A DRV refund only covers statutory German state pension contributions paid into Deutsche Rentenversicherung. It does not include VBL. If you worked in the German public sector and pid into VBL, your VBL refund needs a separate check."
+        body="A DRV refund only covers statutory German state pension contributions paid into Deutsche Rentenversicherung. It does not include VBL. If you worked in the German public sector and paid into VBL, your VBL refund needs a separate check."
         primaryCta={{ label: 'Check my VBL refund', href: START_HREF }}
         secondaryCta={{
           label: 'Compare company pension vs DRV',
