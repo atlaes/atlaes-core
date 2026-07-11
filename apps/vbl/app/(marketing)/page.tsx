@@ -266,11 +266,13 @@ function PricingCard({
   bullets: string[];
 }) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8 text-left shadow-sm">
-      <h3 className="text-2xl font-semibold text-brand">{title}</h3>
-      <p className="mt-4 text-base text-gray-600">{subtitle}</p>
-      <hr className="my-6 border-neutral-400" />
-      <Bullets items={bullets} />
+    <div className="flex h-full flex-col rounded-[20px] border border-neutral-300 bg-white p-10 text-left sm:p-12">
+      <h3 className="text-3xl font-bold text-brand">{title}</h3>
+      <p className="mt-4 text-base leading-relaxed text-gray-600">{subtitle}</p>
+      <hr className="my-8 border-t border-brand" />
+      <div className="[&>ul]:space-y-5">
+        <Bullets items={bullets} />
+      </div>
     </div>
   );
 }
@@ -798,16 +800,12 @@ export default function HomePage() {
       {/* ---- TRANSPARENT PRICING (Figma 1178:87) ---- */}
       <section className="relative overflow-hidden bg-neutral-50 text-brand">
         <Image
-          src="/marketing/shared/advisors-reviewing-documents-desk.png"
+          src="/marketing/home/pricing-desk-background.png"
           alt=""
           aria-hidden="true"
           fill
           sizes="100vw"
-          className="pointer-events-none absolute inset-0 select-none object-cover opacity-[0.08]"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-neutral-50/60"
+          className="pointer-events-none absolute inset-0 select-none object-cover opacity-[0.18] mix-blend-luminosity"
         />
         <div className={`relative ${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center">
