@@ -591,7 +591,7 @@ export default function HomePage() {
                 A refund means claiming back eligible employee contributions
                 from a contribution-based pension scheme.
               </p>
-              <p className="mt-8 text-sm font-semibold uppercase tracking-wide text-gray-500">
+              <p className="mt-8 text-base text-gray-600">
                 This usually applies to:
               </p>
               <div className="mt-4">
@@ -610,7 +610,7 @@ export default function HomePage() {
                 Pensionskasse, Pensionsfonds or another provider-based company
                 pension.
               </p>
-              <p className="mt-8 text-sm font-semibold uppercase tracking-wide text-gray-500">
+              <p className="mt-8 text-base text-gray-600">
                 This usually applies to:
               </p>
               <div className="mt-4">

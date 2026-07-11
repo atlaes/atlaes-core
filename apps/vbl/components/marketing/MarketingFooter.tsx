@@ -76,7 +76,7 @@ export function MarketingFooter() {
           </div>
         </div>
 
-        <div className="mt-16 max-w-4xl space-y-3 text-sm leading-relaxed text-white/60">
+        <div className="mx-auto mt-16 max-w-4xl space-y-3 text-center text-sm leading-relaxed text-white/60">
           <p>
             CompanyPension is a digital application platform and brand operated
             by ATLAES GmbH.
@@ -101,7 +101,7 @@ export function MarketingFooter() {
         </div>
 
         <div className="mt-12 border-t border-white/10 pt-8">
-          <p className="text-sm text-white/60">
+          <p className="text-center text-sm font-semibold text-accent">
             Copyright © 2026 Company Pension. All rights reserved.
           </p>
         </div>
