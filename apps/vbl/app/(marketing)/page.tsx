@@ -230,26 +230,36 @@ function PensionCard({
 /** Numbered process step card (How it works). */
 function StepCard({
   number,
+  iconSrc,
   title,
   body,
   className = '',
 }: {
   number: string;
+  iconSrc: string;
   title: string;
   body: string;
   className?: string;
 }) {
   return (
     <div
-      className={`relative flex flex-col rounded-2xl border border-neutral-400 bg-white p-8 ${className}`}
+      className={`relative flex flex-col rounded-[10px] border-2 border-[#e7e7e7] bg-white p-8 ${className}`}
     >
       <span
         aria-hidden="true"
-        className="absolute right-6 top-6 text-4xl font-bold text-accent"
+        className="absolute right-8 top-6 text-4xl font-bold text-[#5c5c5c]"
       >
         {number}
       </span>
-      <h3 className="mt-10 text-xl font-semibold text-brand">{title}</h3>
+      {/* Brand-green badge with knocked-out glyph (Figma "Subtract").
+          eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={iconSrc}
+        alt=""
+        aria-hidden="true"
+        className="h-10 w-10 object-contain"
+      />
+      <h3 className="mt-6 text-xl font-semibold text-brand">{title}</h3>
       <p className="mt-4 text-base leading-relaxed text-gray-600">{body}</p>
     </div>
   );
@@ -700,9 +710,8 @@ export default function HomePage() {
       {/* ---- HOW IT WORKS (Figma 1174:1679) ---- */}
       <section className="bg-neutral-50">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="text-brand">
+          <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
-              align="left"
               title="How it works"
               body="A guided online process from the first check to signing, submission and provider follow-up."
             />
@@ -711,26 +720,31 @@ export default function HomePage() {
           <div className="mt-14 grid gap-6 md:grid-cols-2">
             <StepCard
               number="01"
+              iconSrc="/marketing/icons/step-check.svg"
               title="Check what can be started"
               body="Choose your pension type or provider and answer a few questions. The platform checks whether a bAV cash-out or refund may be possible."
             />
             <StepCard
               number="02"
+              iconSrc="/marketing/icons/step-secure.svg"
               title="Secure your claim"
               body="Create secure access, review the pricing and pay the €199 deposit to activate the full process. The deposit is credited toward your final service fee."
             />
             <StepCard
               number="03"
+              iconSrc="/marketing/icons/step-documents.svg"
               title="Add your documents and details"
               body="Add your ID, bank account and pension information from documents such as a VBL letter, provider statement, bAV contract or Direktversicherung document."
             />
             <StepCard
               number="04"
+              iconSrc="/marketing/icons/step-sign.svg"
               title="Review, sign and submit online"
               body="Check your details and sign the application yourself. After you sign, ATLAES GmbH technically transmits it to the relevant provider or pension scheme."
             />
             <StepCard
               number="05"
+              iconSrc="/marketing/icons/step-payout.svg"
               title="Provider review and payout"
               body="The provider or pension scheme reviews your request. Correspondence can run through CompanyPension when clarification or follow-up is needed. If approved, the money is paid directly to the bank account you provide."
               className="md:col-span-2 md:mx-auto md:w-[calc(50%-12px)]"
