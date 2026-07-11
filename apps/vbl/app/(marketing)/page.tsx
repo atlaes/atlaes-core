@@ -881,17 +881,18 @@ export default function HomePage() {
 
       {/* ---- DRV refund and bAV cash-out (Figma 1179:1874) ---- */}
       <section className="relative overflow-hidden bg-neutral-50">
-        <Image
-          src="/marketing/shared/berlin-landmark-building-landscape.png"
+        {/* Plain img: next/image's dev optimizer renders this large asset
+            blank here; the direct PNG paints reliably. eslint-disable-next-line
+            @next/next/no-img-element */}
+        <img
+          src="/marketing/home/drv-altes-museum-background.png"
           alt=""
           aria-hidden="true"
-          fill
-          sizes="100vw"
-          className="pointer-events-none absolute inset-0 select-none object-cover object-right opacity-[0.12]"
+          className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-right opacity-50 grayscale"
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-gradient-to-l from-neutral-50/40 via-neutral-50/85 to-neutral-50"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-l from-neutral-50/10 from-25% to-neutral-50 to-72%"
         />
         <div className={`relative ${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
