@@ -82,7 +82,7 @@ export function FeatureCard({
       ) : null}
 
       {note ? (
-        <div className="mt-6 rounded-brand bg-neutral-50 px-4 py-3 text-sm text-gray-600">
+        <div className="mt-6 rounded-brand border border-accent/50 bg-accent/10 px-4 py-3 text-sm text-gray-700">
           {note}
         </div>
       ) : null}
