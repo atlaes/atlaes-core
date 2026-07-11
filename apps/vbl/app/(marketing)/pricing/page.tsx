@@ -178,6 +178,9 @@ function InfoNote({
 
 // ---------------------------------------------------------------------------
 // Page (Figma frame 1187:3965 — "Pricing")
+// Section order follows the design's vertical order: pricing cards →
+// example calculations → why the two models differ → your deposit →
+// after approval → approved money → FAQ → CTA.
 // ---------------------------------------------------------------------------
 
 export default function PricingPage() {
@@ -264,39 +267,8 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* ---- AFTER APPROVAL (Figma 1190:7836) ---- */}
-      <section className="bg-neutral-50">
-        <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
-            <SectionHeading
-              eyebrow="After approval"
-              title="When is the remaining service fee due?"
-              body="Only after your cash-out or refund is approved."
-            />
-          </div>
-
-          <div className="mx-auto mt-14 grid max-w-5xl gap-8 lg:grid-cols-2">
-            <ApprovalCard
-              title="Company pension cash-out"
-              body="If your bAV cash-out is approved, the 9.75% success fee is calculated from the approved cash-out amount. Your €199 deposit is deducted, and only the remaining service fee becomes due."
-            />
-            <ApprovalCard
-              title="VBL, ZVK, VddB and VddKO refund"
-              body="If your refund is approved, the 9.75% success fee is calculated from the approved refund amount. Your €199 deposit is deducted, and only the remaining service fee becomes due."
-            />
-          </div>
-
-          <div className="mx-auto mt-10 max-w-5xl">
-            <InfoNote tone="green">
-              If the deposit already covers the minimum total service fee, there
-              is no remaining fee after approval.
-            </InfoNote>
-          </div>
-        </div>
-      </section>
-
       {/* ---- EXAMPLE FEE CALCULATIONS (Figma 1190:6861) ---- */}
-      <section className="bg-white">
+      <section className="bg-neutral-50">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -344,6 +316,61 @@ export default function PricingPage() {
             These examples are for illustration only. Your final fee depends on
             the approved amount and the pricing rules shown before payment.
           </p>
+        </div>
+      </section>
+
+      {/* ---- WHY THE TWO PRICING MODELS ARE DIFFERENT (Figma 1187:5174) ---- */}
+      <section className="bg-white">
+        <div className={`${CONTAINER} py-20 sm:py-24`}>
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-brand aspect-[553/767] lg:order-1">
+              {/* Large section photo — plain <img> (next/image fill renders big
+                  background PNGs blank in the dev optimizer). */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/marketing/pricing/pricing-models-photo.png"
+                alt="A person at a laptop with document review, provider analysis, value assessment and case handling steps shown as floating cards"
+                className="h-full w-full object-cover object-[62%_center]"
+              />
+            </div>
+
+            <div className="text-brand lg:order-2">
+              <SectionHeading
+                align="left"
+                title="Why the Two Pricing Models Are Different"
+              />
+              <p className="mt-5 text-lg font-semibold leading-relaxed text-brand">
+                Refund claims and private-sector lump-sum payout claims are not
+                the same service.
+              </p>
+              <div className="mt-5 space-y-4 text-base leading-relaxed text-gray-600">
+                <p>
+                  A refund claim is usually about checking whether employee-paid
+                  contributions can be reclaimed under the scheme rules.
+                </p>
+                <p>
+                  A private-sector payout claim is usually about checking
+                  whether a pension entitlement can be paid out as a lump sum,
+                  which often requires:
+                </p>
+              </div>
+              <div className="mt-6">
+                <CheckBullets
+                  items={[
+                    'Document review',
+                    'Provider analysis',
+                    'Value assessment',
+                    'Case handling even when no payout is achieved',
+                  ]}
+                />
+              </div>
+              <p className="mt-6 text-base leading-relaxed text-gray-600">
+                That is why refund claims use a fully refundable deposit if the
+                refund is not possible, while private-sector payout claims use a
+                model with €79 retained if no payout is achieved.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -402,8 +429,39 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* ---- APPROVED MONEY PAID DIRECTLY (Figma 1199:8629) ---- */}
+      {/* ---- AFTER APPROVAL (Figma 1190:7836) ---- */}
       <section className="bg-white">
+        <div className={`${CONTAINER} py-20 sm:py-24`}>
+          <div className="flex flex-col items-center text-center text-brand">
+            <SectionHeading
+              eyebrow="After approval"
+              title="When is the remaining service fee due?"
+              body="Only after your cash-out or refund is approved."
+            />
+          </div>
+
+          <div className="mx-auto mt-14 grid max-w-5xl gap-8 lg:grid-cols-2">
+            <ApprovalCard
+              title="Company pension cash-out"
+              body="If your bAV cash-out is approved, the 9.75% success fee is calculated from the approved cash-out amount. Your €199 deposit is deducted, and only the remaining service fee becomes due."
+            />
+            <ApprovalCard
+              title="VBL, ZVK, VddB and VddKO refund"
+              body="If your refund is approved, the 9.75% success fee is calculated from the approved refund amount. Your €199 deposit is deducted, and only the remaining service fee becomes due."
+            />
+          </div>
+
+          <div className="mx-auto mt-10 max-w-5xl">
+            <InfoNote tone="green">
+              If the deposit already covers the minimum total service fee, there
+              is no remaining fee after approval.
+            </InfoNote>
+          </div>
+        </div>
+      </section>
+
+      {/* ---- APPROVED MONEY PAID DIRECTLY (Figma 1199:8629) ---- */}
+      <section className="bg-neutral-50">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div className="text-brand">
@@ -429,7 +487,7 @@ export default function PricingPage() {
               </div>
             </div>
 
-            <div className="aspect-[4/5] overflow-hidden rounded-2xl">
+            <div className="aspect-[563/527] overflow-hidden rounded-2xl border border-neutral-200">
               <Image
                 src="/marketing/pricing/pricing-asset-03.png"
                 alt="A person holding a phone showing a 'Money Received' confirmation"
@@ -443,7 +501,7 @@ export default function PricingPage() {
       </section>
 
       {/* ---- FAQ (Figma 1199:9304 — questions from rendered canvas) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading title="Frequently asked questions" />
