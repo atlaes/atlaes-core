@@ -4,16 +4,10 @@ import Image from 'next/image';
 import {
   ArrowRight,
   BadgeEuro,
-  Calculator,
-  Check,
-  ClipboardCheck,
-  Drama,
   Info,
-  Landmark,
   Laptop,
   MessageCircle,
   Undo2,
-  Wallet,
   Waypoints,
 } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
@@ -234,9 +228,7 @@ function PensionCard({
 }) {
   return (
     <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
-      <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-brand text-accent">
-        {icon}
-      </div>
+      <div className="mb-6">{icon}</div>
       <h3 className="text-2xl font-semibold text-brand">{title}</h3>
       <p className="mt-4 flex-1 text-base leading-relaxed text-gray-600">
         {body}
@@ -490,7 +482,15 @@ export default function HomePage() {
               />
             </div>
             <PensionCard
-              icon={<Wallet className="h-8 w-8" aria-hidden="true" />}
+              icon={
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src="/marketing/icons/pension-bav.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-[60px] w-[60px]"
+                />
+              }
               title="bAV / Company pension cash-out"
               body="Have a bAV or company pension from a previous job in Germany? Check whether a cash-out may be possible, including contracts from Allianz, AXA, Swiss Life, ERGO, R+V, Nürnberger, HDI, BVV and other providers."
               primary={{ label: 'Start bAV cash-out', href: '/get-started' }}
@@ -500,7 +500,15 @@ export default function HomePage() {
               }}
             />
             <PensionCard
-              icon={<Landmark className="h-8 w-8" aria-hidden="true" />}
+              icon={
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src="/marketing/icons/pension-vbl.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-[60px] w-[60px]"
+                />
+              }
               title="VBL & ZVK refunds"
               body="Paid into VBLklassik, a ZVK or another public-sector company pension while working in Germany? Start your refund online and apply to get eligible employee contributions back."
               primary={{ label: 'Start VBL/ZVK refund', href: '/get-started' }}
@@ -510,7 +518,15 @@ export default function HomePage() {
               }}
             />
             <PensionCard
-              icon={<Drama className="h-8 w-8" aria-hidden="true" />}
+              icon={
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src="/marketing/icons/pension-vddb.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-[60px] w-[60px]"
+                />
+              }
               title="VddB & VddKO refunds"
               body="Worked in theatre, opera, musicals, dance or orchestra employment and paid into VddB or VddKO? Start your refund online through a guided digital flow."
               primary={{
