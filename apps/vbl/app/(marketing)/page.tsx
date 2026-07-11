@@ -1,14 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import {
-  ArrowRight,
-  BadgeEuro,
-  Info,
-  Laptop,
-  MessageCircle,
-  Waypoints,
-} from 'lucide-react';
+import { ArrowRight, Info } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
 import { SectionHeading } from '@/components/marketing/SectionHeading';
 import { CtaBand } from '@/components/marketing/CtaBand';
@@ -541,11 +534,11 @@ export default function HomePage() {
           aria-hidden="true"
           fill
           sizes="100vw"
-          className="pointer-events-none absolute inset-0 select-none object-cover object-left opacity-20"
+          className="pointer-events-none absolute inset-0 select-none object-cover object-left opacity-40"
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand/70 via-brand/90 to-brand"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand/40 via-brand/85 to-brand"
         />
         <div className={`relative ${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center">
@@ -555,22 +548,22 @@ export default function HomePage() {
           </div>
           <div className="mx-auto mt-12 grid max-w-4xl gap-x-10 gap-y-8 sm:grid-cols-2">
             <FeatureRow
-              icon={<Waypoints className="h-8 w-8" aria-hidden="true" />}
+              iconSrc="/marketing/icons/feature-guided.svg"
               title="Smart guided process"
               body="Start online and follow clear steps for your bAV cash-out or company pension refund."
             />
             <FeatureRow
-              icon={<Laptop className="h-8 w-8" aria-hidden="true" />}
+              iconSrc="/marketing/icons/feature-signing.svg"
               title="Digital application and signing"
               body="The platform uses the information you provide to complete your application. You review and sign it yourself before it is technically transmitted to the relevant provider or pension scheme."
             />
             <FeatureRow
-              icon={<MessageCircle className="h-8 w-8" aria-hidden="true" />}
+              iconSrc="/marketing/icons/feature-support.svg"
               title="Human support when needed"
               body="Human support is available when clarification, translation or follow-up is needed."
             />
             <FeatureRow
-              icon={<BadgeEuro className="h-8 w-8" aria-hidden="true" />}
+              iconSrc="/marketing/icons/feature-payout.svg"
               title="Money paid to your account"
               body="If approved, the money is paid directly to the bank account you provide. CompanyPension does not receive, hold or forward approved pension money."
             />
@@ -956,19 +949,23 @@ export default function HomePage() {
 
 /** Small icon + title + body row used in the "What CompanyPension does" grid. */
 function FeatureRow({
-  icon,
+  iconSrc,
   title,
   body,
 }: {
-  icon: ReactNode;
+  iconSrc: string;
   title: string;
   body: string;
 }) {
   return (
-    <div className="flex gap-4">
-      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/10 text-accent">
-        {icon}
-      </div>
+    <div className="flex items-center gap-5">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={iconSrc}
+        alt=""
+        aria-hidden="true"
+        className="h-[70px] w-[70px] shrink-0 object-contain"
+      />
       <div>
         <h3 className="text-lg font-semibold text-white">{title}</h3>
         <p className="mt-2 text-sm leading-relaxed text-white/75">{body}</p>
