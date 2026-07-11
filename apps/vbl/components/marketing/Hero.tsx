@@ -61,11 +61,13 @@ export function Hero({
 }: HeroProps) {
   return (
     <section className="relative overflow-hidden bg-brand text-white">
-      {/* Hero background: faded 96px block grid exported from Figma
-          (node 1181:1998) layered over the brand fill, plus a radial glow.
-          Callers (e.g. the Home page) may override with a different
-          background image and suppress the default glow overlays below
-          when that image already bakes in its own lighting. */}
+      {/* Hero background: either the code-rendered animated grid
+          (HeroGridBackground — grid + diagonal wave + its own corner glows,
+          used by Home via `animatedGridBackground`) or the faded 96px
+          block-grid PNG exported from Figma (node 1181:1998) layered over
+          the brand fill. Image callers may override the file via
+          `backgroundImageSrc` and enable the default CSS radial-glow
+          overlays below with `showDefaultGlows`. */}
       {animatedGridBackground ? (
         <HeroGridBackground />
       ) : (

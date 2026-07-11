@@ -20,6 +20,10 @@ const WAVE_DURATION_S = 10; // must match .hero-grid-wave-cell in globals.css
 // (COLS - 1) + (ROWS - 1) = 34, so step = duration / 35.
 const DELAY_STEP_S = WAVE_DURATION_S / (COLS + ROWS - 1);
 
+/** Peak wave highlight and static lit-cell tint — identical by design so
+ * the traveling crest matches the scatter's intensity (#9fe870 at 5%). */
+const CELL_HIGHLIGHT = 'rgba(159,232,112,0.05)';
+
 /** Statically-lit cells ([col, row]), mirroring the irregular scatter of
  * slightly lighter squares in the photographic export. Hard-coded (not
  * random) so server and client render identical markup. */
@@ -50,7 +54,7 @@ function cellDelaySeconds(col: number, row: number): number {
 }
 
 export function HeroGridBackground() {
-  const cells = [];
+  const cells: JSX.Element[] = [];
   for (let row = 0; row < ROWS; row++) {
     for (let col = 0; col < COLS; col++) {
       const isLit = LIT_CELL_SET.has(`${col}:${row}`);
@@ -58,14 +62,12 @@ export function HeroGridBackground() {
         <div
           key={`${col}:${row}`}
           className="relative border-l border-t border-white/[0.04]"
-          style={
-            isLit ? { backgroundColor: 'rgba(159,232,112,0.05)' } : undefined
-          }
+          style={isLit ? { backgroundColor: CELL_HIGHLIGHT } : undefined}
         >
           <div
             className="hero-grid-wave-cell absolute inset-0"
             style={{
-              backgroundColor: 'rgba(159,232,112,0.05)',
+              backgroundColor: CELL_HIGHLIGHT,
               animationDelay: `${cellDelaySeconds(col, row).toFixed(2)}s`,
             }}
           />
