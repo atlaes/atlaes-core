@@ -5,12 +5,10 @@ import Link from 'next/link';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { getClaim } from '@/lib/onboarding-api';
 
-// Legal links. No dedicated imprint/privacy routes exist in this app yet; the
-// only legal host referenced in the codebase is www.atlaes.de (see
-// apps/web/src/App.tsx). These slugs are assumptions to confirm with the
-// client — change them in one place here.
-export const IMPRINT_URL = 'https://www.atlaes.de/impressum';
-export const PRIVACY_URL = 'https://www.atlaes.de/datenschutz';
+// Legal links — internal marketing routes (kept in sync with
+// components/marketing/MarketingFooter.tsx).
+export const IMPRINT_URL = '/imprint';
+export const PRIVACY_URL = '/privacy-policy';
 
 // Withdrawal is offered from successful payment until 14 days after.
 const WITHDRAW_WINDOW_DAYS = 14;
