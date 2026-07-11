@@ -147,12 +147,17 @@ function InfoNote({ children }: { children: ReactNode }) {
 
 function Bullets({ items }: { items: string[] }) {
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-2.5">
       {items.map((item) => (
         <li key={item} className="flex items-start gap-3 text-gray-700">
-          <Check
-            className="mt-0.5 h-5 w-5 shrink-0 text-brand"
+          {/* Figma green-circle check (node 1172:1034) — brand circle +
+              accent tick baked into the SVG. eslint-disable-next-line
+              @next/next/no-img-element */}
+          <img
+            src="/marketing/icons/check-bullet.svg"
+            alt=""
             aria-hidden="true"
+            className="mt-1 h-5 w-5 shrink-0"
           />
           <span className="text-base">{item}</span>
         </li>
@@ -188,13 +193,11 @@ function FunnelCard({
   note?: string;
 }) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
-      <IconCircle>{icon}</IconCircle>
+    <div className="flex h-full flex-col rounded-[20px] border-2 border-gray-300 bg-neutral-50 p-8 sm:p-10">
+      <div className="mb-6">{icon}</div>
       <h3 className="text-2xl font-semibold text-brand">{title}</h3>
       <p className="mt-4 text-base leading-relaxed text-gray-600">{body}</p>
-      <p className="mt-8 text-sm font-semibold uppercase tracking-wide text-gray-500">
-        {bulletsLabel}
-      </p>
+      <p className="mt-8 text-base text-gray-600">{bulletsLabel}</p>
       <div className="mt-4">
         <Bullets items={bullets} />
       </div>
@@ -436,7 +439,15 @@ export default function HomePage() {
 
           <div className="mt-14 grid gap-8 lg:grid-cols-2">
             <FunnelCard
-              icon={<ClipboardCheck className="h-8 w-8" aria-hidden="true" />}
+              icon={
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src="/marketing/icons/start-cashout-icon.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-[72px] w-[72px]"
+                />
+              }
               title="Start your cash-out or refund"
               body="Answer a few guided questions or upload your pension document. If your case may be possible, create secure access and continue with the full online process."
               bulletsLabel="Use this route for:"
@@ -447,7 +458,15 @@ export default function HomePage() {
               cta={{ label: 'Start your claim', href: '/get-started' }}
             />
             <FunnelCard
-              icon={<Calculator className="h-8 w-8" aria-hidden="true" />}
+              icon={
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src="/marketing/icons/estimate-refund-icon.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-[72px] w-[72px]"
+                />
+              }
               title="Estimate your refund first"
               body="Upload a pension document or enter your information manually to get a first refund estimate. You can continue into the full online process afterwards."
               bulletsLabel="Available for:"
