@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Check } from 'lucide-react';
 
 interface CardCta {
   label: string;
@@ -9,6 +8,10 @@ interface CardCta {
 
 export interface FeatureCardProps {
   icon: ReactNode;
+  /** Optional self-badged Figma icon (SVG that already includes the dark
+   * circle + accent glyph). When set, it renders directly in place of the
+   * light `icon` badge below. */
+  iconImageSrc?: string;
   title: ReactNode;
   body: ReactNode;
   bullets?: string[];
@@ -28,6 +31,7 @@ export interface FeatureCardProps {
  */
 export function FeatureCard({
   icon,
+  iconImageSrc,
   title,
   body,
   bullets,
@@ -38,9 +42,19 @@ export function FeatureCard({
 }: FeatureCardProps) {
   return (
     <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
-      <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-accent/20 text-brand">
-        {icon}
-      </div>
+      {iconImageSrc ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={iconImageSrc}
+          alt=""
+          aria-hidden="true"
+          className="mb-6 h-16 w-16"
+        />
+      ) : (
+        <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-accent/20 text-brand">
+          {icon}
+        </div>
+      )}
 
       <h3 className="text-xl font-semibold text-brand">{title}</h3>
 
@@ -54,9 +68,12 @@ export function FeatureCard({
         <ul className={`${bulletsLabel ? 'mt-3' : 'mt-6'} space-y-3`}>
           {bullets.map((bullet) => (
             <li key={bullet} className="flex items-start gap-3 text-gray-700">
-              <Check
-                className="mt-0.5 h-5 w-5 shrink-0 text-brand"
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/marketing/icons/check-bullet.svg"
+                alt=""
                 aria-hidden="true"
+                className="mt-1 h-5 w-5 shrink-0"
               />
               <span className="text-base">{bullet}</span>
             </li>

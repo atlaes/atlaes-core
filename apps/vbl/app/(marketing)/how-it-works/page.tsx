@@ -338,7 +338,8 @@ export default function HowItWorksPage() {
 
           <div className="mt-14 grid gap-8 lg:grid-cols-2">
             <FeatureCard
-              icon={<ClipboardCheck className="h-7 w-7" aria-hidden="true" />}
+              icon={null}
+              iconImageSrc="/marketing/icons/start-cashout-icon.svg"
               title="Start your cash-out or refund"
               body="Upload a pension document or answer a few guided questions. If your case may be possible, create secure access and continue through the full online process."
               bulletsLabel="Available for:"
@@ -350,7 +351,8 @@ export default function HowItWorksPage() {
               cta={{ label: 'Start your claim', href: '/get-started' }}
             />
             <FeatureCard
-              icon={<Calculator className="h-7 w-7" aria-hidden="true" />}
+              icon={null}
+              iconImageSrc="/marketing/icons/estimate-refund-icon.svg"
               title="Estimate your refund first"
               body="Upload a pension document or enter your information manually to receive a first refund estimate. You can create secure access and continue into the full application process afterwards."
               bulletsLabel="Available for:"
