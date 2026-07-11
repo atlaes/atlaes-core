@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { HeroGridBackground } from './HeroGridBackground';
 
 interface CtaLink {
   label: string;
@@ -28,6 +29,10 @@ export interface HeroProps {
   /** When the override background already bakes in its own glow lighting,
    * pass `false` to suppress the default CSS radial-glow overlays below. */
   showDefaultGlows?: boolean;
+  /** Render the code-based animated grid background (grid + wave + its own
+   * corner glows) instead of the background image. Used by the Home page;
+   * carries its own lighting, so pair with `showDefaultGlows={false}`. */
+  animatedGridBackground?: boolean;
   /** Optional extra content rendered inside this same section, below the
    * centered copy column (e.g. Home's app mockups) — kept in the same
    * `overflow-hidden`/background box as the rest of the hero so there is
@@ -51,6 +56,7 @@ export function Hero({
   image,
   backgroundImageSrc = '/marketing/home/hero-background.png',
   showDefaultGlows = false,
+  animatedGridBackground = false,
   children,
 }: HeroProps) {
   return (
@@ -60,15 +66,19 @@ export function Hero({
           Callers (e.g. the Home page) may override with a different
           background image and suppress the default glow overlays below
           when that image already bakes in its own lighting. */}
-      <Image
-        src={backgroundImageSrc}
-        alt=""
-        aria-hidden="true"
-        fill
-        priority
-        sizes="100vw"
-        className="pointer-events-none absolute inset-0 select-none object-cover object-top"
-      />
+      {animatedGridBackground ? (
+        <HeroGridBackground />
+      ) : (
+        <Image
+          src={backgroundImageSrc}
+          alt=""
+          aria-hidden="true"
+          fill
+          priority
+          sizes="100vw"
+          className="pointer-events-none absolute inset-0 select-none object-cover object-top"
+        />
+      )}
       {/* Hero radial light: bright yellow-green source in the TOP-LEFT
           corner, fading diagonally toward the dark bottom-right (Figma).
           A softer bloom sits in the bottom-right (added on the mockup
