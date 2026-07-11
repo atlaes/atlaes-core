@@ -14,6 +14,19 @@ test('home renders hero, nav and funnel CTAs', async ({ page }) => {
   await expect(calcCta).toHaveAttribute('href', '/calculator');
 });
 
+test('home hero shows the two app mockup windows', async ({ page }) => {
+  await page.goto('/');
+  // Both mockup windows anchored at the bottom of the dark hero (side-by-side
+  // at >=lg). Desktop Chrome (1280px) renders the lg block, which is first in
+  // the DOM, so .first() targets the visible instance.
+  await expect(
+    page.getByRole('img', { name: /create your secure claim/i }).first()
+  ).toBeVisible();
+  await expect(
+    page.getByRole('img', { name: /refund request submitted/i }).first()
+  ).toBeVisible();
+});
+
 test('home no longer force-redirects to /auth', async ({ page }) => {
   await page.goto('/');
   await page.waitForTimeout(1500);

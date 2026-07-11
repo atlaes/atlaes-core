@@ -325,6 +325,57 @@ export default function HomePage() {
         }
       />
 
+      {/* ---- HERO APP MOCKUPS (Figma 1181:2451 + 1181:2365) ----
+          Two app-UI windows anchored to the bottom of the dark hero, per the
+          design. The exported PNGs are pre-clipped at the hero's bottom edge
+          (flat bottoms), so the windows are bottom-aligned; the taller "refund
+          submitted" window extends higher and starts ~53px above the sign-in
+          window. Design frame (1920px): left window x=390 w=562, right window
+          x=972 w=559, ~20px gap, the ~1141px block sits centered. Composed here
+          (not via the Hero image prop, which is a single centered image) so the
+          shared Hero stays unchanged for other pages. */}
+      <section className="relative overflow-hidden bg-brand">
+        <div className={`relative ${CONTAINER} pt-6`}>
+          {/* lg+: side-by-side, bottom-aligned, at design proportions */}
+          <div className="relative mx-auto hidden aspect-[1141/370] w-full max-w-[1141px] lg:block">
+            <Image
+              src="/marketing/home/hero-mockup-secure-claim.png"
+              alt="CompanyPension app — create your secure claim sign-in screen"
+              width={562}
+              height={317}
+              priority
+              className="absolute bottom-0 left-0 h-auto w-[49.25%] drop-shadow-2xl"
+            />
+            <Image
+              src="/marketing/home/hero-mockup-refund-submitted.png"
+              alt="CompanyPension app — refund request submitted confirmation screen"
+              width={559}
+              height={370}
+              priority
+              className="absolute bottom-0 right-0 h-auto w-[48.99%] drop-shadow-2xl"
+            />
+          </div>
+
+          {/* < lg: stacked single column, no horizontal overflow */}
+          <div className="mx-auto flex max-w-[562px] flex-col gap-6 lg:hidden">
+            <Image
+              src="/marketing/home/hero-mockup-secure-claim.png"
+              alt="CompanyPension app — create your secure claim sign-in screen"
+              width={562}
+              height={317}
+              className="h-auto w-full drop-shadow-2xl"
+            />
+            <Image
+              src="/marketing/home/hero-mockup-refund-submitted.png"
+              alt="CompanyPension app — refund request submitted confirmation screen"
+              width={559}
+              height={370}
+              className="h-auto w-full drop-shadow-2xl"
+            />
+          </div>
+        </div>
+      </section>
+
       {/* ---- GET STARTED (Figma 1171:393) ---- */}
       <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
