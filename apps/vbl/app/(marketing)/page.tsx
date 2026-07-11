@@ -364,15 +364,21 @@ export default function HomePage() {
             }}
           />
           <div className={`relative ${CONTAINER} pt-0`}>
-            {/* lg+: side-by-side, bottom-aligned, at design proportions */}
-            <div className="relative mx-auto hidden aspect-[1141/370] w-full max-w-[1141px] lg:block">
+            {/* lg+: side-by-side, TOP-anchored inside a fixed-height box that
+                is shorter than the tablet images, so the hero section's
+                `overflow-hidden` slices their bottoms — the windows read as
+                continuing below the fold (per Figma) instead of resting as
+                whole tablets on the green. The right ("refund submitted")
+                window starts flush at the top; the left ("secure claim")
+                window starts ~52px lower, matching the design's stagger. */}
+            <div className="relative mx-auto hidden h-[300px] w-full max-w-[1141px] lg:block xl:h-[330px]">
               <Image
                 src="/marketing/home/hero-mockup-secure-claim.png"
                 alt="CompanyPension app — create your secure claim sign-in screen"
                 width={562}
                 height={317}
                 priority
-                className="absolute bottom-0 left-0 h-auto w-[49.25%] drop-shadow-2xl"
+                className="absolute left-0 top-[52px] h-auto w-[49.25%] drop-shadow-2xl"
               />
               <Image
                 src="/marketing/home/hero-mockup-refund-submitted.png"
@@ -380,7 +386,7 @@ export default function HomePage() {
                 width={559}
                 height={370}
                 priority
-                className="absolute bottom-0 right-0 h-auto w-[48.99%] drop-shadow-2xl"
+                className="absolute right-0 top-0 h-auto w-[48.99%] drop-shadow-2xl"
               />
             </div>
 
