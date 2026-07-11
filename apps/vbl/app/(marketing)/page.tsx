@@ -303,7 +303,15 @@ function PricingCard({
 export default function HomePage() {
   return (
     <>
-      {/* ---- HERO (Figma 1181:1997) ---- */}
+      {/* ---- HERO (Figma 1181:1997) ----
+          Background swapped to the dedicated "HERO- Background" node
+          (Figma 1425:68): a photographic capture with a baked-in bright
+          yellow-green glow in the TOP-RIGHT corner and a softer glow in
+          the BOTTOM-LEFT corner, replacing the grid-PNG + CSS glow combo
+          used by every other marketing page. The default glow overlays
+          are suppressed here (showDefaultGlows=false) since the photo
+          already carries that lighting; other pages keep the shared
+          Hero's default background untouched. */}
       <Hero
         eyebrow="Worked in Germany and have a company pension?"
         title="Cash out or refund your German"
@@ -311,6 +319,8 @@ export default function HomePage() {
         body="For bAV cash-outs and VBL, ZVK, VddB and VddKO refunds. Check your case, add your documents, sign and submit online, with human support when clarification or follow-up is needed."
         primaryCta={{ label: 'Start your claim', href: '/get-started' }}
         secondaryCta={{ label: 'See how it works', href: '/how-it-works' }}
+        backgroundImageSrc="/marketing/home/hero-background-photo.png"
+        showDefaultGlows={false}
         footnote={
           <>
             <p>
@@ -323,69 +333,77 @@ export default function HomePage() {
             </p>
           </>
         }
-      />
+      >
+        {/* ---- HERO APP MOCKUPS (Figma 1181:2451 + 1181:2365) ----
+            Two app-UI windows anchored to the bottom of the dark hero, per
+            the design. The exported PNGs are pre-clipped at the hero's
+            bottom edge (flat bottoms), so the windows are bottom-aligned;
+            the taller "refund submitted" window extends higher and starts
+            ~53px above the sign-in window. Design frame (1920px): left
+            window x=390 w=562, right window x=972 w=559, ~20px gap, the
+            ~1141px block sits centered. Rendered as Hero's `children` (same
+            section, same overflow-hidden/background box) rather than a
+            second section stitched on with a matching bg-brand color and a
+            negative margin — that seam is what previously made the
+            mockups read as a separate band; now the hero's dark background
+            and glow genuinely extend behind them, and the section's own
+            bottom edge (right after the mockups) is what visually "clips"
+            them, with nothing overlapping the white section below. */}
+        <div className="relative -mt-8 sm:-mt-14">
+          {/* Softer light bloom in the bottom-left, continuing the hero
+              photo's bottom-left glow behind the tablet mockups so they
+              read as one integrated hero. Agrees with the new hero
+              background's corners (bright top-right, soft bottom-left; no
+              top-left glow anywhere). */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -left-40 bottom-0 h-[560px] w-[920px] rounded-full"
+            style={{
+              background:
+                'radial-gradient(ellipse at center, rgba(159,232,112,0.16) 0%, transparent 70%)',
+            }}
+          />
+          <div className={`relative ${CONTAINER} pt-0`}>
+            {/* lg+: side-by-side, bottom-aligned, at design proportions */}
+            <div className="relative mx-auto hidden aspect-[1141/370] w-full max-w-[1141px] lg:block">
+              <Image
+                src="/marketing/home/hero-mockup-secure-claim.png"
+                alt="CompanyPension app — create your secure claim sign-in screen"
+                width={562}
+                height={317}
+                priority
+                className="absolute bottom-0 left-0 h-auto w-[49.25%] drop-shadow-2xl"
+              />
+              <Image
+                src="/marketing/home/hero-mockup-refund-submitted.png"
+                alt="CompanyPension app — refund request submitted confirmation screen"
+                width={559}
+                height={370}
+                priority
+                className="absolute bottom-0 right-0 h-auto w-[48.99%] drop-shadow-2xl"
+              />
+            </div>
 
-      {/* ---- HERO APP MOCKUPS (Figma 1181:2451 + 1181:2365) ----
-          Two app-UI windows anchored to the bottom of the dark hero, per the
-          design. The exported PNGs are pre-clipped at the hero's bottom edge
-          (flat bottoms), so the windows are bottom-aligned; the taller "refund
-          submitted" window extends higher and starts ~53px above the sign-in
-          window. Design frame (1920px): left window x=390 w=562, right window
-          x=972 w=559, ~20px gap, the ~1141px block sits centered. Composed here
-          (not via the Hero image prop, which is a single centered image) so the
-          shared Hero stays unchanged for other pages. */}
-      <section className="relative -mt-8 overflow-hidden bg-brand sm:-mt-14">
-        {/* Softer light bloom in the bottom-right, continuing the hero's
-            diagonal glow behind the tablet mockups so they read as one
-            integrated hero rather than a separate band. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-40 bottom-0 h-[560px] w-[920px] rounded-full"
-          style={{
-            background:
-              'radial-gradient(ellipse at center, rgba(159,232,112,0.16) 0%, transparent 70%)',
-          }}
-        />
-        <div className={`relative ${CONTAINER} pt-0`}>
-          {/* lg+: side-by-side, bottom-aligned, at design proportions */}
-          <div className="relative mx-auto hidden aspect-[1141/370] w-full max-w-[1141px] lg:block">
-            <Image
-              src="/marketing/home/hero-mockup-secure-claim.png"
-              alt="CompanyPension app — create your secure claim sign-in screen"
-              width={562}
-              height={317}
-              priority
-              className="absolute bottom-0 left-0 h-auto w-[49.25%] drop-shadow-2xl"
-            />
-            <Image
-              src="/marketing/home/hero-mockup-refund-submitted.png"
-              alt="CompanyPension app — refund request submitted confirmation screen"
-              width={559}
-              height={370}
-              priority
-              className="absolute bottom-0 right-0 h-auto w-[48.99%] drop-shadow-2xl"
-            />
-          </div>
-
-          {/* < lg: stacked single column, no horizontal overflow */}
-          <div className="mx-auto flex max-w-[562px] flex-col gap-6 lg:hidden">
-            <Image
-              src="/marketing/home/hero-mockup-secure-claim.png"
-              alt="CompanyPension app — create your secure claim sign-in screen"
-              width={562}
-              height={317}
-              className="h-auto w-full drop-shadow-2xl"
-            />
-            <Image
-              src="/marketing/home/hero-mockup-refund-submitted.png"
-              alt="CompanyPension app — refund request submitted confirmation screen"
-              width={559}
-              height={370}
-              className="h-auto w-full drop-shadow-2xl"
-            />
+            {/* < lg: stacked single column, no horizontal overflow */}
+            <div className="mx-auto flex max-w-[562px] flex-col gap-6 lg:hidden">
+              <Image
+                src="/marketing/home/hero-mockup-secure-claim.png"
+                alt="CompanyPension app — create your secure claim sign-in screen"
+                width={562}
+                height={317}
+                className="h-auto w-full drop-shadow-2xl"
+              />
+              <Image
+                src="/marketing/home/hero-mockup-refund-submitted.png"
+                alt="CompanyPension app — refund request submitted confirmation screen"
+                width={559}
+                height={370}
+                className="h-auto w-full drop-shadow-2xl"
+              />
+            </div>
           </div>
         </div>
-      </section>
+      </Hero>
 
       {/* ---- GET STARTED (Figma 1171:393) ---- */}
       <section className="bg-white">

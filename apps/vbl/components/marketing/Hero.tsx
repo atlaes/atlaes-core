@@ -22,6 +22,17 @@ export interface HeroProps {
     width: number;
     height: number;
   };
+  /** Optional override for the hero's background image (defaults to the
+   * grid-pattern PNG used by every other marketing page). */
+  backgroundImageSrc?: string;
+  /** When the override background already bakes in its own glow lighting,
+   * pass `false` to suppress the default CSS radial-glow overlays below. */
+  showDefaultGlows?: boolean;
+  /** Optional extra content rendered inside this same section, below the
+   * centered copy column (e.g. Home's app mockups) — kept in the same
+   * `overflow-hidden`/background box as the rest of the hero so there is
+   * no seam between the hero and this trailing content. */
+  children?: ReactNode;
 }
 
 /**
@@ -38,13 +49,19 @@ export function Hero({
   secondaryCta,
   footnote,
   image,
+  backgroundImageSrc = '/marketing/home/hero-background.png',
+  showDefaultGlows = true,
+  children,
 }: HeroProps) {
   return (
     <section className="relative overflow-hidden bg-brand text-white">
       {/* Hero background: faded 96px block grid exported from Figma
-          (node 1181:1998) layered over the brand fill, plus a radial glow. */}
+          (node 1181:1998) layered over the brand fill, plus a radial glow.
+          Callers (e.g. the Home page) may override with a different
+          background image and suppress the default glow overlays below
+          when that image already bakes in its own lighting. */}
       <Image
-        src="/marketing/home/hero-background.png"
+        src={backgroundImageSrc}
         alt=""
         aria-hidden="true"
         fill
@@ -57,24 +74,32 @@ export function Hero({
           A softer bloom sits in the bottom-right (added on the mockup
           section below so it reads continuously). Clipped by the section's
           overflow-hidden, so these never widen the page. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -left-48 -top-64 h-[860px] w-[1080px] rounded-full"
-        style={{
-          background:
-            'radial-gradient(ellipse at center, rgba(183,216,87,0.40) 0%, rgba(159,232,112,0.16) 40%, transparent 72%)',
-        }}
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -bottom-56 -right-48 h-[720px] w-[960px] rounded-full"
-        style={{
-          background:
-            'radial-gradient(ellipse at center, rgba(159,232,112,0.16) 0%, rgba(159,232,112,0.06) 40%, transparent 72%)',
-        }}
-      />
+      {showDefaultGlows ? (
+        <>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -left-48 -top-64 h-[860px] w-[1080px] rounded-full"
+            style={{
+              background:
+                'radial-gradient(ellipse at center, rgba(183,216,87,0.40) 0%, rgba(159,232,112,0.16) 40%, transparent 72%)',
+            }}
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -bottom-56 -right-48 h-[720px] w-[960px] rounded-full"
+            style={{
+              background:
+                'radial-gradient(ellipse at center, rgba(159,232,112,0.16) 0%, rgba(159,232,112,0.06) 40%, transparent 72%)',
+            }}
+          />
+        </>
+      ) : null}
 
-      <div className="relative z-10 mx-auto flex max-w-[1200px] flex-col items-center px-6 py-20 text-center sm:py-28">
+      {/* pt-36/sm:pt-44 clears the absolutely-positioned MarketingNav pill
+          (pt-8/pt-10 + 68px pill ≈ 100/108px) with room to spare, now that
+          the nav has no bg strip of its own and floats directly over this
+          section's background. */}
+      <div className="relative z-10 mx-auto flex max-w-[1200px] flex-col items-center px-6 pb-20 pt-36 text-center sm:pb-28 sm:pt-44">
         {eyebrow ? (
           <span className="mb-6 inline-flex items-center rounded-full border border-accent/40 bg-white/5 px-5 py-2 text-sm font-medium text-white/90">
             {eyebrow}
@@ -131,6 +156,8 @@ export function Hero({
           </div>
         ) : null}
       </div>
+
+      {children}
     </section>
   );
 }

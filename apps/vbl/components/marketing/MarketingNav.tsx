@@ -15,22 +15,14 @@ export function MarketingNav() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="relative overflow-hidden bg-brand text-white">
-      {/* Hero-style backdrop so the glass pill floats over the same grid +
-          top-left glow as the hero it sits on (Figma 1181:2341). Kept on a
-          bg-brand strip so pages without a dark hero don't break. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 select-none bg-[url('/marketing/home/hero-background.png')] bg-[length:1897px_auto] bg-top bg-no-repeat opacity-80"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -left-40 -top-40 h-[440px] w-[820px] rounded-full"
-        style={{
-          background:
-            'radial-gradient(ellipse at center, rgba(183,216,87,0.34) 0%, rgba(159,232,112,0.10) 42%, transparent 72%)',
-        }}
-      />
+    // Transparent overlay: every marketing page's first section is a dark
+    // Hero, whose own background image now extends all the way to the top
+    // of the page (y=0), so the pill nav floats directly over that
+    // background instead of a separate bg-brand strip with its own
+    // duplicated grid + glow. This removes the old header/hero seam. See
+    // Hero.tsx's extra top padding, added to keep content clear of the
+    // pill at this height.
+    <header className="absolute inset-x-0 top-0 z-50 text-white">
       <div className="relative mx-auto max-w-[1200px] px-4 pt-8 sm:px-6 sm:pt-10">
         {/* Floating translucent pill nav (Figma 1181:2341): glassy rounded
             bar over the dark hero, logo left, links centered, CTA right. */}

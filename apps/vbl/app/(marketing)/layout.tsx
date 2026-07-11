@@ -7,7 +7,11 @@ export default function MarketingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="font-sans">
+    <div className="relative font-sans">
+      {/* MarketingNav is an absolute, transparent overlay (no bg strip of
+          its own) so every page's dark Hero background shows through
+          behind the pill nav. `relative` here anchors that absolute
+          positioning to the top of the page content. */}
       <MarketingNav />
       <main>{children}</main>
       <MarketingFooter />
