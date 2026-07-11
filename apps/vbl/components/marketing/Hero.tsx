@@ -50,7 +50,7 @@ export function Hero({
   footnote,
   image,
   backgroundImageSrc = '/marketing/home/hero-background.png',
-  showDefaultGlows = true,
+  showDefaultGlows = false,
   children,
 }: HeroProps) {
   return (
