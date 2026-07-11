@@ -744,17 +744,28 @@ export default function HomePage() {
       {/* ---- ESTIMATE BEFORE YOU BEGIN (Figma 1174:1814) ---- */}
       <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="relative grid items-stretch overflow-hidden rounded-2xl bg-brand text-white lg:grid-cols-2">
-            <div className="relative min-h-[320px] lg:min-h-[440px]">
-              <Image
-                src="/marketing/shared/guided-process-smiling-man-laptop.png"
+          <div className="relative grid items-center overflow-hidden rounded-[30px] bg-gradient-to-r from-brand to-[#0b1a00] text-white lg:grid-cols-2">
+            <div className="relative flex min-h-[360px] items-end justify-center lg:min-h-[540px]">
+              {/* Faint CompanyPension logomark watermark behind the figure
+                  (Figma 1174:1818, ~6% opacity). */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/marketing/home/estimate-logo-watermark.svg"
+                alt=""
+                aria-hidden="true"
+                className="pointer-events-none absolute left-1/2 top-1/2 h-[92%] w-auto -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.06]"
+              />
+              {/* Plain img (not next/image): the figure is a transparent
+                  cutout that must size to its own aspect ratio and bottom-
+                  align on the card; next/image's responsive sizing collapses
+                  it here. eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/marketing/home/estimate-man-laptop.png"
                 alt="Person holding a laptop, checking a company pension refund"
-                fill
-                sizes="(min-width: 1024px) 50vw, 100vw"
-                className="object-cover object-center"
+                className="relative z-10 max-h-[360px] w-auto self-end object-contain lg:max-h-[520px]"
               />
             </div>
-            <div className="p-8 sm:p-10">
+            <div className="p-8 sm:p-10 lg:py-14">
               <SectionHeading
                 align="left"
                 eyebrow="Want an estimate before you begin?"
