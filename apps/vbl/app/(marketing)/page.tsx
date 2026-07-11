@@ -295,14 +295,15 @@ export default function HomePage() {
   return (
     <>
       {/* ---- HERO (Figma 1181:1997) ----
-          Background swapped to the dedicated "HERO- Background" node
-          (Figma 1425:68): a photographic capture with a baked-in bright
-          yellow-green glow in the TOP-RIGHT corner and a softer glow in
-          the BOTTOM-LEFT corner, replacing the grid-PNG + CSS glow combo
-          used by every other marketing page. The default glow overlays
-          are suppressed here (showDefaultGlows=false) since the photo
-          already carries that lighting; other pages keep the shared
-          Hero's default background untouched. */}
+          Background is now the code-rendered HeroGridBackground: a
+          dark-green base with a 96px grid, a diagonal wave animation
+          (top-right → bottom-left, ~10s loop), and top-right and
+          bottom-left glows, replacing the former
+          hero-background-photo.png (kept on disk for reference/rollback).
+          The default glow overlays are suppressed here
+          (showDefaultGlows=false) since the animated background already
+          carries that lighting; other pages keep the shared Hero's
+          default background untouched. */}
       <Hero
         eyebrow="Worked in Germany and have a company pension?"
         title="Cash out or refund your German"
@@ -310,7 +311,7 @@ export default function HomePage() {
         body="For bAV cash-outs and VBL, ZVK, VddB and VddKO refunds. Check your case, add your documents, sign and submit online, with human support when clarification or follow-up is needed."
         primaryCta={{ label: 'Start your claim', href: '/get-started' }}
         secondaryCta={{ label: 'See how it works', href: '/how-it-works' }}
-        backgroundImageSrc="/marketing/home/hero-background-photo.png"
+        animatedGridBackground
         showDefaultGlows={false}
         footnote={
           <>
