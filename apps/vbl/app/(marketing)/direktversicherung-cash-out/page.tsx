@@ -27,9 +27,11 @@ function CheckList({ items }: { items: ReactNode[] }) {
     <ul className="space-y-3">
       {items.map((item, index) => (
         <li key={index} className="flex items-start gap-3 text-gray-700">
-          <Check
-            className="mt-0.5 h-5 w-5 shrink-0 text-brand"
+          <img
+            src="/marketing/icons/check-bullet.svg"
+            alt=""
             aria-hidden="true"
+            className="mt-0.5 h-5 w-5 shrink-0"
           />
           <span className="text-base leading-relaxed">{item}</span>
         </li>
@@ -147,12 +149,12 @@ export default function DirektversicherungCashOutPage() {
       </section>
 
       {/* ---- CAN I CASH OUT AFTER LEAVING GERMANY? (Figma 1118:8437) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <Pill>Quick answer</Pill>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Can I cash out my Direktversicherung after leaving Germany?
               </h2>
               <div className="mt-8">
@@ -218,12 +220,12 @@ export default function DirektversicherungCashOutPage() {
       </section>
 
       {/* ---- WHAT IS A DIREKTVERSICHERUNG? (Figma 1119:62) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <Pill>What it is</Pill>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 What is a Direktversicherung?
               </h2>
               <div className="mt-5 space-y-4 text-base leading-relaxed text-gray-600">
@@ -283,7 +285,7 @@ export default function DirektversicherungCashOutPage() {
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <Pill>Cancel vs cash-out</Pill>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Cancel vs cash out: what you actually want
               </h2>
               <div className="mt-8">
@@ -324,7 +326,7 @@ export default function DirektversicherungCashOutPage() {
       </section>
 
       {/* ---- WHEN CAN A DIREKTVERSICHERUNG BE CASHED OUT? (Figma 1120:787) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -421,7 +423,7 @@ export default function DirektversicherungCashOutPage() {
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <Pill>Cash-out amount</Pill>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Why your cash-out amount may differ from your statement value
               </h2>
               <div className="mt-8">
@@ -462,12 +464,12 @@ export default function DirektversicherungCashOutPage() {
       </section>
 
       {/* ---- WILL A CASH-OUT BE TAXED? (Figma 1120:1549) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <Pill>Taxes</Pill>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Will a Direktversicherung cash-out be taxed?
               </h2>
               <div className="mt-5 space-y-4 text-base leading-relaxed text-gray-600">
@@ -524,7 +526,7 @@ export default function DirektversicherungCashOutPage() {
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <Pill>DRV connection</Pill>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Already received your German state pension refund?
               </h2>
             </div>
@@ -566,12 +568,12 @@ export default function DirektversicherungCashOutPage() {
       </section>
 
       {/* ---- WHICH PROVIDERS? (Figma 1120:2258) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <Pill>Provider examples</Pill>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Which providers can Direktversicherung cases involve?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -621,7 +623,7 @@ export default function DirektversicherungCashOutPage() {
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <Pill>Employer involvement</Pill>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Does your former employer need to be involved?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -662,12 +664,12 @@ export default function DirektversicherungCashOutPage() {
       </section>
 
       {/* ---- WHAT MAKES CASH-OUT EASIER? (Figma 1120:2340) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <Pill>What makes cash-out easier</Pill>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 What makes a Direktversicherung cash-out more straightforward?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -723,7 +725,7 @@ export default function DirektversicherungCashOutPage() {
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <Pill>When cash-out may be harder</Pill>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 When is a Direktversicherung cash-out usually less likely?
               </h2>
               <div className="mt-8">
@@ -759,7 +761,7 @@ export default function DirektversicherungCashOutPage() {
       </section>
 
       {/* ---- HOW THE PROCESS WORKS (Figma 1120:2410) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -874,7 +876,7 @@ export default function DirektversicherungCashOutPage() {
       </section>
 
       {/* ---- PRICING (Figma 1124:374) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -1025,7 +1027,7 @@ export default function DirektversicherungCashOutPage() {
           Only the section heading and eyebrow are non-instance verbatim copy.
           Questions and answers are UNVERIFIABLE from the XML and must not be
           invented — a backfill pass fills them once Figma access is restored. */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -1099,7 +1101,7 @@ export default function DirektversicherungCashOutPage() {
       </section>
 
       {/* ---- SOURCE BASIS (Figma 1124:1528) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="mx-auto max-w-4xl">
             <Pill>Source basis</Pill>
@@ -1154,7 +1156,7 @@ export default function DirektversicherungCashOutPage() {
 
       {/* ---- IMPORTANT INFORMATION (Figma 1124:1571) ---- */}
       <ImportantCallout>
-        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
           Important information
         </h2>
         <ul className="mt-6 space-y-4 text-base leading-relaxed text-gray-600">
