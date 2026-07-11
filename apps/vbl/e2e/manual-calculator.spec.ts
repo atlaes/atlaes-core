@@ -356,14 +356,14 @@ test.describe('Manual VBL calculator', () => {
     ).toBeVisible();
   });
 
-  test('blocks contribution periods shorter than 12 months before collecting salary', async ({
+  test('blocks stage contribution periods shorter than 12 months before collecting salary', async ({
     page,
   }) => {
-    await chooseManual(page, 'VBL / ZVK refund');
+    await chooseManual(page, 'VddB / VddKO refund');
 
     await chooseDropdownOption(page, 'Employer’s federal state', 'Bavaria');
     await continueButton(page).click();
-    await chooseDropdownOption(page, 'Company pension', 'VBL');
+    await chooseDropdownOption(page, 'Company pension', 'VddB');
     await continueButton(page).click();
     await enterContributionPeriod(page, 'January', '2024', 'November', '2024');
 
@@ -377,6 +377,46 @@ test.describe('Manual VBL calculator', () => {
         name: 'This refund cannot currently be claimed with CompanyPension',
       })
     ).toBeVisible();
+  });
+
+  test('lets public VBL/ZVK estimates through with periods shorter than 12 months', async ({
+    page,
+  }) => {
+    const api = await mockCalculation(page);
+
+    await chooseManual(page, 'VBL / ZVK refund');
+
+    await chooseDropdownOption(page, 'Employer’s federal state', 'Bavaria');
+    await continueButton(page).click();
+    await chooseDropdownOption(page, 'Company pension', 'VBL');
+    await page.getByRole('button', { name: 'VBLklassik' }).click();
+    await continueButton(page).click();
+    await enterContributionPeriod(page, 'January', '2024', 'January', '2024');
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'What was your average gross monthly salary?',
+      })
+    ).toBeVisible();
+    await page.getByLabel('Average monthly gross salary (€)').fill('3500');
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Your estimated VBL/ZVK refund' })
+    ).toBeVisible();
+    expect(api.getPayload()).toEqual({
+      jobs: [
+        {
+          employmentType: 'Public sector',
+          supplementaryPensions: ['VBL'],
+          startDate: '2024-01',
+          endDate: '2024-01',
+          averageMonthlyGrossSalary: '3500',
+          germanFederalState: 'Bavaria',
+        },
+      ],
+      userType: 'insured_person',
+    });
   });
 
   test('reviews uploaded VBL extraction details before calculating an estimate', async ({

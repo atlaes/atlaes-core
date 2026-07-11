@@ -231,21 +231,17 @@ export const Identity: React.FC<IdentityProps> = ({
     setPhase('upload');
   };
 
-  // Item 13: Back from the confirm phase returns to a clean upload phase
-  // instead of leaving the identity sub-step. Decision: clear the uploaded
-  // file (and its preview/chip) rather than prompting — simpler and
-  // unambiguous. Already-typed/confirmed form values (name, DOB, etc.) stay
-  // in context; a fresh upload's OCR result overwrites them the same way it
-  // would on first upload.
+  // Item 13: Back from the confirm phase returns to the upload phase instead
+  // of leaving the identity sub-step. Least-destructive decision (per client
+  // QA): DO NOT discard the already-uploaded passport — the upload phase
+  // shows the existing file with a "Replace passport" affordance so the user
+  // can either keep it (Continue back to confirm) or pick a new one. Only
+  // transient error banners are cleared here.
   const handleBackToUpload = useCallback(() => {
-    updateIdentity({
-      documentFile: null,
-      documentPreview: undefined,
-    });
     setUploadError(null);
     setFileTypeError(null);
     setPhase('upload');
-  }, [updateIdentity]);
+  }, []);
 
   // Register/release the confirm-phase Back override with the parent flow.
   // Only the confirm phase needs to own Back; upload keeps the flow's
@@ -308,6 +304,11 @@ export const Identity: React.FC<IdentityProps> = ({
   }
 
   if (phase === 'upload') {
+    // Item 13: when the user came back here from the confirm phase, the
+    // previously uploaded passport is preserved. Show it with a "Replace
+    // passport" affordance instead of forcing a re-upload.
+    const hasExistingUpload = !!data.identity.documentPreview;
+
     return (
       <div className="max-w-lg mx-auto">
         <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
@@ -318,6 +319,31 @@ export const Identity: React.FC<IdentityProps> = ({
           A clear copy of your passport or national ID is required by the
           pension provider and will be included with your refund request.
         </p>
+
+        {/* Existing upload (Item 13): keep the previously uploaded file and
+            offer a non-destructive "Replace passport" action. */}
+        {hasExistingUpload && (
+          <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
+                <span className="text-xs font-medium text-gray-500">JPG</span>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900 text-sm">
+                  passport.jpg
+                </p>
+                <p className="text-xs text-gray-500">Already uploaded</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="text-sm font-medium text-[#163300] hover:underline"
+            >
+              Replace passport
+            </button>
+          </div>
+        )}
 
         {/* Upload Area */}
         <div
@@ -393,10 +419,17 @@ export const Identity: React.FC<IdentityProps> = ({
           </div>
         )}
 
-        {/* Continue Button */}
+        {/* Continue Button — enabled only when a file is already present
+            (Item 13: keep the existing passport and return to the confirm
+            phase). A fresh upload auto-advances via handleFileSelect. */}
         <button
-          disabled
-          className="w-full mt-8 py-4 px-6 bg-gray-200 text-gray-500 font-semibold rounded-lg flex items-center justify-center gap-2 cursor-not-allowed"
+          onClick={() => hasExistingUpload && setPhase('confirm')}
+          disabled={!hasExistingUpload}
+          className={`w-full mt-8 py-4 px-6 font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors ${
+            hasExistingUpload
+              ? 'bg-[#9FE870] text-[#163300] hover:bg-[#8AD860]'
+              : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+          }`}
         >
           Continue
           <ArrowRight className="w-4 h-4" />

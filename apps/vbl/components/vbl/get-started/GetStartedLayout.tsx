@@ -3,6 +3,7 @@
 import React, { ReactNode } from 'react';
 import { ArrowLeft, Check } from 'lucide-react';
 import { CompanyPensionLogo } from '@/components/vbl/icons/CompanyPensionLogo';
+import { FlowFooterLinks } from '@/components/vbl/FlowFooterLinks';
 import {
   SubmitDetailsSubStep,
   SUBMIT_DETAILS_SUBSTEPS,
@@ -139,6 +140,20 @@ const SubStepIcon: React.FC<{
         <line x1="9" y1="11" x2="15" y2="11" />
       </svg>
     ),
+    // Confirm sub-step tab icon (shield with a check).
+    confirm: (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={iconColor}
+        strokeWidth="2"
+      >
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <polyline points="9 12 11 14 15 10" />
+      </svg>
+    ),
   };
 
   return (
@@ -174,7 +189,7 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
     subStepId === currentSubStep;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F5F5F5] px-4 py-10">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#F5F5F5] px-4 py-10">
       <div className="w-full max-w-[1260px] overflow-hidden rounded-[20px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
         {/* Dark Green Header */}
         <div
@@ -318,6 +333,10 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
           {children}
         </div>
       </div>
+
+      {/* Persistent legal / withdrawal links on the grey background, below the
+          flow card (never inside it). */}
+      <FlowFooterLinks />
     </div>
   );
 };

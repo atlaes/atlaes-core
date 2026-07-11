@@ -7,7 +7,11 @@ import {
   ClaimsApplicationService,
   ClaimData,
 } from '../services/claims-application';
-import { ClaimDocumentRole, ClaimStepName, ClaimWorkflowState } from '../drizzle/schema/claims';
+import {
+  ClaimDocumentRole,
+  ClaimStepName,
+  ClaimWorkflowState,
+} from '../drizzle/schema/claims';
 import { ClaimPdfService } from '../services/claim-pdf';
 import { getPresignedUrl } from '../utils/s3';
 
@@ -30,13 +34,22 @@ const updateClaimSchema = z.object({
   // Personal Information (Passport data)
   firstName: z.string().max(100).optional(),
   lastName: z.string().max(100).optional(),
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format').optional(),
+  dateOfBirth: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
+    .optional(),
   gender: z.enum(['male', 'female', 'other']).optional(),
   placeOfBirth: z.string().max(100).optional(),
   nationality: z.string().max(100).optional(),
   passportNumber: z.string().max(50).optional(),
-  passportIssueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  passportExpiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  passportIssueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  passportExpiryDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 
   // Current Address
   currentAddressLine1: z.string().max(255).optional(),
@@ -52,8 +65,13 @@ const updateClaimSchema = z.object({
   germanStreet: z.string().max(255).optional(),
   germanPostalCode: z.string().max(20).optional(),
   germanCity: z.string().max(100).optional(),
-  moveOutDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  abmeldungMethod: z.enum(['uploaded', 'manual', 'service_requested']).optional(),
+  moveOutDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  abmeldungMethod: z
+    .enum(['uploaded', 'manual', 'service_requested'])
+    .optional(),
   deregistrationServiceRequested: z.boolean().optional(),
 
   // Health Insurance (Task 15, bAV/private pension type only)
@@ -81,7 +99,14 @@ const updateClaimSchema = z.object({
 
   // ID Verification
   certifyingAuthority: z
-    .enum(['notary_public', 'local_government', 'bank_branch', 'police', 'embassy', 'justice_of_peace'])
+    .enum([
+      'notary_public',
+      'local_government',
+      'bank_branch',
+      'police',
+      'embassy',
+      'justice_of_peace',
+    ])
     .optional(),
 
   // Confirmations
@@ -105,6 +130,12 @@ const addDocumentSchema = z.object({
 // Attach signature schema
 const attachSignatureSchema = z.object({
   signatureId: z.string().uuid(),
+});
+
+// Confirm-step stop schema — `reasons` are the answer keys that triggered the
+// stop (at least one).
+const stopClaimSchema = z.object({
+  reasons: z.array(z.string().max(100)).min(1).max(10),
 });
 
 // Workflow transition schema
@@ -158,31 +189,39 @@ claims.get('/health', async (c) => {
 // ============================================================
 
 // Create a new claim
-claims.post('/', authMiddleware, zValidator('json', createClaimSchema), async (c) => {
-  try {
-    const user = c.get('user');
-    const { applicationId } = c.req.valid('json');
+claims.post(
+  '/',
+  authMiddleware,
+  zValidator('json', createClaimSchema),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const { applicationId } = c.req.valid('json');
 
-    const claim = await ClaimsApplicationService.createClaim(user.id, applicationId);
+      const claim = await ClaimsApplicationService.createClaim(
+        user.id,
+        applicationId
+      );
 
-    logger.info(`Claim created: ${claim.id} for user: ${user.id}`);
+      logger.info(`Claim created: ${claim.id} for user: ${user.id}`);
 
-    return c.json({
-      success: true,
-      claim,
-    });
-  } catch (error) {
-    logger.error('Create claim error:', error);
-    return c.json(
-      {
-        success: false,
-        error: 'Failed to create claim',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      500
-    );
+      return c.json({
+        success: true,
+        claim,
+      });
+    } catch (error) {
+      logger.error('Create claim error:', error);
+      return c.json(
+        {
+          success: false,
+          error: 'Failed to create claim',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+        500
+      );
+    }
   }
-});
+);
 
 // Get all claims for user
 claims.get('/', authMiddleware, async (c) => {
@@ -241,41 +280,53 @@ claims.get('/:id', authMiddleware, async (c) => {
 });
 
 // Update claim
-claims.put('/:id', authMiddleware, zValidator('json', updateClaimSchema), async (c) => {
-  try {
-    const user = c.get('user');
-    const claimId = c.req.param('id');
-    const data = c.req.valid('json') as Partial<ClaimData>;
+claims.put(
+  '/:id',
+  authMiddleware,
+  zValidator('json', updateClaimSchema),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const claimId = c.req.param('id');
+      const data = c.req.valid('json') as Partial<ClaimData>;
 
-    const claim = await ClaimsApplicationService.updateClaim(claimId, user.id, data);
+      const claim = await ClaimsApplicationService.updateClaim(
+        claimId,
+        user.id,
+        data
+      );
 
-    if (!claim) {
+      if (!claim) {
+        return c.json(
+          {
+            success: false,
+            error: 'Claim not found',
+          },
+          404
+        );
+      }
+
+      logger.info(`Claim updated: ${claimId} by user: ${user.id}`);
+
+      return c.json({
+        success: true,
+        claim,
+      });
+    } catch (error) {
+      logger.error('Update claim error:', error);
       return c.json(
         {
           success: false,
-          error: 'Claim not found',
+          error:
+            error instanceof Error ? error.message : 'Failed to update claim',
         },
-        404
+        error instanceof Error && error.message.includes('Cannot update')
+          ? 400
+          : 500
       );
     }
-
-    logger.info(`Claim updated: ${claimId} by user: ${user.id}`);
-
-    return c.json({
-      success: true,
-      claim,
-    });
-  } catch (error) {
-    logger.error('Update claim error:', error);
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to update claim',
-      },
-      error instanceof Error && error.message.includes('Cannot update') ? 400 : 500
-    );
   }
-});
+);
 
 // Delete draft claim
 claims.delete('/:id', authMiddleware, async (c) => {
@@ -283,7 +334,10 @@ claims.delete('/:id', authMiddleware, async (c) => {
     const user = c.get('user');
     const claimId = c.req.param('id');
 
-    const deleted = await ClaimsApplicationService.deleteClaim(claimId, user.id);
+    const deleted = await ClaimsApplicationService.deleteClaim(
+      claimId,
+      user.id
+    );
 
     if (!deleted) {
       return c.json(
@@ -306,7 +360,8 @@ claims.delete('/:id', authMiddleware, async (c) => {
     return c.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to delete claim',
+        error:
+          error instanceof Error ? error.message : 'Failed to delete claim',
       },
       error instanceof Error && error.message.includes('Only draft') ? 400 : 500
     );
@@ -318,36 +373,44 @@ claims.delete('/:id', authMiddleware, async (c) => {
 // ============================================================
 
 // Add document to claim
-claims.post('/:id/documents', authMiddleware, zValidator('json', addDocumentSchema), async (c) => {
-  try {
-    const user = c.get('user');
-    const claimId = c.req.param('id');
-    const { documentId, documentRole } = c.req.valid('json');
+claims.post(
+  '/:id/documents',
+  authMiddleware,
+  zValidator('json', addDocumentSchema),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const claimId = c.req.param('id');
+      const { documentId, documentRole } = c.req.valid('json');
 
-    const claimDocument = await ClaimsApplicationService.addDocument(
-      claimId,
-      user.id,
-      documentId,
-      documentRole as ClaimDocumentRole
-    );
+      const claimDocument = await ClaimsApplicationService.addDocument(
+        claimId,
+        user.id,
+        documentId,
+        documentRole as ClaimDocumentRole
+      );
 
-    logger.info(`Document added to claim: ${claimId}, role: ${documentRole}`);
+      logger.info(`Document added to claim: ${claimId}, role: ${documentRole}`);
 
-    return c.json({
-      success: true,
-      claimDocument,
-    });
-  } catch (error) {
-    logger.error('Add document error:', error);
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to add document',
-      },
-      error instanceof Error && error.message.includes('not found') ? 404 : 500
-    );
+      return c.json({
+        success: true,
+        claimDocument,
+      });
+    } catch (error) {
+      logger.error('Add document error:', error);
+      return c.json(
+        {
+          success: false,
+          error:
+            error instanceof Error ? error.message : 'Failed to add document',
+        },
+        error instanceof Error && error.message.includes('not found')
+          ? 404
+          : 500
+      );
+    }
   }
-});
+);
 
 // Get all documents for claim
 claims.get('/:id/documents', authMiddleware, async (c) => {
@@ -355,7 +418,10 @@ claims.get('/:id/documents', authMiddleware, async (c) => {
     const user = c.get('user');
     const claimId = c.req.param('id');
 
-    const documents = await ClaimsApplicationService.getClaimDocuments(claimId, user.id);
+    const documents = await ClaimsApplicationService.getClaimDocuments(
+      claimId,
+      user.id
+    );
 
     return c.json({
       success: true,
@@ -366,7 +432,8 @@ claims.get('/:id/documents', authMiddleware, async (c) => {
     return c.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to get documents',
+        error:
+          error instanceof Error ? error.message : 'Failed to get documents',
       },
       error instanceof Error && error.message.includes('not found') ? 404 : 500
     );
@@ -380,7 +447,11 @@ claims.delete('/:id/documents/:docId', authMiddleware, async (c) => {
     const claimId = c.req.param('id');
     const documentId = c.req.param('docId');
 
-    const removed = await ClaimsApplicationService.removeDocument(claimId, user.id, documentId);
+    const removed = await ClaimsApplicationService.removeDocument(
+      claimId,
+      user.id,
+      documentId
+    );
 
     if (!removed) {
       return c.json(
@@ -403,7 +474,8 @@ claims.delete('/:id/documents/:docId', authMiddleware, async (c) => {
     return c.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to remove document',
+        error:
+          error instanceof Error ? error.message : 'Failed to remove document',
       },
       500
     );
@@ -415,41 +487,127 @@ claims.delete('/:id/documents/:docId', authMiddleware, async (c) => {
 // ============================================================
 
 // Attach signature to claim
-claims.post('/:id/signature', authMiddleware, zValidator('json', attachSignatureSchema), async (c) => {
-  try {
-    const user = c.get('user');
-    const claimId = c.req.param('id');
-    const { signatureId } = c.req.valid('json');
+claims.post(
+  '/:id/signature',
+  authMiddleware,
+  zValidator('json', attachSignatureSchema),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const claimId = c.req.param('id');
+      const { signatureId } = c.req.valid('json');
 
-    const claim = await ClaimsApplicationService.attachSignature(claimId, user.id, signatureId);
+      const claim = await ClaimsApplicationService.attachSignature(
+        claimId,
+        user.id,
+        signatureId
+      );
 
-    if (!claim) {
+      if (!claim) {
+        return c.json(
+          {
+            success: false,
+            error: 'Claim not found',
+          },
+          404
+        );
+      }
+
+      logger.info(`Signature attached to claim: ${claimId}`);
+
+      return c.json({
+        success: true,
+        claim,
+      });
+    } catch (error) {
+      logger.error('Attach signature error:', error);
       return c.json(
         {
           success: false,
-          error: 'Claim not found',
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Failed to attach signature',
         },
-        404
+        500
       );
     }
-
-    logger.info(`Signature attached to claim: ${claimId}`);
-
-    return c.json({
-      success: true,
-      claim,
-    });
-  } catch (error) {
-    logger.error('Attach signature error:', error);
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to attach signature',
-      },
-      500
-    );
   }
-});
+);
+
+// ============================================================
+// Confirm-step Stop Endpoint
+// ============================================================
+
+// Stop a refund application from the Confirm step (disqualifying "Yes"
+// answer). Marks the claim stopped (rejected + distinctive audit/metadata),
+// records which question(s) triggered it, and emails the user. Does NOT issue
+// a Stripe refund — the stopped state + audit entry is the ops signal for a
+// manual full €199 deposit refund.
+claims.post(
+  '/:id/stop',
+  authMiddleware,
+  zValidator('json', stopClaimSchema),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const claimId = c.req.param('id');
+      const { reasons } = c.req.valid('json');
+
+      const claim = await ClaimsApplicationService.stopClaimFromConfirm(
+        claimId,
+        user.id,
+        reasons
+      );
+
+      if (!claim) {
+        return c.json(
+          {
+            success: false,
+            error: 'Claim not found',
+          },
+          404
+        );
+      }
+
+      // Email is best-effort — a delivery failure must not fail the stop.
+      try {
+        const { sendClaimStoppedEmail } = await import('../services/email');
+        await sendClaimStoppedEmail(user.email);
+      } catch (emailError) {
+        logger.warn('Failed to send claim-stopped email', {
+          claimId,
+          error:
+            emailError instanceof Error
+              ? emailError.message
+              : String(emailError),
+        });
+      }
+
+      logger.info(
+        `Claim stopped at confirm step: ${claimId} by user: ${user.id}`
+      );
+
+      return c.json({
+        success: true,
+        claim,
+        message: 'Claim stopped',
+      });
+    } catch (error) {
+      logger.error('Stop claim error:', error);
+      return c.json(
+        {
+          success: false,
+          error:
+            error instanceof Error ? error.message : 'Failed to stop claim',
+        },
+        error instanceof Error && error.message.startsWith('Cannot stop')
+          ? 400
+          : 500
+      );
+    }
+  }
+);
 
 // ============================================================
 // Step Completion Endpoints
@@ -461,7 +619,10 @@ claims.get('/:id/steps', authMiddleware, async (c) => {
     const user = c.get('user');
     const claimId = c.req.param('id');
 
-    const completedSteps = await ClaimsApplicationService.getCompletedSteps(claimId, user.id);
+    const completedSteps = await ClaimsApplicationService.getCompletedSteps(
+      claimId,
+      user.id
+    );
 
     return c.json({
       success: true,
@@ -472,7 +633,8 @@ claims.get('/:id/steps', authMiddleware, async (c) => {
     return c.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to get step status',
+        error:
+          error instanceof Error ? error.message : 'Failed to get step status',
       },
       error instanceof Error && error.message.includes('not found') ? 404 : 500
     );
@@ -480,96 +642,127 @@ claims.get('/:id/steps', authMiddleware, async (c) => {
 });
 
 // Update step completion status
-claims.put('/:id/steps/:stepName', authMiddleware, zValidator('json', stepCompletionSchema), async (c) => {
-  try {
-    const user = c.get('user');
-    const claimId = c.req.param('id');
-    const stepName = c.req.param('stepName') as ClaimStepName;
-    const { completed } = c.req.valid('json');
+claims.put(
+  '/:id/steps/:stepName',
+  authMiddleware,
+  zValidator('json', stepCompletionSchema),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const claimId = c.req.param('id');
+      const stepName = c.req.param('stepName') as ClaimStepName;
+      const { completed } = c.req.valid('json');
 
-    // Validate step name
-    if (!validStepNames.includes(stepName)) {
+      // Validate step name
+      if (!validStepNames.includes(stepName)) {
+        return c.json(
+          {
+            success: false,
+            error: `Invalid step name. Valid steps: ${validStepNames.join(', ')}`,
+          },
+          400
+        );
+      }
+
+      if (completed) {
+        await ClaimsApplicationService.markStepComplete(
+          claimId,
+          user.id,
+          stepName
+        );
+      } else {
+        await ClaimsApplicationService.markStepIncomplete(
+          claimId,
+          user.id,
+          stepName
+        );
+      }
+
+      // Re-fetch the full claim so the frontend gets a complete object
+      const updatedClaim = await ClaimsApplicationService.getClaim(
+        claimId,
+        user.id
+      );
+
+      logger.info(
+        `Step ${stepName} ${completed ? 'completed' : 'uncompleted'} for claim: ${claimId}`
+      );
+
+      return c.json({
+        success: true,
+        claim: updatedClaim,
+      });
+    } catch (error) {
+      logger.error('Update step error:', error);
       return c.json(
         {
           success: false,
-          error: `Invalid step name. Valid steps: ${validStepNames.join(', ')}`,
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Failed to update step status',
         },
-        400
+        error instanceof Error && error.message.includes('not found')
+          ? 404
+          : 500
       );
     }
-
-    if (completed) {
-      await ClaimsApplicationService.markStepComplete(claimId, user.id, stepName);
-    } else {
-      await ClaimsApplicationService.markStepIncomplete(claimId, user.id, stepName);
-    }
-
-    // Re-fetch the full claim so the frontend gets a complete object
-    const updatedClaim = await ClaimsApplicationService.getClaim(claimId, user.id);
-
-    logger.info(`Step ${stepName} ${completed ? 'completed' : 'uncompleted'} for claim: ${claimId}`);
-
-    return c.json({
-      success: true,
-      claim: updatedClaim,
-    });
-  } catch (error) {
-    logger.error('Update step error:', error);
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to update step status',
-      },
-      error instanceof Error && error.message.includes('not found') ? 404 : 500
-    );
   }
-});
+);
 
 // ============================================================
 // Workflow Endpoints
 // ============================================================
 
 // Transition workflow state
-claims.post('/:id/workflow', authMiddleware, zValidator('json', workflowTransitionSchema), async (c) => {
-  try {
-    const user = c.get('user');
-    const claimId = c.req.param('id');
-    const { state, metadata } = c.req.valid('json');
+claims.post(
+  '/:id/workflow',
+  authMiddleware,
+  zValidator('json', workflowTransitionSchema),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const claimId = c.req.param('id');
+      const { state, metadata } = c.req.valid('json');
 
-    const claim = await ClaimsApplicationService.transitionState(
-      claimId,
-      user.id,
-      state as ClaimWorkflowState,
-      metadata
-    );
+      const claim = await ClaimsApplicationService.transitionState(
+        claimId,
+        user.id,
+        state as ClaimWorkflowState,
+        metadata
+      );
 
-    if (!claim) {
+      if (!claim) {
+        return c.json(
+          {
+            success: false,
+            error: 'Claim not found',
+          },
+          404
+        );
+      }
+
+      logger.info(`Claim ${claimId} workflow transitioned to: ${state}`);
+
+      return c.json({
+        success: true,
+        claim,
+      });
+    } catch (error) {
+      logger.error('Workflow transition error:', error);
       return c.json(
         {
           success: false,
-          error: 'Claim not found',
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Failed to transition workflow',
         },
-        404
+        500
       );
     }
-
-    logger.info(`Claim ${claimId} workflow transitioned to: ${state}`);
-
-    return c.json({
-      success: true,
-      claim,
-    });
-  } catch (error) {
-    logger.error('Workflow transition error:', error);
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to transition workflow',
-      },
-      500
-    );
   }
-});
+);
 
 // Get workflow history
 claims.get('/:id/workflow/history', authMiddleware, async (c) => {
@@ -577,7 +770,10 @@ claims.get('/:id/workflow/history', authMiddleware, async (c) => {
     const user = c.get('user');
     const claimId = c.req.param('id');
 
-    const history = await ClaimsApplicationService.getWorkflowHistory(claimId, user.id);
+    const history = await ClaimsApplicationService.getWorkflowHistory(
+      claimId,
+      user.id
+    );
 
     return c.json({
       success: true,
@@ -588,7 +784,10 @@ claims.get('/:id/workflow/history', authMiddleware, async (c) => {
     return c.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to get workflow history',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to get workflow history',
       },
       error instanceof Error && error.message.includes('not found') ? 404 : 500
     );
@@ -605,7 +804,10 @@ claims.get('/:id/validate', authMiddleware, async (c) => {
     const user = c.get('user');
     const claimId = c.req.param('id');
 
-    const validation = await ClaimsApplicationService.validateForSubmission(claimId, user.id);
+    const validation = await ClaimsApplicationService.validateForSubmission(
+      claimId,
+      user.id
+    );
 
     return c.json({
       success: true,
@@ -616,7 +818,8 @@ claims.get('/:id/validate', authMiddleware, async (c) => {
     return c.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to validate claim',
+        error:
+          error instanceof Error ? error.message : 'Failed to validate claim',
       },
       error instanceof Error && error.message.includes('not found') ? 404 : 500
     );
@@ -643,9 +846,12 @@ claims.post('/:id/submit', authMiddleware, async (c) => {
     return c.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to submit claim',
+        error:
+          error instanceof Error ? error.message : 'Failed to submit claim',
       },
-      error instanceof Error && error.message.includes('validation failed') ? 400 : 500
+      error instanceof Error && error.message.includes('validation failed')
+        ? 400
+        : 500
     );
   }
 });
@@ -660,7 +866,11 @@ claims.post('/:id/identity-form-downloaded', authMiddleware, async (c) => {
     const user = c.get('user');
     const claimId = c.req.param('id');
 
-    const claim = await ClaimsApplicationService.updateClaim(claimId, user.id, {});
+    const claim = await ClaimsApplicationService.updateClaim(
+      claimId,
+      user.id,
+      {}
+    );
 
     if (!claim) {
       return c.json(
@@ -697,7 +907,8 @@ claims.post('/:id/identity-form-downloaded', authMiddleware, async (c) => {
     return c.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to record download',
+        error:
+          error instanceof Error ? error.message : 'Failed to record download',
       },
       500
     );
@@ -786,7 +997,8 @@ claims.get('/:id/pdf', authMiddleware, async (c) => {
     return c.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to get claim PDF',
+        error:
+          error instanceof Error ? error.message : 'Failed to get claim PDF',
       },
       500
     );

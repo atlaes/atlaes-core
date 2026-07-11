@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { buildCoverLetterPlan, renderCoverLetter } from './cover-letter';
+import { A4, COVER_LAYOUT } from './constants';
 
 const data = {
   firstName: 'Juan',
@@ -48,6 +49,24 @@ describe('cover letter', () => {
         t.startsWith('Kopie Personalausweis der Bevollmächtigten')
       )
     ).toBe(true);
+  });
+
+  it('right-aligns the date line flush with the body right margin', async () => {
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+    const plan = buildCoverLetterPlan(data, font, bold);
+    const dateOp = plan.find(
+      (op) => op.kind === 'text' && op.text === 'Manila, den 06.07.2026'
+    );
+    expect(dateOp).toBeDefined();
+    if (!dateOp || dateOp.kind !== 'text') throw new Error('no date op');
+    const rightEdge = A4.width - COVER_LAYOUT.marginRight;
+    const width = font.widthOfTextAtSize(dateOp.text, dateOp.size);
+    // Right edge of the text lands on the body's right margin.
+    expect(dateOp.x + width).toBeCloseTo(rightEdge, 3);
+    // And it is genuinely right-aligned (well right of the old centered x).
+    expect(dateOp.x).toBeGreaterThan(312.25);
   });
 
   it('renders a single A4 page without throwing', async () => {

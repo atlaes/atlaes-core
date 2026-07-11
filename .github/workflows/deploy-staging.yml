@@ -56,9 +56,44 @@ jobs:
         env:
           ADMIN_MIGRATION_TOKEN: ${{ secrets.ADMIN_MIGRATION_TOKEN }}
         run: |
-          curl -fsSL --max-time 120 -X POST \
-            "https://staging.api.atlaes.de/api/migrations/run" \
-            -H "x-admin-token: $ADMIN_MIGRATION_TOKEN" \
-            -H "content-type: application/json" \
-            | tee /tmp/migrate-resp.json
-          grep -q '"success":true' /tmp/migrate-resp.json
+          # `sst deploy` returns as soon as the new ECS task definition is
+          # registered — the ALB keeps routing to the OLD container until the
+          # new tasks pass health checks. Calling /api/migrations/run once,
+          # right after deploy, can hit that old container: it has no pending
+          # migrations bundled, reports success, and the new migration never
+          # runs. Guard against that by polling until the response reports the
+          # tag we expect from the migrations checked out in THIS run — an old
+          # container reports no `latestTag` (or an older one) and gets
+          # retried until the ALB has cut over.
+          #
+          # Repeated calls are safe: drizzle tracks applied migrations in
+          # `drizzle.__drizzle_migrations`, so re-running against a container
+          # that already applied them is a no-op.
+          EXPECTED_TAG=$(jq -r '.entries[-1].tag' packages/functions/src/drizzle/migrations/meta/_journal.json)
+          echo "Expecting migrations tag: $EXPECTED_TAG"
+
+          MAX_ATTEMPTS=15
+          SLEEP_SECONDS=20
+
+          for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+            echo "Attempt $attempt/$MAX_ATTEMPTS: calling migrations endpoint..."
+            RESPONSE=$(curl -sS --max-time 120 -X POST \
+              "https://staging.api.atlaes.de/api/migrations/run" \
+              -H "x-admin-token: $ADMIN_MIGRATION_TOKEN" \
+              -H "content-type: application/json" || true)
+            echo "$RESPONSE"
+
+            if echo "$RESPONSE" | grep -q '"success":true' && \
+               echo "$RESPONSE" | grep -q "\"latestTag\":\"$EXPECTED_TAG\""; then
+              echo "Migrations applied on the deployed container (tag: $EXPECTED_TAG)."
+              exit 0
+            fi
+
+            echo "Deployed container not yet on tag $EXPECTED_TAG — retrying in ${SLEEP_SECONDS}s..."
+            LAST_RESPONSE="$RESPONSE"
+            sleep "$SLEEP_SECONDS"
+          done
+
+          echo "Exhausted $MAX_ATTEMPTS attempts waiting for tag $EXPECTED_TAG."
+          echo "Last response: $LAST_RESPONSE"
+          exit 1

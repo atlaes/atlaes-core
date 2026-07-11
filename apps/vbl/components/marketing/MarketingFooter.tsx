@@ -25,6 +25,7 @@ const FOOTER_COLUMNS: FooterColumn[] = [
       { label: 'Terms and Conditions', href: '/terms' },
       { label: 'Payment Terms', href: '/payment-terms' },
       { label: 'Revocation', href: '/revocation' },
+      { label: 'Withdraw Contract', href: '/withdraw-contract' },
     ],
   },
   {

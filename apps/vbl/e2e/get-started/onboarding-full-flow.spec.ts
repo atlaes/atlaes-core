@@ -17,7 +17,8 @@ import {
   completeAddress,
   completeBankDetails,
   completeSignature,
-  submitClaimOnReview,
+  completeReview,
+  completeConfirmStep,
   TEST_EMAIL,
 } from './helpers';
 
@@ -209,15 +210,19 @@ test.describe('Onboarding Eligibility resource copy', () => {
     await completeMembership(page);
     await completeAddress(page);
     await completeBankDetails(page);
-    await completeSignature(page);
 
+    // New order: Bank details → Review → Confirm → Signature (terminal submit).
     await expect(
       page.getByRole('heading', { name: 'Review your refund request' })
     ).toBeVisible({ timeout: 10_000 });
     await expect(
       page.getByRole('button', { name: 'Pension details' })
     ).toBeVisible();
-    await submitClaimOnReview(page);
+    await page
+      .getByRole('button', { name: /Continue to confirmation/i })
+      .click();
+    await completeConfirmStep(page);
+    await completeSignature(page);
     await expect(
       page.getByRole('heading', {
         name: 'Your refund request has been submitted',
@@ -238,6 +243,117 @@ test.describe('Onboarding Eligibility resource copy', () => {
     }));
     expect(persistedAfterSubmit.onboarding).toBeNull();
     expect(persistedAfterSubmit.eligibility).toBeNull();
+  });
+
+  // ============================================================
+  // Confirm step (public/stage flow, between Review and Signature)
+  // ============================================================
+
+  test('Confirm step blocks until all declarations are checked', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await mockOnboardingApi(page);
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    await completeIdentityUpload(page);
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+    await completeReview(page);
+
+    await expect(
+      page.getByRole('heading', { name: 'Confirm your refund information' })
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Section 1's four answers default to "No", but the eight declaration +
+    // authorization checkboxes start unchecked, so the CTA is disabled.
+    const continueBtn = page.getByRole('button', {
+      name: /Continue to signature/i,
+    });
+    await expect(continueBtn).toBeDisabled();
+
+    const checkboxes = page.getByRole('checkbox');
+    await expect(checkboxes).toHaveCount(8);
+    const count = await checkboxes.count();
+    for (let i = 0; i < count; i++) {
+      await checkboxes.nth(i).check();
+    }
+
+    await expect(continueBtn).toBeEnabled();
+  });
+
+  test('Changing a Confirm answer to Yes stops the application', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await mockOnboardingApi(page);
+
+    // Capture the stop call. Registered after mockOnboardingApi so it takes
+    // precedence for the /stop path.
+    await page.route('**/api/claims/*/stop', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          claim: { id: 'claim_mock', status: 'rejected' },
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    await completeIdentityUpload(page);
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+    await completeReview(page);
+
+    await expect(
+      page.getByRole('heading', { name: 'Confirm your refund information' })
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Edit the first Section-1 answer and switch it from No to Yes.
+    await page.getByRole('button', { name: 'Edit' }).first().click();
+    await page.getByRole('button', { name: 'Yes', exact: true }).click();
+
+    // The confirmation modal appears before the Yes is committed.
+    await expect(
+      page.getByRole('heading', {
+        name: 'This answer will stop your refund application',
+      })
+    ).toBeVisible();
+
+    // Confirming fires the stop endpoint (with a non-empty reasons array) and
+    // shows the terminal stop screen.
+    const stopRequest = page.waitForRequest('**/api/claims/*/stop');
+    await page.getByRole('button', { name: 'Yes, change my answer' }).click();
+    const stopBody = (await stopRequest).postDataJSON() as {
+      reasons?: string[];
+    };
+    expect(Array.isArray(stopBody.reasons)).toBe(true);
+    expect(stopBody.reasons?.length ?? 0).toBeGreaterThan(0);
+
+    await expect(
+      page.getByRole('heading', {
+        name: /This refund cannot currently be started with CompanyPension/i,
+      })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByText(
+        'Your deposit will be refunded to the same payment method.'
+      )
+    ).toBeVisible();
   });
 
   // ============================================================
@@ -330,10 +446,8 @@ test.describe('Onboarding Full Flow', () => {
     // 7. Bank Details
     await completeBankDetails(page);
 
-    // 8. Signature
-    await completeSignature(page);
-
-    // 9. Should reach Review your claim
+    // 8. Review now comes right after Bank details (before Confirm + the
+    // terminal Signature step).
     await expect(
       page.getByRole('heading', { name: /Review your refund request/i })
     ).toBeVisible({ timeout: 10_000 });
@@ -550,9 +664,7 @@ test.describe('Onboarding Full Flow', () => {
     await expect(
       page.getByText('A trusted person’s EUR / SEPA account')
     ).toBeVisible();
-    await expect(
-      page.getByText('I want to open a EUR account')
-    ).toBeVisible();
+    await expect(page.getByText('I want to open a EUR account')).toBeVisible();
 
     await page
       .getByRole('button', { name: /A trusted person’s EUR \/ SEPA account/i })
@@ -600,7 +712,7 @@ test.describe('Onboarding Full Flow', () => {
     ).toBeVisible();
   });
 
-  test('Review screen uses refund request copy and Submit claim CTA', async ({
+  test('Review screen uses refund request copy and Continue to confirmation CTA', async ({
     page,
   }) => {
     test.setTimeout(120_000);
@@ -617,8 +729,10 @@ test.describe('Onboarding Full Flow', () => {
     await completeMembership(page);
     await completeAddress(page);
     await completeBankDetails(page);
-    await completeSignature(page);
 
+    // Review is reached right after Bank details now; its primary CTA advances
+    // to the Confirm step ("Continue to confirmation") instead of submitting —
+    // Signature is the terminal submit step in this flow.
     await expect(
       page.getByRole('heading', { name: 'Review your refund request' })
     ).toBeVisible({ timeout: 10_000 });
@@ -626,7 +740,7 @@ test.describe('Onboarding Full Flow', () => {
       page.getByRole('button', { name: 'Pension details' })
     ).toBeVisible();
     await expect(
-      page.getByRole('button', { name: 'Submit claim' })
+      page.getByRole('button', { name: /Continue to confirmation/i })
     ).toBeVisible();
   });
 
@@ -647,8 +761,9 @@ test.describe('Onboarding Full Flow', () => {
     await completeMembership(page);
     await completeAddress(page);
     await completeBankDetails(page);
+    await completeReview(page);
+    await completeConfirmStep(page);
     await completeSignature(page);
-    await submitClaimOnReview(page);
 
     await expect(
       page.getByRole('heading', {
@@ -841,34 +956,43 @@ test.describe('Onboarding Full Flow', () => {
     await completeAddress(page);
     await completeBankDetails(page);
 
-    // First signature: draw and continue.
-    await completeSignature(page);
-    await expect(
-      page.getByRole('heading', { name: 'Review your refund request' })
-    ).toBeVisible({ timeout: 10_000 });
-    expect(attachCount).toBe(1);
+    // New order: reach the terminal Signature step via Review → Confirm.
+    await completeReview(page);
+    await completeConfirmStep(page);
 
-    // Go back to the signature step, delete it, and draw a new one. The
-    // review page's "Signature" section header only expands/collapses that
-    // section; the "Edit information" button inside it is what actually
-    // calls setCurrentSubStep to re-enter the step.
-    await page.getByRole('button', { name: 'Signature' }).last().click();
-    await page.getByRole('button', { name: 'Edit information' }).click();
+    // On the terminal Signature step: draw, delete, then re-draw before a
+    // single Continue. The attach must fire exactly once for that one
+    // Continue — not once per draw — confirming saveAndAdvance's removed dead
+    // re-attach branch (and Signature.tsx's own single attach) haven't been
+    // reintroduced.
     await expect(
       page.getByRole('heading', { name: 'Add your signature' })
     ).toBeVisible({ timeout: 5_000 });
 
+    const canvas = page.locator('canvas');
+    await canvas.waitFor({ state: 'visible' });
+    const box = await canvas.boundingBox();
+    if (box) {
+      await page.mouse.move(box.x + 50, box.y + 50);
+      await page.mouse.down();
+      await page.mouse.move(box.x + 150, box.y + 80);
+      await page.mouse.up();
+    }
+    // Delete the drawn signature, then draw again and continue exactly once —
+    // completeSignature re-draws, confirms the legal checkbox, and clicks
+    // Continue, which (Signature being terminal) attaches and submits.
     await page.getByRole('button', { name: /Clear/i }).click();
-
     await completeSignature(page);
-    await expect(
-      page.getByRole('heading', { name: 'Review your refund request' })
-    ).toBeVisible({ timeout: 10_000 });
 
-    // Exactly one more attach call for the re-drawn signature (total 2), not
-    // two more, confirming saveAndAdvance's removed dead re-attach branch
-    // hasn't been reintroduced.
-    expect(attachCount).toBe(2);
+    await expect(
+      page.getByRole('heading', {
+        name: 'Your refund request has been submitted',
+      })
+    ).toBeVisible({ timeout: 20_000 });
+
+    // Exactly one attach call for the single Continue, despite the draw →
+    // clear → re-draw churn beforehand.
+    expect(attachCount).toBe(1);
   });
 
   // ============================================================
@@ -904,6 +1028,10 @@ test.describe('Onboarding Full Flow', () => {
     await completeMembership(page);
     await completeAddress(page);
     await completeBankDetails(page);
+
+    // New order: reach the terminal Signature step via Review → Confirm.
+    await completeReview(page);
+    await completeConfirmStep(page);
 
     // Simulate the access token having expired by the time the user reaches
     // the last onboarding step: the first signature-attach request 401s
@@ -942,12 +1070,15 @@ test.describe('Onboarding Full Flow', () => {
 
     await completeSignature(page);
 
-    // The retried request must succeed (proving the interceptor picked up
-    // the real refreshed access token) and the flow must reach Review,
-    // instead of surfacing "Failed to save signature: Invalid token."
+    // The retried request must succeed (proving the interceptor picked up the
+    // real refreshed access token) and the terminal Signature submit must
+    // reach the success screen, instead of surfacing "Failed to save
+    // signature: Invalid token."
     await expect(
-      page.getByRole('heading', { name: 'Review your refund request' })
-    ).toBeVisible({ timeout: 10_000 });
+      page.getByRole('heading', {
+        name: 'Your refund request has been submitted',
+      })
+    ).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText(/Invalid token/i)).not.toBeVisible();
     expect(attachAttempts).toBe(2);
 

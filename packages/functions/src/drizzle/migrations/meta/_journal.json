@@ -43,6 +43,20 @@
       "when": 1783351965304,
       "tag": "0005_tiny_ricochet",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783400000000,
+      "tag": "0006_shared_users_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783500000000,
+      "tag": "0007_contract_withdrawals",
+      "breakpoints": true
     }
   ]
 }

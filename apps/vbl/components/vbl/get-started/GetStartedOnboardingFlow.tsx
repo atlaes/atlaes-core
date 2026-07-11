@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import {
   useOnboarding,
   getSubmitDetailsSubsteps,
+  isConfirmComplete,
   SubmitDetailsSubStep,
 } from '@/contexts/OnboardingContext';
 import { useEligibility } from '@/contexts/EligibilityContext';
@@ -15,6 +16,8 @@ import {
   attachDocument,
   markStepComplete,
   verifyPaymentSession,
+  submitClaim,
+  stopClaim,
 } from '@/lib/onboarding-api';
 import {
   clearAllFlowPersistence,
@@ -31,6 +34,7 @@ import { HealthInsurance } from '@/components/vbl/onboarding/steps/HealthInsuran
 import { BankDetails } from '@/components/vbl/onboarding/steps/BankDetails';
 import { Signature } from '@/components/vbl/onboarding/steps/Signature';
 import { ReviewSubmit } from '@/components/vbl/onboarding/steps/ReviewSubmit';
+import { ConfirmStep } from '@/components/vbl/onboarding/steps/ConfirmStep';
 import { SuccessScreen } from '@/components/vbl/onboarding/steps/SuccessScreen';
 import { DRVUpsellModal } from '@/components/vbl/onboarding/DRVUpsellModal';
 
@@ -50,6 +54,7 @@ export function GetStartedOnboardingFlow() {
     setEditingFromReview,
     updateSuccessData,
     loadFromClaim,
+    resetOnboarding,
   } = useOnboarding();
 
   // Task 15: Health Insurance only appears for bAV/private pension type
@@ -258,6 +263,18 @@ export function GetStartedOnboardingFlow() {
   // Success screen and DRV modal state
   const [showSuccess, setShowSuccess] = useState(false);
   const [showDRVModal, setShowDRVModal] = useState(false);
+  // Top-of-content error banner for the terminal Signature-step submission and
+  // the Confirm-step stop call (both happen outside a substep component that
+  // owns its own error UI).
+  const [flowError, setFlowError] = useState<string | null>(null);
+
+  // In the public/stage Confirm flow, Signature is the terminal substep and
+  // performs the final submission. In the bAV/private flow it is not (Review
+  // remains terminal). Derived from the resolved substep list so it stays
+  // correct if the ordering ever changes again.
+  const lastSubstepId =
+    submitDetailsSubsteps[submitDetailsSubsteps.length - 1]?.id;
+  const isSignatureTerminal = lastSubstepId === 'signature';
 
   // Item 13/18a: lets the active sub-step intercept the global Back button
   // for an internal phase transition (e.g. Identity's confirm phase
@@ -296,7 +313,12 @@ export function GetStartedOnboardingFlow() {
 
   const activeStep = (() => {
     if (currentStep === 1 || currentStep === 2) return 2;
-    if (currentSubStep === 'signature' || currentSubStep === 'review') return 4;
+    if (
+      currentSubStep === 'signature' ||
+      currentSubStep === 'review' ||
+      currentSubStep === 'confirm'
+    )
+      return 4;
     return 3;
   })() as 2 | 3 | 4;
 
@@ -487,6 +509,100 @@ export function GetStartedOnboardingFlow() {
     setCurrentSubStep(subStep);
   };
 
+  // Review → Confirm (public/stage flow only). Review is no longer terminal
+  // here; mark it complete for resume and move on.
+  const handleReviewContinue = async () => {
+    if (data.claimId) {
+      try {
+        await markStepComplete(data.claimId, 'reviewInformation');
+      } catch (err) {
+        console.error('Failed to mark review complete:', err);
+      }
+    }
+    setCurrentSubStep('confirm');
+  };
+
+  // Confirm → Signature. Records the final confirmation for resume. Clears
+  // any stale "confirm your declarations first" banner from the
+  // handleFinalizeFromSignature guard below.
+  const handleConfirmContinue = async () => {
+    setFlowError(null);
+    if (data.claimId) {
+      try {
+        await markStepComplete(data.claimId, 'finalConfirmation');
+      } catch (err) {
+        console.error('Failed to mark confirmation complete:', err);
+      }
+    }
+    setCurrentSubStep('signature');
+  };
+
+  // Terminal Signature step (public/stage flow): the signature has already
+  // been uploaded + attached by Signature.tsx before it calls this, so here we
+  // just mark the step complete and submit the claim. Signature.tsx is
+  // unchanged — it always calls its onNext; we simply pass this instead of
+  // saveAndAdvance when Signature is the last substep.
+  const handleFinalizeFromSignature = async () => {
+    // Defense in depth: never submit unless the Confirm step's gate has
+    // actually been satisfied (all four answers No + all eight boxes checked).
+    // Any path that lands on the terminal Signature step without completing
+    // Confirm (resume, stale persisted position, future navigation changes)
+    // is routed to the Confirm step instead of submitting.
+    if (!isConfirmComplete(data.confirm)) {
+      setEditingFromReview(false);
+      setFlowError(
+        'Please confirm your declarations before submitting your refund request.'
+      );
+      setCurrentSubStep('confirm');
+      return;
+    }
+    const claimId = data.claimId;
+    if (!claimId) {
+      setFlowError('No claim found. Please restart the onboarding process.');
+      return;
+    }
+    setFlowError(null);
+    try {
+      await markStepComplete(claimId, 'signDocuments');
+      const result = await submitClaim(claimId);
+      localStorage.removeItem('vbl_draft_claimId');
+      updateSuccessData({
+        submissionId: result.claim.id,
+        submittedAt:
+          (result.claim.submittedAt as string) || new Date().toISOString(),
+      });
+      handleSubmitSuccess();
+    } catch (err) {
+      console.error('Final submission error:', err);
+      setFlowError(
+        'We could not submit your refund request. Please try again.'
+      );
+    }
+  };
+
+  // Confirm-step stop path: best-effort backend call. The stop screen is shown
+  // by ConfirmStep regardless of this outcome; we only surface a toast-style
+  // banner on failure (per existing error-handling idioms).
+  const handleConfirmStop = async (reasons: string[]) => {
+    const claimId = data.claimId;
+    if (!claimId) return;
+    try {
+      await stopClaim(claimId, reasons);
+    } catch (err) {
+      console.error('Failed to stop claim:', err);
+      setFlowError(
+        'We could not record that your application was stopped. Your deposit will still be refunded — please contact support if you have any questions.'
+      );
+    }
+  };
+
+  // "Return to start" from the Confirm stop screen — fully reset the flow.
+  const handleReturnToStart = () => {
+    clearAllFlowPersistence();
+    resetOnboarding();
+    resetEligibility();
+  };
+
   const handleRemindDRV = () => {
     updateSuccessData({ drvReminderSet: true });
     setShowDRVModal(false);
@@ -572,12 +688,31 @@ export function GetStartedOnboardingFlow() {
           />
         );
       case 'signature':
-        return <Signature onNext={saveAndAdvance} />;
+        return (
+          <Signature
+            onNext={
+              isSignatureTerminal ? handleFinalizeFromSignature : saveAndAdvance
+            }
+          />
+        );
       case 'review':
         return (
           <ReviewSubmit
             onSubmitSuccess={handleSubmitSuccess}
             onEditSection={handleEditSection}
+            // Public/stage flow: Review advances to Confirm instead of
+            // submitting (Signature is now terminal). bAV/private flow keeps
+            // Review terminal, so no onContinue is passed.
+            onContinue={isSignatureTerminal ? handleReviewContinue : undefined}
+          />
+        );
+      case 'confirm':
+        return (
+          <ConfirmStep
+            onContinue={handleConfirmContinue}
+            onBackToReview={() => setCurrentSubStep('review')}
+            onStop={handleConfirmStop}
+            onReturnToStart={handleReturnToStart}
           />
         );
       default:
@@ -597,6 +732,11 @@ export function GetStartedOnboardingFlow() {
       onSubStepClick={handleSubStepTabClick}
       subSteps={submitDetailsSubsteps}
     >
+      {flowError && (
+        <div className="mx-auto mb-6 max-w-lg rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {flowError}
+        </div>
+      )}
       {renderStepContent()}
     </GetStartedLayout>
   );

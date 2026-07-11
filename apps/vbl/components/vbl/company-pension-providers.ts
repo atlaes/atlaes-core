@@ -1,31 +1,16 @@
 export const PUBLIC_PENSION_PROVIDERS_BY_STATE: Record<string, string[]> = {
-  'Baden-Württemberg': ['VBL', 'ZVK (KVBW)'],
+  'Baden-Württemberg': ['ZVK (KVBW)', 'VBL'],
   Bavaria: ['VBL', 'ZVK (BayZVK / BVK)'],
   'Berlin (West)': ['VBL'],
-  'Berlin (East)': ['VBL'],
-  Brandenburg: ['VBL', 'ZVK (KVBbg)'],
   Bremen: ['VBL'],
-  Hamburg: ['Hamburgisches Zusatzversorgungsgesetz'],
-  Hesse: [
-    'VBL',
-    'ZVK Darmstadt',
-    'ZVK Kassel (KVK)',
-    'ZVK Wiesbaden (KDZ)',
-    'ZVK Frankfurt am Main',
-  ],
-  'Mecklenburg-Vorpommern': ['VBL', 'ZVK (KVV M-V)'],
-  'Lower Saxony': ['VBL', 'ZVK Hannover'],
-  'North Rhine-Westphalia': ['VBL', 'RZVK Köln', 'kvw Münster', 'ZVK Köln'],
-  'Rhineland-Palatinate': [
-    'VBL',
-    'RZVK Köln',
-    'ZVK (BayZVK / BVK)',
-    'ZVK Darmstadt',
-    'ZVK Wiesbaden (KDZ)',
-  ],
+  Hesse: ['VBL', 'ZVK Darmstadt', 'ZVK Kassel (KVK)'],
+  'Lower Saxony': ['VBL'],
+  'North Rhine-Westphalia': ['RZVK Köln', 'VBL'],
+  'Rhineland-Palatinate': ['RZVK Köln', 'ZVK Darmstadt', 'VBL'],
   Saarland: ['VBL', 'RZVK Saar'],
-  Saxony: ['VBL', 'ZVK Sachsen'],
-  'Saxony-Anhalt': ['VBL', 'ZVK (KVSA)'],
   'Schleswig-Holstein': ['VBL'],
-  Thuringia: ['VBL', 'ZVK (KVT)'],
 };
+
+export const PUBLIC_FEDERAL_STATES = Object.keys(
+  PUBLIC_PENSION_PROVIDERS_BY_STATE
+);

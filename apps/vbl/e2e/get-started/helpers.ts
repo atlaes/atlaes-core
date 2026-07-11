@@ -342,8 +342,9 @@ export async function navigatePublicSectorToEligible(page: Page) {
   await selectFederalState(page, 'North Rhine-Westphalia');
   await selectPensionProvider(page, 'VBL');
   await selectPensionScheme(page, 'VBLklassik');
+  // Pre-2018 end date: the consecutive-contribution question is skipped, so
+  // the flow goes straight from employment end date to contribution duration.
   await selectEmploymentEndDate(page, 'January', '2017');
-  await selectContributionPeriod(page, 'No');
   await selectContributionDuration(page, 'Less than 36 months');
   await expectEligibleResult(page);
 }
@@ -523,11 +524,36 @@ export async function completeSignature(page: Page) {
   await page.getByRole('button', { name: /Continue/i }).click();
 }
 
-export async function submitClaimOnReview(page: Page) {
+// Public/stage get-started flow: Review is no longer the terminal submit step.
+// The order is now Review → Confirm → Signature (Signature terminal), so the
+// review screen's primary button advances to the Confirm step via
+// ReviewSubmit's onContinue mode ("Continue to confirmation") instead of
+// submitting the claim here.
+export async function completeReview(page: Page) {
   await expect(
-    page.getByRole('heading', { name: /Review your refund request/i })
+    page.getByRole('heading', { name: 'Review your refund request' })
   ).toBeVisible({ timeout: 10_000 });
-  await page.getByRole('button', { name: /Submit claim/i }).click();
+  await page.getByRole('button', { name: /Continue to confirmation/i }).click();
+}
+
+// Public/stage Confirm step (between Review and Signature). Section 1's four
+// answers already default to "No"; the only action needed to enable the CTA is
+// checking all eight declaration + authorization checkboxes — the only
+// checkboxes on the page (Section 1 uses Yes/No buttons, not checkboxes; the
+// German-wording control is an expandable button). Advances to the terminal
+// Signature step via "Continue to signature".
+export async function completeConfirmStep(page: Page) {
+  await expect(
+    page.getByRole('heading', { name: 'Confirm your refund information' })
+  ).toBeVisible({ timeout: 10_000 });
+
+  const checkboxes = page.getByRole('checkbox');
+  const count = await checkboxes.count();
+  for (let i = 0; i < count; i++) {
+    await checkboxes.nth(i).check();
+  }
+
+  await page.getByRole('button', { name: /Continue to signature/i }).click();
 }
 
 // ============================================================
