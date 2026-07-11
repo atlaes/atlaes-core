@@ -41,26 +41,40 @@ export function Hero({
 }: HeroProps) {
   return (
     <section className="relative overflow-hidden bg-brand text-white">
-      {/* Grid pattern + radial glow */}
+      {/* Hero background: faded 96px block grid exported from Figma
+          (node 1181:1998) layered over the brand fill, plus a radial glow. */}
+      <Image
+        src="/marketing/home/hero-background.png"
+        alt=""
+        aria-hidden="true"
+        fill
+        priority
+        sizes="100vw"
+        className="pointer-events-none absolute inset-0 select-none object-cover object-top"
+      />
+      {/* Hero radial light: bright yellow-green source in the TOP-LEFT
+          corner, fading diagonally toward the dark bottom-right (Figma).
+          A softer bloom sits in the bottom-right (added on the mockup
+          section below so it reads continuously). Clipped by the section's
+          overflow-hidden, so these never widen the page. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-[0.15]"
+        className="pointer-events-none absolute -left-48 -top-64 h-[860px] w-[1080px] rounded-full"
         style={{
-          backgroundImage:
-            'linear-gradient(to right, rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.4) 1px, transparent 1px)',
-          backgroundSize: '96px 96px',
+          background:
+            'radial-gradient(ellipse at center, rgba(183,216,87,0.40) 0%, rgba(159,232,112,0.16) 40%, transparent 72%)',
         }}
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-0 h-[600px] w-[900px] -translate-x-1/2 rounded-full"
+        className="pointer-events-none absolute -bottom-56 -right-48 h-[720px] w-[960px] rounded-full"
         style={{
           background:
-            'radial-gradient(ellipse at center, rgba(159,232,112,0.25) 0%, transparent 70%)',
+            'radial-gradient(ellipse at center, rgba(159,232,112,0.16) 0%, rgba(159,232,112,0.06) 40%, transparent 72%)',
         }}
       />
 
-      <div className="relative mx-auto flex max-w-[1200px] flex-col items-center px-6 py-20 text-center sm:py-28">
+      <div className="relative z-10 mx-auto flex max-w-[1200px] flex-col items-center px-6 py-20 text-center sm:py-28">
         {eyebrow ? (
           <span className="mb-6 inline-flex items-center rounded-full border border-accent/40 bg-white/5 px-5 py-2 text-sm font-medium text-white/90">
             {eyebrow}

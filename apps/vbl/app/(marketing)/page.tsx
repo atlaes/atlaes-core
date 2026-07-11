@@ -287,7 +287,7 @@ function PricingCard({
   bullets: string[];
 }) {
   return (
-    <div className="flex h-full flex-col rounded-2xl bg-white p-8 text-left">
+    <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8 text-left shadow-sm">
       <h3 className="text-2xl font-semibold text-brand">{title}</h3>
       <p className="mt-4 text-base text-gray-600">{subtitle}</p>
       <hr className="my-6 border-neutral-400" />
@@ -334,8 +334,19 @@ export default function HomePage() {
           x=972 w=559, ~20px gap, the ~1141px block sits centered. Composed here
           (not via the Hero image prop, which is a single centered image) so the
           shared Hero stays unchanged for other pages. */}
-      <section className="relative overflow-hidden bg-brand">
-        <div className={`relative ${CONTAINER} pt-6`}>
+      <section className="relative -mt-8 overflow-hidden bg-brand sm:-mt-14">
+        {/* Softer light bloom in the bottom-right, continuing the hero's
+            diagonal glow behind the tablet mockups so they read as one
+            integrated hero rather than a separate band. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-40 bottom-0 h-[560px] w-[920px] rounded-full"
+          style={{
+            background:
+              'radial-gradient(ellipse at center, rgba(159,232,112,0.16) 0%, transparent 70%)',
+          }}
+        />
+        <div className={`relative ${CONTAINER} pt-0`}>
           {/* lg+: side-by-side, bottom-aligned, at design proportions */}
           <div className="relative mx-auto hidden aspect-[1141/370] w-full max-w-[1141px] lg:block">
             <Image
@@ -461,47 +472,46 @@ export default function HomePage() {
       </section>
 
       {/* ---- WHAT COMPANYPENSION DOES (Figma 1174:1243) ---- */}
-      <section className="bg-brand text-white">
-        <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="grid items-center gap-12 lg:grid-cols-2">
-            <div className="overflow-hidden rounded-2xl">
-              <Image
-                src="/marketing/home/home-asset-13.png"
-                alt="Person completing a company pension application on a laptop"
-                width={2000}
-                height={1333}
-                className="h-full w-full object-cover"
-              />
-            </div>
-            <div>
-              <h2 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
-                What CompanyPension does
-              </h2>
-              <div className="mt-10 grid gap-x-10 gap-y-8 sm:grid-cols-2">
-                <FeatureRow
-                  icon={<Waypoints className="h-8 w-8" aria-hidden="true" />}
-                  title="Smart guided process"
-                  body="Start online and follow clear steps for your bAV cash-out or company pension refund."
-                />
-                <FeatureRow
-                  icon={<Laptop className="h-8 w-8" aria-hidden="true" />}
-                  title="Digital application and signing"
-                  body="The platform uses the information you provide to complete your application. You review and sign it yourself before it is technically transmitted to the relevant provider or pension scheme."
-                />
-                <FeatureRow
-                  icon={
-                    <MessageCircle className="h-8 w-8" aria-hidden="true" />
-                  }
-                  title="Human support when needed"
-                  body="Human support is available when clarification, translation or follow-up is needed."
-                />
-                <FeatureRow
-                  icon={<BadgeEuro className="h-8 w-8" aria-hidden="true" />}
-                  title="Money paid to your account"
-                  body="If approved, the money is paid directly to the bank account you provide. CompanyPension does not receive, hold or forward approved pension money."
-                />
-              </div>
-            </div>
+      <section className="relative overflow-hidden bg-brand text-white">
+        <Image
+          src="/marketing/home/home-asset-13.png"
+          alt=""
+          aria-hidden="true"
+          fill
+          sizes="100vw"
+          className="pointer-events-none absolute inset-0 select-none object-cover object-left opacity-20"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand/70 via-brand/90 to-brand"
+        />
+        <div className={`relative ${CONTAINER} py-20 sm:py-24`}>
+          <div className="flex flex-col items-center text-center">
+            <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+              What CompanyPension does
+            </h2>
+          </div>
+          <div className="mx-auto mt-12 grid max-w-4xl gap-x-10 gap-y-8 sm:grid-cols-2">
+            <FeatureRow
+              icon={<Waypoints className="h-8 w-8" aria-hidden="true" />}
+              title="Smart guided process"
+              body="Start online and follow clear steps for your bAV cash-out or company pension refund."
+            />
+            <FeatureRow
+              icon={<Laptop className="h-8 w-8" aria-hidden="true" />}
+              title="Digital application and signing"
+              body="The platform uses the information you provide to complete your application. You review and sign it yourself before it is technically transmitted to the relevant provider or pension scheme."
+            />
+            <FeatureRow
+              icon={<MessageCircle className="h-8 w-8" aria-hidden="true" />}
+              title="Human support when needed"
+              body="Human support is available when clarification, translation or follow-up is needed."
+            />
+            <FeatureRow
+              icon={<BadgeEuro className="h-8 w-8" aria-hidden="true" />}
+              title="Money paid to your account"
+              body="If approved, the money is paid directly to the bank account you provide. CompanyPension does not receive, hold or forward approved pension money."
+            />
           </div>
         </div>
       </section>
@@ -574,49 +584,49 @@ export default function HomePage() {
       </section>
 
       {/* ---- DRV vs COMPANY PENSION (Figma 1174:1539) ---- */}
-      <section className="bg-brand text-white">
-        <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="grid items-center gap-12 lg:grid-cols-2">
-            <div>
-              <SectionHeading
-                align="left"
-                eyebrow="Company pension vs DRV"
-                title="Your DRV refund does not include your company pension"
-              />
-              <div className="mt-8 space-y-5 text-base leading-relaxed text-white/80">
-                <p>
-                  Your German state pension and your company pension are two
-                  separate systems.
-                </p>
-                <p>
-                  A DRV refund only covers eligible statutory pension
-                  contributions paid into Deutsche Rentenversicherung. It does
-                  not automatically include a bAV, Direktversicherung, VBL, ZVK,
-                  VddB or VddKO pension.
-                </p>
-                <p>
-                  If you paid into both systems, your company pension needs a
-                  separate cash-out or refund process.
-                </p>
-              </div>
-              <div className="mt-9">
-                <Link
-                  href="/how-it-works"
-                  className="inline-flex items-center gap-2 rounded-brand bg-accent px-6 py-4 text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
-                >
-                  Compare company pension and DRV
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-              </div>
+      <section className="relative overflow-hidden bg-brand text-white">
+        <Image
+          src="/marketing/home/home-asset-15.png"
+          alt=""
+          aria-hidden="true"
+          fill
+          sizes="100vw"
+          className="pointer-events-none absolute inset-0 select-none object-cover opacity-[0.18]"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-brand/80"
+        />
+        <div className={`relative ${CONTAINER} py-20 sm:py-24`}>
+          <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
+            <SectionHeading
+              eyebrow="Company pension vs DRV"
+              title="Your DRV refund does not include your company pension"
+            />
+            <div className="mt-8 space-y-5 text-base leading-relaxed text-white/80">
+              <p>
+                Your German state pension and your company pension are two
+                separate systems.
+              </p>
+              <p>
+                A DRV refund only covers eligible statutory pension
+                contributions paid into Deutsche Rentenversicherung. It does not
+                automatically include a bAV, Direktversicherung, VBL, ZVK, VddB
+                or VddKO pension.
+              </p>
+              <p>
+                If you paid into both systems, your company pension needs a
+                separate cash-out or refund process.
+              </p>
             </div>
-            <div className="overflow-hidden rounded-2xl">
-              <Image
-                src="/marketing/home/home-asset-15.png"
-                alt="Modern office towers in a German business district"
-                width={2000}
-                height={1335}
-                className="h-full w-full object-cover"
-              />
+            <div className="mt-9">
+              <Link
+                href="/how-it-works"
+                className="inline-flex items-center gap-2 rounded-brand bg-accent px-6 py-4 text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
+              >
+                Compare company pension and DRV
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
             </div>
           </div>
         </div>
@@ -671,23 +681,23 @@ export default function HomePage() {
       {/* ---- ESTIMATE BEFORE YOU BEGIN (Figma 1174:1814) ---- */}
       <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="grid items-center gap-12 overflow-hidden rounded-2xl border border-neutral-400 lg:grid-cols-2">
-            <div className="h-full min-h-[320px]">
+          <div className="relative grid items-stretch overflow-hidden rounded-2xl bg-brand text-white lg:grid-cols-2">
+            <div className="relative min-h-[320px] lg:min-h-[440px]">
               <Image
-                src="/marketing/shared/consultant-laptop-charts-writing.png"
-                alt="Advisor reviewing pension figures on a laptop"
-                width={2000}
-                height={1075}
-                className="h-full w-full object-cover"
+                src="/marketing/shared/guided-process-smiling-man-laptop.png"
+                alt="Person holding a laptop, checking a company pension refund"
+                fill
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                className="object-cover object-center"
               />
             </div>
-            <div className="p-8 text-brand sm:p-10">
+            <div className="p-8 sm:p-10">
               <SectionHeading
                 align="left"
                 eyebrow="Want an estimate before you begin?"
                 title="Estimate your company pension refund"
               />
-              <div className="mt-6 space-y-4 text-base leading-relaxed text-gray-600">
+              <div className="mt-6 space-y-4 text-base leading-relaxed text-white/80">
                 <p>
                   For VBL, ZVK, VddB or VddKO, upload a pension document or
                   enter your information manually to get a first refund
@@ -712,8 +722,20 @@ export default function HomePage() {
       </section>
 
       {/* ---- TRANSPARENT PRICING (Figma 1178:87) ---- */}
-      <section className="bg-brand text-white">
-        <div className={`${CONTAINER} py-20 sm:py-24`}>
+      <section className="relative overflow-hidden bg-neutral-50 text-brand">
+        <Image
+          src="/marketing/shared/advisors-reviewing-documents-desk.png"
+          alt=""
+          aria-hidden="true"
+          fill
+          sizes="100vw"
+          className="pointer-events-none absolute inset-0 select-none object-cover opacity-[0.08]"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-neutral-50/60"
+        />
+        <div className={`relative ${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center">
             <SectionHeading
               title="Transparent pricing"
@@ -754,7 +776,7 @@ export default function HomePage() {
               View pricing details
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
-            <p className="max-w-2xl text-sm leading-relaxed text-white/60">
+            <p className="max-w-2xl text-sm leading-relaxed text-gray-500">
               If approved, the money is paid directly to the bank account you
               provide. CompanyPension does not receive, hold or forward approved
               pension money.
@@ -786,8 +808,20 @@ export default function HomePage() {
       </section>
 
       {/* ---- DRV refund and bAV cash-out (Figma 1179:1874) ---- */}
-      <section className="bg-neutral-50">
-        <div className={`${CONTAINER} py-20 sm:py-24`}>
+      <section className="relative overflow-hidden bg-neutral-50">
+        <Image
+          src="/marketing/shared/berlin-landmark-building-landscape.png"
+          alt=""
+          aria-hidden="true"
+          fill
+          sizes="100vw"
+          className="pointer-events-none absolute inset-0 select-none object-cover object-right opacity-[0.12]"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-l from-neutral-50/40 via-neutral-50/85 to-neutral-50"
+        />
+        <div className={`relative ${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="DRV refund and bAV cash-out"
