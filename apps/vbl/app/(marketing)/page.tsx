@@ -7,7 +7,6 @@ import {
   Info,
   Laptop,
   MessageCircle,
-  Undo2,
   Waypoints,
 } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
@@ -157,14 +156,6 @@ function Bullets({ items }: { items: string[] }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-function IconCircle({ children }: { children: ReactNode }) {
-  return (
-    <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-accent/20 text-brand">
-      {children}
-    </div>
   );
 }
 
@@ -599,9 +590,13 @@ export default function HomePage() {
 
           <div className="mt-14 grid gap-8 lg:grid-cols-2">
             <div className="flex flex-col rounded-2xl border border-neutral-400 bg-white p-8">
-              <IconCircle>
-                <Undo2 className="h-8 w-8" aria-hidden="true" />
-              </IconCircle>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/marketing/icons/refund-cashout-icon.svg"
+                alt=""
+                aria-hidden="true"
+                className="mb-6 h-[63px] w-[63px]"
+              />
               <h3 className="text-2xl font-semibold text-brand">Refund</h3>
               <p className="mt-4 text-base leading-relaxed text-gray-600">
                 A refund means claiming back eligible employee contributions
@@ -616,9 +611,13 @@ export default function HomePage() {
             </div>
 
             <div className="flex flex-col rounded-2xl border border-neutral-400 bg-white p-8">
-              <IconCircle>
-                <BadgeEuro className="h-8 w-8" aria-hidden="true" />
-              </IconCircle>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/marketing/icons/refund-cashout-icon.svg"
+                alt=""
+                aria-hidden="true"
+                className="mb-6 h-[63px] w-[63px]"
+              />
               <h3 className="text-2xl font-semibold text-brand">Cash-out</h3>
               <p className="mt-4 text-base leading-relaxed text-gray-600">
                 A cash-out means requesting a one-time payout from a bAV from a
