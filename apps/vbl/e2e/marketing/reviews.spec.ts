@@ -24,8 +24,11 @@ test('reviews shows testimonials and rating summary', async ({ page }) => {
     )
   ).toBeVisible();
   await expect(page.getByText('David R.')).toBeVisible();
-  // Third-party rating summary.
-  await expect(page.getByText('4.9', { exact: false }).first()).toBeVisible();
+  // Third-party rating summary now uses the real platform badges (the Google
+  // "4.9" rating is baked into the exported logo image), so assert the badge.
+  await expect(
+    page.getByRole('img', { name: /google rating/i })
+  ).toBeVisible();
 });
 
 test('reviews closing CTA links to the funnel', async ({ page }) => {

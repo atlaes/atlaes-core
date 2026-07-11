@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Star } from 'lucide-react';
+import { CheckCircle2, Star } from 'lucide-react';
 
 export interface ReviewCardProps {
   /** The reviewer's quote (verbatim testimonial text). */
@@ -21,6 +21,12 @@ export interface ReviewCardProps {
    * a dignified initials avatar is used instead of an invented image.
    */
   initials?: string;
+  /**
+   * Optional reviewer country flag, shown top-right of the card (per the Figma
+   * testimonial component). `src` points to an SVG in /marketing/reviews/flags,
+   * `label` is the country name used for the accessible alt text.
+   */
+  flag?: { src: string; label: string };
 }
 
 // Strips everything except Unicode letters, whitespace and periods before
@@ -56,26 +62,43 @@ export function ReviewCard({
   rating = 5,
   category,
   initials,
+  flag,
 }: ReviewCardProps) {
   const avatarInitials = initials ?? deriveInitials(name);
   const filled = Math.max(0, Math.min(5, Math.round(rating)));
 
   return (
     <figure className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-7">
-      <div className="flex items-center gap-3">
-        <span
-          aria-hidden="true"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-semibold text-accent"
-        >
-          {avatarInitials}
-        </span>
-        <figcaption className="text-base font-semibold text-brand">
-          {name}
-        </figcaption>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-semibold text-accent"
+          >
+            {avatarInitials}
+          </span>
+          <figcaption className="text-base font-semibold text-brand">
+            {name}
+          </figcaption>
+        </div>
+        {flag ? (
+          <span className="h-[18px] w-[26px] shrink-0 overflow-hidden rounded-[3px] ring-1 ring-black/10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={flag.src}
+              alt={flag.label}
+              className="h-full w-full object-cover"
+            />
+          </span>
+        ) : null}
       </div>
 
       {category ? (
-        <span className="mt-4 inline-flex w-fit items-center rounded-full bg-accent/15 px-3 py-1 text-sm font-medium text-brand">
+        <span className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-accent/15 px-3 py-1 text-sm font-medium text-brand">
+          <CheckCircle2
+            className="h-4 w-4 shrink-0 text-brand"
+            aria-hidden="true"
+          />
           {category}
         </span>
       ) : null}

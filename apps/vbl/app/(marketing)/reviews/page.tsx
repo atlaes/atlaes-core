@@ -1,10 +1,12 @@
-import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Star } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
 import { SectionHeading } from '@/components/marketing/SectionHeading';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import { ReviewCard } from '@/components/marketing/ReviewCard';
+import {
+  FaqAccordion,
+  type FaqAccordionItem,
+} from '@/components/marketing/FaqAccordion';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -13,13 +15,14 @@ const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 // ---------------------------------------------------------------------------
 // Section headings, intros and the "what users mention" cards are transcribed
 // from the reliable (non-instance) Figma text nodes of frame 1206:19952.
-// The testimonial copy below (names, case tags, quotes, ratings, dates) comes
-// from the Figma "Testimonial" text nodes, which carry real overridden text
-// (NOT lorem) in the export. The FAQ accordion items in the design are
-// un-overridden component defaults (generic SaaS placeholders such as "How do
-// I pay for the…" / "We need to add new u…"), so no review-specific FAQ copy
-// exists to transcribe — the FAQ section links to the full FAQ page rather than
-// inventing questions. FLAGGED as a copy gap in the task report.
+// The testimonial copy below (names, case tags, quotes, ratings, dates, country
+// flags) comes from the Figma "Testimonial" nodes (1206:21701 …), which carry
+// real overridden text in the export. The rating summary uses the real
+// third-party platform badges (Google / Trustpilot / ProvenExpert) exported as
+// images. The review-experience FAQ questions are transcribed from the rendered
+// FAQ accordion (1216:824); the first answer is expanded in the design and
+// transcribed verbatim, the remaining six are collapsed (not readable) and
+// point to the FAQ page. FLAGGED as a copy gap in the task report.
 // ---------------------------------------------------------------------------
 
 interface Review {
@@ -29,7 +32,13 @@ interface Review {
   quote: string;
   meta: string;
   rating: number;
+  flag: { src: string; label: string };
 }
+
+const FLAG = (code: string, label: string) => ({
+  src: `/marketing/reviews/flags/${code}.svg`,
+  label,
+});
 
 const REVIEWS: Review[] = [
   {
@@ -39,7 +48,8 @@ const REVIEWS: Review[] = [
     quote:
       'CompanyPension made the VBL refund process incredibly easy. Everything was handled professionally and I received my refund faster than expected. Excellent service from start to finish.',
     meta: 'March 2025',
-    rating: 5,
+    rating: 4,
+    flag: FLAG('nl', 'Netherlands'),
   },
   {
     name: 'Sarah M.',
@@ -49,6 +59,7 @@ const REVIEWS: Review[] = [
       'I thought cashing out my German company pension would be complicated, but the process was very clear. The team responded quickly and kept me updated throughout.',
     meta: 'February 2026',
     rating: 5,
+    flag: FLAG('gb', 'United Kingdom'),
   },
   {
     name: 'Emma L.',
@@ -58,6 +69,7 @@ const REVIEWS: Review[] = [
       'Very smooth experience. I uploaded my documents, followed the online steps, and got clear updates whenever something was needed. Much easier than dealing with German provider letters myself.',
     meta: 'March 2026',
     rating: 5,
+    flag: FLAG('es', 'Spain'),
   },
   {
     name: 'Laura K.',
@@ -67,6 +79,7 @@ const REVIEWS: Review[] = [
       'From the first contact to the final payment, everything was perfect. They answered all my questions and made a complex process feel simple. Thank you!',
     meta: 'December 2025',
     rating: 5,
+    flag: FLAG('fr', 'France'),
   },
   {
     name: 'Michael B.',
@@ -76,6 +89,7 @@ const REVIEWS: Review[] = [
       'From the first contact to the final payment, everything was perfect. They answered all my questions and made a complex process feel simple. Thank you!',
     meta: 'January 2026',
     rating: 5,
+    flag: FLAG('fr', 'France'),
   },
   {
     name: 'James T.',
@@ -85,6 +99,7 @@ const REVIEWS: Review[] = [
       'Great experience! They helped me claim my public-sector pension refund quickly and guided me through every step. Very professional and trustworthy team.',
     meta: 'November 2025',
     rating: 5,
+    flag: FLAG('de', 'Germany'),
   },
 ];
 
@@ -131,6 +146,64 @@ const FILTERS = [
 ];
 
 // ---------------------------------------------------------------------------
+// Review-experience FAQ (Figma 1216:824). Seven questions are transcribed from
+// the rendered accordion. Q1 is expanded in the design and transcribed
+// verbatim; the other six are collapsed, so their answers are not readable and
+// link to the FAQ page until the client supplies copy. FLAGGED in the report.
+// ---------------------------------------------------------------------------
+
+const FAQ_ANSWER_PENDING = (
+  <p>
+    You can find the answer on our{' '}
+    <Link href="/faq" className="font-semibold text-brand underline">
+      FAQ page
+    </Link>
+    .
+  </p>
+);
+
+const REVIEW_FAQ_ITEMS: FaqAccordionItem[] = [
+  {
+    question: 'Are these reviews independent?',
+    answer: (
+      <>
+        <p>
+          The reviews displayed on this page come from the third-party review
+          platforms identified next to each review.
+        </p>
+        <p className="mt-2">
+          Where the review platform marks a review as verified, that status is
+          shown. CompanyPension does not change the reviewer&rsquo;s original
+          rating or meaning.
+        </p>
+      </>
+    ),
+  },
+  {
+    question: 'Is the CompanyPension process fully online?',
+    answer: FAQ_ANSWER_PENDING,
+  },
+  {
+    question:
+      'Can I upload pension documents instead of entering everything manually?',
+    answer: FAQ_ANSWER_PENDING,
+  },
+  {
+    question: 'Do I have to manage German pension correspondence myself?',
+    answer: FAQ_ANSWER_PENDING,
+  },
+  {
+    question: 'Does CompanyPension decide whether my application is approved?',
+    answer: FAQ_ANSWER_PENDING,
+  },
+  { question: 'Who receives the approved money?', answer: FAQ_ANSWER_PENDING },
+  {
+    question: 'Do reviews guarantee that my case will be approved?',
+    answer: FAQ_ANSWER_PENDING,
+  },
+];
+
+// ---------------------------------------------------------------------------
 // Local, page-only building blocks
 // ---------------------------------------------------------------------------
 
@@ -154,43 +227,19 @@ function NumberedCard({
   );
 }
 
-/** Third-party rating summary tile (Google / Trustpilot / aggregate). */
-function RatingStat({
-  platform,
-  score,
-  detail,
+/** Third-party rating badge — the real platform logo exported from Figma. */
+function RatingBadge({
+  src,
+  alt,
+  className,
 }: {
-  platform: string;
-  score: string;
-  detail: string;
+  src: string;
+  alt: string;
+  className: string;
 }) {
   return (
-    <div className="flex flex-col rounded-2xl border border-white/15 bg-white/5 p-6 text-left">
-      <span className="text-sm font-semibold uppercase tracking-wide text-accent">
-        {platform}
-      </span>
-      <div className="mt-3 flex items-center gap-3">
-        <span className="text-3xl font-bold text-white">{score}</span>
-        <div className="flex items-center gap-0.5" aria-hidden="true">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Star key={i} className="h-4 w-4 fill-accent text-accent" />
-          ))}
-        </div>
-      </div>
-      <p className="mt-3 text-sm leading-relaxed text-white/70">{detail}</p>
-    </div>
-  );
-}
-
-function ArrowLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className="inline-flex items-center gap-2 text-base font-semibold text-accent transition-colors hover:text-accent-hover"
-    >
-      {children}
-      <ArrowRight className="h-4 w-4" aria-hidden="true" />
-    </Link>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt={alt} className={`h-auto w-full object-contain ${className}`} />
   );
 }
 
@@ -224,46 +273,62 @@ export default function ReviewsPage() {
       />
 
       {/* ---- INDEPENDENT FEEDBACK / RATING SUMMARY (Figma 1206:20357) ---- */}
-      <section className="bg-brand text-white">
+      <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center">
+          <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="Independent feedback"
               title="Reviews from CompanyPension users"
               body="Read third-party reviews from users who used CompanyPension for bAV cash-outs, VBL and ZVK refunds, VddB and VddKO refunds, and other German company pension cases."
             />
-            <p className="mt-4 max-w-2xl text-base text-white/70">
+            <p className="mt-5 max-w-2xl text-base font-medium text-brand">
               Real experiences with the CompanyPension digital application
               platform.
             </p>
           </div>
 
-          <div className="mt-14 grid gap-6 md:grid-cols-3">
-            <RatingStat
-              platform="Google Rating"
-              score="4.9"
-              detail="4.9 / 5 — from 525 reviews"
+          {/* Real third-party rating badges (Google / Trustpilot / ProvenExpert). */}
+          <div className="mt-14 flex flex-wrap items-center justify-center gap-x-12 gap-y-10 sm:gap-x-16">
+            <RatingBadge
+              src="/marketing/reviews/rating-google.png"
+              alt="Google Rating: 4.9 out of 5 from 525 reviews"
+              className="max-w-[210px]"
             />
-            <RatingStat
-              platform="Trustpilot"
-              score="4.8"
-              detail="4.8 out of 5 based on 245 reviews"
+            <RatingBadge
+              src="/marketing/reviews/rating-trustpilot.png"
+              alt="Trustpilot: 4.8 out of 5 based on 245 reviews"
+              className="max-w-[230px]"
             />
-            <RatingStat
-              platform="Customer reviews"
-              score="Excellent"
-              detail="325 customer reviews — 100% recommended"
+            <RatingBadge
+              src="/marketing/reviews/rating-provenexpert.png"
+              alt="ProvenExpert: Excellent, 100% recommended from 325 customer reviews"
+              className="max-w-[230px]"
             />
           </div>
 
-          <p className="mt-10 text-center text-base text-white/70">
-            Trusted by users across company pension refund and cash-out cases.
+          <p className="mx-auto mt-12 max-w-3xl text-center text-sm leading-relaxed text-gray-500">
+            Read verified third-party reviews from users who used CompanyPension
+            for bAV cash-outs, VBL refunds, ZVK refunds, VddB/VddKO refunds and
+            other German company pension cases.
           </p>
+
+          <div className="mt-12 flex flex-col items-center gap-6">
+            <p className="text-base text-gray-600">
+              Trusted by users across company pension refund and cash-out cases
+            </p>
+            {/* Reviewer avatar row (exported from Figma). */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/marketing/reviews/rating-avatars.png"
+              alt="Reviewer profile photos"
+              className="h-auto w-full max-w-[520px]"
+            />
+          </div>
         </div>
       </section>
 
       {/* ---- WHAT USERS TEND TO HIGHLIGHT (Figma 1206:21497) ---- */}
-      <section className="bg-white">
+      <section className="bg-neutral-50">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -287,7 +352,7 @@ export default function ReviewsPage() {
       </section>
 
       {/* ---- LATEST REVIEWS (Figma 1206:21698) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -322,23 +387,35 @@ export default function ReviewsPage() {
                 quote={review.quote}
                 meta={review.meta}
                 rating={review.rating}
+                flag={review.flag}
               />
             ))}
           </div>
         </div>
       </section>
 
-      {/* ---- THE DIGITAL PROCESS (Figma 1214:116) ---- */}
-      <section className="bg-brand text-white">
-        <div className={`${CONTAINER} py-20 sm:py-24`}>
+      {/* ---- THE DIGITAL PROCESS / BUILT FOR ONLINE (Figma 1214:116) ---- */}
+      <section className="relative overflow-hidden bg-brand text-white">
+        {/* Organic leaf texture behind the content (plain <img>: next/image fill
+            renders large background PNGs blank in the dev optimizer). */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/marketing/reviews/builtfor-leaf.png"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25"
+        />
+        <div className={`relative ${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center">
-            <SectionHeading
-              eyebrow="The digital process"
-              title="Built for online pension applications"
-            />
+            <span className="mb-5 inline-flex items-center rounded-full border border-white/60 px-6 py-2 text-sm font-semibold tracking-wide">
+              The digital process
+            </span>
+            <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-accent sm:text-4xl">
+              Built for online pension applications
+            </h2>
           </div>
 
-          <div className="mx-auto mt-10 max-w-3xl space-y-5 text-base leading-relaxed text-white/80">
+          <div className="mx-auto mt-10 max-w-3xl space-y-5 text-center text-base leading-relaxed text-white/80">
             <p>
               CompanyPension is a digital application platform for German
               company pension cash-outs and refunds.
@@ -359,26 +436,35 @@ export default function ReviewsPage() {
             </p>
           </div>
 
-          <div className="mt-10 flex flex-col items-center justify-center gap-6 sm:flex-row sm:gap-10">
-            <ArrowLink href="/how-it-works">See how it works</ArrowLink>
-            <ArrowLink href="/pricing">View pricing</ArrowLink>
+          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <Link
+              href="/how-it-works"
+              className="inline-flex items-center justify-center rounded-[10px] bg-accent px-8 py-4 text-base font-semibold text-brand shadow-sm transition-colors hover:bg-accent-hover"
+            >
+              See how it works
+            </Link>
+            <Link
+              href="/pricing"
+              className="inline-flex items-center justify-center rounded-[10px] border-2 border-white px-8 py-4 text-base font-semibold text-white transition-colors hover:bg-white/10"
+            >
+              View pricing
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* ---- FAQ (Figma 1216:824) ----
-          The design's FAQ accordion items are un-overridden component defaults
-          (generic placeholders), so no review-specific questions exist to
-          transcribe. Rather than invent copy, this band links to the full FAQ
-          page. FLAGGED as a copy gap in the task report. */}
+      {/* ---- FAQ (Figma 1216:824) ---- */}
       <section className="bg-neutral-50">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="FAQ"
               title="Questions about the review experience"
-              body="Have a question about how CompanyPension works or how reviews are collected? The full FAQ covers eligibility, documents, signing, payout and support."
             />
+          </div>
+
+          <div className="mx-auto mt-12 max-w-4xl">
+            <FaqAccordion items={REVIEW_FAQ_ITEMS} defaultOpenIndex={0} />
           </div>
 
           <div className="mt-10 flex justify-center">
