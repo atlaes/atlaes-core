@@ -799,13 +799,14 @@ export default function HomePage() {
 
       {/* ---- TRANSPARENT PRICING (Figma 1178:87) ---- */}
       <section className="relative overflow-hidden bg-neutral-50 text-brand">
-        <Image
+        {/* Plain img: next/image's dev optimizer renders this large asset
+            blank here; the direct PNG paints reliably as a faint grayscale
+            watermark. eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src="/marketing/home/pricing-desk-background.png"
           alt=""
           aria-hidden="true"
-          fill
-          sizes="100vw"
-          className="pointer-events-none absolute inset-0 select-none object-cover opacity-[0.18] mix-blend-luminosity"
+          className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover opacity-[0.14] grayscale"
         />
         <div className={`relative ${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center">
