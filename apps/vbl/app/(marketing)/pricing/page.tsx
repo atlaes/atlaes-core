@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Check, Info } from 'lucide-react';
+import { ArrowRight, Calculator, Check, Info } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
 import { SectionHeading } from '@/components/marketing/SectionHeading';
 import { PriceCard } from '@/components/marketing/PriceCard';
@@ -100,10 +100,15 @@ function ExampleCard({
 }) {
   return (
     <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
-      <p className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-        Approved amount:
-      </p>
-      <p className="mt-1 text-3xl font-bold text-brand">{approvedAmount}</p>
+      <div className="mb-6 flex items-center gap-4">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-brand">
+          <Calculator className="h-7 w-7" aria-hidden="true" />
+        </span>
+        <div>
+          <p className="text-sm text-gray-500">Approved amount:</p>
+          <p className="text-3xl font-bold text-brand">{approvedAmount}</p>
+        </div>
+      </div>
 
       <dl className="mt-6 space-y-3 border-t border-neutral-400 pt-6">
         {rows.map((row) => {
@@ -135,10 +140,13 @@ function ExampleCard({
       </dl>
 
       <div className="mt-6 flex flex-1 items-end">
-        <div className="flex items-start gap-2 rounded-brand bg-accent/10 px-4 py-3 text-sm leading-relaxed text-gray-600">
-          <Info
-            className="mt-0.5 h-5 w-5 shrink-0 text-brand"
+        <div className="flex items-start gap-2 rounded-brand border border-accent/50 bg-accent/10 px-4 py-3 text-sm leading-relaxed text-gray-700">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/marketing/icons/check-bullet.svg"
+            alt=""
             aria-hidden="true"
+            className="mt-0.5 h-5 w-5 shrink-0"
           />
           <span>{note}</span>
         </div>
