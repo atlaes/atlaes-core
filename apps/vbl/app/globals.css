@@ -17,3 +17,32 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Home hero grid wave (components/marketing/HeroGridBackground.tsx).
+   The highlight overlay in each grid cell runs this once per 10s loop;
+   per-cell animation-delay staggers it into a diagonal traveling wave. */
+@keyframes hero-grid-wave {
+  0% {
+    opacity: 0;
+  }
+  5% {
+    opacity: 1;
+  }
+  12% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.hero-grid-wave-cell {
+  opacity: 0;
+  animation: hero-grid-wave 10s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-grid-wave-cell {
+    animation: none;
+  }
+}

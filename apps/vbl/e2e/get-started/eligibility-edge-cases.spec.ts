@@ -122,7 +122,10 @@ test.describe('Eligibility Edge Cases', () => {
       await selectFederalState(page, 'Berlin (West)');
       await selectPensionProvider(page, 'VBL');
       await selectPensionScheme(page, 'VBLklassik');
-      await selectEmploymentEndDate(page, 'January', '2017');
+      // 2018+ end date so the consecutive-contribution question is shown
+      // (it is skipped for pre-2018 periods) — this test exercises the back
+      // navigation from that screen.
+      await selectEmploymentEndDate(page, 'January', '2018');
       await expect(
         page.getByRole('heading', { name: 'VBL contribution period' })
       ).toBeVisible({ timeout: 5_000 });
@@ -351,7 +354,9 @@ test.describe('Eligibility Edge Cases', () => {
       await navigateToGetStarted(page);
       await selectEmploymentType(page, 'VBL / ZVK Refund');
       await selectPublicEntryPath(page, 'Answer questions');
-      await selectFederalState(page, 'Brandenburg');
+      await selectFederalState(page, 'Berlin (West)');
+      await selectPensionProvider(page, 'VBL');
+      await selectPensionScheme(page, 'VBLextra');
       await expectNotEligibleResult(page);
 
       await page

@@ -14,8 +14,25 @@ module.exports = {
           600: '#2563eb',
           700: '#1d4ed8',
         },
+        brand: {
+          DEFAULT: '#163300', // Figma: Background Colors/Brand
+        },
+        accent: {
+          DEFAULT: '#9fe870', // Figma: Brand Colors/Secondary
+          hover: '#bcef9b', // Figma: Background Colors/Hover
+        },
+        neutral: {
+          50: '#F9FAFB', // Figma: Neutral/50
+          400: '#d9dbe9', // Figma: Colors/Neutrals/Neutral 400
+        },
+      },
+      borderRadius: {
+        brand: '6px', // Figma: radius/default
+      },
+      fontFamily: {
+        sans: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
       },
     },
   },
   plugins: [],
-}
+};

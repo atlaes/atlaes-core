@@ -226,8 +226,8 @@ test.describe('Public Sector Eligibility', () => {
     await selectFederalState(page, 'North Rhine-Westphalia');
     await selectPensionProvider(page, 'VBL');
     await selectPensionScheme(page, 'VBLklassik');
+    // Pre-2018 end date skips the consecutive-contribution question.
     await selectEmploymentEndDate(page, 'January', '2017');
-    await selectContributionPeriod(page, 'No');
     await selectContributionDuration(page, 'Less than 36 months');
     await expectEligibleResult(page);
   });
@@ -238,8 +238,8 @@ test.describe('Public Sector Eligibility', () => {
     await selectFederalState(page, 'Bavaria');
     await selectPensionProvider(page, 'VBL');
     await selectPensionScheme(page, 'VBLklassik');
+    // Pre-2018 end date skips the consecutive-contribution question.
     await selectEmploymentEndDate(page, 'December', '2017');
-    await selectContributionPeriod(page, 'No');
     await selectContributionDuration(page, '36 to 59 months');
     await expectEligibleResult(page);
   });
@@ -274,28 +274,27 @@ test.describe('Public Sector Eligibility', () => {
     await selectFederalState(page, 'Hesse');
     await selectPensionProvider(page, 'ZVK Darmstadt');
     // Pension scheme step should be skipped for non-VBL providers.
+    // Pre-2018 end date also skips the consecutive-contribution question.
     await selectEmploymentEndDate(page, 'January', '2016');
-    await selectContributionPeriod(page, 'No');
     await selectContributionDuration(page, 'Less than 36 months');
     await expectEligibleResult(page);
   });
 
-  test('Hamburg only offers Hamburgisches Zusatzversorgungsgesetz', async ({
+  test('Hamburg is not offered in the public-sector federal-state dropdown', async ({
     page,
   }) => {
-    await selectFederalState(page, 'Hamburg');
     await expect(
-      page
-        .locator('select option')
-        .filter({ hasText: 'Hamburgisches Zusatzversorgungsgesetz' })
-    ).toHaveCount(1);
+      page.getByRole('heading', { name: /Where was your.*employer located/ })
+    ).toBeVisible({ timeout: 5_000 });
     await expect(
-      page.locator('select option').filter({ hasText: /^VBL$/ })
+      page.locator('select option').filter({ hasText: /^Hamburg$/ })
     ).toHaveCount(0);
   });
 
   // ============================================================
-  // Eastern States — Not Eligible
+  // Eastern States — removed from the public dropdown (the "My state is not
+  // listed" notice covers them instead). The upload path keeps the
+  // ineligibility backstop; here we only assert they cannot be selected.
   // ============================================================
 
   const EASTERN_STATES = [
@@ -307,14 +306,17 @@ test.describe('Public Sector Eligibility', () => {
   ];
 
   for (const state of EASTERN_STATES) {
-    test(`Eastern state (${state}) → not eligible`, async ({ page }) => {
-      await selectFederalState(page, state);
-      await expectNotEligibleResult(page);
+    test(`Eastern state (${state}) is not offered in the public dropdown`, async ({
+      page,
+    }) => {
       await expect(
-        page.getByText(
-          'This refund cannot currently be claimed with CompanyPension'
-        )
-      ).toBeVisible();
+        page.getByRole('heading', { name: /Where was your.*employer located/ })
+      ).toBeVisible({ timeout: 5_000 });
+      await expect(
+        page
+          .locator('select option')
+          .filter({ hasText: new RegExp(`^${state}$`) })
+      ).toHaveCount(0);
     });
   }
 
@@ -327,30 +329,42 @@ test.describe('Public Sector Eligibility', () => {
     await selectPensionProvider(page, 'VBL');
     await selectPensionScheme(page, 'VBLextra');
     await expectNotEligibleResult(page);
+    // The flow-specific copy must render (not the generic fallback heading):
+    // VBLextra means the supplementary pension is vested.
     await expect(
-      page.getByText(
-        'This refund cannot currently be claimed with CompanyPension'
-      )
+      page.getByRole('heading', {
+        name: 'Not eligible for a supplementary pension refund',
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByText(/supplementary pension is vested/i)
     ).toBeVisible();
   });
 
   test('Consecutive contribution yes with 2018+ end date → not eligible', async ({
     page,
   }) => {
-    await selectFederalState(page, 'Hamburg');
-    await selectPensionProvider(page, 'Hamburgisches Zusatzversorgungsgesetz');
+    await selectFederalState(page, 'Hesse');
+    await selectPensionProvider(page, 'ZVK Darmstadt');
     await selectEmploymentEndDate(page, 'January', '2018');
     await selectContributionPeriod(page, 'Yes');
     await expectNotEligibleResult(page);
   });
 
-  test('Consecutive contribution yes with pre-2018 end date continues', async ({
+  test('Pre-2018 end date skips the consecutive-contribution question', async ({
     page,
   }) => {
-    await selectFederalState(page, 'Hamburg');
-    await selectPensionProvider(page, 'Hamburgisches Zusatzversorgungsgesetz');
+    await selectFederalState(page, 'Hesse');
+    await selectPensionProvider(page, 'ZVK Darmstadt');
     await selectEmploymentEndDate(page, 'December', '2017');
-    await selectContributionPeriod(page, 'Yes');
+    // The consecutive-contribution question is skipped for pre-2018 periods
+    // (its 'yes' answer only blocks eligibility from 2018 onward), so the flow
+    // goes straight to the total contribution duration screen.
+    await expect(
+      page.getByRole('heading', {
+        name: /VBL contribution period|Contribution period/,
+      })
+    ).toHaveCount(0);
     await selectContributionDuration(page, 'Less than 36 months');
     await expectEligibleResult(page);
   });
@@ -359,8 +373,8 @@ test.describe('Public Sector Eligibility', () => {
     await selectFederalState(page, 'Bremen');
     await selectPensionProvider(page, 'VBL');
     await selectPensionScheme(page, 'VBLklassik');
+    // Pre-2018 end date skips the consecutive-contribution question.
     await selectEmploymentEndDate(page, 'January', '2017');
-    await selectContributionPeriod(page, 'No');
     await selectContributionDuration(page, '60 months or more');
     await expectNotEligibleResult(page);
   });
@@ -370,7 +384,9 @@ test.describe('Public Sector Eligibility', () => {
   // ============================================================
 
   test('Go back from ineligible resets flow', async ({ page }) => {
-    await selectFederalState(page, 'Brandenburg');
+    await selectFederalState(page, 'Berlin (West)');
+    await selectPensionProvider(page, 'VBL');
+    await selectPensionScheme(page, 'VBLextra');
     await expectNotEligibleResult(page);
 
     await page.getByRole('button', { name: /Return to start|Go back/ }).click();

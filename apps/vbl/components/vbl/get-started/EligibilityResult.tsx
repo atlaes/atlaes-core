@@ -295,9 +295,21 @@ export const EligibilityResult: React.FC = () => {
             </div>
           </div>
 
-          <h2 className="mb-8 max-w-[520px] text-[26px] font-bold leading-tight text-[#111827]">
-            This refund cannot currently be claimed with CompanyPension
+          <h2 className="mb-6 max-w-[520px] text-[26px] font-bold leading-tight text-[#111827]">
+            {ineligibilityInfo.title ||
+              'This refund cannot currently be claimed with CompanyPension'}
           </h2>
+
+          {ineligibilityInfo.message && (
+            <p className="mb-4 max-w-[520px] text-lg leading-7 text-[#4C504D]">
+              {ineligibilityInfo.message}
+            </p>
+          )}
+          {ineligibilityInfo.secondaryMessage && (
+            <p className="mb-4 max-w-[520px] text-lg leading-7 text-[#4C504D]">
+              {ineligibilityInfo.secondaryMessage}
+            </p>
+          )}
 
           <button
             onClick={reset}

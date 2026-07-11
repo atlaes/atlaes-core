@@ -22,6 +22,7 @@ export interface L203Data {
   dateOfBirth: string; // YYYY-MM-DD (raw claim value)
   placeOfBirth: string;
   addressLine1: string;
+  addressLine2?: string | null;
   postalCode: string;
   city: string;
   country: string | null;
@@ -297,6 +298,42 @@ function sweepDanglingAnnots(doc: PDFDocument): void {
   }
 }
 
+/**
+ * Resolves the L203 "Straße"/"Hausnr" pair from the claim's address lines.
+ *
+ * The L203 form has separate street-name and house-number fields, but the
+ * claim data model stores a free-form `currentAddressLine1` (+ optional
+ * `currentAddressLine2`). We first try to split a house number out of
+ * line 1 (handles both "Kaskelstraße 46" and "111 Abbey Road"). If line 1
+ * has no detectable house number and line 2 looks like a plausible house
+ * number (short, digit-led, e.g. "111" or "12a"), we use line 2 as the
+ * Hausnr — this covers UK/US claimants who split the number into line 2.
+ */
+export function resolveStreetAndHouseNumber(
+  addressLine1: string,
+  addressLine2?: string | null
+): { street: string; houseNumber: string } {
+  const primary = splitStreetHouseNumber(addressLine1);
+  if (primary.houseNumber) return primary;
+
+  const line2 = addressLine2?.trim();
+  if (line2 && isPlausibleHouseNumber(line2)) {
+    return { street: primary.street, houseNumber: line2 };
+  }
+
+  return primary;
+}
+
+/**
+ * A plausible standalone house number: short and digit-led, optionally
+ * with a trailing letter or a simple range/suffix (e.g. "111", "12a",
+ * "12-14", "12/3"). Deliberately strict so a real address line ("Flat 2,
+ * Baker House") isn't mistaken for a house number.
+ */
+function isPlausibleHouseNumber(value: string): boolean {
+  return /^\d+\s*[a-zA-Z]?(?:[-/]\d+\w?)?$/.test(value.trim());
+}
+
 /** Fills every mapped L203 AcroForm field on `doc` in place (pre-flatten). */
 export function fillL203Fields(doc: PDFDocument, data: L203Data): void {
   repairOrphanFieldTree(doc);
@@ -305,7 +342,10 @@ export function fillL203Fields(doc: PDFDocument, data: L203Data): void {
   const setText = (name: string, value: string) =>
     form.getTextField(`topmostSubform[0].Page1[0].${name}[0]`).setText(value);
 
-  const { street, houseNumber } = splitStreetHouseNumber(data.addressLine1);
+  const { street, houseNumber } = resolveStreetAndHouseNumber(
+    data.addressLine1,
+    data.addressLine2
+  );
 
   setText('versicherungsnummer', data.vblReference);
   setText('Name', data.lastName);

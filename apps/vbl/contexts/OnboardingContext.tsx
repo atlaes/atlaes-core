@@ -112,6 +112,29 @@ export interface OnboardingSignature {
   legalConfirmed: boolean;
 }
 
+// Confirm step (public VBL/ZVK + stage VddB/VddKO claims only — NOT bAV/
+// private). Inserted between Review and Signature. The four Section-1 answers
+// all default to 'no'; changing any to 'yes' stops the refund application.
+// The eight Section-2/3 declarations + authorizations must all be checked to
+// continue. See ConfirmStep.tsx and isConfirmComplete below.
+export interface OnboardingConfirm {
+  // Section 1 — Your answers (all default 'no'; any 'yes' stops the flow)
+  publicSectorAfterEnd: 'yes' | 'no';
+  otherInstitutionInsurance: 'yes' | 'no';
+  previousRefund: 'yes' | 'no';
+  laterCivilServant: 'yes' | 'no';
+  // Section 2 — Important declarations (all required)
+  declarationAccurate: boolean;
+  declarationRequestRefund: boolean;
+  declarationRightsEnd: boolean;
+  declarationNoRepayment: boolean;
+  declarationNoWithdrawal: boolean;
+  // Section 3 — CompanyPension authorization (all required)
+  authorizeComplete: boolean;
+  authorizeSignature: boolean;
+  authorizeCorrespondence: boolean;
+}
+
 export interface OnboardingSuccessData {
   submissionId?: string;
   submittedAt?: string;
@@ -139,6 +162,7 @@ export interface OnboardingData {
   healthInsurance: OnboardingHealthInsurance;
   bankDetails: OnboardingBankDetails;
   signature: OnboardingSignature;
+  confirm: OnboardingConfirm;
 
   // Backend resource IDs (tracked throughout the flow)
   userId?: string;
@@ -158,7 +182,8 @@ export type SubmitDetailsSubStep =
   | 'health-insurance'
   | 'bank-details'
   | 'signature'
-  | 'review';
+  | 'review'
+  | 'confirm';
 
 // Base (unfiltered) list of sub-steps. Kept for backward compatibility with
 // the legacy calculator onboarding flow (components/vbl/onboarding/
@@ -185,23 +210,60 @@ const HEALTH_INSURANCE_SUBSTEP: {
   icon: string;
 } = { id: 'health-insurance', label: 'Health Insurance', icon: 'health' };
 
+// Confirm substep — public (VBL/ZVK) and stage (VddB/VddKO) claims only.
+// Inserted between Review and Signature so the sub-stepper reads
+// Identity → Pension Details → Address → Bank Details → Review → Confirm →
+// Signature. Deliberately NOT added to the base SUBMIT_DETAILS_SUBSTEPS list
+// (that list is still consumed unchanged by the legacy calculator onboarding
+// flow, which has no Confirm screen).
+const CONFIRM_SUBSTEP: {
+  id: SubmitDetailsSubStep;
+  label: string;
+  icon: string;
+} = { id: 'confirm', label: 'Confirm', icon: 'confirm' };
+
+function findSubstep(id: SubmitDetailsSubStep) {
+  const found = SUBMIT_DETAILS_SUBSTEPS.find((s) => s.id === id);
+  if (!found) {
+    throw new Error(`Unknown submit-details substep: ${id}`);
+  }
+  return found;
+}
+
 // Task 15: Health Insurance is gated to the bAV/private pension type only.
-// The design-index's Eligibility folder (shared VBL/ZVK/VddB/VddKO review
-// wizard) has no Health insurance accordion section in its July export, so
-// this substep never applies to 'public' pensionType claimants.
+// Confirm (this task) is gated to the public/stage pension types only. The
+// two features are mutually exclusive by pension type, so getSubmitDetailsSubsteps
+// branches once on `private`:
+//   - private/bAV: insert Health Insurance after Address, keep the legacy
+//     Signature → Review tail (Review is the terminal submit step). No Confirm.
+//   - public + stage: no Health Insurance; reorder the tail to
+//     Review → Confirm → Signature, with Signature as the terminal submit step.
 export function getSubmitDetailsSubsteps(
   pensionType: OnboardingData['pensionType']
 ): typeof SUBMIT_DETAILS_SUBSTEPS {
-  if (pensionType !== 'private') {
-    return SUBMIT_DETAILS_SUBSTEPS;
+  if (pensionType === 'private') {
+    const addressIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex(
+      (s) => s.id === 'address'
+    );
+    return [
+      ...SUBMIT_DETAILS_SUBSTEPS.slice(0, addressIndex + 1),
+      HEALTH_INSURANCE_SUBSTEP,
+      ...SUBMIT_DETAILS_SUBSTEPS.slice(addressIndex + 1),
+    ];
   }
-  const addressIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex(
-    (s) => s.id === 'address'
-  );
+
   return [
-    ...SUBMIT_DETAILS_SUBSTEPS.slice(0, addressIndex + 1),
-    HEALTH_INSURANCE_SUBSTEP,
-    ...SUBMIT_DETAILS_SUBSTEPS.slice(addressIndex + 1),
+    findSubstep('identity'),
+    findSubstep('membership'),
+    findSubstep('address'),
+    findSubstep('bank-details'),
+    // Review comes before Confirm/Signature here (unlike the base list's
+    // Signature → Review order). The 'Review & Submit' tab label is kept
+    // as-is (the onboarding e2e spec asserts it verbatim) even though the
+    // terminal submit now happens on the Signature step in this flow.
+    findSubstep('review'),
+    CONFIRM_SUBSTEP,
+    findSubstep('signature'),
   ];
 }
 
@@ -228,6 +290,7 @@ interface OnboardingContextType {
   updateHealthInsurance: (updates: Partial<OnboardingHealthInsurance>) => void;
   updateBankDetails: (updates: Partial<OnboardingBankDetails>) => void;
   updateSignature: (updates: Partial<OnboardingSignature>) => void;
+  updateConfirm: (updates: Partial<OnboardingConfirm>) => void;
   updateSuccessData: (updates: Partial<OnboardingSuccessData>) => void;
 
   // Resume from backend claim
@@ -302,8 +365,49 @@ const initialData: OnboardingData = {
     signatureType: '',
     legalConfirmed: false,
   },
+  confirm: {
+    publicSectorAfterEnd: 'no',
+    otherInstitutionInsurance: 'no',
+    previousRefund: 'no',
+    laterCivilServant: 'no',
+    declarationAccurate: false,
+    declarationRequestRefund: false,
+    declarationRightsEnd: false,
+    declarationNoRepayment: false,
+    declarationNoWithdrawal: false,
+    authorizeComplete: false,
+    authorizeSignature: false,
+    authorizeCorrespondence: false,
+  },
   successData: {},
 };
+
+// The four Section-1 answers that, if 'yes', stop the refund application.
+export const CONFIRM_STOP_ANSWER_KEYS = [
+  'publicSectorAfterEnd',
+  'otherInstitutionInsurance',
+  'previousRefund',
+  'laterCivilServant',
+] as const;
+
+// Confirm step is complete (Continue to signature enabled) only when all four
+// Section-1 answers are 'no' AND all eight declaration/authorization
+// checkboxes are checked. Shared by canProceedFromSubStep and ConfirmStep.
+export function isConfirmComplete(confirm: OnboardingConfirm): boolean {
+  const allAnswersNo = CONFIRM_STOP_ANSWER_KEYS.every(
+    (key) => confirm[key] === 'no'
+  );
+  const allChecked =
+    confirm.declarationAccurate &&
+    confirm.declarationRequestRefund &&
+    confirm.declarationRightsEnd &&
+    confirm.declarationNoRepayment &&
+    confirm.declarationNoWithdrawal &&
+    confirm.authorizeComplete &&
+    confirm.authorizeSignature &&
+    confirm.authorizeCorrespondence;
+  return allAnswersNo && allChecked;
+}
 
 const OnboardingContext = createContext<OnboardingContextType | null>(null);
 
@@ -422,6 +526,11 @@ export function OnboardingProvider({
       },
       bankDetails: persisted.data.bankDetails,
       signature: { ...prev.signature, ...persisted.data.signature },
+      // `confirm` was added after the first persisted-blob shape shipped;
+      // guard against older blobs that predate it.
+      confirm: persisted.data.confirm
+        ? { ...prev.confirm, ...persisted.data.confirm }
+        : prev.confirm,
     }));
     setHasRestored(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -524,6 +633,13 @@ export function OnboardingProvider({
     },
     []
   );
+
+  const updateConfirm = useCallback((updates: Partial<OnboardingConfirm>) => {
+    setData((prev) => ({
+      ...prev,
+      confirm: { ...prev.confirm, ...updates },
+    }));
+  }, []);
 
   const updateSuccessData = useCallback(
     (updates: Partial<OnboardingSuccessData>) => {
@@ -673,6 +789,8 @@ export function OnboardingProvider({
           );
         case 'review':
           return true; // Review page is always valid
+        case 'confirm':
+          return isConfirmComplete(data.confirm);
         default:
           return false;
       }
@@ -682,13 +800,16 @@ export function OnboardingProvider({
 
   const getCompletedSubSteps = useCallback((): SubmitDetailsSubStep[] => {
     const completed: SubmitDetailsSubStep[] = [];
-    SUBMIT_DETAILS_SUBSTEPS.forEach(({ id }) => {
+    // Iterate the flow-appropriate list (not the base SUBMIT_DETAILS_SUBSTEPS,
+    // which omits 'confirm' and 'health-insurance') so Confirm can be reported
+    // as completed once its gate (all answers No + all boxes checked) is met.
+    getSubmitDetailsSubsteps(data.pensionType).forEach(({ id }) => {
       if (canProceedFromSubStep(id)) {
         completed.push(id);
       }
     });
     return completed;
-  }, [canProceedFromSubStep]);
+  }, [canProceedFromSubStep, data.pensionType]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const loadFromClaim = useCallback((claim: Record<string, any>) => {
@@ -834,20 +955,47 @@ export function OnboardingProvider({
     setCurrentStep(3);
     setData((prev) => {
       const isPrivate = prev.pensionType === 'private';
-      if (steps.signDocuments) {
-        setCurrentSubStep('review');
-      } else if (steps.bankDetails) {
-        setCurrentSubStep('signature');
-      } else if (isPrivate && steps.healthInsurance) {
-        setCurrentSubStep('bank-details');
-      } else if (steps.currentAddress) {
-        setCurrentSubStep(isPrivate ? 'health-insurance' : 'bank-details');
-      } else if (steps.germanSocialInsurance) {
-        setCurrentSubStep('address');
-      } else if (steps.passportUpload) {
-        setCurrentSubStep('membership');
+      if (isPrivate) {
+        // bAV/private: Address → Health Insurance → Bank → Signature → Review
+        // (Review is the terminal submit step; no Confirm substep).
+        if (steps.signDocuments) {
+          setCurrentSubStep('review');
+        } else if (steps.bankDetails) {
+          setCurrentSubStep('signature');
+        } else if (steps.healthInsurance) {
+          setCurrentSubStep('bank-details');
+        } else if (steps.currentAddress) {
+          setCurrentSubStep('health-insurance');
+        } else if (steps.germanSocialInsurance) {
+          setCurrentSubStep('address');
+        } else if (steps.passportUpload) {
+          setCurrentSubStep('membership');
+        } else {
+          setCurrentSubStep('identity');
+        }
       } else {
-        setCurrentSubStep('identity');
+        // public/stage: Bank → Review → Confirm → Signature (Signature is the
+        // terminal submit step). 'reviewInformation' is marked on leaving
+        // Review, 'finalConfirmation' on leaving Confirm, 'signDocuments' on
+        // signing — so they resume the user just past the furthest step
+        // reached.
+        if (steps.signDocuments) {
+          setCurrentSubStep('signature');
+        } else if (steps.finalConfirmation) {
+          setCurrentSubStep('signature');
+        } else if (steps.reviewInformation) {
+          setCurrentSubStep('confirm');
+        } else if (steps.bankDetails) {
+          setCurrentSubStep('review');
+        } else if (steps.currentAddress) {
+          setCurrentSubStep('bank-details');
+        } else if (steps.germanSocialInsurance) {
+          setCurrentSubStep('address');
+        } else if (steps.passportUpload) {
+          setCurrentSubStep('membership');
+        } else {
+          setCurrentSubStep('identity');
+        }
       }
       return prev;
     });
@@ -885,6 +1033,7 @@ export function OnboardingProvider({
         updateHealthInsurance,
         updateBankDetails,
         updateSignature,
+        updateConfirm,
         updateSuccessData,
         loadFromClaim,
         canProceedFromStep,

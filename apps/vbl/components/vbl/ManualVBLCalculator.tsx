@@ -25,10 +25,14 @@ import {
   PensionDocumentType,
 } from '../../lib/vbl-pension-document-extraction-api';
 import { CompanyPensionLogo } from './icons/CompanyPensionLogo';
+import {
+  PUBLIC_FEDERAL_STATES,
+  PUBLIC_PENSION_PROVIDERS_BY_STATE,
+} from './company-pension-providers';
 
 type PensionType = 'public' | 'stage' | '';
 type EntryMethod = 'manual' | 'upload' | '';
-type PublicProvider = 'VBL' | 'ZVK' | '';
+type PublicProvider = string;
 type StageProvider = 'VddB' | 'VddKO' | '';
 type VBLPlan = 'VBLklassik' | 'VBLextra' | '';
 type Threshold36 = 'less_than_36' | '36_or_more' | '';
@@ -43,6 +47,7 @@ type CalculatorScreen =
   | 'thresholds'
   | 'salary'
   | 'result'
+  | 'vested'
   | 'blocked';
 
 interface ManualFormData {
@@ -84,7 +89,7 @@ const MONTHS = [
   'December',
 ];
 
-const FEDERAL_STATES = [
+const ALL_FEDERAL_STATES = [
   'Baden-Württemberg',
   'Bavaria',
   'Berlin (West)',
@@ -104,7 +109,31 @@ const FEDERAL_STATES = [
   'Thuringia',
 ];
 
-const UPLOAD_FEDERAL_STATES = ['Berlin', ...FEDERAL_STATES];
+const EAST_STATES = [
+  'Berlin (East)',
+  'Brandenburg',
+  'Mecklenburg-Vorpommern',
+  'Saxony',
+  'Saxony-Anhalt',
+  'Thuringia',
+];
+
+// Federal-state options for the given pension type. Public (VBL/ZVK) is limited
+// to the states CompanyPension supports; stage (VddB/VddKO) is available in all
+// states. East states stay visible on the upload-review dropdown so OCR values
+// still render (public then hits an early stop) — see handleContinue.
+const getFederalStateOptions = (pensionType: PensionType) =>
+  pensionType === 'stage' ? ALL_FEDERAL_STATES : PUBLIC_FEDERAL_STATES;
+
+const getUploadFederalStates = (pensionType: PensionType) =>
+  pensionType === 'stage'
+    ? ['Berlin', ...ALL_FEDERAL_STATES]
+    : ['Berlin', ...PUBLIC_FEDERAL_STATES, ...EAST_STATES];
+
+const getProviderOptions = (form: ManualFormData) =>
+  form.pensionType === 'stage'
+    ? ['VddB', 'VddKO']
+    : (PUBLIC_PENSION_PROVIDERS_BY_STATE[form.federalState] ?? ['VBL']);
 
 const YEARS = Array.from(
   { length: new Date().getFullYear() - 2004 + 1 },
@@ -167,8 +196,10 @@ const shouldShowAdditionalContributionCheck = (form: ManualFormData) => {
 const getNextScreenAfterPeriod = (form: ManualFormData): CalculatorScreen => {
   const months = getContributionMonthCount(form);
 
-  if (months < 12) return 'blocked';
+  // The 12-month minimum only applies to stage pensions (VddB/VddKO). Public
+  // VBL/ZVK periods of any length reach the estimate.
   if (form.pensionType !== 'stage') return 'salary';
+  if (months < 12) return 'blocked';
   if (shouldShowAdditionalContributionCheck(form)) return 'thresholds';
   if (startsIn2018OrLater(form) && months >= 36) return 'blocked';
   if (months >= 120) return 'blocked';
@@ -600,13 +631,14 @@ const FormShell: React.FC<FormShellProps> = ({
   </div>
 );
 
+// Client round-3 item 7: the side-menu steps show only the step name — the
+// per-step subtitle/description line was removed.
 const SidebarStep: React.FC<{
   index: number;
   title: string;
-  description: string;
   active: boolean;
   complete: boolean;
-}> = ({ index, title, description, active, complete }) => (
+}> = ({ index, title, active, complete }) => (
   <div
     className={`relative flex min-h-[96px] items-center gap-4 rounded-l-2xl px-6 ${
       active ? 'bg-[#9FE870] text-[#163300]' : 'text-white'
@@ -623,9 +655,6 @@ const SidebarStep: React.FC<{
     </div>
     <div>
       <p className="font-bold">{title}</p>
-      {(active || complete) && (
-        <p className="mt-1 text-xs font-normal opacity-90">{description}</p>
-      )}
     </div>
   </div>
 );
@@ -635,18 +664,9 @@ const CalculatorSidebar: React.FC<{ screen: CalculatorScreen }> = ({
 }) => {
   const activeSection = getCurrentSection(screen);
   const steps = [
-    {
-      title: 'Pension Type',
-      description: 'Pick what you want to check.',
-    },
-    {
-      title: 'Details',
-      description: 'A few quick questions.',
-    },
-    {
-      title: 'Estimate',
-      description: 'See your estimated refund.',
-    },
+    { title: 'Pension Type' },
+    { title: 'Details' },
+    { title: 'Estimate' },
   ];
 
   return (
@@ -664,7 +684,6 @@ const CalculatorSidebar: React.FC<{ screen: CalculatorScreen }> = ({
             key={step.title}
             index={index + 1}
             title={step.title}
-            description={step.description}
             active={activeSection === index}
             complete={activeSection > index}
           />
@@ -780,8 +799,20 @@ export const ManualVBLCalculator: React.FC = () => {
       setScreen(
         shouldShowAdditionalContributionCheck(form) ? 'thresholds' : 'period'
       );
+    } else if (screen === 'vested') {
+      setScreen(form.entryMethod === 'upload' ? 'upload-review' : 'provider');
     } else if (screen === 'blocked') {
-      setScreen('thresholds');
+      if (
+        form.entryMethod === 'upload' &&
+        form.pensionType === 'public' &&
+        EAST_STATES.includes(form.federalState)
+      ) {
+        setScreen('upload-review');
+      } else if (shouldShowAdditionalContributionCheck(form)) {
+        setScreen('thresholds');
+      } else {
+        setScreen('period');
+      }
     }
   };
 
@@ -828,6 +859,17 @@ export const ManualVBLCalculator: React.FC = () => {
         setScreen('federal-state');
       }
     } else if (screen === 'upload-review') {
+      if (form.vblPlan === 'VBLextra') {
+        setScreen('vested');
+        return;
+      }
+      if (
+        form.pensionType === 'public' &&
+        EAST_STATES.includes(form.federalState)
+      ) {
+        setScreen('blocked');
+        return;
+      }
       const nextScreen = getNextScreenAfterPeriod(form);
       if (nextScreen === 'salary') {
         void calculateEstimate();
@@ -835,8 +877,9 @@ export const ManualVBLCalculator: React.FC = () => {
         setScreen(nextScreen);
       }
     } else if (screen === 'federal-state') setScreen('provider');
-    else if (screen === 'provider') setScreen('period');
-    else if (screen === 'period') {
+    else if (screen === 'provider') {
+      setScreen(form.vblPlan === 'VBLextra' ? 'vested' : 'period');
+    } else if (screen === 'period') {
       setScreen(getNextScreenAfterPeriod(form));
     } else if (screen === 'thresholds') {
       setScreen(isThresholdBlocked ? 'blocked' : 'salary');
@@ -903,7 +946,11 @@ export const ManualVBLCalculator: React.FC = () => {
       isDateRangeValid(form) &&
       form.averageMonthlyGrossSalary !== '') ||
     (screen === 'federal-state' && form.federalState !== '') ||
-    (screen === 'provider' && getSelectedProvider(form) !== '') ||
+    (screen === 'provider' &&
+      getSelectedProvider(form) !== '' &&
+      (form.pensionType !== 'public' ||
+        form.publicProvider !== 'VBL' ||
+        form.vblPlan !== '')) ||
     (screen === 'period' && isDateRangeValid(form)) ||
     (screen === 'thresholds' &&
       form.post2018Months !== '' &&
@@ -1089,11 +1136,7 @@ export const ManualVBLCalculator: React.FC = () => {
                             : '',
                       });
                     }}
-                    options={
-                      form.pensionType === 'stage'
-                        ? ['VddB', 'VddKO']
-                        : ['VBL', 'ZVK']
-                    }
+                    options={getProviderOptions(form)}
                     placeholder="Select company pension provider"
                   />
 
@@ -1123,10 +1166,38 @@ export const ManualVBLCalculator: React.FC = () => {
                   <SelectField
                     label="German federal state"
                     value={form.federalState}
-                    onChange={(value) => updateForm({ federalState: value })}
-                    options={UPLOAD_FEDERAL_STATES}
+                    onChange={(value) =>
+                      updateForm({
+                        federalState: value,
+                        publicProvider: '',
+                        vblPlan: '',
+                      })
+                    }
+                    options={getUploadFederalStates(form.pensionType)}
                     placeholder="Select federal state"
                   />
+
+                  {form.pensionType === 'public' &&
+                    EAST_STATES.includes(form.federalState) && (
+                      <div className="flex items-start gap-5 rounded-xl bg-[#EEF6EA] px-7 py-6 text-left">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#4E8F21] text-white">
+                          <Info className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-bold leading-6 text-[#444844]">
+                            This refund cannot currently be estimated with
+                            CompanyPension
+                          </p>
+                          <p className="mt-2 text-lg leading-7 text-[#4C504D]">
+                            CompanyPension currently checks VBL West
+                            contribution refunds. If your contributions were
+                            paid only while working in a state that is not
+                            listed, this refund cannot currently continue
+                            through the online calculator.
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                   <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
                     <SelectField
@@ -1205,8 +1276,16 @@ export const ManualVBLCalculator: React.FC = () => {
 
             {screen === 'federal-state' && (
               <FormShell
-                title="Where was your public-sector employer located?"
-                subtitle="Select the German federal state where your employer was based. CompanyPension currently only checks contributions in West Germany states."
+                title={
+                  form.pensionType === 'stage'
+                    ? 'Where was your employer located?'
+                    : 'Where was your public-sector employer located?'
+                }
+                subtitle={
+                  form.pensionType === 'stage'
+                    ? 'Select the German federal state where your employer was based.'
+                    : 'Select the German federal state where your employer was based. CompanyPension currently only checks contributions in West Germany states.'
+                }
                 canContinue={canContinue}
                 onBack={goBack}
                 onContinue={handleContinue}
@@ -1214,18 +1293,26 @@ export const ManualVBLCalculator: React.FC = () => {
                 <SelectField
                   label="Employer’s federal state"
                   value={form.federalState}
-                  onChange={(value) => updateForm({ federalState: value })}
-                  options={FEDERAL_STATES}
+                  onChange={(value) =>
+                    updateForm({
+                      federalState: value,
+                      publicProvider: '',
+                      vblPlan: '',
+                    })
+                  }
+                  options={getFederalStateOptions(form.pensionType)}
                   placeholder="Select federal state"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowUnlistedStateInfo(true)}
-                  className="mt-3 block text-left text-sm font-bold text-[#163300] underline"
-                >
-                  My state is not listed &gt;
-                </button>
-                {showUnlistedStateInfo && (
+                {form.pensionType !== 'stage' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowUnlistedStateInfo(true)}
+                    className="mt-3 block text-left text-sm font-bold text-[#163300] underline"
+                  >
+                    My state is not listed &gt;
+                  </button>
+                )}
+                {form.pensionType !== 'stage' && showUnlistedStateInfo && (
                   <div className="mt-8 flex items-start gap-5 rounded-xl bg-[#EEF6EA] px-7 py-6 text-left">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#4E8F21] text-white">
                       <Info className="h-6 w-6" />
@@ -1274,13 +1361,30 @@ export const ManualVBLCalculator: React.FC = () => {
                           vblPlan: '',
                         })
                   }
-                  options={
-                    form.pensionType === 'stage'
-                      ? ['VddB', 'VddKO']
-                      : ['VBL', 'ZVK']
-                  }
+                  options={getProviderOptions(form)}
                   placeholder="Select company pension"
                 />
+
+                {form.pensionType === 'public' &&
+                  form.publicProvider === 'VBL' && (
+                    <div className="mt-5">
+                      <p className="mb-3 text-sm font-medium text-gray-800">
+                        VBL plan
+                      </p>
+                      <div className="flex flex-wrap gap-3">
+                        <PlanChip
+                          label="VBLklassik"
+                          selected={form.vblPlan === 'VBLklassik'}
+                          onClick={() => updateForm({ vblPlan: 'VBLklassik' })}
+                        />
+                        <PlanChip
+                          label="VBLextra"
+                          selected={form.vblPlan === 'VBLextra'}
+                          onClick={() => updateForm({ vblPlan: 'VBLextra' })}
+                        />
+                      </div>
+                    </div>
+                  )}
               </FormShell>
             )}
 
@@ -1421,6 +1525,41 @@ export const ManualVBLCalculator: React.FC = () => {
                   />
                 </label>
               </FormShell>
+            )}
+
+            {screen === 'vested' && (
+              <div className="mx-auto w-full max-w-[560px] text-center">
+                <div className="mx-auto mb-8 flex h-[122px] w-[122px] items-center justify-center rounded-full bg-[#F1CFCB]">
+                  <div className="flex h-[94px] w-[94px] items-center justify-center rounded-full bg-[#B91C0B]">
+                    <X className="h-14 w-14 text-white" />
+                  </div>
+                </div>
+                <h1
+                  className="mx-auto max-w-[560px] text-[25px] font-bold leading-tight text-gray-950"
+                  style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
+                >
+                  Not eligible for a supplementary pension refund
+                </h1>
+                <p className="mx-auto mt-6 max-w-[560px] text-lg leading-7 text-[#4C504D]">
+                  Based on your information, your supplementary pension is
+                  vested. When contributions to VBLextra exist, any VBLklassik
+                  contributions are preserved as a future pension entitlement
+                  and cannot be refunded as a lump sum.
+                </p>
+                <p className="mx-auto mt-6 max-w-[560px] text-lg leading-7 text-[#4C504D]">
+                  This means your pension remains credited to you and may be
+                  paid out later as a regular pension benefit when you reach the
+                  German retirement age.
+                </p>
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="mx-auto mt-9 flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-md bg-[#9FE870] font-semibold text-[#163300] shadow-md transition hover:bg-[#8AD860]"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  Go back
+                </button>
+              </div>
             )}
 
             {screen === 'blocked' && (

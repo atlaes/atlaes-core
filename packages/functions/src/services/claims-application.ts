@@ -10,8 +10,13 @@ import {
   ClaimDocumentRole,
   CertifyingAuthority,
 } from '../drizzle/schema/claims';
-import { auditLogs, documents, users, profiles } from '../drizzle/schema/shared';
-import { logger } from '../utils/logger';
+import {
+  auditLogs,
+  documents,
+  users,
+  profiles,
+} from '../drizzle/schema/shared';
+import { logger, toErrorMeta } from '../utils/logger';
 
 // Types for completed steps tracking
 export interface CompletedSteps {
@@ -85,7 +90,8 @@ export interface ClaimBankDetails {
 }
 
 export interface ClaimData
-  extends ClaimPersonalInfo,
+  extends
+    ClaimPersonalInfo,
     ClaimCurrentAddress,
     ClaimGermanAddress,
     ClaimHealthInsurance,
@@ -305,9 +311,13 @@ function calculateAge(dateOfBirth: string, now = new Date()): number | null {
     return null;
   }
 
-  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const today = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  );
   let age = today.getUTCFullYear() - year;
-  const birthdayThisYear = new Date(Date.UTC(today.getUTCFullYear(), month - 1, day));
+  const birthdayThisYear = new Date(
+    Date.UTC(today.getUTCFullYear(), month - 1, day)
+  );
 
   if (today < birthdayThisYear) {
     age -= 1;
@@ -320,7 +330,10 @@ export class ClaimsApplicationService {
   /**
    * Create a new claim for a user
    */
-  static async createClaim(userId: string, applicationId?: string): Promise<Claim> {
+  static async createClaim(
+    userId: string,
+    applicationId?: string
+  ): Promise<Claim> {
     try {
       const result = await db.transaction(async (tx: any) => {
         // Create the claim
@@ -367,7 +380,7 @@ export class ClaimsApplicationService {
       logger.info(`Claim created for user: ${userId}, claim: ${result.id}`);
       return mapRowToClaim(result);
     } catch (error) {
-      logger.error('Error creating claim:', error);
+      logger.error('Error creating claim:', toErrorMeta(error));
       throw new Error('Failed to create claim');
     }
   }
@@ -375,7 +388,10 @@ export class ClaimsApplicationService {
   /**
    * Get a claim by ID with ownership verification
    */
-  static async getClaim(claimId: string, userId: string): Promise<Claim | null> {
+  static async getClaim(
+    claimId: string,
+    userId: string
+  ): Promise<Claim | null> {
     try {
       const result = await db
         .select()
@@ -415,7 +431,11 @@ export class ClaimsApplicationService {
   /**
    * Update a claim
    */
-  static async updateClaim(claimId: string, userId: string, data: Partial<ClaimData>): Promise<Claim | null> {
+  static async updateClaim(
+    claimId: string,
+    userId: string,
+    data: Partial<ClaimData>
+  ): Promise<Claim | null> {
     try {
       // Verify ownership first
       const existing = await this.getClaim(claimId, userId);
@@ -424,7 +444,11 @@ export class ClaimsApplicationService {
       }
 
       // Don't allow updates to submitted claims
-      if (existing.status === 'submitted' || existing.status === 'processing' || existing.status === 'completed') {
+      if (
+        existing.status === 'submitted' ||
+        existing.status === 'processing' ||
+        existing.status === 'completed'
+      ) {
         throw new Error('Cannot update a submitted claim');
       }
 
@@ -466,8 +490,12 @@ export class ClaimsApplicationService {
 
       await db.transaction(async (tx: any) => {
         // Delete related records (cascade should handle this, but be explicit)
-        await tx.delete(claimDocuments).where(eq(claimDocuments.claimId, claimId));
-        await tx.delete(claimWorkflowStates).where(eq(claimWorkflowStates.claimId, claimId));
+        await tx
+          .delete(claimDocuments)
+          .where(eq(claimDocuments.claimId, claimId));
+        await tx
+          .delete(claimWorkflowStates)
+          .where(eq(claimWorkflowStates.claimId, claimId));
 
         // Delete the claim
         await tx.delete(claimsTable).where(eq(claimsTable.id, claimId));
@@ -495,7 +523,11 @@ export class ClaimsApplicationService {
   /**
    * Mark a step as complete
    */
-  static async markStepComplete(claimId: string, userId: string, step: ClaimStepName): Promise<CompletedSteps> {
+  static async markStepComplete(
+    claimId: string,
+    userId: string,
+    step: ClaimStepName
+  ): Promise<CompletedSteps> {
     try {
       const existing = await this.getClaim(claimId, userId);
       if (!existing) {
@@ -513,7 +545,9 @@ export class ClaimsApplicationService {
           completedSteps: updatedSteps,
           updatedAt: new Date(),
         })
-        .where(and(eq(claimsTable.id, claimId), eq(claimsTable.userId, userId)));
+        .where(
+          and(eq(claimsTable.id, claimId), eq(claimsTable.userId, userId))
+        );
 
       logger.info(`Step marked complete: ${step} for claim: ${claimId}`);
       return updatedSteps;
@@ -526,7 +560,11 @@ export class ClaimsApplicationService {
   /**
    * Mark a step as incomplete
    */
-  static async markStepIncomplete(claimId: string, userId: string, step: ClaimStepName): Promise<CompletedSteps> {
+  static async markStepIncomplete(
+    claimId: string,
+    userId: string,
+    step: ClaimStepName
+  ): Promise<CompletedSteps> {
     try {
       const existing = await this.getClaim(claimId, userId);
       if (!existing) {
@@ -544,7 +582,9 @@ export class ClaimsApplicationService {
           completedSteps: updatedSteps,
           updatedAt: new Date(),
         })
-        .where(and(eq(claimsTable.id, claimId), eq(claimsTable.userId, userId)));
+        .where(
+          and(eq(claimsTable.id, claimId), eq(claimsTable.userId, userId))
+        );
 
       logger.info(`Step marked incomplete: ${step} for claim: ${claimId}`);
       return updatedSteps;
@@ -557,7 +597,10 @@ export class ClaimsApplicationService {
   /**
    * Get completed steps for a claim
    */
-  static async getCompletedSteps(claimId: string, userId: string): Promise<CompletedSteps> {
+  static async getCompletedSteps(
+    claimId: string,
+    userId: string
+  ): Promise<CompletedSteps> {
     const claim = await this.getClaim(claimId, userId);
     if (!claim) {
       throw new Error('Claim not found');
@@ -596,7 +639,12 @@ export class ClaimsApplicationService {
       // Remove any existing document with the same role (replace pattern)
       await db
         .delete(claimDocuments)
-        .where(and(eq(claimDocuments.claimId, claimId), eq(claimDocuments.documentRole, role)));
+        .where(
+          and(
+            eq(claimDocuments.claimId, claimId),
+            eq(claimDocuments.documentRole, role)
+          )
+        );
 
       // Add the new document
       const [result] = await db
@@ -625,7 +673,11 @@ export class ClaimsApplicationService {
   /**
    * Remove a document from a claim
    */
-  static async removeDocument(claimId: string, userId: string, documentId: string): Promise<boolean> {
+  static async removeDocument(
+    claimId: string,
+    userId: string,
+    documentId: string
+  ): Promise<boolean> {
     try {
       const existing = await this.getClaim(claimId, userId);
       if (!existing) {
@@ -634,7 +686,12 @@ export class ClaimsApplicationService {
 
       const result = await db
         .delete(claimDocuments)
-        .where(and(eq(claimDocuments.claimId, claimId), eq(claimDocuments.documentId, documentId)))
+        .where(
+          and(
+            eq(claimDocuments.claimId, claimId),
+            eq(claimDocuments.documentId, documentId)
+          )
+        )
         .returning();
 
       logger.info(`Document removed from claim: ${claimId}`);
@@ -648,7 +705,10 @@ export class ClaimsApplicationService {
   /**
    * Get all documents for a claim
    */
-  static async getClaimDocuments(claimId: string, userId: string): Promise<ClaimDocument[]> {
+  static async getClaimDocuments(
+    claimId: string,
+    userId: string
+  ): Promise<ClaimDocument[]> {
     try {
       const existing = await this.getClaim(claimId, userId);
       if (!existing) {
@@ -701,7 +761,11 @@ export class ClaimsApplicationService {
   /**
    * Attach a signature to a claim
    */
-  static async attachSignature(claimId: string, userId: string, signatureId: string): Promise<Claim | null> {
+  static async attachSignature(
+    claimId: string,
+    userId: string,
+    signatureId: string
+  ): Promise<Claim | null> {
     try {
       const existing = await this.getClaim(claimId, userId);
       if (!existing) {
@@ -755,17 +819,21 @@ export class ClaimsApplicationService {
           .update(claimsTable)
           .set({
             workflowState: newState,
-            workflowHistory: sql`${claimsTable.workflowHistory} || ${JSON.stringify([
-              {
-                state: newState,
-                previousState,
-                timestamp: new Date().toISOString(),
-                triggeredBy: 'user',
-              },
-            ])}::jsonb`,
+            workflowHistory: sql`${claimsTable.workflowHistory} || ${JSON.stringify(
+              [
+                {
+                  state: newState,
+                  previousState,
+                  timestamp: new Date().toISOString(),
+                  triggeredBy: 'user',
+                },
+              ]
+            )}::jsonb`,
             updatedAt: new Date(),
           })
-          .where(and(eq(claimsTable.id, claimId), eq(claimsTable.userId, userId)))
+          .where(
+            and(eq(claimsTable.id, claimId), eq(claimsTable.userId, userId))
+          )
           .returning();
 
         // Record workflow state transition
@@ -780,7 +848,9 @@ export class ClaimsApplicationService {
         return updatedClaim;
       });
 
-      logger.info(`Claim workflow transitioned: ${claimId} from ${previousState} to ${newState}`);
+      logger.info(
+        `Claim workflow transitioned: ${claimId} from ${previousState} to ${newState}`
+      );
       return mapRowToClaim(result);
     } catch (error) {
       logger.error('Error transitioning workflow state:', error);
@@ -791,7 +861,10 @@ export class ClaimsApplicationService {
   /**
    * Get workflow history for a claim
    */
-  static async getWorkflowHistory(claimId: string, userId: string): Promise<WorkflowStateEntry[]> {
+  static async getWorkflowHistory(
+    claimId: string,
+    userId: string
+  ): Promise<WorkflowStateEntry[]> {
     try {
       const existing = await this.getClaim(claimId, userId);
       if (!existing) {
@@ -824,7 +897,10 @@ export class ClaimsApplicationService {
   /**
    * Validate a claim for submission
    */
-  static async validateForSubmission(claimId: string, userId: string): Promise<ValidationResult> {
+  static async validateForSubmission(
+    claimId: string,
+    userId: string
+  ): Promise<ValidationResult> {
     try {
       const claim = await this.getClaim(claimId, userId);
       if (!claim) {
@@ -835,7 +911,8 @@ export class ClaimsApplicationService {
       const errors: string[] = [];
 
       // Detect if this is a VBL-style claim (own_refund without German address data)
-      const isVblClaim = claim.claimType === 'own_refund' && !claim.germanStreet;
+      const isVblClaim =
+        claim.claimType === 'own_refund' && !claim.germanStreet;
 
       // Universal checks — required for all claim types
       if (!claim.firstName) errors.push('First name is required');
@@ -852,7 +929,8 @@ export class ClaimsApplicationService {
       if (!claim.nationality) errors.push('Nationality is required');
       if (!claim.placeOfBirth) errors.push('Place of birth is required');
       if (!claim.passportNumber) errors.push('Passport number is required');
-      if (!claim.currentAddressLine1) errors.push('Current address is required');
+      if (!claim.currentAddressLine1)
+        errors.push('Current address is required');
       if (!claim.currentCity) errors.push('Current city is required');
       if (!claim.currentCountry) errors.push('Current country is required');
       if (!claim.signatureId) errors.push('Signature is required');
@@ -868,12 +946,17 @@ export class ClaimsApplicationService {
         if (!claim.germanStreet) errors.push('German address is required');
         if (!claim.germanCity) errors.push('German city is required');
         if (!claim.moveOutDate) errors.push('Move out date is required');
-        if (!claim.accountHolderName) errors.push('Bank account holder name is required');
+        if (!claim.accountHolderName)
+          errors.push('Bank account holder name is required');
         if (!claim.bankName) errors.push('Bank name is required');
-        if (!claim.confirmationAccuracyAccepted) errors.push('Accuracy confirmation is required');
-        if (!claim.confirmationAuthorizationAccepted) errors.push('Authorization confirmation is required');
+        if (!claim.confirmationAccuracyAccepted)
+          errors.push('Accuracy confirmation is required');
+        if (!claim.confirmationAuthorizationAccepted)
+          errors.push('Authorization confirmation is required');
 
-        const hasCertifiedId = docs.some((d) => d.documentRole === 'certified_id_form');
+        const hasCertifiedId = docs.some(
+          (d) => d.documentRole === 'certified_id_form'
+        );
         if (!hasCertifiedId) errors.push('Certified identity form is required');
 
         // Check required steps for GPR
@@ -915,7 +998,9 @@ export class ClaimsApplicationService {
       // Validate first
       const validation = await this.validateForSubmission(claimId, userId);
       if (!validation.isValid) {
-        throw new Error(`Claim validation failed: ${validation.errors.join(', ')}`);
+        throw new Error(
+          `Claim validation failed: ${validation.errors.join(', ')}`
+        );
       }
 
       const result = await db.transaction(async (tx: any) => {
@@ -926,17 +1011,21 @@ export class ClaimsApplicationService {
             status: 'submitted',
             workflowState: 'submitted',
             submittedAt: new Date(),
-            workflowHistory: sql`${claimsTable.workflowHistory} || ${JSON.stringify([
-              {
-                state: 'submitted',
-                timestamp: new Date().toISOString(),
-                triggeredBy: 'user',
-                note: 'Claim submitted by user',
-              },
-            ])}::jsonb`,
+            workflowHistory: sql`${claimsTable.workflowHistory} || ${JSON.stringify(
+              [
+                {
+                  state: 'submitted',
+                  timestamp: new Date().toISOString(),
+                  triggeredBy: 'user',
+                  note: 'Claim submitted by user',
+                },
+              ]
+            )}::jsonb`,
             updatedAt: new Date(),
           })
-          .where(and(eq(claimsTable.id, claimId), eq(claimsTable.userId, userId)))
+          .where(
+            and(eq(claimsTable.id, claimId), eq(claimsTable.userId, userId))
+          )
           .returning();
 
         // Record workflow transition
@@ -1003,6 +1092,101 @@ export class ClaimsApplicationService {
       return mapRowToClaim(result);
     } catch (error) {
       logger.error('Error submitting claim:', error);
+      throw error;
+    }
+  }
+
+  // ==================== CONFIRM-STEP STOP ====================
+
+  /**
+   * Stop a refund application from the Confirm step, when the user answers
+   * "Yes" to one of the four disqualifying questions.
+   *
+   * No schema migration is used: the stopped state reuses the existing
+   * 'rejected' status/workflow value, disambiguated from an admin rejection by
+   * the audit action ('claim_stopped_confirm') and the workflow-state metadata
+   * (action: 'confirm_stop', including which question(s) triggered it and the
+   * manual-refund signal). No Stripe refund is issued here — the stopped state
+   * + audit entry is the ops signal for a manual full €199 deposit refund.
+   */
+  static async stopClaimFromConfirm(
+    claimId: string,
+    userId: string,
+    reasons: string[]
+  ): Promise<Claim | null> {
+    try {
+      const existing = await this.getClaim(claimId, userId);
+      if (!existing) {
+        return null;
+      }
+
+      // Only in-progress claims can be stopped this way. A claim that is
+      // already submitted/processing/completed/rejected is terminal.
+      if (
+        existing.status === 'submitted' ||
+        existing.status === 'processing' ||
+        existing.status === 'completed' ||
+        existing.status === 'rejected'
+      ) {
+        throw new Error(`Cannot stop a claim with status '${existing.status}'`);
+      }
+
+      const previousState = existing.workflowState;
+
+      const result = await db.transaction(async (tx: any) => {
+        const [updatedClaim] = await tx
+          .update(claimsTable)
+          .set({
+            status: 'rejected',
+            workflowState: 'rejected',
+            workflowHistory: sql`${claimsTable.workflowHistory} || ${JSON.stringify(
+              [
+                {
+                  state: 'rejected',
+                  previousState,
+                  timestamp: new Date().toISOString(),
+                  triggeredBy: 'user',
+                  note: 'Stopped at confirm step (disqualifying answer)',
+                },
+              ]
+            )}::jsonb`,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(eq(claimsTable.id, claimId), eq(claimsTable.userId, userId))
+          )
+          .returning();
+
+        await tx.insert(claimWorkflowStates).values({
+          claimId,
+          state: 'rejected',
+          previousState,
+          triggeredBy: 'user',
+          metadata: {
+            action: 'confirm_stop',
+            reasons,
+            refund: 'manual_deposit_199',
+            source: 'confirm_step',
+          },
+        });
+
+        await tx.insert(auditLogs).values({
+          userId,
+          action: 'claim_stopped_confirm',
+          resource: 'claim',
+          resourceId: claimId,
+          details: { reasons, refund: 'manual_deposit_199' },
+        });
+
+        return updatedClaim;
+      });
+
+      logger.info(
+        `Claim stopped at confirm step: ${claimId} (reasons: ${reasons.join(', ')})`
+      );
+      return mapRowToClaim(result);
+    } catch (error) {
+      logger.error('Error stopping claim at confirm step:', error);
       throw error;
     }
   }
@@ -1113,7 +1297,11 @@ export class ClaimsApplicationService {
    */
   static async getClaimUserInfo(
     claimId: string
-  ): Promise<{ email: string; firstName: string | null; lastName: string | null } | null> {
+  ): Promise<{
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+  } | null> {
     try {
       const result = await db
         .select({
@@ -1171,15 +1359,17 @@ export class ClaimsApplicationService {
           .set({
             status: newStatus,
             workflowState: newStatus,
-            workflowHistory: sql`${claimsTable.workflowHistory} || ${JSON.stringify([
-              {
-                state: newStatus,
-                previousState: currentStatus,
-                timestamp: new Date().toISOString(),
-                triggeredBy: 'admin',
-                note: note || `Status changed to ${newStatus}`,
-              },
-            ])}::jsonb`,
+            workflowHistory: sql`${claimsTable.workflowHistory} || ${JSON.stringify(
+              [
+                {
+                  state: newStatus,
+                  previousState: currentStatus,
+                  timestamp: new Date().toISOString(),
+                  triggeredBy: 'admin',
+                  note: note || `Status changed to ${newStatus}`,
+                },
+              ]
+            )}::jsonb`,
             updatedAt: new Date(),
           })
           .where(eq(claimsTable.id, claimId))
@@ -1210,7 +1400,9 @@ export class ClaimsApplicationService {
         return updatedClaim;
       });
 
-      logger.info(`Claim ${claimId} status updated: ${currentStatus} -> ${newStatus} by admin ${adminUserId}`);
+      logger.info(
+        `Claim ${claimId} status updated: ${currentStatus} -> ${newStatus} by admin ${adminUserId}`
+      );
       return mapRowToClaim(result);
     } catch (error) {
       logger.error('Error updating claim status:', error);
@@ -1221,7 +1413,11 @@ export class ClaimsApplicationService {
   /**
    * Add an admin note to a claim
    */
-  static async addAdminNote(claimId: string, adminUserId: string, note: string): Promise<void> {
+  static async addAdminNote(
+    claimId: string,
+    adminUserId: string,
+    note: string
+  ): Promise<void> {
     try {
       const claim = await this.getClaimAsAdmin(claimId);
       if (!claim) {
@@ -1256,7 +1452,9 @@ export class ClaimsApplicationService {
   /**
    * Get claim documents without ownership check (admin only)
    */
-  static async getClaimDocumentsAsAdmin(claimId: string): Promise<ClaimDocument[]> {
+  static async getClaimDocumentsAsAdmin(
+    claimId: string
+  ): Promise<ClaimDocument[]> {
     try {
       const result = await db
         .select({
@@ -1302,7 +1500,9 @@ export class ClaimsApplicationService {
   /**
    * Get workflow history without ownership check (admin only)
    */
-  static async getWorkflowHistoryAsAdmin(claimId: string): Promise<WorkflowStateEntry[]> {
+  static async getWorkflowHistoryAsAdmin(
+    claimId: string
+  ): Promise<WorkflowStateEntry[]> {
     try {
       const result = await db
         .select()

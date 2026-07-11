@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, ChevronDown, Info } from 'lucide-react';
 import { useEligibility } from '@/contexts/EligibilityContext';
+import { PUBLIC_FEDERAL_STATES } from '@/components/vbl/company-pension-providers';
 
 const GERMAN_FEDERAL_STATES = [
   'Baden-Württemberg',
@@ -33,6 +34,12 @@ export const FederalState: React.FC = () => {
   // state-dependent eligibility rules.
   const isStage = data.employmentType === 'stage_performing_arts';
   const isPublic = data.employmentType === 'public_sector';
+  // Public sector (VBL/ZVK) only supports the West-German states CompanyPension
+  // handles — East states and Hamburg are dropped here, which is why the
+  // "My state is not listed" notice below exists. Stage/other keeps all states.
+  const stateOptions: readonly string[] = isPublic
+    ? PUBLIC_FEDERAL_STATES
+    : GERMAN_FEDERAL_STATES;
 
   const handleContinue = () => {
     if (!selected) return;
@@ -66,7 +73,7 @@ export const FederalState: React.FC = () => {
           className="h-12 w-full cursor-pointer appearance-none rounded-[8px] border border-[#D3DAE8] bg-white px-4 pr-10 text-[16px] text-[#1F2937] shadow-sm transition-all focus:border-[#9FE870] focus:outline-none focus:ring-2 focus:ring-[#9FE870]/20"
         >
           <option value="">Select federal state</option>
-          {GERMAN_FEDERAL_STATES.map((state) => (
+          {stateOptions.map((state) => (
             <option key={state} value={state}>
               {state}
             </option>

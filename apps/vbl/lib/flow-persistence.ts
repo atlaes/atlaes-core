@@ -33,6 +33,7 @@ import type {
   HealthInsuranceType,
   OnboardingAddress,
   OnboardingBankDetails,
+  OnboardingConfirm,
   OnboardingData,
   OnboardingMembership,
   SubmitDetailsSubStep,
@@ -237,6 +238,8 @@ export interface PersistedOnboardingData {
   healthInsurance: PersistedOnboardingHealthInsurance;
   bankDetails: OnboardingBankDetails;
   signature: PersistedOnboardingSignature;
+  // Confirm answers/checkboxes are all plain scalars — fully serializable.
+  confirm: OnboardingConfirm;
   userId?: string;
   claimId?: string;
   documentId?: string;
@@ -295,6 +298,7 @@ export function toPersistedOnboardingData(
       signatureType: data.signature.signatureType,
       legalConfirmed: data.signature.legalConfirmed,
     },
+    confirm: data.confirm,
     userId: data.userId,
     claimId: data.claimId,
     documentId: data.documentId,

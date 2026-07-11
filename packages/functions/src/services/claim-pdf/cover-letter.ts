@@ -56,11 +56,15 @@ export function buildCoverLetterPlan(
     size: fontSize,
   });
 
-  // Date line (place, comma, "den", date) — right-aligned block.
+  // Date line (place, comma, "den", date) — right-aligned so its right edge
+  // is flush with the body's right margin. x is computed from the measured
+  // text width (true right-alignment) rather than a fixed left offset.
+  const dateLineText = `${data.signingPlace}, den ${data.dateToday}`;
+  const rightEdge = A4.width - COVER_LAYOUT.marginRight;
   ops.push({
     kind: 'text',
-    text: `${data.signingPlace}, den ${data.dateToday}`,
-    x: COVER_LAYOUT.dateLine.x,
+    text: dateLineText,
+    x: rightEdge - font.widthOfTextAtSize(dateLineText, fontSize),
     yTop: COVER_LAYOUT.dateLine.top,
     size: fontSize,
   });

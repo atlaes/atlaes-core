@@ -14,6 +14,15 @@ function endedInOrAfter2018(data: EligibilityData): boolean {
   return Number.isFinite(endYear) && endYear >= 2018;
 }
 
+// True only when the employment end year is known AND before 2018. A missing
+// or unparseable end year returns false (not the same as !endedInOrAfter2018,
+// which would be true for NaN) so we keep asking the consecutive question
+// until the end date pins the period to pre-2018.
+function endedBefore2018(data: EligibilityData): boolean {
+  const endYear = Number(data.employmentEndYear);
+  return Number.isFinite(endYear) && endYear < 2018;
+}
+
 function hasConfirmedUploadCheckData(data: EligibilityData): boolean {
   return Boolean(
     data.publicEntryPath === 'upload' &&
@@ -106,6 +115,15 @@ export const publicSectorFlow: FlowConfig = {
 
     // VBL plan toggle only for VBL provider
     if (stepId === 'pension_scheme' && data.pensionProvider !== 'VBL') {
+      return true;
+    }
+
+    // Figma: if employment ended before 2018, jump straight to the total
+    // contribution period screen and skip the consecutive-contribution
+    // question. Its answer only matters from 2018 onward (see
+    // checkEligibility('contribution_period'), which vests only on
+    // 'yes' + endedInOrAfter2018), so it is dead weight for pre-2018 periods.
+    if (stepId === 'contribution_period' && endedBefore2018(data)) {
       return true;
     }
     return false;

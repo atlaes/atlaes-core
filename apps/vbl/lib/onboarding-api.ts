@@ -282,6 +282,67 @@ export async function submitClaim(
   return data;
 }
 
+// Confirm step: stop the refund application when the user changes one of the
+// four Section-1 answers to "Yes". `reasons` are the answer keys that
+// triggered the stop. The claim is marked stopped (rejected) and the user is
+// emailed; the €199 deposit refund is executed manually by ops.
+export async function stopClaim(
+  claimId: string,
+  reasons: string[]
+): Promise<ClaimResponse & { message: string }> {
+  const { data } = await apiClient.post(`/claims/${claimId}/stop`, { reasons });
+  return data;
+}
+
+// ============================================================
+// Contract Withdrawal (EU-legal electronic withdrawal)
+// ============================================================
+
+export interface WithdrawalContract {
+  claimId: string;
+  fullName: string;
+  email: string;
+  pensionTypeOrInstitution: string;
+  contractDate: string | null;
+  paymentDate: string | null;
+  applicationAlreadySubmitted: boolean;
+  declarationText: string;
+  alreadyWithdrawn: boolean;
+}
+
+export interface IdentifyWithdrawalInput {
+  fullName: string;
+  email: string;
+  claimId: string;
+  pensionTypeOrInstitution: string;
+}
+
+// Public identification. Returns the identified contract on a full match, or
+// throws on the generic 404 (never revealing which field failed).
+export async function identifyWithdrawal(
+  input: IdentifyWithdrawalInput
+): Promise<{ success: boolean; contract: WithdrawalContract }> {
+  const { data } = await apiClient.post('/withdrawals/identify', input);
+  return data;
+}
+
+// Second-step confirmation. On the public path pass the identify payload; a
+// logged-in owner needs only the claimId (the auth token is attached
+// automatically). Withdrawal completes ONLY on this call.
+export async function confirmWithdrawal(input: {
+  claimId: string;
+  fullName?: string;
+  email?: string;
+  pensionTypeOrInstitution?: string;
+}): Promise<{
+  success: boolean;
+  contract: WithdrawalContract;
+  message: string;
+}> {
+  const { data } = await apiClient.post('/withdrawals/confirm', input);
+  return data;
+}
+
 export async function markStepComplete(
   claimId: string,
   stepName: string
