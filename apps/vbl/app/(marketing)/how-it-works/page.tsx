@@ -163,6 +163,7 @@ export default function HowItWorksPage() {
         eyebrow="The digital process"
         title="How CompanyPension"
         highlight="works"
+        showDefaultGlows={false}
         body={
           <>
             Upload your pension document or answer guided questions. The
