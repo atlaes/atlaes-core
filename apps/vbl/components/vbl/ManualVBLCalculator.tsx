@@ -631,13 +631,14 @@ const FormShell: React.FC<FormShellProps> = ({
   </div>
 );
 
+// Client round-3 item 7: the side-menu steps show only the step name — the
+// per-step subtitle/description line was removed.
 const SidebarStep: React.FC<{
   index: number;
   title: string;
-  description: string;
   active: boolean;
   complete: boolean;
-}> = ({ index, title, description, active, complete }) => (
+}> = ({ index, title, active, complete }) => (
   <div
     className={`relative flex min-h-[96px] items-center gap-4 rounded-l-2xl px-6 ${
       active ? 'bg-[#9FE870] text-[#163300]' : 'text-white'
@@ -654,9 +655,6 @@ const SidebarStep: React.FC<{
     </div>
     <div>
       <p className="font-bold">{title}</p>
-      {(active || complete) && (
-        <p className="mt-1 text-xs font-normal opacity-90">{description}</p>
-      )}
     </div>
   </div>
 );
@@ -666,18 +664,9 @@ const CalculatorSidebar: React.FC<{ screen: CalculatorScreen }> = ({
 }) => {
   const activeSection = getCurrentSection(screen);
   const steps = [
-    {
-      title: 'Pension Type',
-      description: 'Pick what you want to check.',
-    },
-    {
-      title: 'Details',
-      description: 'A few quick questions.',
-    },
-    {
-      title: 'Estimate',
-      description: 'See your estimated refund.',
-    },
+    { title: 'Pension Type' },
+    { title: 'Details' },
+    { title: 'Estimate' },
   ];
 
   return (
@@ -695,7 +684,6 @@ const CalculatorSidebar: React.FC<{ screen: CalculatorScreen }> = ({
             key={step.title}
             index={index + 1}
             title={step.title}
-            description={step.description}
             active={activeSection === index}
             complete={activeSection > index}
           />
