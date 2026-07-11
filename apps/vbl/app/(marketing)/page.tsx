@@ -372,40 +372,52 @@ export default function HomePage() {
                 window starts flush at the top; the left ("secure claim")
                 window starts ~52px lower, matching the design's stagger. */}
             <div className="relative mx-auto hidden h-[300px] w-full max-w-[1141px] lg:block xl:h-[330px]">
-              <Image
-                src="/marketing/home/hero-mockup-secure-claim.png"
-                alt="CompanyPension app — create your secure claim sign-in screen"
-                width={562}
-                height={317}
-                priority
-                className="absolute left-0 top-[52px] h-auto w-[49.25%] drop-shadow-2xl"
-              />
-              <Image
-                src="/marketing/home/hero-mockup-refund-submitted.png"
-                alt="CompanyPension app — refund request submitted confirmation screen"
-                width={559}
-                height={370}
-                priority
-                className="absolute right-0 top-0 h-auto w-[48.99%] drop-shadow-2xl"
-              />
+              {/* Each window is wrapped in a rounded, overflow-clipped box so
+                  the tablet corners read as cleanly rounded (no hard/dark
+                  edge), with a soft downward-only shadow (negative spread so
+                  it never rims the top/sides as a black line). */}
+              <div className="absolute left-0 top-[52px] w-[49.25%] overflow-hidden rounded-t-[20px] shadow-[0_30px_60px_-28px_rgba(0,0,0,0.55)]">
+                <Image
+                  src="/marketing/home/hero-mockup-secure-claim.png"
+                  alt="CompanyPension app — create your secure claim sign-in screen"
+                  width={562}
+                  height={317}
+                  priority
+                  className="block h-auto w-full"
+                />
+              </div>
+              <div className="absolute right-0 top-0 w-[48.99%] overflow-hidden rounded-t-[20px] shadow-[0_30px_60px_-28px_rgba(0,0,0,0.55)]">
+                <Image
+                  src="/marketing/home/hero-mockup-refund-submitted.png"
+                  alt="CompanyPension app — refund request submitted confirmation screen"
+                  width={559}
+                  height={370}
+                  priority
+                  className="block h-auto w-full"
+                />
+              </div>
             </div>
 
             {/* < lg: stacked single column, no horizontal overflow */}
             <div className="mx-auto flex max-w-[562px] flex-col gap-6 lg:hidden">
-              <Image
-                src="/marketing/home/hero-mockup-secure-claim.png"
-                alt="CompanyPension app — create your secure claim sign-in screen"
-                width={562}
-                height={317}
-                className="h-auto w-full drop-shadow-2xl"
-              />
-              <Image
-                src="/marketing/home/hero-mockup-refund-submitted.png"
-                alt="CompanyPension app — refund request submitted confirmation screen"
-                width={559}
-                height={370}
-                className="h-auto w-full drop-shadow-2xl"
-              />
+              <div className="overflow-hidden rounded-2xl shadow-[0_24px_44px_-20px_rgba(0,0,0,0.5)]">
+                <Image
+                  src="/marketing/home/hero-mockup-secure-claim.png"
+                  alt="CompanyPension app — create your secure claim sign-in screen"
+                  width={562}
+                  height={317}
+                  className="block h-auto w-full"
+                />
+              </div>
+              <div className="overflow-hidden rounded-2xl shadow-[0_24px_44px_-20px_rgba(0,0,0,0.5)]">
+                <Image
+                  src="/marketing/home/hero-mockup-refund-submitted.png"
+                  alt="CompanyPension app — refund request submitted confirmation screen"
+                  width={559}
+                  height={370}
+                  className="block h-auto w-full"
+                />
+              </div>
             </div>
           </div>
         </div>
