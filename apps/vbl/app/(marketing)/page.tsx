@@ -953,6 +953,7 @@ export default function HomePage() {
         cta={{ label: 'Start your claim', href: '/get-started' }}
         secondaryCta={{ label: 'Calculate my refund', href: '/calculator' }}
         note="The refund calculator is available for VBL, ZVK, VddB and VddKO cases. It is not used for bAV cash-outs."
+        backgroundImageSrc="/marketing/home/cta-waves-background.png"
       />
     </>
   );

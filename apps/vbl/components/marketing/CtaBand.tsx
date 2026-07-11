@@ -16,6 +16,13 @@ export interface CtaBandProps {
   secondaryCta?: CtaLink;
   /** Optional muted note rendered under the CTAs. */
   note?: ReactNode;
+  /**
+   * Optional decorative full-bleed background (Home closing band, Figma
+   * 1179:1923). When set, the band switches to the near-black base and
+   * layers this image with a multiply blend. Other pages omit it and keep
+   * the flat brand background unchanged.
+   */
+  backgroundImageSrc?: string;
 }
 
 /**
@@ -28,10 +35,26 @@ export function CtaBand({
   cta,
   secondaryCta,
   note,
+  backgroundImageSrc,
 }: CtaBandProps) {
   return (
-    <section className="bg-brand text-white">
-      <div className="mx-auto flex max-w-[1200px] flex-col items-center px-6 py-20 text-center sm:py-24">
+    <section
+      className={`relative overflow-hidden text-white ${
+        backgroundImageSrc ? 'bg-[#231f20]' : 'bg-brand'
+      }`}
+    >
+      {backgroundImageSrc ? (
+        // Plain img (not next/image): the dev optimizer renders these large
+        // decorative backgrounds blank; the direct asset paints reliably.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={backgroundImageSrc}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover opacity-70 mix-blend-multiply"
+        />
+      ) : null}
+      <div className="relative mx-auto flex max-w-[1200px] flex-col items-center px-6 py-20 text-center sm:py-24">
         {eyebrow ? (
           <span className="mb-6 inline-flex items-center rounded-full border border-accent/40 bg-white/5 px-5 py-2 text-sm font-medium text-accent">
             {eyebrow}
