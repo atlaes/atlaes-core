@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight, Check, Info } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
 import { SectionHeading } from '@/components/marketing/SectionHeading';
@@ -127,11 +128,19 @@ export default function VblRefundPage() {
                 cash-out or refund without getting lost in German paperwork.
               </p>
             </div>
-            {/* ASSET_PENDING: 1244:3769 "image 827" — supporting illustration */}
+            {/* Figma 1244:3769 "image 827" — supporting illustration */}
             <div
               aria-hidden="true"
-              className="hidden min-h-[420px] rounded-2xl bg-neutral-50 lg:block"
-            />
+              className="hidden min-h-[420px] items-center justify-center rounded-2xl bg-neutral-50 lg:flex"
+            >
+              <Image
+                src="/marketing/shared/guided-process-smiling-man-laptop.png"
+                alt=""
+                width={521}
+                height={597}
+                className="h-full max-h-[420px] w-auto object-contain"
+              />
+            </div>
           </div>
         </div>
       </section>

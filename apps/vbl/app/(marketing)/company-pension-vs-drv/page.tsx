@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight, Calendar, Check, Info, User } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
 import { SectionHeading } from '@/components/marketing/SectionHeading';
@@ -134,12 +135,20 @@ export default function CompanyPensionVsDrvPage() {
                 cash-out or refund without getting lost in German paperwork
               </p>
             </div>
-            {/* ASSET_PENDING: hero-adjacent illustration (Group 1321315138) —
-                no asset on disk; token panel placeholder. */}
+            {/* Figma hero-adjacent illustration (Group 1321315138) — product
+                dashboard mock ("refund request submitted" + step tracker) */}
             <div
               aria-hidden="true"
-              className="hidden min-h-[420px] rounded-2xl bg-neutral-50 lg:block"
-            />
+              className="hidden min-h-[420px] overflow-hidden rounded-2xl lg:block"
+            >
+              <Image
+                src="/marketing/company-pension-vs-drv/company-pension-vs-drv-hero-dashboard-refund-submitted.png"
+                alt=""
+                width={1254}
+                height={1254}
+                className="h-full w-full object-cover"
+              />
+            </div>
           </div>
         </div>
       </section>

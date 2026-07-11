@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight, Check, Info } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
 import { SectionHeading } from '@/components/marketing/SectionHeading';
@@ -121,16 +122,39 @@ function RelatedCard({
 }
 
 /**
- * Token-colored placeholder panel standing in for a Figma illustration that is
- * not available on disk. Each usage carries an ASSET_PENDING comment naming the
- * source node so the asset can be dropped in later.
+ * Supporting illustration panel. Renders the backfilled Figma asset when a
+ * `src` is supplied; otherwise falls back to the token-colored placeholder
+ * standing in for an illustration that is still not available on disk.
  */
-function AssetPanel() {
+function AssetPanel({
+  src,
+  alt,
+  width = 1122,
+  height = 1402,
+}: {
+  src?: string;
+  alt?: string;
+  width?: number;
+  height?: number;
+}) {
+  if (!src) {
+    return (
+      <div
+        aria-hidden="true"
+        className="hidden min-h-[420px] rounded-2xl border border-neutral-400 bg-neutral-50 lg:block"
+      />
+    );
+  }
   return (
-    <div
-      aria-hidden="true"
-      className="hidden min-h-[420px] rounded-2xl border border-neutral-400 bg-neutral-50 lg:block"
-    />
+    <div className="hidden min-h-[420px] overflow-hidden rounded-2xl border border-neutral-400 lg:block">
+      <Image
+        src={src}
+        alt={alt ?? ''}
+        width={width}
+        height={height}
+        className="h-full w-full object-cover"
+      />
+    </div>
   );
 }
 
@@ -224,8 +248,13 @@ export default function ZvkRefundPage() {
                 <OutlineLink href={CALC_HREF}>Estimate a Refund</OutlineLink>
               </div>
             </div>
-            {/* ASSET_PENDING: 1108:1203 "image 845" — supporting illustration */}
-            <AssetPanel />
+            {/* Figma 1108:1203 "image 845" — supporting illustration */}
+            <AssetPanel
+              src="/marketing/zvk-refund/zvk-refund-hero-woman-reviewing-documents.png"
+              alt="Woman reviewing a pension document beside her laptop and passport"
+              width={1254}
+              height={1254}
+            />
           </div>
         </div>
       </section>
@@ -461,8 +490,11 @@ export default function ZvkRefundPage() {
                 <OutlineLink href={CALC_HREF}>Estimate a Refund</OutlineLink>
               </div>
             </div>
-            {/* ASSET_PENDING: 1112:6694 "image 850" — supporting illustration */}
-            <AssetPanel />
+            {/* Figma 1112:6694 "image 850" — supporting illustration */}
+            <AssetPanel
+              src="/marketing/zvk-refund/zvk-refund-zvk-vs-bav-cashout-comparison.png"
+              alt="ZVK Refund (contribution reimbursement) versus bAV Cash-Out (Direktversicherung, Pensionskasse, Pensionsfonds) — different process"
+            />
           </div>
         </div>
       </section>
@@ -541,16 +573,28 @@ export default function ZvkRefundPage() {
                 <OutlineLink href={CALC_HREF}>Estimate a Refund</OutlineLink>
               </div>
             </div>
-            {/* ASSET_PENDING: 1114:8129 "image 853" — supporting illustration */}
-            <AssetPanel />
+            {/* Figma 1114:8129 "image 853" — supporting illustration */}
+            <AssetPanel
+              src="/marketing/zvk-refund/zvk-refund-calculator-employment-payslips-contributions.png"
+              alt="Calculator inputs confirmed by ZVK: employment dates, payslips and contributions"
+            />
           </div>
         </div>
       </section>
 
       {/* ---- A GUIDED ONLINE PROCESS / STEPS (Figma 1113:8025) ---- */}
-      {/* ASSET_PENDING: 1113:8023 "image 851" — section illustration */}
-      <section className="bg-white">
-        <div className={`${CONTAINER} py-20 sm:py-24`}>
+      {/* Figma 1113:8023 "image 851" — section illustration, reusing the
+          shared abstract ribbon swirl asset (dedupe: identical checksum) */}
+      <section className="relative overflow-hidden bg-white">
+        <Image
+          src="/marketing/shared/abstract-white-ribbon-swirl-close.png"
+          alt=""
+          aria-hidden="true"
+          width={500}
+          height={281}
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-10 grayscale"
+        />
+        <div className={`${CONTAINER} relative py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="HOW COMPANYPENSION HELPS"
@@ -680,8 +724,11 @@ export default function ZvkRefundPage() {
                 <OutlineLink href={START_HREF}>Start My ZVK Refund</OutlineLink>
               </div>
             </div>
-            {/* ASSET_PENDING: 1117:831 "image 849" — supporting illustration */}
-            <AssetPanel />
+            {/* Figma 1117:831 "image 849" — supporting illustration */}
+            <AssetPanel
+              src="/marketing/zvk-refund/zvk-refund-pricing-paid-directly-no-hold.png"
+              alt="Pricing shown before you continue; approved funds paid directly to your account; CompanyPension does not hold your pension money"
+            />
           </div>
         </div>
       </section>

@@ -92,7 +92,27 @@
       "/marketing/reviews/reviews-asset-17.png",
       "/marketing/reviews/reviews-asset-18.png",
       "/marketing/shared/abstract-dark-green-gradient.png",
-      "/marketing/reviews/reviews-asset-20.png"
+      "/marketing/reviews/reviews-asset-20.png",
+      "/marketing/reviews/reviews-asset-04.png",
+      "/marketing/reviews/reviews-asset-07.png",
+      "/marketing/reviews/reviews-asset-12.png",
+      "/marketing/reviews/reviews-asset-19.png",
+      "/marketing/reviews/reviews-asset-21.png",
+      "/marketing/reviews/reviews-asset-22.png",
+      "/marketing/reviews/reviews-asset-23.png",
+      "/marketing/reviews/reviews-asset-24.png",
+      "/marketing/reviews/reviews-asset-25.png",
+      "/marketing/reviews/reviews-asset-26.png",
+      "/marketing/reviews/reviews-asset-27.png",
+      "/marketing/reviews/reviews-asset-28.png",
+      "/marketing/reviews/reviews-asset-29.png",
+      "/marketing/reviews/reviews-asset-30.png",
+      "/marketing/reviews/reviews-asset-31.png",
+      "/marketing/reviews/reviews-asset-32.png",
+      "/marketing/reviews/reviews-asset-33.png",
+      "/marketing/reviews/reviews-asset-34.png",
+      "/marketing/reviews/reviews-asset-35.png",
+      "/marketing/reviews/reviews-asset-36.png"
     ]
   },
   "/about": {
@@ -108,6 +128,37 @@
       "/marketing/shared/abstract-white-ribbon-swirl-wide.png",
       "/marketing/shared/berlin-landmark-building-landscape.png",
       "/marketing/shared/abstract-dark-green-gradient.png"
+    ]
+  },
+  "/vbl-refund": {
+    "nodeId": "1244:3166",
+    "assets": [
+      "/marketing/shared/guided-process-smiling-man-laptop.png"
+    ]
+  },
+  "/zvk-refund": {
+    "nodeId": "1108:95",
+    "assets": [
+      "/marketing/zvk-refund/zvk-refund-hero-woman-reviewing-documents.png",
+      "/marketing/zvk-refund/zvk-refund-zvk-vs-bav-cashout-comparison.png",
+      "/marketing/zvk-refund/zvk-refund-calculator-employment-payslips-contributions.png",
+      "/marketing/zvk-refund/zvk-refund-pricing-paid-directly-no-hold.png",
+      "/marketing/shared/abstract-white-ribbon-swirl-close.png",
+      "/marketing/shared/aurora-gradient-teal-green-wide.png",
+      "/marketing/shared/aurora-gradient-teal-green.png",
+      "/marketing/shared/abstract-white-ribbon-swirl-wide.png"
+    ]
+  },
+  "/company-pension-vs-drv": {
+    "nodeId": "1366:5987",
+    "assets": [
+      "/marketing/company-pension-vs-drv/company-pension-vs-drv-hero-dashboard-refund-submitted.png"
+    ]
+  },
+  "/refund-calculator": {
+    "nodeId": "1338:72",
+    "assets": [
+      "/marketing/shared/guided-process-smiling-man-laptop.png"
     ]
   }
 }
