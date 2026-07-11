@@ -1276,8 +1276,16 @@ export const ManualVBLCalculator: React.FC = () => {
 
             {screen === 'federal-state' && (
               <FormShell
-                title="Where was your public-sector employer located?"
-                subtitle="Select the German federal state where your employer was based. CompanyPension currently only checks contributions in West Germany states."
+                title={
+                  form.pensionType === 'stage'
+                    ? 'Where was your employer located?'
+                    : 'Where was your public-sector employer located?'
+                }
+                subtitle={
+                  form.pensionType === 'stage'
+                    ? 'Select the German federal state where your employer was based.'
+                    : 'Select the German federal state where your employer was based. CompanyPension currently only checks contributions in West Germany states.'
+                }
                 canContinue={canContinue}
                 onBack={goBack}
                 onContinue={handleContinue}
@@ -1295,14 +1303,16 @@ export const ManualVBLCalculator: React.FC = () => {
                   options={getFederalStateOptions(form.pensionType)}
                   placeholder="Select federal state"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowUnlistedStateInfo(true)}
-                  className="mt-3 block text-left text-sm font-bold text-[#163300] underline"
-                >
-                  My state is not listed &gt;
-                </button>
-                {showUnlistedStateInfo && (
+                {form.pensionType !== 'stage' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowUnlistedStateInfo(true)}
+                    className="mt-3 block text-left text-sm font-bold text-[#163300] underline"
+                  >
+                    My state is not listed &gt;
+                  </button>
+                )}
+                {form.pensionType !== 'stage' && showUnlistedStateInfo && (
                   <div className="mt-8 flex items-start gap-5 rounded-xl bg-[#EEF6EA] px-7 py-6 text-left">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#4E8F21] text-white">
                       <Info className="h-6 w-6" />

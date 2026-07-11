@@ -329,10 +329,15 @@ test.describe('Public Sector Eligibility', () => {
     await selectPensionProvider(page, 'VBL');
     await selectPensionScheme(page, 'VBLextra');
     await expectNotEligibleResult(page);
+    // The flow-specific copy must render (not the generic fallback heading):
+    // VBLextra means the supplementary pension is vested.
     await expect(
-      page.getByText(
-        'This refund cannot currently be claimed with CompanyPension'
-      )
+      page.getByRole('heading', {
+        name: 'Not eligible for a supplementary pension refund',
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByText(/supplementary pension is vested/i)
     ).toBeVisible();
   });
 
