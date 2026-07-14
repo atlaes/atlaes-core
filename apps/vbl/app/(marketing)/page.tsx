@@ -9,28 +9,16 @@ import {
   FaqAccordion,
   type FaqAccordionItem,
 } from '@/components/marketing/FaqAccordion';
+import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
 /**
- * Home FAQ (Figma 1178:541, transcribed from the rendered canvas — the XML
- * export only carries un-overridden component defaults). Q1's answer is shown
- * expanded in the design. Q3's answer is the verbatim transcription of the
- * identical question on the how-it-works frame (its item 1, expanded there).
- * The design shows the remaining items collapsed, so their answers are not
- * readable from the anonymous Figma view; until the client supplies them,
- * those items point to the FAQ page. FLAGGED as a copy gap in the task report.
+ * Home FAQ (Figma 1178:541). Questions follow the design; answers come from the
+ * shared FAQ master copy via faqItems.tsx (FAQ CompanyPension 22062026.pdf).
+ * Q1 and Q3 keep the design's own expanded answers; the remaining items reuse
+ * the master answers under the home-designed question wording.
  */
-const FAQ_ANSWER_PENDING = (
-  <p>
-    You can find the answer on our{' '}
-    <Link href="/faq" className="font-semibold text-brand underline">
-      FAQ page
-    </Link>
-    .
-  </p>
-);
-
 const HOME_FAQ_ITEMS: FaqAccordionItem[] = [
   {
     question: 'Can I get money back from my German company pension?',
@@ -50,9 +38,9 @@ const HOME_FAQ_ITEMS: FaqAccordionItem[] = [
     ),
   },
   {
+    ...FAQ.bothRefunds,
     question:
       'I already received a German state pension refund. Can I also get money from my company pension?',
-    answer: FAQ_ANSWER_PENDING,
   },
   {
     question: 'Do I need to use the calculator first?',
@@ -69,21 +57,12 @@ const HOME_FAQ_ITEMS: FaqAccordionItem[] = [
       </>
     ),
   },
+  { ...FAQ.howLong, question: 'How long does it usually take?' },
+  FAQ.bankAccount,
+  FAQ.cashOutAfterLeaving,
   {
-    question: 'How long does it usually take?',
-    answer: FAQ_ANSWER_PENDING,
-  },
-  {
-    question: 'Do I need a German bank account?',
-    answer: FAQ_ANSWER_PENDING,
-  },
-  {
-    question: 'Can I cash out a bAV after leaving Germany?',
-    answer: FAQ_ANSWER_PENDING,
-  },
-  {
+    ...FAQ.whoReceives,
     question: 'Will CompanyPension receive my pension money?',
-    answer: FAQ_ANSWER_PENDING,
   },
 ];
 

@@ -128,9 +128,14 @@ export function Hero({
           ) : null}
         </h1>
 
-        <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/80 sm:text-lg">
+        {/* `body` is a ReactNode that may itself contain <p> elements (e.g. the
+            About hero passes multiple paragraphs), so this wrapper is a <div>,
+            not a <p> — a <p> inside a <p> is invalid and triggers a hydration
+            error. The text styles apply to the div and cascade to any nested
+            paragraphs. */}
+        <div className="mt-6 max-w-2xl text-base leading-relaxed text-white sm:text-lg">
           {body}
-        </p>
+        </div>
 
         <div className="mt-9 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
           <Link
@@ -150,7 +155,7 @@ export function Hero({
         </div>
 
         {footnote ? (
-          <div className="mt-8 max-w-2xl text-sm leading-relaxed text-white/60">
+          <div className="mt-8 max-w-2xl text-sm leading-relaxed text-white/75">
             {footnote}
           </div>
         ) : null}

@@ -17,12 +17,14 @@ export interface CtaBandProps {
   /** Optional muted note rendered under the CTAs. */
   note?: ReactNode;
   /**
-   * Optional decorative full-bleed background (Home closing band, Figma
-   * 1179:1923). When set, the band switches to the near-black base and
-   * layers this image with a multiply blend. Other pages omit it and keep
-   * the flat brand background unchanged.
+   * Decorative full-bleed background for the closing band. In Figma the
+   * closing CTA is a shared component that always sits on this near-black
+   * (#231f20) wave background (e.g. Pricing node 1199:9435 "Image"), which is
+   * what separates it from the green footer below. It therefore defaults to
+   * the shared waves asset; pass a different path to override, or `null` to
+   * fall back to the flat brand background.
    */
-  backgroundImageSrc?: string;
+  backgroundImageSrc?: string | null;
 }
 
 /**
@@ -35,7 +37,7 @@ export function CtaBand({
   cta,
   secondaryCta,
   note,
-  backgroundImageSrc,
+  backgroundImageSrc = '/marketing/home/cta-waves-background.png',
 }: CtaBandProps) {
   return (
     <section

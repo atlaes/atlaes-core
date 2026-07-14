@@ -18,6 +18,8 @@ import { Hero } from '@/components/marketing/Hero';
 import { SectionHeading } from '@/components/marketing/SectionHeading';
 import { FeatureCard } from '@/components/marketing/FeatureCard';
 import { CtaBand } from '@/components/marketing/CtaBand';
+import { FaqAccordion } from '@/components/marketing/FaqAccordion';
+import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -597,14 +599,11 @@ export default function AboutPage() {
       </section>
 
       {/* ---- FAQ (Figma 1240:72) ----
-          The About FAQ cards are un-overridden component-instance defaults in
-          the XML export (lorem: "How do I pay for the…", "My team wants to
-          can…"), and the Figma canvas is unreachable from a headless browser
-          (CloudFront 403), so the real question/answer copy cannot be
-          transcribed. Per copy governance we do not invent FAQ copy; the
+          Answers come from the shared FAQ master copy via faqItems.tsx
+          (transcribed verbatim from "FAQ CompanyPension 22062026.pdf"). The
           section renders its header (eyebrow 1240:740, title 1240:742, body
-          1240:743 verbatim) and routes to the dedicated FAQ page.
-          FLAGGED as a copy gap in the task report. */}
+          1240:743 verbatim), a shared accordion of selected questions, and
+          routes to the dedicated FAQ page. */}
       <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center gap-8 text-center">
@@ -613,6 +612,17 @@ export default function AboutPage() {
               title="Questions about CompanyPension"
               body="CompanyPension is built as a technology platform rather than a traditional claims or advisory service."
             />
+            <div className="mx-auto mt-12 max-w-4xl">
+              <FaqAccordion
+                items={[
+                  FAQ.whatIsRefund,
+                  FAQ.advisorOrLawFirm,
+                  FAQ.whoReceives,
+                  FAQ.ocrOrAi,
+                ]}
+                defaultOpenIndex={0}
+              />
+            </div>
             <Link
               href="/faq"
               className="inline-flex items-center gap-2 rounded-brand bg-accent px-16 py-4 text-base font-semibold text-brand transition-colors hover:bg-accent-hover"

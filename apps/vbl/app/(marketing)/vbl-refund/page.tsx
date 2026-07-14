@@ -10,6 +10,8 @@ import { CtaBand } from '@/components/marketing/CtaBand';
 import { ImportantCallout } from '@/components/marketing/ImportantCallout';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
 import { GlossaryCard } from '@/components/marketing/GlossaryCard';
+import { FaqAccordion } from '@/components/marketing/FaqAccordion';
+import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -1039,27 +1041,28 @@ export default function VblRefundPage() {
         </div>
       </section>
 
-      {/* ---- FAQ (Figma 1249:6757) ----
-          FAQ_ANSWER_PENDING: every FAQ item in this frame is a component
-          instance carrying lorem defaults ("How do I pay for the…", "We need to
-          add new u…", "You can pay with a c…"). Only the section heading and
-          eyebrow are non-instance verbatim copy. Questions and answers are
-          UNVERIFIABLE from the XML and must not be invented — a backfill pass
-          fills them once Figma access is restored. */}
+      {/* ---- FAQ (Figma 1249:6757) — answers from the shared FAQ master copy via faqItems.tsx (FAQ CompanyPension 22062026.pdf) ---- */}
       <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="FAQ"
-              title="Company pension cash-out: common questions"
+              title="VBL refunds: common questions"
             />
           </div>
-          <div className="mx-auto mt-12 max-w-3xl">
-            <InfoNote>
-              FAQ content for this page is pending. The questions and answers in
-              the source design are placeholder component instances and will be
-              added once the final copy is available.
-            </InfoNote>
+          <div className="mx-auto mt-12 max-w-4xl">
+            <FaqAccordion
+              items={[
+                FAQ.whatIsVbl,
+                FAQ.vblklassikVsExtra,
+                FAQ.canGetVblRefund,
+                FAQ.vblRefundInGermany,
+                FAQ.vblRefundPrivateSector,
+                FAQ.vblEast,
+                FAQ.earlierPeriods,
+              ]}
+              defaultOpenIndex={0}
+            />
           </div>
           <div className="mt-10 flex justify-center">
             <Link
