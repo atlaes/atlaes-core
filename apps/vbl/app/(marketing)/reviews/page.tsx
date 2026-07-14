@@ -225,8 +225,8 @@ function NumberedCard({
   body: string;
 }) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
-      <span aria-hidden="true" className="text-4xl font-bold text-accent">
+    <div className="flex h-full flex-col items-center rounded-2xl border border-neutral-400/60 bg-white p-8 text-center">
+      <span aria-hidden="true" className="text-4xl font-bold text-brand">
         {number}
       </span>
       <h3 className="mt-6 text-lg font-semibold text-brand">{title}</h3>
@@ -261,13 +261,14 @@ export default function ReviewsPage() {
       {/* ---- HERO (Figma 1206:20003) ---- */}
       <Hero
         eyebrow="Reviews"
-        title="What users say about CompanyPension"
+        title="What users say about"
+        highlight="CompanyPension"
         body="Read how users experience the digital application process — from uploading pension documents and completing the guided flow to signing online and receiving an approved cash-out or refund."
         primaryCta={{ label: 'Start your claim', href: '/get-started' }}
         secondaryCta={{ label: 'Calculate my refund', href: '/calculator' }}
         footnote={
           <>
-            <p>
+            <p className="font-medium text-white/90">
               The refund calculator is available for VBL, ZVK, VddB and VddKO.
               It is not used for bAV cash-outs.
             </p>
@@ -336,7 +337,7 @@ export default function ReviewsPage() {
       </section>
 
       {/* ---- WHAT USERS TEND TO HIGHLIGHT (Figma 1206:21497) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -418,7 +419,7 @@ export default function ReviewsPage() {
             <span className="mb-5 inline-flex items-center rounded-full border border-white/60 px-6 py-2 text-sm font-semibold tracking-wide">
               The digital process
             </span>
-            <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-accent sm:text-4xl">
+            <h2 className="max-w-3xl font-display text-3xl font-bold leading-tight tracking-tight text-accent sm:text-[2.5rem] sm:leading-[1.15]">
               Built for online pension applications
             </h2>
           </div>
@@ -489,10 +490,17 @@ export default function ReviewsPage() {
       {/* ---- CLOSING CTA BAND (Figma 1216:881) ---- */}
       <CtaBand
         eyebrow="Start online"
-        title="Ready to start your company pension claim?"
+        title={
+          <>
+            Ready to start your{' '}
+            <br className="hidden md:block" />
+            <span className="text-accent">company pension claim?</span>
+          </>
+        }
         body="Upload your pension document or answer guided questions to start a bAV cash-out or company pension refund. For VBL, ZVK, VddB and VddKO refunds, you can also calculate a first estimate before continuing."
         cta={{ label: 'Start your claim', href: '/get-started' }}
         secondaryCta={{ label: 'Calculate my refund', href: '/calculator' }}
+        backgroundImageSrc="/marketing/home/cta-waves-background.png"
         note={
           <>
             <span className="block text-accent">

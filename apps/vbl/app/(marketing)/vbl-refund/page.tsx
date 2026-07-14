@@ -23,15 +23,38 @@ const CALC_HREF = '/calculator';
 // Local, page-only building blocks
 // ---------------------------------------------------------------------------
 
-function CheckList({ items }: { items: ReactNode[] }) {
+function CheckList({
+  items,
+  variant = 'light',
+}: {
+  items: ReactNode[];
+  variant?: 'light' | 'dark';
+}) {
   return (
     <ul className="space-y-3">
       {items.map((item, index) => (
-        <li key={index} className="flex items-start gap-3 text-gray-700">
-          <Check
-            className="mt-0.5 h-5 w-5 shrink-0 text-brand"
-            aria-hidden="true"
-          />
+        <li
+          key={index}
+          className={`flex items-start gap-3 ${
+            variant === 'dark' ? 'text-white/85' : 'text-gray-700'
+          }`}
+        >
+          {variant === 'dark' ? (
+            <span
+              aria-hidden="true"
+              className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent"
+            >
+              <Check className="h-3.5 w-3.5 text-brand" strokeWidth={3} />
+            </span>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src="/marketing/icons/check-bullet.svg"
+              alt=""
+              aria-hidden="true"
+              className="mt-0.5 h-5 w-5 shrink-0"
+            />
+          )}
           <span className="text-base leading-relaxed">{item}</span>
         </li>
       ))}
@@ -148,11 +171,11 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- CAN I GET A VBL REFUND? (Figma 1244:3245) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Can I get a VBL refund?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -216,7 +239,7 @@ export default function VblRefundPage() {
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Built for VBLklassik refunds
               </h2>
               <p className="mt-6 text-base leading-relaxed text-gray-600">
@@ -247,7 +270,7 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- WHO THIS IS FOR (Figma 1244:5592) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -288,41 +311,60 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- WHAT IS A VBL PENSION REFUND? (Figma 1245:5659) ---- */}
-      <section className="bg-white">
+      <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="grid gap-12 lg:grid-cols-2">
-            <div className="text-brand">
-              <SectionHeading
-                align="left"
-                eyebrow="VBL refund explained"
-                title="What is a VBL pension refund?"
-                body="A VBL refund is the reimbursement of your own employee-paid VBLklassik contributions."
-              />
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            <div>
+              <span className="mb-5 inline-flex items-center rounded-full border border-white/25 bg-white/5 px-4 py-2 text-sm font-medium text-white">
+                VBL refund explained
+              </span>
+              <h2 className="font-display text-3xl font-bold leading-tight tracking-tight text-accent sm:text-[2.5rem] sm:leading-[1.15]">
+                What is a VBL pension refund?
+              </h2>
+              <p className="mt-5 text-lg font-semibold text-white">
+                A VBL refund is the reimbursement of your own employee-paid
+                VBLklassik contributions.
+              </p>
+              <div className="mt-5 space-y-4 text-base leading-relaxed text-white/75">
+                <p>
+                  VBL is the company pension scheme used by many German
+                  public-sector employers. You may have paid into it while
+                  working for a university, research institute, public hospital,
+                  local authority or another public employer.
+                </p>
+                <p>
+                  If you worked in Germany’s public sector for a limited time
+                  and left before your VBLklassik pension rights became vested,
+                  you may be able to claim your own employee contributions back.
+                </p>
+              </div>
+              <div className="mt-6 flex items-start gap-3 rounded-brand bg-black/20 p-4 text-sm leading-relaxed text-white/75">
+                <Info
+                  className="mt-0.5 h-5 w-5 shrink-0 text-accent"
+                  aria-hidden="true"
+                />
+                <span>
+                  A VBL refund does not include employer-paid amounts. It also
+                  does not happen automatically when you apply for or receive a
+                  German state pension refund from Deutsche Rentenversicherung.
+                </span>
+              </div>
             </div>
-            <div className="space-y-4 text-base leading-relaxed text-gray-600">
-              <p>
-                VBL is the company pension scheme used by many German
-                public-sector employers. You may have paid into it while working
-                for a university, research institute, public hospital, local
-                authority or another public employer.
-              </p>
-              <p>
-                If you worked in Germany’s public sector for a limited time and
-                left before your VBLklassik pension rights became vested, you
-                may be able to claim your own employee contributions back.
-              </p>
-              <InfoNote>
-                A VBL refund does not include employer-paid amounts. It also
-                does not happen automatically when you apply for or receive a
-                German state pension refund from Deutsche Rentenversicherung.
-              </InfoNote>
+            <div className="hidden justify-center lg:flex">
+              <Image
+                src="/marketing/shared/guided-process-smiling-man-laptop.png"
+                alt=""
+                width={521}
+                height={597}
+                className="h-auto w-full max-w-[460px] object-contain"
+              />
             </div>
           </div>
         </div>
       </section>
 
       {/* ---- VBLKLASSIK OR VBLEXTRA? (Figma 1245:5688) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -362,7 +404,7 @@ export default function VblRefundPage() {
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 When can I get a VBL refund?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -425,11 +467,11 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- WHEN IS A VBL REFUND NOT POSSIBLE? (Figma 1245:5813) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 When is a VBL refund not possible?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -474,7 +516,7 @@ export default function VblRefundPage() {
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Do ZVK or other public-sector pension periods count?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -515,11 +557,11 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- VBL WEST VS EAST (Figma 1247:5902) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Only eligible VBL West employee contributions may be refundable
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -563,7 +605,7 @@ export default function VblRefundPage() {
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 How much VBL money can you get back?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -616,7 +658,7 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- VBL VS DRV COMPARISON (Figma 1248:6008 / table 1248:6025) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -731,9 +773,9 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- 8-STEP PROCESS (Figma 1248:6171) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className="flex flex-col items-center text-center text-white">
             <SectionHeading
               eyebrow="How it works"
               title="Start your VBL refund online"
@@ -793,7 +835,7 @@ export default function VblRefundPage() {
               <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-4 py-2 text-sm font-medium text-brand">
                 Documents
               </span>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 What documents do I need for a VBL refund?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -835,18 +877,18 @@ export default function VblRefundPage() {
       {/* COPY-GOVERNANCE (client item 19): design reads "open a free EUR
           account"; the word "free" is dropped per the established transformation
           (commit 1236ccf), keeping the article. */}
-      <section className="bg-neutral-50">
+      <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="mx-auto max-w-3xl text-center text-brand">
-            <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-white px-4 py-2 text-sm font-medium text-brand">
+          <div className="mx-auto max-w-3xl text-center">
+            <span className="mb-5 inline-flex items-center rounded-full border border-white/25 bg-white/5 px-4 py-2 text-sm font-medium text-white">
               Bank account
             </span>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            <h2 className="font-display text-3xl font-bold tracking-tight sm:text-[2.5rem] sm:leading-[1.15]">
               Do I need a German bank account for a VBL refund?
             </h2>
           </div>
-          <div className="mx-auto mt-8 max-w-3xl space-y-4 text-center text-base leading-relaxed text-gray-600">
-            <p className="text-lg font-semibold text-brand">
+          <div className="mx-auto mt-8 max-w-3xl space-y-4 text-center text-base leading-relaxed text-white/75">
+            <p className="text-lg font-semibold text-white">
               No. You do not need a German bank account.
             </p>
             <p>
@@ -854,7 +896,7 @@ export default function VblRefundPage() {
               easiest option. If you do not have one, CompanyPension can help
               you open a EUR account to receive your refund.
             </p>
-            <p>
+            <p className="text-accent">
               If approved, the money is paid directly to the bank account you
               provide. CompanyPension does not receive, hold or forward approved
               pension money.
@@ -864,36 +906,42 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- PRICING (Figma 1249:6352) ---- */}
-      <section className="bg-white">
+      <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className="flex flex-col items-center text-center">
             <SectionHeading
               eyebrow="Pricing"
               title="Transparent pricing for your VBL refund"
               body="Start your VBL refund with a €199 deposit. If your refund is approved, our success fee is 9.75% of the approved refund amount, with a minimum total fee of €199."
             />
           </div>
-          <div className="mx-auto mt-12 max-w-xl rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
-            <p className="text-sm font-semibold uppercase tracking-wide text-brand">
-              VBL refund
-            </p>
-            <div className="mt-4 flex items-baseline gap-2">
-              <span className="text-4xl font-bold text-brand">
-                €199 deposit
-              </span>
-              <span className="text-base text-gray-600">
-                to activate the full process
-              </span>
+          <div className="mx-auto mt-12 max-w-xl rounded-2xl border border-white/10 bg-black/20 p-8">
+            <p className="text-2xl font-bold text-white">VBL refund</p>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-4xl font-bold text-accent">€199</span>
+              <span className="text-2xl font-bold text-white">deposit</span>
             </div>
+            <p className="mt-1 text-base text-white/70">
+              to activate the full process
+            </p>
+            <p className="mt-6 text-base leading-relaxed text-white/75">
+              The €199 deposit is credited toward your final service fee if your
+              refund is approved.
+            </p>
             <div className="mt-6">
               <CheckList
+                variant="dark"
                 items={[
                   '9.75% success fee if your VBL refund is approved',
                   'Minimum total service fee: €199',
-                  'The €199 deposit is credited toward your final service fee if your refund is approved.',
                   'If VBL rejects your submitted refund request, the €199 deposit is refunded in full',
                 ]}
               />
+            </div>
+            <div className="mt-6 border-t border-white/10 pt-6 text-sm leading-relaxed text-white/70">
+              If approved, the money is paid directly to the bank account you
+              provide. CompanyPension does not receive, hold or forward approved
+              pension money.
             </div>
             <div className="mt-8">
               <Link
@@ -903,23 +951,18 @@ export default function VblRefundPage() {
                 Start my VBL refund
               </Link>
             </div>
-            <p className="mt-6 text-sm leading-relaxed text-gray-600">
-              If approved, the money is paid directly to the bank account you
-              provide. CompanyPension does not receive, hold or forward approved
-              pension money.
-            </p>
           </div>
         </div>
       </section>
 
       {/* ---- REFUND PAID DIRECTLY (Figma 1249:6576) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="mx-auto max-w-3xl text-center text-brand">
             <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-white px-4 py-2 text-sm font-medium text-brand">
               Refund Payment
             </span>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            <h2 className="font-display text-3xl font-bold tracking-tight sm:text-[2.5rem] sm:leading-[1.15]">
               Your VBL refund is paid directly to you
             </h2>
           </div>
@@ -987,7 +1030,7 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- GLOSSARY (Figma 1249:6648) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -1077,7 +1120,7 @@ export default function VblRefundPage() {
 
       {/* ---- IMPORTANT INFORMATION 1 (Figma 1251:7540) ---- */}
       <ImportantCallout>
-        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
           You apply through the platform in your own name
         </h2>
         <p className="mt-6 text-base font-semibold leading-relaxed text-brand">
@@ -1126,7 +1169,7 @@ export default function VblRefundPage() {
 
       {/* ---- IMPORTANT INFORMATION 2 (Figma 1251:7619) ---- */}
       <ImportantCallout>
-        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
           A digital application platform, not pension advice
         </h2>
         <ul className="mt-6 space-y-4 text-base leading-relaxed text-gray-600">

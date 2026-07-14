@@ -17,6 +17,10 @@ export interface HeroProps {
   secondaryCta?: CtaLink;
   /** Optional muted supporting text rendered under the CTAs. */
   footnote?: ReactNode;
+  /** Optional content rendered between the body and the CTAs (e.g. the About
+   * hero's second paragraph + supported-claims list, which sit above the
+   * buttons in Figma). */
+  aboveCta?: ReactNode;
   image?: {
     src: string;
     alt: string;
@@ -53,6 +57,7 @@ export function Hero({
   primaryCta,
   secondaryCta,
   footnote,
+  aboveCta,
   image,
   backgroundImageSrc = '/marketing/home/hero-background.png',
   showDefaultGlows = false,
@@ -118,13 +123,10 @@ export function Hero({
           </span>
         ) : null}
 
-        <h1 className="max-w-4xl text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
+        <h1 className="max-w-5xl font-display text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
           {title}
           {highlight ? (
-            <>
-              {' '}
-              <span className="text-accent">{highlight}</span>
-            </>
+            <span className="block text-accent">{highlight}</span>
           ) : null}
         </h1>
 
@@ -136,6 +138,12 @@ export function Hero({
         <div className="mt-6 max-w-2xl text-base leading-relaxed text-white sm:text-lg">
           {body}
         </div>
+
+        {aboveCta ? (
+          <div className="mt-6 max-w-2xl text-base leading-relaxed text-white/80 sm:text-lg">
+            {aboveCta}
+          </div>
+        ) : null}
 
         <div className="mt-9 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
           <Link

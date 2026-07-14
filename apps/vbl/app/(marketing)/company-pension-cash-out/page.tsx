@@ -34,9 +34,11 @@ function CheckList({ items }: { items: ReactNode[] }) {
     <ul className="space-y-3">
       {items.map((item, index) => (
         <li key={index} className="flex items-start gap-3 text-gray-700">
-          <Check
-            className="mt-0.5 h-5 w-5 shrink-0 text-brand"
+          <img
+            src="/marketing/icons/check-bullet.svg"
+            alt=""
             aria-hidden="true"
+            className="mt-0.5 h-5 w-5 shrink-0"
           />
           <span className="text-base leading-relaxed">{item}</span>
         </li>
@@ -242,7 +244,7 @@ export default function CompanyPensionCashOutPage() {
       </section>
 
       {/* ---- BUILT AROUND YOUR DOCUMENTS (Figma 1258:113) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -308,7 +310,7 @@ export default function CompanyPensionCashOutPage() {
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Can I cash out my bAV after leaving Germany?
               </h2>
               <p className="mt-6 text-lg font-semibold text-brand">Possibly.</p>
@@ -368,11 +370,11 @@ export default function CompanyPensionCashOutPage() {
       </section>
 
       {/* ---- PROVIDER / CONTRACT RECOGNITION (Figma 1261:461) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Your company pension may appear under a provider or contract
                 name
               </h2>
@@ -516,11 +518,11 @@ export default function CompanyPensionCashOutPage() {
           not match this DRV-vs-bAV section. Rendered verbatim per the
           verbatim/never-invent rule and flagged in the task report for the
           client to correct in Figma. */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 When can I get a VBL refund?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -687,7 +689,7 @@ export default function CompanyPensionCashOutPage() {
       </section>
 
       {/* ---- 5-STEP DIGITAL PROCESS (Figma 1262:906) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -737,7 +739,7 @@ export default function CompanyPensionCashOutPage() {
               <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-4 py-2 text-sm font-medium text-brand">
                 Documents
               </span>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 What documents do I need for a bAV cash-out?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -797,7 +799,7 @@ export default function CompanyPensionCashOutPage() {
       </section>
 
       {/* ---- PRICING (Figma 1262:1665) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -965,7 +967,7 @@ export default function CompanyPensionCashOutPage() {
       </section>
 
       {/* ---- FAQ (Figma 1264:2503) — answers from the shared FAQ master copy via faqItems.tsx (FAQ CompanyPension 22062026.pdf) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -1051,7 +1053,7 @@ export default function CompanyPensionCashOutPage() {
 
       {/* ---- IMPORTANT INFORMATION (Figma 1265:2750) ---- */}
       <ImportantCallout>
-        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
           A digital application platform—not a pension advisor or claims agent
         </h2>
         <p className="mt-6 text-base leading-relaxed text-gray-600">
