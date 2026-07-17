@@ -14,23 +14,11 @@ import {
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
 // ---------------------------------------------------------------------------
-// Pricing FAQ (Figma 1199:9304). The XML export only carries un-overridden
-// component defaults, so the questions are transcribed from the rendered canvas
-// (six shown by default). Q1's answer is expanded in the design and transcribed
-// verbatim; the rest are collapsed, so their answers are not readable from the
-// anonymous Figma view. Those point to the FAQ page until the client supplies
-// the copy. FLAGGED as a copy gap in the task report.
+// Pricing FAQ (Figma 1199:9304 — six questions from the rendered canvas).
+// Answers are sourced from the client's FAQ master copy in Google Drive
+// ("FAQ CompanyPension 22062026.pdf", DEV - CompanyPension - FE content),
+// mapped to the Figma question wording. Q1 keeps the design's expanded answer.
 // ---------------------------------------------------------------------------
-
-const FAQ_ANSWER_PENDING = (
-  <p>
-    You can find the answer on our{' '}
-    <Link href="/faq" className="font-semibold text-brand underline">
-      FAQ page
-    </Link>
-    .
-  </p>
-);
 
 const PRICING_FAQ_ITEMS: FaqAccordionItem[] = [
   {
@@ -46,17 +34,83 @@ const PRICING_FAQ_ITEMS: FaqAccordionItem[] = [
       </>
     ),
   },
-  { question: 'Is the €199 deposit an extra fee?', answer: FAQ_ANSWER_PENDING },
+  {
+    question: 'Is the €199 deposit an extra fee?',
+    answer: (
+      <>
+        <p>No. The deposit is part of the final service fee.</p>
+        <p className="mt-2">
+          If the approved amount results in only the €199 minimum total fee, the
+          deposit covers the entire service fee and nothing further is due.
+        </p>
+      </>
+    ),
+  },
   {
     question: 'Is the €199 deposit always refundable?',
-    answer: FAQ_ANSWER_PENDING,
+    answer: (
+      <>
+        <p>No. The rule depends on the type of case.</p>
+        <p className="mt-2">
+          For VBL, ZVK, VddB and VddKO refunds, the deposit is refunded in full
+          if the pension institution rejects a completed and submitted refund
+          request.
+        </p>
+        <p className="mt-2">
+          For bAV cash-outs, if the cash-out cannot be submitted after the
+          digital case and document review, €79 is retained and €120 is
+          refunded.
+        </p>
+        <p className="mt-2">
+          The deposit is not automatically refundable when a user abandons the
+          process, does not provide required information or leaves the
+          application incomplete.
+        </p>
+      </>
+    ),
   },
   {
     question: 'When do I pay more than the deposit?',
-    answer: FAQ_ANSWER_PENDING,
+    answer: (
+      <>
+        <p>Only after the cash-out or refund has been approved.</p>
+        <p className="mt-2">
+          The final fee is calculated from the approved amount. The €199 deposit
+          is deducted, and only the remaining difference becomes due.
+        </p>
+      </>
+    ),
   },
-  { question: 'Who receives the approved amount?', answer: FAQ_ANSWER_PENDING },
-  { question: 'Are there hidden fees?', answer: FAQ_ANSWER_PENDING },
+  {
+    question: 'Who receives the approved amount?',
+    answer: (
+      <>
+        <p>
+          The relevant pension provider, scheme or institution pays the approved
+          money directly to the bank account you provide.
+        </p>
+        <p className="mt-2">
+          CompanyPension does not receive, hold or forward approved pension
+          money.
+        </p>
+      </>
+    ),
+  },
+  {
+    question: 'Are there hidden fees?',
+    answer: (
+      <>
+        <p>
+          CompanyPension shows the deposit, success fee, minimum total fee and
+          applicable deposit rules before payment.
+        </p>
+        <p className="mt-2">
+          Separate bank charges, foreign-exchange costs or third-party account
+          fees may apply and are outside CompanyPension&rsquo;s control.
+        </p>
+      </>
+    ),
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -179,8 +233,8 @@ function InfoNote({
 // ---------------------------------------------------------------------------
 // Page (Figma frame 1187:3965 — "Pricing")
 // Section order follows the design's vertical order: pricing cards →
-// example calculations → why the two models differ → your deposit →
-// after approval → approved money → FAQ → CTA.
+// example calculations → your deposit → after approval → approved money →
+// FAQ → CTA.
 // ---------------------------------------------------------------------------
 
 export default function PricingPage() {
@@ -316,61 +370,6 @@ export default function PricingPage() {
             These examples are for illustration only. Your final fee depends on
             the approved amount and the pricing rules shown before payment.
           </p>
-        </div>
-      </section>
-
-      {/* ---- WHY THE TWO PRICING MODELS ARE DIFFERENT (Figma 1187:5174) ---- */}
-      <section className="bg-white">
-        <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="grid items-center gap-12 lg:grid-cols-2">
-            <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-brand aspect-[553/767] lg:order-1">
-              {/* Large section photo — plain <img> (next/image fill renders big
-                  background PNGs blank in the dev optimizer). */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/marketing/pricing/pricing-models-photo.png"
-                alt="A person at a laptop with document review, provider analysis, value assessment and case handling steps shown as floating cards"
-                className="h-full w-full object-cover object-[62%_center]"
-              />
-            </div>
-
-            <div className="text-brand lg:order-2">
-              <SectionHeading
-                align="left"
-                title="Why the Two Pricing Models Are Different"
-              />
-              <p className="mt-5 text-lg font-semibold leading-relaxed text-brand">
-                Refund claims and private-sector lump-sum payout claims are not
-                the same service.
-              </p>
-              <div className="mt-5 space-y-4 text-base leading-relaxed text-gray-600">
-                <p>
-                  A refund claim is usually about checking whether employee-paid
-                  contributions can be reclaimed under the scheme rules.
-                </p>
-                <p>
-                  A private-sector payout claim is usually about checking
-                  whether a pension entitlement can be paid out as a lump sum,
-                  which often requires:
-                </p>
-              </div>
-              <div className="mt-6">
-                <CheckBullets
-                  items={[
-                    'Document review',
-                    'Provider analysis',
-                    'Value assessment',
-                    'Case handling even when no payout is achieved',
-                  ]}
-                />
-              </div>
-              <p className="mt-6 text-base leading-relaxed text-gray-600">
-                That is why refund claims use a fully refundable deposit if the
-                refund is not possible, while private-sector payout claims use a
-                model with €79 retained if no payout is achieved.
-              </p>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -523,7 +522,9 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* ---- CLOSING CTA BAND (Figma 1199:9443) ---- */}
+      {/* ---- CLOSING CTA BAND (Figma 1199:9434) ---- */}
+      {/* Renders on the shared near-black #231f20 wave background (CtaBand
+          default) — this is what separates it from the green footer below. */}
       <CtaBand
         title="Ready to start your cash-out or refund?"
         body="Start the guided claim flow for a bAV cash-out or a VBL, ZVK, VddB or VddKO refund. For refund cases, you can also calculate a first estimate before continuing."

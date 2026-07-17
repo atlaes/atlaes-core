@@ -1,21 +1,17 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import {
-  ArrowRight,
-  Calculator,
-  Check,
-  ClipboardCheck,
-  Info,
-  Minus,
-  Plus,
-  X,
-} from 'lucide-react';
+import { ArrowRight, Calculator, Check, ClipboardCheck, Info, X } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
 import { SectionHeading } from '@/components/marketing/SectionHeading';
 import { FeatureCard } from '@/components/marketing/FeatureCard';
 import { StepCard } from '@/components/marketing/StepCard';
 import { CtaBand } from '@/components/marketing/CtaBand';
+import {
+  FaqAccordion,
+  type FaqAccordionItem,
+} from '@/components/marketing/FaqAccordion';
+import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -109,47 +105,65 @@ function ArrowBullets({ items, marker }: { items: string[]; marker: string }) {
   );
 }
 
-/** Static FAQ item matching the Figma accordion markup (Task 7 adds behavior). */
-function FaqItem({
-  question,
-  answer,
-}: {
-  question: string;
-  answer?: ReactNode;
-}) {
-  const open = Boolean(answer);
-  return (
-    <div className="rounded-2xl bg-white px-8 py-6 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <h3
-          className={`text-lg font-semibold ${
-            open
-              ? 'text-brand underline decoration-brand/40 underline-offset-4'
-              : 'text-gray-900'
-          }`}
-        >
-          {question}
-        </h3>
-        {open ? (
-          <Minus
-            className="mt-1 h-5 w-5 shrink-0 text-brand"
-            aria-hidden="true"
-          />
-        ) : (
-          <Plus
-            className="mt-1 h-5 w-5 shrink-0 text-gray-500"
-            aria-hidden="true"
-          />
-        )}
-      </div>
-      {answer ? (
-        <div className="mt-4 text-base leading-relaxed text-gray-600">
-          {answer}
-        </div>
-      ) : null}
-    </div>
-  );
-}
+// Home/how-it-works FAQ (Figma 1185:255). Questions follow the design; answers
+// come from the shared FAQ master copy via faqItems.tsx (mostly the "Digital
+// process and documents" category). Two items are composed from adjacent master
+// copy because the master has no exact match — flagged for client review:
+// "Do you provide translations?" and the combined "Who signs and submits".
+const HOWITWORKS_FAQ_ITEMS: FaqAccordionItem[] = [
+  FAQ.calculatorFirst,
+  { ...FAQ.howItWorks, question: 'Is the process fully online?' },
+  {
+    ...FAQ.uploadInsteadManual,
+    question:
+      'Can I upload documents instead of entering everything manually?',
+  },
+  FAQ.ocrOrAi,
+  {
+    ...FAQ.manageCorrespondence,
+    question: 'Do I have to manage German pension letters myself?',
+  },
+  {
+    // Composed: the master has no standalone translations answer, only the
+    // recurring "clarification, translation or follow-up" support line.
+    question: 'Do you provide translations?',
+    answer: (
+      <>
+        <p>Most of the process runs in an English-language online flow.</p>
+        <p className="mt-2">
+          Human support is added when a document or a provider request needs
+          clarification, translation or follow-up, so you do not have to work
+          through German pension letters on your own.
+        </p>
+      </>
+    ),
+  },
+  {
+    // Combines the master's "Who reviews and signs" + "Who submits" answers.
+    question: 'Who signs and submits the application?',
+    answer: (
+      <>
+        {FAQ.whoSignsReviews.answer}
+        {FAQ.whoSubmits.answer}
+      </>
+    ),
+  },
+  { ...FAQ.whoReceives, question: 'Who receives the money?' },
+  FAQ.bankAccount,
+  { ...FAQ.howLong, question: 'How long does it usually take?' },
+  {
+    ...FAQ.cannotProceed,
+    question: 'What happens if my cash-out or refund is not possible?',
+  },
+  {
+    ...FAQ.whoSubmits,
+    question: 'Does CompanyPension decide whether my claim is approved?',
+  },
+  {
+    ...FAQ.advisorOrLawFirm,
+    question: 'Is CompanyPension a pension advisor or law firm?',
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Page (Figma frame 1183:4564 — "How it works")
@@ -563,7 +577,8 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      {/* ---- FAQ (Figma 1185:255 — static markup; accordion arrives in Task 7) ---- */}
+      {/* ---- FAQ (Figma 1185:255) — answers from the shared FAQ master copy
+          via faqItems.tsx (FAQ CompanyPension 22062026.pdf) ---- */}
       <section className="bg-neutral-50">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
@@ -573,35 +588,8 @@ export default function HowItWorksPage() {
             />
           </div>
 
-          <div className="mx-auto mt-12 max-w-4xl space-y-4">
-            <FaqItem
-              question="Do I need to use the calculator first?"
-              answer={
-                <>
-                  <p>
-                    No. You can start your claim directly if you already know
-                    your pension type or provider.
-                  </p>
-                  <p className="mt-2">
-                    The quick check is helpful if you want a refund estimate
-                    first or want to see whether your bAV cash-out can be
-                    started.
-                  </p>
-                </>
-              }
-            />
-            <FaqItem question="Is the process fully online?" />
-            <FaqItem question="Can I upload documents instead of entering everything manually?" />
-            <FaqItem question="Does CompanyPension use OCR or AI?" />
-            <FaqItem question="Do I have to manage German pension letters myself?" />
-            <FaqItem question="Do you provide translations?" />
-            <FaqItem question="Who signs and submits the application?" />
-            <FaqItem question="Who receives the money?" />
-            <FaqItem question="Do I need a German bank account?" />
-            <FaqItem question="How long does it usually take?" />
-            <FaqItem question="What happens if my cash-out or refund is not possible?" />
-            <FaqItem question="Does CompanyPension decide whether my claim is approved?" />
-            <FaqItem question="Is CompanyPension a pension advisor or law firm?" />
+          <div className="mx-auto mt-12 max-w-4xl">
+            <FaqAccordion items={HOWITWORKS_FAQ_ITEMS} defaultOpenIndex={0} />
           </div>
 
           <div className="mt-10 flex justify-center">

@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { Search } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
 import { CtaBand } from '@/components/marketing/CtaBand';
@@ -10,25 +9,15 @@ import {
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
 // ---------------------------------------------------------------------------
-// FAQ list (Figma 1204:17077, "General questions" category state). All ten
-// questions and the first (expanded) answer are transcribed verbatim from the
-// rendered canvas — the XML export only carries un-overridden component
-// defaults. The design shows items 2–10 collapsed, so their answers are not
-// readable from the anonymous Figma view; cross-checked against the Home,
-// how-it-works and pricing transcriptions — no matching answered question
-// exists. Until the client supplies the copy, those items carry a minimal
-// placeholder. FLAGGED as a copy gap in the task report; NOT design copy.
+// FAQ list — "General questions" category (Figma 1204:17077). Questions follow
+// the design; answers are sourced from the client's FAQ master copy in Google
+// Drive ("FAQ CompanyPension 22062026.pdf", DEV - CompanyPension - FE content),
+// "General questions" section. The five other categories in the master
+// (bAV cash-outs, VBL/ZVK, VddB/VddKO, digital process, pricing) are not yet
+// wired to the static category filter — tracked as the full interactive FAQ
+// follow-up. Bank-account answer drops "free" from the EUR-account wording per
+// client-feedback governance (docs/client-feedback-status.md item 19).
 // ---------------------------------------------------------------------------
-
-const FAQ_ANSWER_PENDING = (
-  <p>
-    The full answer to this question will be published here soon. You can also{' '}
-    <Link href="/get-started" className="font-semibold text-brand underline">
-      start your claim
-    </Link>{' '}
-    to check your specific case.
-  </p>
-);
 
 const GENERAL_FAQ_ITEMS: FaqAccordionItem[] = [
   {
@@ -54,47 +43,222 @@ const GENERAL_FAQ_ITEMS: FaqAccordionItem[] = [
     ),
   },
   {
-    question: 'What is the difference between a refund and a bAV cashout?',
-    answer: FAQ_ANSWER_PENDING,
+    question: 'What is the difference between a refund and a bAV cash-out?',
+    answer: (
+      <>
+        <p>
+          A refund means applying to get eligible employee contributions back
+          from a contribution-based pension scheme.
+        </p>
+        <p className="mt-2">
+          A bAV cash-out means requesting a one-time payout or lump-sum
+          settlement of a company pension entitlement that would otherwise
+          remain in place.
+        </p>
+        <p className="mt-2">In general:</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li>VBL, ZVK, VddB and VddKO are handled as refund cases</li>
+          <li>
+            Direktversicherung and other provider-based bAV cases are checked
+            for a possible cash-out or lump-sum settlement
+          </li>
+        </ul>
+        <p className="mt-2">
+          The German term Abfindung means a lump-sum settlement. It is not the
+          same as a contribution refund.
+        </p>
+      </>
+    ),
   },
   {
     question:
       'What is the difference between a company pension and the German state pension?',
-    answer: FAQ_ANSWER_PENDING,
+    answer: (
+      <>
+        <p>
+          A company pension and the German state pension are separate systems.
+        </p>
+        <p className="mt-2">
+          The German state pension is managed by Deutsche Rentenversicherung. A
+          DRV refund concerns eligible statutory pension contributions.
+        </p>
+        <p className="mt-2">A company pension may involve:</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li>A bAV or Direktversicherung</li>
+          <li>VBL</li>
+          <li>ZVK</li>
+          <li>VddB</li>
+          <li>VddKO</li>
+          <li>Another employer or provider-based pension arrangement</li>
+        </ul>
+        <p className="mt-2">
+          A DRV refund does not automatically include or pay out any of these
+          company pensions.
+        </p>
+      </>
+    ),
   },
   {
     question:
       'Can I receive both a German state pension refund and money from my company pension?',
-    answer: FAQ_ANSWER_PENDING,
+    answer: (
+      <>
+        <p>Possibly.</p>
+        <p className="mt-2">
+          If you paid into both systems, you may need two separate processes:
+        </p>
+        <ol className="mt-2 list-decimal space-y-1 pl-5">
+          <li>
+            A German state pension refund through Deutsche Rentenversicherung
+          </li>
+          <li>A separate company pension refund or bAV cash-out</li>
+        </ol>
+        <p className="mt-2">
+          For some vested bAV entitlements, an approved DRV refund can create the
+          legal basis for requesting a separate lump-sum settlement.
+        </p>
+        <p className="mt-2">
+          The company pension is not paid out automatically when the DRV refund
+          is approved. A separate request must still be made.
+        </p>
+      </>
+    ),
   },
   {
     question: 'Do I need to live outside Germany or the EU?',
-    answer: FAQ_ANSWER_PENDING,
+    answer: (
+      <>
+        <p>Not for every company pension case.</p>
+        <p className="mt-2">
+          VBL, ZVK, VddB, VddKO and bAV rules are not based solely on whether you
+          live in Germany, elsewhere in the EU or outside Europe.
+        </p>
+        <p className="mt-2">
+          Eligibility depends mainly on the pension scheme, contribution history,
+          vesting status, contract and applicable cash-out or refund rules.
+        </p>
+        <p className="mt-2">
+          This differs from a German state pension refund, where nationality,
+          residence and the ability to make voluntary contributions can be
+          important.
+        </p>
+      </>
+    ),
   },
   {
     question: 'Do I need to wait 24 months?',
-    answer: FAQ_ANSWER_PENDING,
+    answer: (
+      <>
+        <p>
+          There is no single 24-month waiting period for every company pension
+          cash-out or refund.
+        </p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li>VBL: no general 24-month waiting period</li>
+          <li>ZVK: no general 24-month waiting period</li>
+          <li>
+            VddB: a 24-month period after the last relevant contribution
+            generally applies
+          </li>
+          <li>
+            VddKO: a 24-month period after the last relevant contribution
+            generally applies
+          </li>
+          <li>
+            bAV cash-outs: timing depends on the cash-out route, contract and
+            required confirmations
+          </li>
+        </ul>
+        <p className="mt-2">
+          The 24-month waiting period commonly associated with a German state
+          pension refund does not automatically apply to all company pension
+          cases.
+        </p>
+      </>
+    ),
   },
   {
     question: 'How much money can I get?',
-    answer: FAQ_ANSWER_PENDING,
+    answer: (
+      <>
+        <p>The amount depends on the pension type.</p>
+        <p className="mt-2">
+          For VBL, ZVK, VddB and VddKO refunds, the amount is generally based on
+          eligible employee contributions recorded by the pension institution.
+        </p>
+        <p className="mt-2">For a bAV cash-out, the amount may depend on:</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li>The current pension or contract value</li>
+          <li>The type of pension arrangement</li>
+          <li>The provider&rsquo;s calculation</li>
+          <li>Employer involvement</li>
+          <li>The applicable lump-sum settlement route</li>
+        </ul>
+        <p className="mt-2">
+          A bAV cash-out amount is not necessarily equal to the total
+          contributions originally paid.
+        </p>
+      </>
+    ),
   },
   {
     question: 'How long does the process usually take?',
-    answer: FAQ_ANSWER_PENDING,
+    answer: (
+      <>
+        <p>
+          The provider or pension institution controls the final processing
+          time.
+        </p>
+        <p className="mt-2">
+          Many straightforward contribution-refund cases may be completed within
+          approximately 4 to 12 weeks after submission.
+        </p>
+        <p className="mt-2">Timing can depend on:</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li>Document and identity review</li>
+          <li>Earlier contribution periods</li>
+          <li>Requests for additional information</li>
+          <li>Employer confirmation</li>
+          <li>Provider review</li>
+          <li>Health insurance confirmation in some bAV cases</li>
+        </ul>
+        <p className="mt-2">
+          bAV cash-outs can take longer than straightforward contribution-refund
+          cases.
+        </p>
+      </>
+    ),
   },
   {
-    // Client-feedback governance (docs/client-feedback-status.md item 19: drop
-    // only "free" from EUR-account wording) checked here. The answer to this
-    // question is UNAUTHORED in the design (canvas shows it collapsed), so there
-    // is no EUR-account wording on this page to adjust — item 19 does not apply
-    // until the client supplies this answer's copy. Flagged in the task report.
     question: 'Do I need a German bank account?',
-    answer: FAQ_ANSWER_PENDING,
+    answer: (
+      <>
+        <p>No German bank account is required in most cases.</p>
+        <p className="mt-2">
+          Some refund routes require a SEPA-capable EUR account. If you do not
+          have one, CompanyPension can help you open a suitable EUR account.
+        </p>
+        <p className="mt-2">
+          A bAV provider may also be able to pay an approved amount to an
+          international bank account, depending on its payment requirements.
+        </p>
+      </>
+    ),
   },
   {
     question: 'Who receives the approved money?',
-    answer: FAQ_ANSWER_PENDING,
+    answer: (
+      <>
+        <p>
+          The relevant pension provider, scheme or institution pays the approved
+          money directly to the bank account you provide.
+        </p>
+        <p className="mt-2">
+          CompanyPension does not receive, hold or forward approved pension
+          money.
+        </p>
+      </>
+    ),
   },
 ];
 

@@ -7,6 +7,7 @@ import {
   FaqAccordion,
   type FaqAccordionItem,
 } from '@/components/marketing/FaqAccordion';
+import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -152,16 +153,10 @@ const FILTERS = [
 // link to the FAQ page until the client supplies copy. FLAGGED in the report.
 // ---------------------------------------------------------------------------
 
-const FAQ_ANSWER_PENDING = (
-  <p>
-    You can find the answer on our{' '}
-    <Link href="/faq" className="font-semibold text-brand underline">
-      FAQ page
-    </Link>
-    .
-  </p>
-);
-
+// Review-experience FAQ (Figma 1216:824). Q1 keeps the design's own expanded
+// answer; the process questions reuse the shared FAQ master copy via
+// faqItems.tsx (FAQ CompanyPension 22062026.pdf). The last item is composed
+// (reviews-specific, no master answer) — flagged for client review.
 const REVIEW_FAQ_ITEMS: FaqAccordionItem[] = [
   {
     question: 'Are these reviews independent?',
@@ -180,26 +175,39 @@ const REVIEW_FAQ_ITEMS: FaqAccordionItem[] = [
     ),
   },
   {
+    ...FAQ.howItWorks,
     question: 'Is the CompanyPension process fully online?',
-    answer: FAQ_ANSWER_PENDING,
   },
   {
+    ...FAQ.uploadInsteadManual,
     question:
       'Can I upload pension documents instead of entering everything manually?',
-    answer: FAQ_ANSWER_PENDING,
   },
   {
+    ...FAQ.manageCorrespondence,
     question: 'Do I have to manage German pension correspondence myself?',
-    answer: FAQ_ANSWER_PENDING,
   },
   {
+    ...FAQ.whoSubmits,
     question: 'Does CompanyPension decide whether my application is approved?',
-    answer: FAQ_ANSWER_PENDING,
   },
-  { question: 'Who receives the approved money?', answer: FAQ_ANSWER_PENDING },
+  FAQ.whoReceives,
   {
+    // Composed: reviews-specific question with no match in the master copy.
     question: 'Do reviews guarantee that my case will be approved?',
-    answer: FAQ_ANSWER_PENDING,
+    answer: (
+      <>
+        <p>
+          No. Reviews describe other people&rsquo;s experiences and do not
+          guarantee any outcome.
+        </p>
+        <p className="mt-2">
+          Every cash-out or refund is decided by the relevant pension provider,
+          scheme or institution based on your individual record. CompanyPension
+          does not decide whether a case is approved.
+        </p>
+      </>
+    ),
   },
 ];
 

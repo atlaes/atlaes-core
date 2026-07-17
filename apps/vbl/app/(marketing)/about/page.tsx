@@ -21,6 +21,7 @@ import {
   FaqAccordion,
   type FaqAccordionItem,
 } from '@/components/marketing/FaqAccordion';
+import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -208,12 +209,12 @@ const ABOUT_FAQ_ITEMS: FaqAccordionItem[] = [
   },
   {
     question: 'Is CompanyPension a pension advisor, broker or law firm?',
-    answer: FAQ_ANSWER_PENDING,
+    answer: FAQ.advisorOrLawFirm.answer,
   },
   { question: 'Is CompanyPension a claims agent?', answer: FAQ_ANSWER_PENDING },
   {
     question: 'Does CompanyPension use automated document recognition?',
-    answer: FAQ_ANSWER_PENDING,
+    answer: FAQ.ocrOrAi.answer,
   },
   {
     question: 'Can CompanyPension help me cash out my bAV?',
@@ -227,7 +228,10 @@ const ABOUT_FAQ_ITEMS: FaqAccordionItem[] = [
     question: 'Can CompanyPension help with VddB or VddKO refunds?',
     answer: FAQ_ANSWER_PENDING,
   },
-  { question: 'Who receives the approved money?', answer: FAQ_ANSWER_PENDING },
+  {
+    question: 'Who receives the approved money?',
+    answer: FAQ.whoReceives.answer,
+  },
   { question: 'Who is behind CompanyPension?', answer: FAQ_ANSWER_PENDING },
 ];
 
