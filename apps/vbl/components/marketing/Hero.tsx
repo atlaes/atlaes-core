@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { ChevronRight } from 'lucide-react';
 import { HeroGridBackground } from './HeroGridBackground';
 
 interface CtaLink {
@@ -15,6 +16,13 @@ export interface HeroProps {
   body: ReactNode;
   primaryCta: CtaLink;
   secondaryCta?: CtaLink;
+  /**
+   * How to render the secondary CTA. `'button'` (default) is the outlined
+   * button shown beside the primary; `'link'` renders it as an underlined
+   * white text link with a trailing chevron, stacked below the primary
+   * button (updated pricing hero). Opt-in so other heroes are unaffected.
+   */
+  secondaryCtaVariant?: 'button' | 'link';
   /** Optional muted supporting text rendered under the CTAs. */
   footnote?: ReactNode;
   /** Optional content rendered between the body and the CTAs (e.g. the About
@@ -56,6 +64,7 @@ export function Hero({
   body,
   primaryCta,
   secondaryCta,
+  secondaryCtaVariant = 'button',
   footnote,
   aboveCta,
   image,
@@ -152,7 +161,7 @@ export function Hero({
           >
             {primaryCta.label}
           </Link>
-          {secondaryCta ? (
+          {secondaryCta && secondaryCtaVariant === 'button' ? (
             <Link
               href={secondaryCta.href}
               className="rounded-brand border border-white/30 px-8 py-4 text-center text-base font-semibold text-white transition-colors hover:bg-white/10"
@@ -161,6 +170,18 @@ export function Hero({
             </Link>
           ) : null}
         </div>
+
+        {secondaryCta && secondaryCtaVariant === 'link' ? (
+          <div className="mt-6">
+            <Link
+              href={secondaryCta.href}
+              className="inline-flex items-center gap-1 text-base font-semibold text-white underline underline-offset-4 transition-colors hover:text-white/80"
+            >
+              {secondaryCta.label}
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
+        ) : null}
 
         {footnote ? (
           <div className="mt-8 max-w-2xl text-sm leading-relaxed text-white/75">

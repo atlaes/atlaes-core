@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Calculator, Check, Info } from 'lucide-react';
+import { Banknote, Calculator, Check, Info, Landmark } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
 import { SectionHeading } from '@/components/marketing/SectionHeading';
 import { PriceCard } from '@/components/marketing/PriceCard';
@@ -12,6 +12,20 @@ import {
 } from '@/components/marketing/FaqAccordion';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
+
+/**
+ * Charcoal ink for headings/titles on light sections (updated Figma design —
+ * was brand green). Dark sections keep their white/accent titles. Mirrors the
+ * home and how-it-works pages.
+ */
+const INK = 'text-[#231f20]';
+
+/**
+ * Brand-green eyebrow pill for light sections: the pill stays brand green even
+ * though the heading beside it is charcoal (INK). Passed to SectionHeading on
+ * light sections only; dark sections keep the default `currentColor` pill.
+ */
+const EYEBROW_LIGHT = 'border-brand/30 bg-transparent text-brand';
 
 // ---------------------------------------------------------------------------
 // Pricing FAQ (Figma 1199:9304 — six questions from the rendered canvas).
@@ -132,11 +146,22 @@ function CheckBullets({ items }: { items: string[] }) {
   );
 }
 
-/** "After approval" explainer card (heading + supporting paragraph). */
-function ApprovalCard({ title, body }: { title: string; body: string }) {
+/** "After approval" explainer card (icon badge + heading + paragraph). */
+function ApprovalCard({
+  icon,
+  title,
+  body,
+}: {
+  icon: ReactNode;
+  title: string;
+  body: string;
+}) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
-      <h3 className="text-xl font-semibold text-brand">{title}</h3>
+    <div className="flex flex-col rounded-2xl border border-[#ececec] bg-white p-8 shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
+      <span className="mb-6 flex h-11 w-11 items-center justify-center rounded-full bg-brand text-accent">
+        {icon}
+      </span>
+      <h3 className={`text-2xl font-semibold ${INK}`}>{title}</h3>
       <p className="mt-4 text-base leading-relaxed text-gray-600">{body}</p>
     </div>
   );
@@ -153,9 +178,9 @@ function ExampleCard({
   note: string;
 }) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
+    <div className="flex h-full flex-col rounded-2xl border border-[#ececec] bg-white p-8 shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
       <div className="mb-6 flex items-center gap-4">
-        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-brand">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#ececec] text-gray-400">
           <Calculator className="h-7 w-7" aria-hidden="true" />
         </span>
         <div>
@@ -164,19 +189,19 @@ function ExampleCard({
         </div>
       </div>
 
-      <dl className="mt-6 space-y-3 border-t border-neutral-400 pt-6">
+      <dl className="mt-6 space-y-3 border-t border-gray-200 pt-6">
         {rows.map((row) => {
           const highlight = row.label === 'Remaining fee after approval';
           return (
             <div
               key={row.label}
               className={`flex items-baseline justify-between gap-4 ${
-                highlight ? 'border-t border-neutral-400 pt-3' : ''
+                highlight ? 'border-t border-gray-200 pt-3' : ''
               }`}
             >
               <dt
                 className={`text-base ${
-                  highlight ? 'font-semibold text-brand' : 'text-gray-600'
+                  highlight ? `font-semibold ${INK}` : 'text-gray-600'
                 }`}
               >
                 {row.label}
@@ -194,7 +219,7 @@ function ExampleCard({
       </dl>
 
       <div className="mt-6 flex flex-1 items-end">
-        <div className="flex items-start gap-2 rounded-brand border border-accent/50 bg-accent/10 px-4 py-3 text-sm leading-relaxed text-gray-700">
+        <div className="flex items-start gap-2 rounded-[10px] bg-[#ececec] px-4 py-3 text-sm leading-relaxed text-gray-600">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/marketing/icons/check-bullet.svg"
@@ -209,21 +234,11 @@ function ExampleCard({
   );
 }
 
-function InfoNote({
-  children,
-  tone = 'neutral',
-}: {
-  children: ReactNode;
-  tone?: 'neutral' | 'green';
-}) {
-  const tones = {
-    neutral: 'bg-neutral-50',
-    green: 'bg-accent/10',
-  } as const;
+/** Muted green info note (updated Figma design): #f3fced tint, brand-green
+ *  border and info icon. Matches the home / how-it-works InfoNote. */
+function InfoNote({ children }: { children: ReactNode }) {
   return (
-    <div
-      className={`flex items-start gap-2 rounded-brand ${tones[tone]} px-4 py-3 text-sm leading-relaxed text-gray-600`}
-    >
+    <div className="flex items-start gap-2 rounded-brand border border-brand/20 bg-[#f3fced] px-4 py-3 text-sm leading-relaxed text-gray-600">
       <Info className="mt-0.5 h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
       <div>{children}</div>
     </div>
@@ -243,26 +258,38 @@ export default function PricingPage() {
       {/* ---- HERO (Figma 1187:4339) ---- */}
       <Hero
         eyebrow="Pricing"
-        title="Simple pricing for cash-outs and refunds"
-        body="Start with a €199 deposit. Our success fee is 9.75% of the approved cash-out or refund amount, with a minimum total service fee of €199. Your deposit is always credited toward the final service fee."
-        primaryCta={{ label: 'Start your claim', href: '/get-started' }}
-        secondaryCta={{
-          label: 'How the deposit works',
-          href: '#your-deposit',
-        }}
-        footnote={
-          <p>
+        title="Simple pricing for"
+        highlight="cash-outs and refunds"
+        body={
+          <p className="font-semibold">
+            Start with a €199 deposit.{' '}
+            <span className="text-accent">
+              Our success fee is 9.75% of the approved cash-out or refund
+              amount,
+            </span>{' '}
+            with a minimum total service fee of €199. Your deposit is always
+            credited toward the final service fee.
+          </p>
+        }
+        aboveCta={
+          <p className="text-base text-white/70">
             If approved, the money is paid directly to the bank account you
             provide. CompanyPension does not receive, hold or forward approved
             pension money.
           </p>
         }
+        primaryCta={{ label: 'Start your claim', href: '/get-started' }}
+        secondaryCta={{
+          label: 'How the deposit works',
+          href: '#your-deposit',
+        }}
+        secondaryCtaVariant="link"
       />
 
       {/* ---- PRICING BY CLAIM TYPE (Figma 1188:6060) ---- */}
       <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               title="Pricing by claim type"
               body="Both routes start with a €199 deposit and use the same 9.75% success fee if approved. The deposit rules differ if the case cannot proceed."
@@ -322,14 +349,16 @@ export default function PricingPage() {
       </section>
 
       {/* ---- EXAMPLE FEE CALCULATIONS (Figma 1190:6861) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               title="Example fee calculations"
               body="See how the €199 deposit is credited toward the final service fee if your cash-out or refund is approved."
             />
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-gray-600">
+            <p
+              className={`mt-8 max-w-2xl text-base font-semibold leading-relaxed ${INK}`}
+            >
               The final service fee is 9.75% of the approved amount, subject to
               a minimum total fee of €199.
             </p>
@@ -366,45 +395,39 @@ export default function PricingPage() {
             />
           </div>
 
-          <p className="mx-auto mt-10 max-w-3xl text-center text-sm leading-relaxed text-gray-500">
-            These examples are for illustration only. Your final fee depends on
-            the approved amount and the pricing rules shown before payment.
-          </p>
+          <div className="mt-10">
+            <InfoNote>
+              These examples are for illustration only. Your final fee depends
+              on the approved amount and the pricing rules shown before payment.
+            </InfoNote>
+          </div>
         </div>
       </section>
 
       {/* ---- YOUR DEPOSIT (Figma 1190:6994) ---- */}
-      <section id="your-deposit" className="scroll-mt-24 bg-neutral-50">
+      <section id="your-deposit" className="scroll-mt-24 bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
-            <div className="text-brand">
+            <div className={INK}>
               <SectionHeading
                 align="left"
                 eyebrow="Your deposit"
+                eyebrowClassName={EYEBROW_LIGHT}
                 title="What your €199 deposit activates"
               />
-              <div className="mt-6 space-y-4 text-base leading-relaxed text-gray-600">
-                <p>
-                  The deposit activates the secure digital application
-                  process&mdash;not just an initial check.
-                </p>
-                <p>
-                  Once your claim is activated, the CompanyPension platform
-                  provides the tools needed to complete, review, sign and submit
-                  your cash-out or refund application online.
-                </p>
-              </div>
-              <div className="mt-8">
-                <InfoNote tone="green">
-                  The deposit is not an additional fee. If your cash-out or
-                  refund is approved, it is credited toward your final service
-                  fee.
-                </InfoNote>
-              </div>
+              <p className={`mt-8 text-2xl font-semibold leading-snug ${INK}`}>
+                The deposit activates the secure digital application
+                process&mdash;not just an initial check.
+              </p>
+              <p className="mt-5 text-base leading-relaxed text-gray-600">
+                Once your claim is activated, the CompanyPension platform
+                provides the tools needed to complete, review, sign and submit
+                your cash-out or refund application online.
+              </p>
             </div>
 
-            <div className="rounded-2xl border border-neutral-400 bg-white p-8">
-              <p className="text-base font-semibold text-brand">
+            <div>
+              <p className={`text-base font-semibold ${INK}`}>
                 Included in the process:
               </p>
               <div className="mt-6">
@@ -423,47 +446,65 @@ export default function PricingPage() {
                   ]}
                 />
               </div>
+              <div className="mt-8">
+                <InfoNote>
+                  The deposit is not an additional fee. If your cash-out or
+                  refund is approved, it is credited toward your final service
+                  fee.
+                </InfoNote>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* ---- AFTER APPROVAL (Figma 1190:7836) ---- */}
-      <section className="bg-white">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
-            <SectionHeading
-              eyebrow="After approval"
-              title="When is the remaining service fee due?"
-              body="Only after your cash-out or refund is approved."
-            />
-          </div>
+          <div className="grid gap-12 lg:grid-cols-2">
+            <div className={INK}>
+              <SectionHeading
+                align="left"
+                eyebrow="After approval"
+                eyebrowClassName={EYEBROW_LIGHT}
+                title={
+                  <>
+                    When is the remaining
+                    <br />
+                    service fee due?
+                  </>
+                }
+              />
+              <p className="mt-6 text-base leading-relaxed text-gray-600">
+                Only after your cash-out or refund is approved.
+              </p>
+            </div>
 
-          <div className="mx-auto mt-14 grid max-w-5xl gap-8 lg:grid-cols-2">
-            <ApprovalCard
-              title="Company pension cash-out"
-              body="If your bAV cash-out is approved, the 9.75% success fee is calculated from the approved cash-out amount. Your €199 deposit is deducted, and only the remaining service fee becomes due."
-            />
-            <ApprovalCard
-              title="VBL, ZVK, VddB and VddKO refund"
-              body="If your refund is approved, the 9.75% success fee is calculated from the approved refund amount. Your €199 deposit is deducted, and only the remaining service fee becomes due."
-            />
-          </div>
-
-          <div className="mx-auto mt-10 max-w-5xl">
-            <InfoNote tone="green">
-              If the deposit already covers the minimum total service fee, there
-              is no remaining fee after approval.
-            </InfoNote>
+            <div className="space-y-6">
+              <ApprovalCard
+                icon={<Banknote className="h-6 w-6" aria-hidden="true" />}
+                title="Company pension cash-out"
+                body="If your bAV cash-out is approved, the 9.75% success fee is calculated from the approved cash-out amount. Your €199 deposit is deducted, and only the remaining service fee becomes due."
+              />
+              <ApprovalCard
+                icon={<Landmark className="h-6 w-6" aria-hidden="true" />}
+                title="VBL, ZVK, VddB and VddKO refund"
+                body="If your refund is approved, the 9.75% success fee is calculated from the approved refund amount. Your €199 deposit is deducted, and only the remaining service fee becomes due."
+              />
+              <InfoNote>
+                If the deposit already covers the minimum total service fee,
+                there is no remaining fee after approval.
+              </InfoNote>
+            </div>
           </div>
         </div>
       </section>
 
       {/* ---- APPROVED MONEY PAID DIRECTLY (Figma 1199:8629) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid items-center gap-12 lg:grid-cols-2">
-            <div className="text-brand">
+            <div className={INK}>
               <SectionHeading
                 align="left"
                 title="Approved money is paid directly to you"
@@ -480,13 +521,13 @@ export default function PricingPage() {
                 <p>
                   A German bank account is not required in most cases. Some
                   providers or refund routes may require a suitable SEPA-capable
-                  EUR account. If needed, CompanyPension can help you open a EUR
-                  account.
+                  EUR account. If needed, CompanyPension can help you open a
+                  free EUR account.
                 </p>
               </div>
             </div>
 
-            <div className="aspect-[563/527] overflow-hidden rounded-2xl border border-neutral-200">
+            <div className="aspect-[563/527] overflow-hidden rounded-[24px]">
               <Image
                 src="/marketing/pricing/pricing-asset-03.png"
                 alt="A person holding a phone showing a 'Money Received' confirmation"
@@ -500,9 +541,9 @@ export default function PricingPage() {
       </section>
 
       {/* ---- FAQ (Figma 1199:9304 — questions from rendered canvas) ---- */}
-      <section className="bg-white">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading title="Frequently asked questions" />
           </div>
 
@@ -513,10 +554,9 @@ export default function PricingPage() {
           <div className="mt-10 flex justify-center">
             <Link
               href="/faq"
-              className="inline-flex items-center gap-2 rounded-brand bg-accent px-8 py-3 text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
+              className="rounded-brand bg-accent px-8 py-3 text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
             >
               Show more questions
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
         </div>
@@ -526,13 +566,19 @@ export default function PricingPage() {
       {/* Renders on the shared near-black #231f20 wave background (CtaBand
           default) — this is what separates it from the green footer below. */}
       <CtaBand
-        title="Ready to start your cash-out or refund?"
+        eyebrow="Start online"
+        title={
+          <>
+            Ready to start your{' '}
+            <span className="text-accent">cash-out or refund?</span>
+          </>
+        }
         body="Start the guided claim flow for a bAV cash-out or a VBL, ZVK, VddB or VddKO refund. For refund cases, you can also calculate a first estimate before continuing."
         cta={{ label: 'Start your claim', href: '/get-started' }}
         secondaryCta={{ label: 'Calculate my refund', href: '/calculator' }}
         note={
           <>
-            <span className="block">
+            <span className="block text-accent">
               The refund calculator is available for VBL, ZVK, VddB and VddKO.
               It is not used for bAV cash-outs.
             </span>

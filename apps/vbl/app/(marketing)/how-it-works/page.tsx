@@ -21,6 +21,14 @@ const CONTAINER = 'mx-auto max-w-[1200px] px-6';
  */
 const INK = 'text-[#231f20]';
 
+/**
+ * Brand-green eyebrow pill for light sections. In the updated design the
+ * eyebrow pill stays brand green even though the heading beside it is charcoal
+ * (INK). Dark sections keep the default `currentColor` pill (white). Mirrors
+ * the value used on the home and pricing pages.
+ */
+const EYEBROW_LIGHT = 'border-brand/30 bg-transparent text-brand';
+
 // ---------------------------------------------------------------------------
 // Local, page-only building blocks (shared shapes live in components/marketing)
 // ---------------------------------------------------------------------------
@@ -293,6 +301,7 @@ export default function HowItWorksPage() {
           <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="Built around your documents"
+              eyebrowClassName={EYEBROW_LIGHT}
               title="Less typing. Clearer steps. One secure online flow."
               body="Instead of working through German pension forms on your own, start with the documents you already have. The platform extracts key information, asks only the questions relevant to your case and builds the next steps around your pension type."
             />
@@ -354,6 +363,7 @@ export default function HowItWorksPage() {
           <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="From first check to payout"
+              eyebrowClassName={EYEBROW_LIGHT}
               title="Complete your company pension claim online in five steps"
               body="Upload your documents or answer guided questions, complete the secure online flow and sign your application digitally."
             />
@@ -433,6 +443,7 @@ export default function HowItWorksPage() {
           <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="Choose how to begin"
+              eyebrowClassName={EYEBROW_LIGHT}
               title="Start your claim or estimate a refund first"
               body="The main claim flow supports every pension type available on CompanyPension. The refund calculator is an optional route for VBL, ZVK, VddB and VddKO cases."
             />
@@ -538,6 +549,7 @@ export default function HowItWorksPage() {
           <div className={INK}>
             <SectionHeading
               eyebrow="Direct payment"
+              eyebrowClassName={EYEBROW_LIGHT}
               title="The provider pays approved money directly to you"
             />
           </div>
@@ -567,6 +579,7 @@ export default function HowItWorksPage() {
           <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="From first check to payout"
+              eyebrowClassName={EYEBROW_LIGHT}
               title="What the platform does — and what it does not do"
             />
           </div>
@@ -667,6 +680,7 @@ export default function HowItWorksPage() {
           <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="FAQ"
+              eyebrowClassName={EYEBROW_LIGHT}
               title="Questions about the digital process"
             />
           </div>

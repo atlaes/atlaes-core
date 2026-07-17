@@ -21,6 +21,15 @@ const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 const INK = 'text-[#231f20]';
 
 /**
+ * Brand-green eyebrow pill for light sections. In the updated design the
+ * eyebrow pill stays brand green even though the heading beside it is charcoal
+ * (INK). Dark sections keep the default `currentColor` pill (white), so this is
+ * only passed on light-section SectionHeadings. Mirrors the value used on the
+ * how-it-works and pricing pages.
+ */
+const EYEBROW_LIGHT = 'border-brand/30 bg-transparent text-brand';
+
+/**
  * Home FAQ (Figma 1178:541). Questions follow the design; answers come from the
  * shared FAQ master copy via faqItems.tsx (FAQ CompanyPension 22062026.pdf).
  * Q1 and Q3 keep the design's own expanded answers; the remaining items reuse
@@ -355,6 +364,7 @@ export default function HomePage() {
           <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="Get started"
+              eyebrowClassName={EYEBROW_LIGHT}
               title="Start your claim or estimate your refund first"
               body="Ready to begin? Start the claim flow for a bAV cash-out or company pension refund. For VBL, ZVK, VddB or VddKO, you can also calculate a first refund estimate before continuing."
             />
@@ -900,6 +910,7 @@ export default function HomePage() {
           <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="DRV refund and bAV cash-out"
+              eyebrowClassName={EYEBROW_LIGHT}
               title={
                 <>
                   A DRV refund can create the basis for
