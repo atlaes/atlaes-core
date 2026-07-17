@@ -1,11 +1,9 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Calculator, Check, ClipboardCheck, Info, X } from 'lucide-react';
+import { Check, ChevronRight, Info, X } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
 import { SectionHeading } from '@/components/marketing/SectionHeading';
-import { FeatureCard } from '@/components/marketing/FeatureCard';
-import { StepCard } from '@/components/marketing/StepCard';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import {
   FaqAccordion,
@@ -15,39 +13,33 @@ import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
+/**
+ * Charcoal ink used for every heading/title on the page's light sections and
+ * card h3s (updated Figma design — was brand green). Dark sections keep their
+ * white/accent titles. Mirrors the Home page's INK constant so the two pages
+ * share the same design-system value.
+ */
+const INK = 'text-[#231f20]';
+
 // ---------------------------------------------------------------------------
 // Local, page-only building blocks (shared shapes live in components/marketing)
 // ---------------------------------------------------------------------------
 
-function ArrowLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className="inline-flex items-center gap-2 rounded-brand bg-accent px-6 py-3 text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
-    >
-      {children}
-      <ArrowRight className="h-4 w-4" aria-hidden="true" />
-    </Link>
-  );
-}
-
+/**
+ * Muted info note (updated Figma design). Green is the light `#f3fced` tint
+ * used everywhere on this page (matching the Home page's InfoNote); blue is the
+ * light-blue authorization callout in the "does / does not do" section.
+ */
 function InfoNote({
   children,
-  tone = 'neutral',
+  tone = 'green',
 }: {
   children: ReactNode;
-  tone?: 'neutral' | 'green' | 'blue';
+  tone?: 'green' | 'blue';
 }) {
   const tones = {
-    neutral: 'bg-neutral-50',
-    green: 'bg-accent/10',
-    blue: 'bg-blue-50',
+    green: 'border border-brand/20 bg-[#f3fced]',
+    blue: 'border border-blue-200 bg-blue-50',
   } as const;
   return (
     <div
@@ -70,15 +62,106 @@ function NumberedCard({
   paragraphs: string[];
 }) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
-      <span aria-hidden="true" className="text-3xl font-semibold text-brand">
+    <div className="flex h-full flex-col rounded-2xl border border-[#ececec] bg-white p-8 shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
+      <span aria-hidden="true" className={`text-3xl font-semibold ${INK}`}>
         {number}
       </span>
-      <h3 className="mt-5 text-lg font-semibold text-brand">{title}</h3>
+      <h3 className={`mt-5 text-lg font-semibold ${INK}`}>{title}</h3>
       <div className="mt-4 space-y-3 text-base leading-relaxed text-gray-600">
         {paragraphs.map((p) => (
           <p key={p}>{p}</p>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Numbered process step card (five-step section). Page-local restyle of the
+ * shared StepCard: white card, thin `#ececec` border, subtle shadow, a dark
+ * "Step N" pill, charcoal title. Kept local so the shared StepCard (used by the
+ * not-yet-refreshed product pages) is not half-flipped to the new design.
+ */
+function StepCard({
+  number,
+  title,
+  body,
+}: {
+  number: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="flex h-full flex-col rounded-2xl border border-[#ececec] bg-white p-8 shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
+      <span className="inline-flex w-fit items-center rounded-lg bg-brand px-4 py-1.5 text-sm font-semibold text-white">
+        {number}
+      </span>
+      <h3 className={`mt-6 text-xl font-semibold ${INK}`}>{title}</h3>
+      <p className="mt-4 text-base leading-relaxed text-gray-600">{body}</p>
+    </div>
+  );
+}
+
+/**
+ * Route-chooser card (choose-how-to-begin). Page-local restyle of the shared
+ * FeatureCard: white card, subtle shadow, 48px circular brand icon badge,
+ * charcoal title, check bullets and a solid/outline CTA.
+ */
+function ChooseCard({
+  iconSrc,
+  title,
+  body,
+  bullets,
+  note,
+  cta,
+  ctaVariant = 'solid',
+}: {
+  iconSrc: string;
+  title: string;
+  body: string;
+  bullets: string[];
+  note?: string;
+  cta: { label: string; href: string };
+  ctaVariant?: 'solid' | 'outline';
+}) {
+  return (
+    <div className="flex h-full flex-col rounded-2xl border border-[#ececec] bg-white p-8 shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
+      {/* Self-badged Figma icon (dark circle + accent glyph baked in).
+          eslint-disable-next-line @next/next/no-img-element */}
+      <img src={iconSrc} alt="" aria-hidden="true" className="mb-6 h-12 w-12" />
+      <h3 className={`text-xl font-semibold ${INK}`}>{title}</h3>
+      <p className="mt-3 text-base leading-relaxed text-gray-600">{body}</p>
+      <p className="mt-6 text-base text-gray-600">Available for:</p>
+      <ul className="mt-3 space-y-3">
+        {bullets.map((bullet) => (
+          <li key={bullet} className="flex items-start gap-3 text-gray-700">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/marketing/icons/check-bullet.svg"
+              alt=""
+              aria-hidden="true"
+              className="mt-1 h-5 w-5 shrink-0"
+            />
+            <span className="text-base">{bullet}</span>
+          </li>
+        ))}
+      </ul>
+      {note ? (
+        <div className="mt-6">
+          <InfoNote>{note}</InfoNote>
+        </div>
+      ) : null}
+      <div className="mt-8 flex flex-1 items-end">
+        <Link
+          href={cta.href}
+          className={
+            ctaVariant === 'outline'
+              ? `w-full rounded-brand border border-[#231f20]/25 bg-white px-6 py-3 text-center text-base font-semibold ${INK} transition-colors hover:bg-neutral-50`
+              : 'w-full rounded-brand bg-accent px-6 py-3 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover'
+          }
+        >
+          {cta.label}
+        </Link>
       </div>
     </div>
   );
@@ -115,8 +198,7 @@ const HOWITWORKS_FAQ_ITEMS: FaqAccordionItem[] = [
   { ...FAQ.howItWorks, question: 'Is the process fully online?' },
   {
     ...FAQ.uploadInsteadManual,
-    question:
-      'Can I upload documents instead of entering everything manually?',
+    question: 'Can I upload documents instead of entering everything manually?',
   },
   FAQ.ocrOrAi,
   {
@@ -185,12 +267,12 @@ export default function HowItWorksPage() {
             cash-out or refund application for your review and digital
             signature.
             <span className="mt-5 block text-base text-white/70">
-              CompanyPension is a digital application platform for bAV
-              cash-outs and VBL, ZVK, VddB and VddKO refunds. You complete the
-              process through a secure English-language flow. Automated
-              document reading and smart questions reduce manual data entry,
-              while human oversight is added when clarification, translation or
-              provider follow-up is needed.
+              CompanyPension is a digital application platform for bAV cash-outs
+              and VBL, ZVK, VddB and VddKO refunds. You complete the process
+              through a secure English-language flow. Automated document reading
+              and smart questions reduce manual data entry, while human
+              oversight is added when clarification, translation or provider
+              follow-up is needed.
             </span>
           </>
         }
@@ -206,9 +288,9 @@ export default function HowItWorksPage() {
       />
 
       {/* ---- BUILT AROUND YOUR DOCUMENTS (Figma 1183:7417 / 1183:7664) ---- */}
-      <section className="bg-white">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="Built around your documents"
               title="Less typing. Clearer steps. One secure online flow."
@@ -267,9 +349,9 @@ export default function HowItWorksPage() {
       </section>
 
       {/* ---- FIVE-STEP PROCESS (Figma 1183:7674) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="From first check to payout"
               title="Complete your company pension claim online in five steps"
@@ -321,13 +403,18 @@ export default function HowItWorksPage() {
                 className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand underline underline-offset-2 transition-colors hover:text-brand/70"
               >
                 View pricing details
-                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
               </Link>
             </InfoNote>
           </div>
 
           <div className="mt-10 flex justify-center">
-            <ArrowLink href="/get-started">Start your claim</ArrowLink>
+            <Link
+              href="/get-started"
+              className="rounded-brand bg-accent px-16 py-3.5 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
+            >
+              Start your claim
+            </Link>
           </div>
         </div>
       </section>
@@ -343,7 +430,7 @@ export default function HowItWorksPage() {
           className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-15 grayscale"
         />
         <div className={`${CONTAINER} relative py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="Choose how to begin"
               title="Start your claim or estimate a refund first"
@@ -352,12 +439,10 @@ export default function HowItWorksPage() {
           </div>
 
           <div className="mt-14 grid gap-8 lg:grid-cols-2">
-            <FeatureCard
-              icon={null}
-              iconImageSrc="/marketing/icons/start-cashout-icon.svg"
+            <ChooseCard
+              iconSrc="/marketing/icons/start-cashout-icon.svg"
               title="Start your cash-out or refund"
               body="Upload a pension document or answer a few guided questions. If your case may be possible, create secure access and continue through the full online process."
-              bulletsLabel="Available for:"
               bullets={[
                 'bAV and provider-based cash-outs',
                 'VBL and ZVK refunds',
@@ -365,12 +450,10 @@ export default function HowItWorksPage() {
               ]}
               cta={{ label: 'Start your claim', href: '/get-started' }}
             />
-            <FeatureCard
-              icon={null}
-              iconImageSrc="/marketing/icons/estimate-refund-icon.svg"
+            <ChooseCard
+              iconSrc="/marketing/icons/estimate-refund-icon.svg"
               title="Estimate your refund first"
               body="Upload a pension document or enter your information manually to receive a first refund estimate. You can create secure access and continue into the full application process afterwards."
-              bulletsLabel="Available for:"
               bullets={['VBL', 'ZVK', 'VddB', 'VddKO']}
               note="The refund calculator is not available for bAV cash-outs."
               cta={{ label: 'Calculate my refund', href: '/calculator' }}
@@ -452,7 +535,7 @@ export default function HowItWorksPage() {
         <div
           className={`${CONTAINER} relative flex flex-col items-center py-20 text-center sm:py-24`}
         >
-          <div className="text-brand">
+          <div className={INK}>
             <SectionHeading
               eyebrow="Direct payment"
               title="The provider pays approved money directly to you"
@@ -481,7 +564,7 @@ export default function HowItWorksPage() {
       {/* ---- WHAT THE PLATFORM DOES / DOES NOT DO (Figma 1184:118) ---- */}
       <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="From first check to payout"
               title="What the platform does — and what it does not do"
@@ -489,12 +572,12 @@ export default function HowItWorksPage() {
           </div>
 
           <div className="mt-14 grid gap-8 lg:grid-cols-2">
-            <div className="flex flex-col rounded-2xl bg-accent/10 p-8">
+            <div className="flex flex-col rounded-2xl bg-[#f3fced] p-8">
               <div className="flex items-center gap-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-accent">
                   <Check className="h-5 w-5" aria-hidden="true" />
                 </span>
-                <h3 className="text-xl font-semibold text-gray-900">
+                <h3 className={`text-xl font-semibold ${INK}`}>
                   What <span className="text-brand">CompanyPension</span> does
                 </h3>
               </div>
@@ -527,9 +610,9 @@ export default function HowItWorksPage() {
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-white">
                   <X className="h-5 w-5" aria-hidden="true" />
                 </span>
-                <h3 className="text-xl font-semibold text-gray-900">
-                  What <span className="text-red-600">CompanyPension</span>{' '}
-                  does not do
+                <h3 className={`text-xl font-semibold ${INK}`}>
+                  What <span className="text-red-600">CompanyPension</span> does
+                  not do
                 </h3>
               </div>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -579,9 +662,9 @@ export default function HowItWorksPage() {
 
       {/* ---- FAQ (Figma 1185:255) — answers from the shared FAQ master copy
           via faqItems.tsx (FAQ CompanyPension 22062026.pdf) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="FAQ"
               title="Questions about the digital process"
@@ -605,6 +688,7 @@ export default function HowItWorksPage() {
 
       {/* ---- CLOSING CTA BAND (Figma 1186:1036) ---- */}
       <CtaBand
+        eyebrow="Start online"
         title={
           <>
             Ready to <span className="text-accent">start your claim?</span>
@@ -620,8 +704,8 @@ export default function HowItWorksPage() {
             </span>
             <span className="mt-2 block">
               If approved, the money is paid directly to the bank account you
-              provide. CompanyPension does not receive, hold or forward
-              approved pension money.
+              provide. CompanyPension does not receive, hold or forward approved
+              pension money.
             </span>
           </>
         }
