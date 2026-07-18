@@ -126,8 +126,8 @@ export const FAQ: Record<string, FaqAccordionItem> = {
           <li>A separate company pension refund or bAV cash-out</li>
         </ol>
         <p className="mt-2">
-          For some vested bAV entitlements, an approved DRV refund can create the
-          legal basis for requesting a separate lump-sum settlement.
+          For some vested bAV entitlements, an approved DRV refund can create
+          the legal basis for requesting a separate lump-sum settlement.
         </p>
         <p className="mt-2">
           The company pension is not paid out automatically when the DRV refund
@@ -142,12 +142,13 @@ export const FAQ: Record<string, FaqAccordionItem> = {
       <>
         <p>Not for every company pension case.</p>
         <p className="mt-2">
-          VBL, ZVK, VddB, VddKO and bAV rules are not based solely on whether you
-          live in Germany, elsewhere in the EU or outside Europe.
+          VBL, ZVK, VddB, VddKO and bAV rules are not based solely on whether
+          you live in Germany, elsewhere in the EU or outside Europe.
         </p>
         <p className="mt-2">
-          Eligibility depends mainly on the pension scheme, contribution history,
-          vesting status, contract and applicable cash-out or refund rules.
+          Eligibility depends mainly on the pension scheme, contribution
+          history, vesting status, contract and applicable cash-out or refund
+          rules.
         </p>
         <p className="mt-2">
           This differs from a German state pension refund, where nationality,
@@ -311,7 +312,8 @@ export const FAQ: Record<string, FaqAccordionItem> = {
         <p className="mt-2">
           Falling below this threshold does not mean the pension is paid out
           automatically. Whether a lump-sum settlement is possible still depends
-          on the pension arrangement and the employer or provider&rsquo;s review.
+          on the pension arrangement and the employer or provider&rsquo;s
+          review.
         </p>
       </>
     ),
@@ -326,7 +328,9 @@ export const FAQ: Record<string, FaqAccordionItem> = {
           relevant payout date. Leaving Germany does not, by itself, remove that
           protection.
         </p>
-        <p className="mt-2">A lump-sum settlement may nevertheless be possible if:</p>
+        <p className="mt-2">
+          A lump-sum settlement may nevertheless be possible if:
+        </p>
         <Bullets
           items={[
             'The entitlement falls below the applicable small-benefit threshold, or',
@@ -347,14 +351,14 @@ export const FAQ: Record<string, FaqAccordionItem> = {
       <>
         <p>Yes, it can be important.</p>
         <p className="mt-2">
-          When statutory German pension contributions have been refunded, Section
-          3(3) BetrAVG can create a right to request settlement of a vested
-          occupational pension entitlement.
+          When statutory German pension contributions have been refunded,
+          Section 3(3) BetrAVG can create a right to request settlement of a
+          vested occupational pension entitlement.
         </p>
         <p className="mt-2">
           The DRV refund does not automatically cash out the bAV. You must still
-          make a separate request to the responsible employer or pension provider
-          and provide evidence of the DRV refund.
+          make a separate request to the responsible employer or pension
+          provider and provide evidence of the DRV refund.
         </p>
         <p className="mt-2">
           CompanyPension checks whether this route may be relevant during the
@@ -470,8 +474,8 @@ export const FAQ: Record<string, FaqAccordionItem> = {
           individual case.
         </p>
         <p className="mt-2">
-          CompanyPension collects and displays the requested information but does
-          not provide health insurance or tax advice.
+          CompanyPension collects and displays the requested information but
+          does not provide health insurance or tax advice.
         </p>
       </>
     ),
@@ -499,15 +503,17 @@ export const FAQ: Record<string, FaqAccordionItem> = {
     question: 'What is the difference between VBLklassik and VBLextra?',
     answer: (
       <>
-        <p>VBLklassik is the standard VBL plan for many public-sector employees.</p>
+        <p>
+          VBLklassik is the standard VBL plan for many public-sector employees.
+        </p>
         <p className="mt-2">
-          Eligible employee contributions paid into VBLklassik in VBL West may be
-          refundable if the relevant refund conditions are met.
+          Eligible employee contributions paid into VBLklassik in VBL West may
+          be refundable if the relevant refund conditions are met.
         </p>
         <p className="mt-2">
           VBLextra is a separate voluntary plan. Its pension entitlement is
-          vested from the first contribution, so VBLextra contributions cannot be
-          refunded.
+          vested from the first contribution, so VBLextra contributions cannot
+          be refunded.
         </p>
         <p className="mt-2">
           If your record includes both VBLextra and VBLklassik, the VBLklassik
@@ -540,7 +546,8 @@ export const FAQ: Record<string, FaqAccordionItem> = {
           counted toward the standard 60-month waiting period.
         </p>
         <p className="mt-2">
-          The final decision is made by VBL after reviewing the insurance record.
+          The final decision is made by VBL after reviewing the insurance
+          record.
         </p>
       </>
     ),
@@ -555,7 +562,8 @@ export const FAQ: Record<string, FaqAccordionItem> = {
         </p>
         <p className="mt-2">
           The important questions are whether you have left German public-sector
-          employment and whether your VBLklassik contributions remain refundable.
+          employment and whether your VBLklassik contributions remain
+          refundable.
         </p>
       </>
     ),
@@ -586,7 +594,9 @@ export const FAQ: Record<string, FaqAccordionItem> = {
           system are generally not refundable because the pension entitlement is
           vested from the first contribution.
         </p>
-        <p className="mt-2">Do not rely only on the location of the employer.</p>
+        <p className="mt-2">
+          Do not rely only on the location of the employer.
+        </p>
         <p className="mt-2">
           Check the VBL letter or insurance record for wording such as:
         </p>
@@ -704,7 +714,9 @@ export const FAQ: Record<string, FaqAccordionItem> = {
             'The applicable waiting period after your last contribution has passed',
           ]}
         />
-        <p className="mt-2">The pension institution makes the final decision.</p>
+        <p className="mt-2">
+          The pension institution makes the final decision.
+        </p>
       </>
     ),
   },
@@ -724,7 +736,8 @@ export const FAQ: Record<string, FaqAccordionItem> = {
     ),
   },
   returnToStageWork: {
-    question: 'Can I return to stage or orchestra work after receiving a refund?',
+    question:
+      'Can I return to stage or orchestra work after receiving a refund?',
     answer: (
       <>
         <p>Yes, but the refunded periods do not remain as pension periods.</p>
@@ -766,7 +779,8 @@ export const FAQ: Record<string, FaqAccordionItem> = {
     ),
   },
   uploadInsteadManual: {
-    question: 'Can I upload a document instead of completing everything manually?',
+    question:
+      'Can I upload a document instead of completing everything manually?',
     answer: (
       <>
         <p>Yes.</p>
@@ -829,8 +843,8 @@ export const FAQ: Record<string, FaqAccordionItem> = {
           ]}
         />
         <p className="mt-2">
-          The calculator is optional and is available only for VBL, ZVK, VddB and
-          VddKO refund estimates.
+          The calculator is optional and is available only for VBL, ZVK, VddB
+          and VddKO refund estimates.
         </p>
         <p className="mt-2">It does not calculate bAV cash-out amounts.</p>
       </>
@@ -880,8 +894,8 @@ export const FAQ: Record<string, FaqAccordionItem> = {
       <>
         <p>
           Where you provide limited authorization, relevant provider
-          correspondence can be received through CompanyPension, and displayed in
-          your secure account.
+          correspondence can be received through CompanyPension, and displayed
+          in your secure account.
         </p>
         <p className="mt-2">The platform shows the next required action.</p>
         <p className="mt-2">
@@ -939,7 +953,8 @@ export const FAQ: Record<string, FaqAccordionItem> = {
         </p>
         <p className="mt-2">
           If separate legal services are needed in an individual case, they are
-          provided by the responsible legal partner under a separate arrangement.
+          provided by the responsible legal partner under a separate
+          arrangement.
         </p>
       </>
     ),
@@ -1002,8 +1017,9 @@ export const FAQ: Record<string, FaqAccordionItem> = {
       <>
         <p>No. The deposit is part of the final service fee.</p>
         <p className="mt-2">
-          If the approved amount results in only the &euro;199 minimum total fee,
-          the deposit covers the entire service fee and nothing further is due.
+          If the approved amount results in only the &euro;199 minimum total
+          fee, the deposit covers the entire service fee and nothing further is
+          due.
         </p>
       </>
     ),
@@ -1020,8 +1036,8 @@ export const FAQ: Record<string, FaqAccordionItem> = {
         </p>
         <p className="mt-2">
           For bAV cash-outs, if the cash-out cannot be submitted after the
-          digital case and document review, &euro;79 is retained and &euro;120 is
-          refunded.
+          digital case and document review, &euro;79 is retained and &euro;120
+          is refunded.
         </p>
         <p className="mt-2">
           The deposit is not automatically refundable when a user abandons the
@@ -1044,8 +1060,8 @@ export const FAQ: Record<string, FaqAccordionItem> = {
           out in the payment terms.
         </p>
         <p className="mt-2">
-          A provider rejection of a completed refund request is different from an
-          abandoned or incomplete application.
+          A provider rejection of a completed refund request is different from
+          an abandoned or incomplete application.
         </p>
       </>
     ),
@@ -1091,3 +1107,98 @@ export const FAQ: Record<string, FaqAccordionItem> = {
     ),
   },
 };
+
+// ---------------------------------------------------------------------------
+// Category grouping — powers the FAQ-page explorer (search + six category
+// tabs, Figma frame 1199:11597). Categories appear in Figma order. The
+// "General questions" order already matches the FAQ-page design (frame
+// 1199:11597, "General questions" tab); the other five keep master order, as
+// the design does not show their expanded lists.
+// ---------------------------------------------------------------------------
+
+export interface FaqCategory {
+  label: string;
+  items: FaqAccordionItem[];
+}
+
+export const FAQ_CATEGORIES: FaqCategory[] = [
+  {
+    label: 'General questions',
+    items: [
+      FAQ.whatIsRefund,
+      FAQ.refundVsCashout,
+      FAQ.companyVsStatePension,
+      FAQ.bothRefunds,
+      FAQ.liveOutside,
+      FAQ.wait24,
+      FAQ.howMuch,
+      FAQ.howLong,
+      FAQ.bankAccount,
+      FAQ.whoReceives,
+    ],
+  },
+  {
+    label: 'bAV cash-outs',
+    items: [
+      FAQ.cashOutAfterLeaving,
+      FAQ.smallBav2026,
+      FAQ.vestedBavPayout,
+      FAQ.drvHelpsBav,
+      FAQ.direktversicherungCashout,
+      FAQ.whichProviders,
+      FAQ.everyProviderLumpSum,
+      FAQ.employerApproval,
+      FAQ.healthInsurance,
+    ],
+  },
+  {
+    label: 'VBL and ZVK refunds',
+    items: [
+      FAQ.whatIsVbl,
+      FAQ.vblklassikVsExtra,
+      FAQ.canGetVblRefund,
+      FAQ.vblRefundInGermany,
+      FAQ.vblRefundPrivateSector,
+      FAQ.vblEast,
+      FAQ.earlierPeriods,
+      FAQ.zvkRefund,
+      FAQ.wait24VblZvk,
+    ],
+  },
+  {
+    label: 'VddB and VddKO refunds',
+    items: [
+      FAQ.vddbRefund,
+      FAQ.vddkoRefund,
+      FAQ.vddbVddkoInDrv,
+      FAQ.returnToStageWork,
+    ],
+  },
+  {
+    label: 'Digital process and documents',
+    items: [
+      FAQ.howItWorks,
+      FAQ.uploadInsteadManual,
+      FAQ.ocrOrAi,
+      FAQ.calculatorFirst,
+      FAQ.whoSignsReviews,
+      FAQ.whoSubmits,
+      FAQ.manageCorrespondence,
+      FAQ.limitedAuthorization,
+      FAQ.advisorOrLawFirm,
+      FAQ.documentsNeeded,
+    ],
+  },
+  {
+    label: 'Pricing and payment',
+    items: [
+      FAQ.howMuchCost,
+      FAQ.depositExtraFee,
+      FAQ.depositRefundable,
+      FAQ.cannotProceed,
+      FAQ.successFee975,
+      FAQ.remainingFeeDue,
+      FAQ.hiddenFees,
+    ],
+  },
+];
