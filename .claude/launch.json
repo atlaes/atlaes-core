@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vbl",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "vbl", "dev"],
+      "port": 3000
+    }
+  ]
+}
