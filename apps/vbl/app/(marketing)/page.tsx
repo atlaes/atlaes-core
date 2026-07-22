@@ -467,23 +467,34 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ---- WHAT COMPANYPENSION DOES (Figma 1174:1243) ---- */}
+      {/* ---- WHAT COMPANYPENSION DOES (Figma 1174:1243) ----
+          Background per Figma node 1174:1248 ("image 810"): the laptop photo is
+          confined to the LEFT of the band (1485px of the 1920px frame, starting
+          at x=-358), green-duotoned via `mix-blend-luminosity` over the brand
+          fill, and masked so it has faded out entirely before the copy column.
+          It is a visible part of the composition — not the full-bleed wash that
+          shipped before, and not the near-invisible 12% ghost. */}
       <section className="relative overflow-hidden bg-brand text-white">
-        <Image
-          src="/marketing/home/home-asset-13.png"
-          alt=""
-          aria-hidden="true"
-          fill
-          sizes="100vw"
-          className="pointer-events-none absolute inset-0 select-none object-cover object-left opacity-[0.12]"
-        />
-        {/* Figma shows this band as near-solid brand green with only a hint of
-            the photo behind it; the previous 40% photo + partial gradient read
-            as a literal stock image (client feedback: "image background is
-            wrong"). */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand/80 via-brand/90 to-brand"
+          className="pointer-events-none absolute inset-y-0 left-[-18%] w-[77%] select-none bg-brand [mask-image:linear-gradient(to_right,rgba(0,0,0,1)_0%,rgba(0,0,0,1)_45%,rgba(0,0,0,0)_78%)]"
+        >
+          {/* bg-brand on the wrapper: the mask isolates the blend, so the
+              duotone needs its backdrop inside this element. Dimming happens on
+              the scrim below rather than via `opacity` here — at low opacity
+              this photo's dark mid-tones collapse into the backdrop and the
+              image reads as absent. */}
+          <Image
+            src="/marketing/home/home-asset-13.png"
+            alt=""
+            fill
+            sizes="70vw"
+            className="object-cover object-center brightness-[0.58] mix-blend-luminosity"
+          />
+        </div>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-brand/50"
         />
         {/* Large CompanyPension logomark watermark on the right (Figma
             1174:1243), vertically centered and partially clipped by the
@@ -639,20 +650,46 @@ export default function HomePage() {
 
       {/* ---- DRV vs COMPANY PENSION (Figma 1174:1539) ---- */}
       <section className="relative overflow-hidden bg-brand text-white">
-        {/* Figma uses the classical Altes Museum facade here, not the glass
-            office tower that was shipped (client feedback: "image background is
-            wrong"). Same asset as the §3(3) band lower down. */}
-        <Image
-          src="/marketing/home/drv-altes-museum-background.png"
-          alt=""
-          aria-hidden="true"
-          fill
-          sizes="100vw"
-          className="pointer-events-none absolute inset-0 select-none object-cover opacity-[0.35]"
-        />
+        {/* Two photos, per Figma (nodes 1174:1540 / 1174:1544): the glass-tower
+            cityscape anchored LEFT and the Reichstag anchored RIGHT, each
+            green-duotoned and masked so both have faded into solid brand green
+            before they reach the centered copy. Shipping a single full-bleed
+            image here — of either building — is what the client flagged. */}
+        {/* Each wrapper carries its own brand fill: the mask creates a stacking
+            context, so `mix-blend-luminosity` has to blend against a backdrop
+            INSIDE the wrapper — without it the photo renders in full colour
+            (blue sky, coloured flags) instead of the green duotone. */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand/40 via-brand/90 to-brand/40"
+          className="pointer-events-none absolute inset-y-0 left-0 w-[52%] select-none bg-brand [mask-image:linear-gradient(to_right,rgba(0,0,0,1)_0%,rgba(0,0,0,1)_12%,rgba(0,0,0,0)_72%)]"
+        >
+          <Image
+            src="/marketing/home/home-asset-15.png"
+            alt=""
+            fill
+            sizes="50vw"
+            className="object-cover object-center brightness-[0.55] mix-blend-luminosity"
+          />
+        </div>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 w-[52%] select-none bg-brand [mask-image:linear-gradient(to_left,rgba(0,0,0,1)_0%,rgba(0,0,0,1)_12%,rgba(0,0,0,0)_72%)]"
+        >
+          <Image
+            src="/marketing/home/reichstag-berlin.png"
+            alt=""
+            fill
+            sizes="50vw"
+            className="object-cover object-[62%_78%] brightness-[0.55] mix-blend-luminosity"
+          />
+        </div>
+        {/* Unifying scrim ABOVE both photos. Darkening via per-image `opacity`
+            instead pushes each one toward the backdrop at a different rate
+            (the bright Reichstag survives, the darker tower disappears), so the
+            two are dimmed together here rather than individually. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-brand/50"
         />
         <div className={`relative ${CONTAINER} py-20 sm:py-24`}>
           {/* Copy block is 982px wide in Figma; max-w-3xl (768px) forced the
