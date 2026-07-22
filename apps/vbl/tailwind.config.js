@@ -31,10 +31,11 @@ module.exports = {
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
-        // Marketing display face (Figma headings). Falls back to the sans stack.
+        // Marketing display face (Figma headings + eyebrow pills are Sora).
+        // Falls back to the sans stack.
         display: [
-          'var(--font-jakarta)',
-          'Plus Jakarta Sans',
+          'var(--font-sora)',
+          'Sora',
           'var(--font-inter)',
           'system-ui',
           'sans-serif',

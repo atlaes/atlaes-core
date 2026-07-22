@@ -25,9 +25,10 @@ const INK = 'text-[#231f20]';
  * eyebrow pill stays brand green even though the heading beside it is charcoal
  * (INK). Dark sections keep the default `currentColor` pill (white), so this is
  * only passed on light-section SectionHeadings. Mirrors the value used on the
- * how-it-works and pricing pages.
+ * how-it-works and pricing pages. The border is the full brand green (#163300)
+ * per client feedback 2026-07-21 — the previous /30 tint read as grey.
  */
-const EYEBROW_LIGHT = 'border-brand/30 bg-transparent text-brand';
+const EYEBROW_LIGHT = 'border-brand bg-transparent text-brand';
 
 /**
  * Home FAQ (Figma 1178:541). Questions follow the design; answers come from the
@@ -85,37 +86,6 @@ const HOME_FAQ_ITEMS: FaqAccordionItem[] = [
 // ---------------------------------------------------------------------------
 // Local, page-only card shapes (richer than the shared FeatureCard).
 // ---------------------------------------------------------------------------
-
-function ArrowLink({
-  href,
-  children,
-  variant = 'solid',
-}: {
-  href: string;
-  children: ReactNode;
-  variant?: 'solid' | 'ghost';
-}) {
-  if (variant === 'ghost') {
-    return (
-      <Link
-        href={href}
-        className="inline-flex items-center gap-2 text-base font-semibold text-brand transition-colors hover:text-brand/70"
-      >
-        {children}
-        <ArrowRight className="h-4 w-4" aria-hidden="true" />
-      </Link>
-    );
-  }
-  return (
-    <Link
-      href={href}
-      className="inline-flex items-center gap-2 rounded-brand bg-accent px-6 py-3 text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
-    >
-      {children}
-      <ArrowRight className="h-4 w-4" aria-hidden="true" />
-    </Link>
-  );
-}
 
 function InfoNote({ children }: { children: ReactNode }) {
   return (
@@ -191,7 +161,9 @@ function FunnelCard({
   note?: string;
 }) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-[#d3d3d3] bg-[#f8f8f8] p-8 sm:p-10">
+    // 541x749 in Figma (client feedback 2026-07-21); `min-h` rather than a hard
+    // height so the card can still grow if the copy ever gets longer.
+    <div className="flex h-full w-full flex-col rounded-2xl border border-[#d3d3d3] bg-[#f8f8f8] p-8 sm:p-10 lg:min-h-[749px]">
       <div className="mb-6">{icon}</div>
       <h3 className={`text-xl font-semibold ${INK}`}>{title}</h3>
       <p className="mt-4 text-base leading-relaxed text-gray-600">{body}</p>
@@ -240,9 +212,10 @@ function PensionCard({
       {/* CTA pair (Figma 1172:1158): a small accent button with a trailing
           up-right arrow, plus an underlined secondary text link. */}
       <div className="mt-8 flex flex-col items-start gap-4">
+        {/* 257x44 in Figma (client feedback 2026-07-21). */}
         <Link
           href={primary.href}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-brand transition-colors hover:bg-accent-hover"
+          className="inline-flex h-11 w-full max-w-[257px] items-center justify-center gap-1.5 rounded-lg bg-accent text-sm font-semibold text-brand transition-colors hover:bg-accent-hover"
         >
           {primary.label}
           <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
@@ -274,8 +247,9 @@ function StepCard({
   className?: string;
 }) {
   return (
+    // 560x344 per card in Figma (client feedback 2026-07-21).
     <div
-      className={`relative flex flex-col rounded-[10px] border border-[#ececec] bg-white p-8 shadow-[0_1px_4px_rgba(0,0,0,0.05)] ${className}`}
+      className={`relative flex flex-col rounded-[10px] border border-[#ececec] bg-white p-8 shadow-[0_1px_4px_rgba(0,0,0,0.05)] md:min-h-[344px] ${className}`}
     >
       <span
         aria-hidden="true"
@@ -310,7 +284,13 @@ function PricingCard({
   return (
     <div className="flex h-full flex-col rounded-[20px] border border-neutral-300 bg-white p-10 text-left sm:p-12">
       <h3 className={`text-[22px] font-semibold ${INK}`}>{title}</h3>
-      <p className="mt-4 text-sm leading-relaxed text-gray-600">{subtitle}</p>
+      {/* Reserve two lines for the subtitle so the divider below sits at the
+          same height in both cards — the bAV subtitle wraps to two lines while
+          the refunds subtitle is one, which is the misalignment the client
+          flagged ("lines are not aligned"). */}
+      <p className="mt-4 text-sm leading-relaxed text-gray-600 lg:min-h-[46px]">
+        {subtitle}
+      </p>
       <hr className="my-8 border-t border-brand" />
       <div className="[&>ul]:space-y-5">
         <Bullets items={bullets} />
@@ -367,10 +347,14 @@ export default function HomePage() {
               eyebrowClassName={EYEBROW_LIGHT}
               title="Start your claim or estimate your refund first"
               body="Ready to begin? Start the claim flow for a bAV cash-out or company pension refund. For VBL, ZVK, VddB or VddKO, you can also calculate a first refund estimate before continuing."
+              // Wide enough to break over two lines as in Figma, not three.
+              bodyClassName="max-w-[950px]"
             />
           </div>
 
-          <div className="mt-14 grid gap-8 lg:grid-cols-2">
+          {/* Two 541px columns, centered — the cards were previously stretching
+              to half the 1152px container. */}
+          <div className="mt-14 grid justify-center gap-8 lg:grid-cols-[repeat(2,minmax(0,541px))]">
             <FunnelCard
               icon={
                 /* eslint-disable-next-line @next/next/no-img-element */
@@ -491,11 +475,15 @@ export default function HomePage() {
           aria-hidden="true"
           fill
           sizes="100vw"
-          className="pointer-events-none absolute inset-0 select-none object-cover object-left opacity-40"
+          className="pointer-events-none absolute inset-0 select-none object-cover object-left opacity-[0.12]"
         />
+        {/* Figma shows this band as near-solid brand green with only a hint of
+            the photo behind it; the previous 40% photo + partial gradient read
+            as a literal stock image (client feedback: "image background is
+            wrong"). */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand/40 via-brand/85 to-brand"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand/80 via-brand/90 to-brand"
         />
         {/* Large CompanyPension logomark watermark on the right (Figma
             1174:1243), vertically centered and partially clipped by the
@@ -512,6 +500,12 @@ export default function HomePage() {
               What <span className="text-accent">CompanyPension</span> does
             </h2>
           </div>
+          {/* Figma reads column-major: "Smart guided process" over "Digital
+              application and signing" on the left, "Human support when needed"
+              over "Money paid to your account" on the right. A row-major
+              `grid-cols-2` puts signing and support in the wrong cells, which is
+              the sequence the client flagged — so the source order is swapped
+              to match. */}
           <div className="mx-auto mt-12 grid max-w-4xl gap-x-10 gap-y-8 sm:grid-cols-2">
             <FeatureRow
               iconSrc="/marketing/icons/feature-guided.svg"
@@ -519,14 +513,14 @@ export default function HomePage() {
               body="Start online and follow clear steps for your bAV cash-out or company pension refund."
             />
             <FeatureRow
-              iconSrc="/marketing/icons/feature-signing.svg"
-              title="Digital application and signing"
-              body="The platform uses the information you provide to complete your application. You review and sign it yourself before it is technically transmitted to the relevant provider or pension scheme."
-            />
-            <FeatureRow
               iconSrc="/marketing/icons/feature-support.svg"
               title="Human support when needed"
               body="Human support is available when clarification, translation or follow-up is needed."
+            />
+            <FeatureRow
+              iconSrc="/marketing/icons/feature-signing.svg"
+              title="Digital application and signing"
+              body="The platform uses the information you provide to complete your application. You review and sign it yourself before it is technically transmitted to the relevant provider or pension scheme."
             />
             <FeatureRow
               iconSrc="/marketing/icons/feature-payout.svg"
@@ -537,8 +531,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ---- REFUND OR CASH-OUT (Figma 1174:1350) ---- */}
-      <section className="bg-white">
+      {/* ---- REFUND OR CASH-OUT (Figma 1174:1350) ----
+          Grey section behind white cards (client feedback 2026-07-21); it was
+          white-on-white, so the cards had no separation. */}
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
@@ -629,10 +625,11 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* 598x63 in Figma (client feedback 2026-07-21). */}
           <div className="mt-12 flex justify-center">
             <Link
               href="/how-it-works"
-              className="rounded-brand bg-accent px-16 py-3.5 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
+              className="flex h-[63px] w-full max-w-[598px] items-center justify-center rounded-brand bg-accent px-8 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
             >
               See what applies to you
             </Link>
@@ -642,8 +639,11 @@ export default function HomePage() {
 
       {/* ---- DRV vs COMPANY PENSION (Figma 1174:1539) ---- */}
       <section className="relative overflow-hidden bg-brand text-white">
+        {/* Figma uses the classical Altes Museum facade here, not the glass
+            office tower that was shipped (client feedback: "image background is
+            wrong"). Same asset as the §3(3) band lower down. */}
         <Image
-          src="/marketing/home/home-asset-15.png"
+          src="/marketing/home/drv-altes-museum-background.png"
           alt=""
           aria-hidden="true"
           fill
@@ -655,9 +655,12 @@ export default function HomePage() {
           className="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand/40 via-brand/90 to-brand/40"
         />
         <div className={`relative ${CONTAINER} py-20 sm:py-24`}>
-          <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
+          {/* Copy block is 982px wide in Figma; max-w-3xl (768px) forced the
+              paragraphs onto extra lines. */}
+          <div className="mx-auto flex max-w-[982px] flex-col items-center text-center">
             <SectionHeading
               eyebrow="Company pension vs DRV"
+              eyebrowWidth={327}
               title={
                 <span className="text-accent">
                   Your DRV Refund Does Not Include
@@ -682,10 +685,11 @@ export default function HomePage() {
                 separate cash-out or refund process.
               </p>
             </div>
-            <div className="mt-9">
+            {/* 508x63 in Figma (client feedback 2026-07-21). */}
+            <div className="mt-9 w-full">
               <Link
                 href="/how-it-works"
-                className="inline-flex items-center gap-2 rounded-brand bg-accent px-6 py-4 text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
+                className="mx-auto flex h-[63px] w-full max-w-[508px] items-center justify-center gap-2 rounded-brand bg-accent px-6 text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
               >
                 Compare company pension and DRV
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -705,7 +709,7 @@ export default function HomePage() {
             />
           </div>
 
-          <div className="mt-14 grid gap-6 md:grid-cols-2">
+          <div className="mt-14 grid justify-center gap-6 md:grid-cols-[repeat(2,minmax(0,560px))]">
             <StepCard
               number="01"
               iconSrc="/marketing/icons/step-check.svg"
@@ -735,14 +739,15 @@ export default function HomePage() {
               iconSrc="/marketing/icons/step-payout.svg"
               title="Provider review and payout"
               body="The provider or pension scheme reviews your request. Correspondence can run through CompanyPension when clarification or follow-up is needed. If approved, the money is paid directly to the bank account you provide."
-              className="md:col-span-2 md:mx-auto md:w-[calc(50%-12px)]"
+              className="md:col-span-2 md:mx-auto md:w-[560px]"
             />
           </div>
 
+          {/* 485x63 in Figma (client feedback 2026-07-21). */}
           <div className="mt-12 flex justify-center">
             <Link
               href="/how-it-works"
-              className="rounded-brand bg-accent px-16 py-3.5 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
+              className="flex h-[63px] w-full max-w-[485px] items-center justify-center rounded-brand bg-accent px-8 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
             >
               See the full process
             </Link>
@@ -750,10 +755,13 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ---- ESTIMATE BEFORE YOU BEGIN (Figma 1174:1814) ---- */}
+      {/* ---- ESTIMATE BEFORE YOU BEGIN (Figma 1174:1814) ----
+          Wider container than the page default (1174px of content vs 1152px)
+          so the card can hit its Figma size exactly. */}
       <section className="bg-white">
-        <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="relative grid items-center overflow-hidden rounded-[30px] bg-gradient-to-r from-brand to-[#0b1a00] text-white lg:grid-cols-2">
+        <div className="mx-auto max-w-[1222px] px-6 py-20 sm:py-24">
+          {/* 1174x630 card in Figma (client feedback 2026-07-21). */}
+          <div className="relative mx-auto grid w-full max-w-[1174px] items-center overflow-hidden rounded-[30px] bg-gradient-to-r from-brand to-[#0b1a00] text-white lg:min-h-[630px] lg:grid-cols-2">
             <div className="relative flex min-h-[360px] items-end justify-center lg:min-h-[540px]">
               {/* Faint CompanyPension logomark watermark behind the figure
                   (Figma 1174:1818, ~6% opacity). */}
@@ -800,8 +808,15 @@ export default function HomePage() {
                   Refund estimates are not available for bAV cash-outs.
                 </InfoNote>
               </div>
+              {/* 334x63 in Figma (client feedback 2026-07-21). */}
               <div className="mt-8">
-                <ArrowLink href="/calculator">Start quick check</ArrowLink>
+                <Link
+                  href="/calculator"
+                  className="flex h-[63px] w-full max-w-[334px] items-center justify-center gap-2 rounded-brand bg-accent px-6 text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
+                >
+                  Start quick check
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
               </div>
             </div>
           </div>
@@ -900,11 +915,13 @@ export default function HomePage() {
           src="/marketing/home/drv-altes-museum-background.png"
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-right opacity-50 grayscale"
+          className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-right opacity-[0.28] grayscale"
         />
+        {/* Lightened (was opacity-50 behind a mostly-transparent scrim) so the
+            body copy stays legible over the facade — client feedback 2026-07-21. */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-gradient-to-l from-neutral-50/10 from-25% to-neutral-50 to-72%"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-l from-neutral-50/55 from-25% to-neutral-50 to-72%"
         />
         <div className={`relative ${CONTAINER} py-20 sm:py-24`}>
           <div className={`flex flex-col items-center text-center ${INK}`}>
@@ -918,18 +935,15 @@ export default function HomePage() {
                 </>
               }
               body="For many vested bAV entitlements, a cash-out is not available simply because you left Germany. An approved DRV refund may first be required."
+              // Bolder lead, per client feedback ("text should be thicker").
+              bodyClassName="max-w-[900px] font-semibold"
             />
           </div>
 
+          {/* The duplicate of the lead paragraph that opened this block was
+              removed on client instruction (it was design-exact but read as an
+              error). */}
           <div className="mx-auto mt-12 max-w-3xl space-y-5 text-center text-base leading-relaxed text-gray-600">
-            {/* NOTE: this first paragraph repeats the SectionHeading lead
-                verbatim, exactly as the Figma design does (suspected copy
-                oddity — flagged in the task report). */}
-            <p>
-              For many vested bAV entitlements, a cash-out is not available
-              simply because you left Germany. An approved DRV refund may first
-              be required.
-            </p>
             <p>
               However, once your contributions to Deutsche Rentenversicherung
               have been refunded, §3(3) BetrAVG can provide the basis for
@@ -956,10 +970,11 @@ export default function HomePage() {
             Your vested bAV may now qualify for a separate lump-sum settlement.
           </p>
 
+          {/* 598x63 in Figma (client feedback 2026-07-21). */}
           <div className="mt-10 flex justify-center">
             <Link
               href="/get-started"
-              className="rounded-brand bg-accent px-16 py-3.5 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
+              className="flex h-[63px] w-full max-w-[598px] items-center justify-center rounded-brand bg-accent px-8 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
             >
               Check my bAV cash-out
             </Link>

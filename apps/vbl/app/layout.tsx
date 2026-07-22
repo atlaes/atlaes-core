@@ -1,14 +1,16 @@
 import type { Metadata } from 'next';
-import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
+import { Inter, Sora } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
-// Marketing display face (Figma headings are Plus Jakarta Sans Bold).
-const jakarta = Plus_Jakarta_Sans({
+// Marketing display face. The Figma marketing design uses Sora for headings and
+// eyebrow pills (client feedback 2026-07-21); it replaces the earlier
+// Plus Jakarta Sans stand-in.
+const sora = Sora({
   subsets: ['latin'],
-  weight: ['500', '600', '700', '800'],
-  variable: '--font-jakarta',
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-sora',
 });
 
 export const metadata: Metadata = {
@@ -26,7 +28,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${jakarta.variable} font-sans`}>
+      <body className={`${inter.variable} ${sora.variable} font-sans`}>
         <Providers>
           <div className="min-h-screen bg-gray-50">{children}</div>
         </Providers>

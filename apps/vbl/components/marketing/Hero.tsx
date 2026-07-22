@@ -154,17 +154,19 @@ export function Hero({
           </div>
         ) : null}
 
+        {/* Hero CTAs are a fixed 345x63 in the Figma design (client feedback
+            2026-07-21) — they stretch to the column width below sm. */}
         <div className="mt-9 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
           <Link
             href={primaryCta.href}
-            className="rounded-brand bg-accent px-8 py-4 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
+            className="flex h-[63px] items-center justify-center rounded-brand bg-accent px-8 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover sm:w-[345px]"
           >
             {primaryCta.label}
           </Link>
           {secondaryCta && secondaryCtaVariant === 'button' ? (
             <Link
               href={secondaryCta.href}
-              className="rounded-brand border border-white/30 px-8 py-4 text-center text-base font-semibold text-white transition-colors hover:bg-white/10"
+              className="flex h-[63px] items-center justify-center rounded-brand border border-white/30 px-8 text-center text-base font-semibold text-white transition-colors hover:bg-white/10 sm:w-[345px]"
             >
               {secondaryCta.label}
             </Link>
@@ -184,7 +186,10 @@ export function Hero({
         ) : null}
 
         {footnote ? (
-          <div className="mt-8 max-w-2xl text-sm leading-relaxed text-white/75">
+          // Wide enough for each footnote sentence to sit on a single line at
+          // desktop, as in Figma (client feedback: "make the first and second
+          // line, one line only").
+          <div className="mt-8 max-w-[1000px] text-sm leading-relaxed text-white/75">
             {footnote}
           </div>
         ) : null}
