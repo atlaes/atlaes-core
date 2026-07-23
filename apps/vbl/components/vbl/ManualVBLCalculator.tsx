@@ -71,7 +71,14 @@ interface CalculationResult {
   totalAmount?: number;
   baseRefundAmount?: number;
   vblKlassik?: number;
-  monthsContributed?: number;
+  // Set when ineligibility is caused by the >=60-month total-contribution gate:
+  // the pension is preserved as a future entitlement rather than refundable.
+  isVested?: boolean;
+  // The contribution period lives here — the API has no top-level
+  // `monthsContributed`; that field is on the calculation *input*.
+  calculationDetails?: {
+    contributionPeriod: number;
+  };
 }
 
 const MONTHS = [
@@ -800,7 +807,10 @@ export const ManualVBLCalculator: React.FC = () => {
         shouldShowAdditionalContributionCheck(form) ? 'thresholds' : 'period'
       );
     } else if (screen === 'vested') {
-      setScreen(form.entryMethod === 'upload' ? 'upload-review' : 'provider');
+      // Two ways in: the client-side VBLextra check (from provider /
+      // upload-review) and the API's isVested verdict (after the estimate ran).
+      if (form.entryMethod === 'upload') setScreen('upload-review');
+      else setScreen(calculation?.isVested ? 'salary' : 'provider');
     } else if (screen === 'blocked') {
       if (
         form.entryMethod === 'upload' &&
@@ -833,11 +843,13 @@ export const ManualVBLCalculator: React.FC = () => {
       if (!response.data?.success || !result) {
         throw new Error(response.data?.details || 'Calculation failed');
       }
+      // Keep the result even when ineligible so the screens below (and back
+      // navigation) can tell a vested pension apart from a hard block.
+      setCalculation(result);
       if (!result.isEligible) {
-        setScreen('blocked');
+        setScreen(result.isVested ? 'vested' : 'blocked');
         return;
       }
-      setCalculation(result);
     } catch (err: unknown) {
       const message =
         err instanceof Error
@@ -916,7 +928,7 @@ export const ManualVBLCalculator: React.FC = () => {
         calculationResult: {
           totalRefund,
           breakdown: [],
-          totalMonths: calculation?.monthsContributed ?? 0,
+          totalMonths: calculation?.calculationDetails?.contributionPeriod ?? 0,
         },
         scenario: 'eligible',
         currentAge: 40,
@@ -1542,9 +1554,10 @@ export const ManualVBLCalculator: React.FC = () => {
                 </h1>
                 <p className="mx-auto mt-6 max-w-[560px] text-lg leading-7 text-[#4C504D]">
                   Based on your information, your supplementary pension is
-                  vested. When contributions to VBLextra exist, any VBLklassik
-                  contributions are preserved as a future pension entitlement
-                  and cannot be refunded as a lump sum.
+                  vested, so it is preserved as a future pension entitlement and
+                  cannot be refunded as a lump sum.
+                  {form.vblPlan === 'VBLextra' &&
+                    ' When contributions to VBLextra exist, any VBLklassik contributions are preserved in the same way.'}
                 </p>
                 <p className="mx-auto mt-6 max-w-[560px] text-lg leading-7 text-[#4C504D]">
                   This means your pension remains credited to you and may be
