@@ -46,8 +46,10 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
     MISTRAL_EXTRACTION_MODEL:
       process.env.MISTRAL_EXTRACTION_MODEL ?? 'mistral-large-latest',
     // Lettershop claim mailing. Staging stays in 'test' mode: the pipeline
-    // connects and uploads a vendor-rejected TESTMODE file (no cost, no real
-    // mail). Flip to 'live' only when real staging sends are intended.
+    // connects and verifies the upload directory but transmits nothing (no
+    // cost, no real mail). The SFTP interface has no server-side test flag,
+    // so any file we actually upload is produced and billed. Flip to 'live'
+    // only when real staging sends are intended.
     LETTERSHOP_SFTP_HOST: 'api.onlinebrief24.de',
     LETTERSHOP_SFTP_USER: 'info@atlaes.de',
     LETTERSHOP_SFTP_PASSWORD: lettershopSftpPassword.value,

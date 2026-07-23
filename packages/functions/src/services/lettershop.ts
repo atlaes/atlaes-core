@@ -17,18 +17,18 @@ const LIVE_PARAMETER_CODE = '1001000000000';
 
 export class LettershopService {
   /**
-   * Builds the vendor filecode filename.
+   * Builds the vendor filecode filename:
+   * `{13-digit parameter code}-vbl-claim-{claimId}-{Date.now()}.pdf`
    *
-   * Live: `{13-digit parameter code}-vbl-claim-{claimId}-{Date.now()}.pdf`
-   * Test: `TESTMODE-vbl-claim-{claimId}-{Date.now()}.pdf` — deliberately
-   * lacks the 13-digit prefix so the vendor's validation rejects it. Per
-   * the vendor's documented no-cost test method, this triggers an error
-   * e-mail to the registered address without producing or billing a
-   * letter, proving connectivity + processing without cost.
+   * Always carries the 13-digit prefix — the vendor rejects anything else.
+   * An earlier version used a `TESTMODE-` prefix for test mode, following
+   * the SFTP doc's own "Testmöglichkeiten" section (deliberately malformed
+   * names fail validation, so nothing is produced or billed). Vendor
+   * support asked us to stop: those files generate error reports on their
+   * side. Test mode no longer uploads at all — see sendClaimPdf.
    */
-  static buildFilename(claimId: string, mode: 'test' | 'live'): string {
-    const prefix = mode === 'live' ? LIVE_PARAMETER_CODE : 'TESTMODE';
-    return `${prefix}-vbl-claim-${claimId}-${Date.now()}.pdf`;
+  static buildFilename(claimId: string): string {
+    return `${LIVE_PARAMETER_CODE}-vbl-claim-${claimId}-${Date.now()}.pdf`;
   }
 
   /**
@@ -56,15 +56,26 @@ export class LettershopService {
    * Sends the combined claim PDF to the lettershop provider
    * (onlinebrief24.de) over SFTP.
    *
-   * Returns null when lettershop delivery is off or unconfigured (missing
-   * host/user, or missing both a password and a readable private-key
-   * file), mirroring the s3 util's local-dev no-op guard style — this lets
+   * Behaviour by `LETTERSHOP_MODE`:
+   * - `off` — no connection at all, returns null.
+   * - `test` — connects and verifies the upload directory is reachable,
+   *   then disconnects WITHOUT uploading, and returns null. The SFTP
+   *   interface has no server-side test flag (that exists only on the
+   *   vendor's REST API, as `auth.mode`), so the only safe test over SFTP
+   *   is one that transmits nothing: any well-formed file we upload is
+   *   produced and billed ~15 minutes later unless a human deletes it in
+   *   the Kundencenter first.
+   * - `live` — connects, uploads the PDF, and records the submission
+   *   (claim row + audit log) atomically.
+   *
+   * Returns null when delivery is off, unconfigured (missing host/user, or
+   * missing both a password and a readable private-key file), or in test
+   * mode — mirroring the s3 util's local-dev no-op guard style, which lets
    * local dev and most test runs proceed without any lettershop
-   * credentials, and avoids attempting a doomed SFTP handshake with no
-   * auth material. Otherwise connects, uploads the PDF, and records the
-   * submission (claim row + audit log) atomically. Errors are logged and
-   * rethrown; the caller (ClaimsApplicationService.submitClaim) treats
-   * lettershop failures as non-fatal, same as PDF generation failures.
+   * credentials and avoids a doomed SFTP handshake with no auth material.
+   * Errors are logged and rethrown; the caller
+   * (ClaimsApplicationService.submitClaim) treats lettershop failures as
+   * non-fatal, same as PDF generation failures.
    */
   static async sendClaimPdf(
     claimId: string,
@@ -88,7 +99,7 @@ export class LettershopService {
       return null;
     }
 
-    const filename = this.buildFilename(claimId, mode);
+    const filename = this.buildFilename(claimId);
     const remotePath = `${UPLOAD_DIR}/${filename}`;
 
     const sftp = new SftpClient();
@@ -106,6 +117,33 @@ export class LettershopService {
           ? { privateKey: readFileSync(env.LETTERSHOP_SFTP_PRIVATE_KEY_PATH!) }
           : { password: env.LETTERSHOP_SFTP_PASSWORD }),
       });
+
+      if (mode === 'test') {
+        // Exercise auth + directory permissions, transmit nothing. exists()
+        // returns false or a type char ('d' for a directory).
+        const uploadDirType = await sftp.exists(UPLOAD_DIR);
+
+        // Throw rather than warn: an unreachable upload directory means a
+        // live flip would silently fail to deliver, and a test mode that
+        // reports success on a broken config is worse than no test mode.
+        // The caller treats lettershop errors as non-fatal, so this
+        // surfaces as an ERROR log without failing claim submission.
+        if (uploadDirType !== 'd') {
+          throw new Error(
+            `Lettershop upload directory ${UPLOAD_DIR} is not reachable ` +
+              `(sftp.exists returned ${JSON.stringify(uploadDirType)})`
+          );
+        }
+
+        logger.info('Lettershop connection verified (test mode, no upload)', {
+          claimId,
+          mode,
+          uploadDir: UPLOAD_DIR,
+          wouldUploadAs: filename,
+        });
+
+        return null;
+      }
 
       await sftp.put(Buffer.from(pdfBytes), remotePath);
 
