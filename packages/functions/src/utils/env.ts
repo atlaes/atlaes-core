@@ -70,12 +70,18 @@ const envSchema = z.object({
     .string()
     .min(32)
     .default('dev-migration-token-not-for-production-use-only'),
-  // Lettershop (onlinebrief24.de) SFTP delivery
-  LETTERSHOP_SFTP_HOST: z.string().optional(),
-  LETTERSHOP_SFTP_PORT: z.coerce.number().optional().default(22),
-  LETTERSHOP_SFTP_USER: z.string().optional(),
-  LETTERSHOP_SFTP_PASSWORD: z.string().optional(),
-  LETTERSHOP_SFTP_PRIVATE_KEY_PATH: z.string().optional(),
+  // Lettershop (onlinebrief24.de) REST API delivery. The API-Key/Secret pair
+  // is generated in the Kundencenter under Einstellungen > API Zugang.
+  LETTERSHOP_API_BASE_URL: z
+    .string()
+    .url()
+    .default('https://api.onlinebrief24.de/v1'),
+  LETTERSHOP_API_KEY: z.string().optional(),
+  LETTERSHOP_API_SECRET: z.string().optional(),
+  // Sent as auth.mode on every request: 'test' parks the order in the
+  // vendor's shopping cart (reviewable, auto-deleted after 7 days, never
+  // printed or billed), 'live' processes it directly. 'off' is ours, not
+  // theirs — it skips the call entirely.
   LETTERSHOP_MODE: z.enum(['test', 'live', 'off']).default('test'),
 });
 

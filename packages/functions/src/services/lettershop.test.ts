@@ -8,9 +8,7 @@ import {
   beforeAll,
   afterAll,
 } from 'vitest';
-import { mkdtempSync, writeFileSync, rmSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
+import { createHash } from 'crypto';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq } from 'drizzle-orm';
@@ -29,21 +27,21 @@ let testDb: ReturnType<typeof drizzle>;
 const createdUserIds: string[] = [];
 const createdClaimIds: string[] = [];
 
-// Mock ssh2-sftp-client so no real network connection is ever attempted.
-const connectMock = vi.fn();
-const putMock = vi.fn();
-const endMock = vi.fn();
-const existsMock = vi.fn();
+// Mock fetch so no real request ever reaches the vendor — a live POST in
+// test mode would still create a real (if unbilled) cart entry.
+const fetchMock = vi.fn();
 
-vi.mock('ssh2-sftp-client', () => {
-  class MockSftpClient {
-    connect = connectMock;
-    put = putMock;
-    end = endMock;
-    exists = existsMock;
-  }
-  return { default: MockSftpClient };
-});
+function okResponse(id = 6035143, status = 'queue') {
+  return {
+    ok: true,
+    status: 200,
+    json: async () => ({
+      status: 200,
+      message: 'OK',
+      data: { id, status },
+    }),
+  };
+}
 
 async function createTestUser(): Promise<string> {
   const testEmail = `test-lettershop-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
@@ -114,6 +112,13 @@ async function cleanupTestData() {
   }
 }
 
+/** Sets both halves of the credential pair plus a mode. */
+function configureCredentials(mode: 'test' | 'live' | 'off') {
+  process.env.LETTERSHOP_API_KEY = 'fake-api-key';
+  process.env.LETTERSHOP_API_SECRET = 'fake-api-secret';
+  process.env.LETTERSHOP_MODE = mode;
+}
+
 describe('LettershopService', () => {
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
@@ -131,15 +136,11 @@ describe('LettershopService', () => {
 
   afterEach(async () => {
     vi.restoreAllMocks();
-    connectMock.mockReset();
-    putMock.mockReset();
-    endMock.mockReset();
-    existsMock.mockReset();
-    delete process.env.LETTERSHOP_SFTP_HOST;
-    delete process.env.LETTERSHOP_SFTP_PORT;
-    delete process.env.LETTERSHOP_SFTP_USER;
-    delete process.env.LETTERSHOP_SFTP_PASSWORD;
-    delete process.env.LETTERSHOP_SFTP_PRIVATE_KEY_PATH;
+    vi.unstubAllGlobals();
+    fetchMock.mockReset();
+    delete process.env.LETTERSHOP_API_KEY;
+    delete process.env.LETTERSHOP_API_SECRET;
+    delete process.env.LETTERSHOP_API_BASE_URL;
     delete process.env.LETTERSHOP_MODE;
     await cleanupTestData();
     createdUserIds.length = 0;
@@ -148,47 +149,29 @@ describe('LettershopService', () => {
   });
 
   beforeEach(() => {
-    connectMock.mockResolvedValue(undefined);
-    putMock.mockResolvedValue(undefined);
-    endMock.mockResolvedValue(undefined);
-    existsMock.mockResolvedValue('d');
+    fetchMock.mockResolvedValue(okResponse());
+    vi.stubGlobal('fetch', fetchMock);
   });
 
-  describe('buildFilename', () => {
-    it('builds a filename with the vendor 13-digit parameter prefix', async () => {
+  describe('buildOriginalFilename', () => {
+    it('builds a traceable filename without the retired 13-digit filecode', async () => {
       const { LettershopService } = await import('./lettershop');
-      const claimId = 'abc-123';
-      const filename = LettershopService.buildFilename(claimId);
+      const filename = LettershopService.buildOriginalFilename('abc-123');
 
-      expect(filename).toMatch(/^1001000000000-vbl-claim-abc-123-\d+\.pdf$/);
-    });
-
-    it('never emits the TESTMODE prefix the vendor rejects', async () => {
-      const { LettershopService } = await import('./lettershop');
-
-      // The vendor's validator reads the first 13 characters as the
-      // parameter code, so any non-numeric prefix is an error report on
-      // their side. Guard the exact shape rather than just the substring.
-      const filename = LettershopService.buildFilename('abc-123');
-
+      expect(filename).toMatch(/^vbl-claim-abc-123-\d+\.pdf$/);
+      // The vendor rejected 'TESTMODE-vbl-...' filenames on the SFTP
+      // interface; print parameters now live in `specification` instead.
       expect(filename).not.toContain('TESTMODE');
-      expect(filename.slice(0, 14)).toMatch(/^\d{13}-$/);
-    });
-
-    it('only ever produces filenames matching the vendor-allowed character set', async () => {
-      const { LettershopService } = await import('./lettershop');
-      const filename = LettershopService.buildFilename('claim-1');
-
-      expect(filename).toMatch(/^[A-Za-z0-9.\-_#]+\.pdf$/);
+      expect(filename).not.toMatch(/^\d{13}-/);
     });
 
     it('produces unique filenames across calls (timestamp-based)', async () => {
       const { LettershopService } = await import('./lettershop');
       vi.useFakeTimers();
       vi.setSystemTime(1000);
-      const first = LettershopService.buildFilename('claim-1');
+      const first = LettershopService.buildOriginalFilename('claim-1');
       vi.setSystemTime(2000);
-      const second = LettershopService.buildFilename('claim-1');
+      const second = LettershopService.buildOriginalFilename('claim-1');
       vi.useRealTimers();
 
       expect(first).not.toBe(second);
@@ -198,10 +181,9 @@ describe('LettershopService', () => {
   });
 
   describe('sendClaimPdf', () => {
-    it('returns null and never constructs the SFTP client when unconfigured (mode defaults off)', async () => {
-      delete process.env.LETTERSHOP_SFTP_HOST;
-      delete process.env.LETTERSHOP_SFTP_USER;
-      delete process.env.LETTERSHOP_MODE;
+    it('returns null and never calls the API when unconfigured', async () => {
+      delete process.env.LETTERSHOP_API_KEY;
+      delete process.env.LETTERSHOP_API_SECRET;
 
       const { LettershopService } = await import('./lettershop');
       const userId = await createTestUser();
@@ -214,150 +196,12 @@ describe('LettershopService', () => {
       );
 
       expect(result).toBeNull();
-      expect(connectMock).not.toHaveBeenCalled();
-      expect(putMock).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it('returns null when LETTERSHOP_MODE is explicitly off, even with credentials present', async () => {
-      process.env.LETTERSHOP_SFTP_HOST = 'api.onlinebrief24.de';
-      process.env.LETTERSHOP_SFTP_USER = 'test@example.com';
-      process.env.LETTERSHOP_SFTP_PASSWORD = 'fake-password';
-      process.env.LETTERSHOP_MODE = 'off';
-
-      const { LettershopService } = await import('./lettershop');
-      const userId = await createTestUser();
-      const claimId = await createTestClaim(userId);
-
-      const result = await LettershopService.sendClaimPdf(
-        claimId,
-        new Uint8Array([1, 2, 3]),
-        userId
-      );
-
-      expect(result).toBeNull();
-      expect(connectMock).not.toHaveBeenCalled();
-    });
-
-    it('returns null and never attempts to connect when host/user are set but no password and no private key path are configured', async () => {
-      process.env.LETTERSHOP_SFTP_HOST = 'api.onlinebrief24.de';
-      process.env.LETTERSHOP_SFTP_USER = 'test@example.com';
-      process.env.LETTERSHOP_MODE = 'live';
-      delete process.env.LETTERSHOP_SFTP_PASSWORD;
-      delete process.env.LETTERSHOP_SFTP_PRIVATE_KEY_PATH;
-
-      const { LettershopService } = await import('./lettershop');
-      const userId = await createTestUser();
-      const claimId = await createTestClaim(userId);
-
-      const result = await LettershopService.sendClaimPdf(
-        claimId,
-        new Uint8Array([1, 2, 3]),
-        userId
-      );
-
-      expect(result).toBeNull();
-      expect(connectMock).not.toHaveBeenCalled();
-      expect(putMock).not.toHaveBeenCalled();
-    });
-
-    it('connects using the private key when host/user/key-path are set but no password is configured', async () => {
-      const tempDir = mkdtempSync(join(tmpdir(), 'lettershop-test-'));
-      const keyPath = join(tempDir, 'id_rsa');
-      writeFileSync(keyPath, 'fake-private-key-contents');
-
-      try {
-        process.env.LETTERSHOP_SFTP_HOST = 'api.onlinebrief24.de';
-        process.env.LETTERSHOP_SFTP_USER = 'test@example.com';
-        process.env.LETTERSHOP_SFTP_PRIVATE_KEY_PATH = keyPath;
-        process.env.LETTERSHOP_MODE = 'live';
-        delete process.env.LETTERSHOP_SFTP_PASSWORD;
-
-        const { LettershopService } = await import('./lettershop');
-        const userId = await createTestUser();
-        const claimId = await createTestClaim(userId);
-
-        const result = await LettershopService.sendClaimPdf(
-          claimId,
-          new Uint8Array([1, 2, 3]),
-          userId
-        );
-
-        expect(result).not.toBeNull();
-        expect(connectMock).toHaveBeenCalledTimes(1);
-        const authConfig = connectMock.mock.calls[0][0];
-        // privateKey must be the key CONTENTS (Buffer), not the file path.
-        expect(Buffer.isBuffer(authConfig.privateKey)).toBe(true);
-        expect(authConfig.privateKey.toString()).toBe(
-          'fake-private-key-contents'
-        );
-        expect(authConfig.password).toBeUndefined();
-      } finally {
-        rmSync(tempDir, { recursive: true, force: true });
-      }
-    });
-
-    it('connects and verifies the upload dir but never uploads in test mode', async () => {
-      process.env.LETTERSHOP_SFTP_HOST = 'api.onlinebrief24.de';
-      process.env.LETTERSHOP_SFTP_USER = 'test@example.com';
-      process.env.LETTERSHOP_SFTP_PASSWORD = 'fake-password';
-      process.env.LETTERSHOP_MODE = 'test';
-
-      const { LettershopService } = await import('./lettershop');
-      const userId = await createTestUser();
-      const claimId = await createTestClaim(userId);
-
-      const result = await LettershopService.sendClaimPdf(
-        claimId,
-        new Uint8Array([1, 2, 3, 4]),
-        userId
-      );
-
-      // Nothing was transmitted, so there is no submission to report.
-      expect(result).toBeNull();
-      expect(connectMock).toHaveBeenCalledTimes(1);
-      expect(existsMock).toHaveBeenCalledWith('/upload/api');
-      expect(putMock).not.toHaveBeenCalled();
-      expect(endMock).toHaveBeenCalledTimes(1);
-
-      // A file the vendor would produce and bill must not be left behind,
-      // and the claim must not claim a submission that never happened.
-      const [row] = await testDb
-        .select()
-        .from(claimsTable)
-        .where(eq(claimsTable.id, claimId))
-        .limit(1);
-      expect((row as any).lettershopSubmissionId).toBeNull();
-    });
-
-    it('throws in test mode when the upload directory is unreachable', async () => {
-      process.env.LETTERSHOP_SFTP_HOST = 'api.onlinebrief24.de';
-      process.env.LETTERSHOP_SFTP_USER = 'test@example.com';
-      process.env.LETTERSHOP_SFTP_PASSWORD = 'fake-password';
-      process.env.LETTERSHOP_MODE = 'test';
-
-      // What a revoked account or a renamed remote directory looks like.
-      existsMock.mockResolvedValue(false);
-
-      const { LettershopService } = await import('./lettershop');
-      const userId = await createTestUser();
-      const claimId = await createTestClaim(userId);
-
-      await expect(
-        LettershopService.sendClaimPdf(
-          claimId,
-          new Uint8Array([1, 2, 3]),
-          userId
-        )
-      ).rejects.toThrow(/upload directory \/upload\/api is not reachable/);
-
-      expect(putMock).not.toHaveBeenCalled();
-      expect(endMock).toHaveBeenCalledTimes(1);
-    });
-
-    it('uploads the PDF via SFTP, stores the submission id, and audit-logs it (live mode)', async () => {
-      process.env.LETTERSHOP_SFTP_HOST = 'api.onlinebrief24.de';
-      process.env.LETTERSHOP_SFTP_USER = 'test@example.com';
-      process.env.LETTERSHOP_SFTP_PASSWORD = 'fake-password';
+    it('returns null when only one half of the credential pair is set', async () => {
+      process.env.LETTERSHOP_API_KEY = 'fake-api-key';
+      delete process.env.LETTERSHOP_API_SECRET;
       process.env.LETTERSHOP_MODE = 'live';
 
       const { LettershopService } = await import('./lettershop');
@@ -366,34 +210,78 @@ describe('LettershopService', () => {
 
       const result = await LettershopService.sendClaimPdf(
         claimId,
-        new Uint8Array([1, 2, 3, 4]),
+        new Uint8Array([1, 2, 3]),
         userId
       );
 
-      expect(result).not.toBeNull();
-      expect(result!.submissionId).toMatch(
-        new RegExp(`^1001000000000-vbl-claim-${claimId}-\\d+\\.pdf$`)
+      expect(result).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('returns null when LETTERSHOP_MODE is off, even with credentials present', async () => {
+      configureCredentials('off');
+
+      const { LettershopService } = await import('./lettershop');
+      const userId = await createTestUser();
+      const claimId = await createTestClaim(userId);
+
+      const result = await LettershopService.sendClaimPdf(
+        claimId,
+        new Uint8Array([1, 2, 3]),
+        userId
       );
 
-      expect(connectMock).toHaveBeenCalledTimes(1);
-      const authConfig = connectMock.mock.calls[0][0];
-      expect(authConfig.host).toBe('api.onlinebrief24.de');
-      expect(authConfig.username).toBe('test@example.com');
-      expect(authConfig.password).toBe('fake-password');
+      expect(result).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
 
-      expect(putMock).toHaveBeenCalledTimes(1);
-      const putCall = putMock.mock.calls[0];
-      expect(putCall[0]).toBeInstanceOf(Buffer);
-      expect(putCall[1]).toBe(`/upload/api/${result!.submissionId}`);
+    it('posts the PDF, stores the printjob id, and audit-logs it', async () => {
+      configureCredentials('live');
 
-      expect(endMock).toHaveBeenCalledTimes(1);
+      const { LettershopService } = await import('./lettershop');
+      const userId = await createTestUser();
+      const claimId = await createTestClaim(userId);
+      const pdfBytes = new Uint8Array([1, 2, 3, 4]);
+
+      const result = await LettershopService.sendClaimPdf(
+        claimId,
+        pdfBytes,
+        userId
+      );
+
+      expect(result).toEqual({ submissionId: '6035143' });
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe('https://api.onlinebrief24.de/v1/printjobs');
+      expect(init.method).toBe('POST');
+      expect(init.headers['Content-Type']).toBe('application/json');
+
+      const sent = JSON.parse(init.body);
+      expect(sent.auth).toEqual({
+        apiKey: 'fake-api-key',
+        apiSecret: 'fake-api-secret',
+        mode: 'live',
+      });
+      expect(sent.letter.base64_file).toBe(
+        Buffer.from(pdfBytes).toString('base64')
+      );
+      expect(sent.letter.specification).toEqual({
+        color: '4',
+        mode: 'simplex',
+        shipping: 'national',
+        c4: 0,
+      });
+      expect(sent.letter.filename_original).toMatch(
+        new RegExp(`^vbl-claim-${claimId}-\\d+\\.pdf$`)
+      );
 
       const [row] = await testDb
         .select()
         .from(claimsTable)
         .where(eq(claimsTable.id, claimId))
         .limit(1);
-      expect((row as any).lettershopSubmissionId).toBe(result!.submissionId);
+      expect((row as any).lettershopSubmissionId).toBe('6035143');
 
       const logs = await testDb
         .select()
@@ -404,15 +292,80 @@ describe('LettershopService', () => {
       );
       expect(lettershopLog).toBeDefined();
       expect((lettershopLog as any).userId).toBe(userId);
+      expect((lettershopLog as any).details.mode).toBe('live');
     });
 
-    it('calls end() even when put() rejects, and propagates the error', async () => {
-      process.env.LETTERSHOP_SFTP_HOST = 'api.onlinebrief24.de';
-      process.env.LETTERSHOP_SFTP_USER = 'test@example.com';
-      process.env.LETTERSHOP_SFTP_PASSWORD = 'fake-password';
-      process.env.LETTERSHOP_MODE = 'live';
+    it('checksums the base64 string, not the raw PDF bytes', async () => {
+      configureCredentials('live');
 
-      putMock.mockRejectedValue(new Error('upload failed'));
+      const { LettershopService } = await import('./lettershop');
+      const userId = await createTestUser();
+      const claimId = await createTestClaim(userId);
+      const pdfBytes = new Uint8Array([1, 2, 3, 4]);
+
+      await LettershopService.sendClaimPdf(claimId, pdfBytes, userId);
+
+      const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
+      const base64 = Buffer.from(pdfBytes).toString('base64');
+
+      expect(sent.letter.base64_file_checksum).toBe(
+        createHash('md5').update(base64).digest('hex')
+      );
+      // Guard against the easy mistake of hashing the decoded bytes.
+      expect(sent.letter.base64_file_checksum).not.toBe(
+        createHash('md5').update(Buffer.from(pdfBytes)).digest('hex')
+      );
+    });
+
+    it('passes mode=test through so the order parks in the vendor cart', async () => {
+      configureCredentials('test');
+
+      const { LettershopService } = await import('./lettershop');
+      const userId = await createTestUser();
+      const claimId = await createTestClaim(userId);
+
+      const result = await LettershopService.sendClaimPdf(
+        claimId,
+        new Uint8Array([1, 2, 3]),
+        userId
+      );
+
+      const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(sent.auth.mode).toBe('test');
+
+      // A cart entry is still a real printjob id worth recording — it is
+      // what someone needs to find or release the order in the Kundencenter.
+      expect(result).toEqual({ submissionId: '6035143' });
+    });
+
+    it('honours a LETTERSHOP_API_BASE_URL override', async () => {
+      configureCredentials('test');
+      process.env.LETTERSHOP_API_BASE_URL = 'https://api.example.test/v1';
+
+      const { LettershopService } = await import('./lettershop');
+      const userId = await createTestUser();
+      const claimId = await createTestClaim(userId);
+
+      await LettershopService.sendClaimPdf(
+        claimId,
+        new Uint8Array([1, 2, 3]),
+        userId
+      );
+
+      expect(fetchMock.mock.calls[0][0]).toBe(
+        'https://api.example.test/v1/printjobs'
+      );
+    });
+
+    it('throws on an auth failure even though it arrives without a status field', async () => {
+      configureCredentials('live');
+
+      // Exactly what the vendor returns for bad credentials.
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({ message: 'Unauthorized.' }),
+      });
 
       const { LettershopService } = await import('./lettershop');
       const userId = await createTestUser();
@@ -424,19 +377,24 @@ describe('LettershopService', () => {
           new Uint8Array([1, 2, 3]),
           userId
         )
-      ).rejects.toThrow(/upload failed/);
+      ).rejects.toThrow(/Unauthorized/);
 
-      expect(endMock).toHaveBeenCalledTimes(1);
+      const [row] = await testDb
+        .select()
+        .from(claimsTable)
+        .where(eq(claimsTable.id, claimId))
+        .limit(1);
+      expect((row as any).lettershopSubmissionId).toBeNull();
     });
 
-    it('propagates the original error, not the end() failure, when both put() and end() reject', async () => {
-      process.env.LETTERSHOP_SFTP_HOST = 'api.onlinebrief24.de';
-      process.env.LETTERSHOP_SFTP_USER = 'test@example.com';
-      process.env.LETTERSHOP_SFTP_PASSWORD = 'fake-password';
-      process.env.LETTERSHOP_MODE = 'live';
+    it('throws when the body reports a non-200 status despite HTTP 200', async () => {
+      configureCredentials('live');
 
-      putMock.mockRejectedValue(new Error('upload failed'));
-      endMock.mockRejectedValue(new Error('end failed'));
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ status: 400, message: 'Bad Request' }),
+      });
 
       const { LettershopService } = await import('./lettershop');
       const userId = await createTestUser();
@@ -448,9 +406,63 @@ describe('LettershopService', () => {
           new Uint8Array([1, 2, 3]),
           userId
         )
-      ).rejects.toThrow(/upload failed/);
+      ).rejects.toThrow(/Bad Request/);
+    });
 
-      expect(endMock).toHaveBeenCalledTimes(1);
+    it('throws when a 200 response carries no printjob id', async () => {
+      configureCredentials('live');
+
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ status: 200, message: 'OK', data: {} }),
+      });
+
+      const { LettershopService } = await import('./lettershop');
+      const userId = await createTestUser();
+      const claimId = await createTestClaim(userId);
+
+      await expect(
+        LettershopService.sendClaimPdf(
+          claimId,
+          new Uint8Array([1, 2, 3]),
+          userId
+        )
+      ).rejects.toThrow(/rejected the job/);
+    });
+
+    it('rejects a PDF over the vendor 50 MB limit before sending it', async () => {
+      configureCredentials('live');
+
+      const { LettershopService } = await import('./lettershop');
+      const userId = await createTestUser();
+      const claimId = await createTestClaim(userId);
+
+      const oversized = new Uint8Array(50 * 1024 * 1024 + 1);
+
+      await expect(
+        LettershopService.sendClaimPdf(claimId, oversized, userId)
+      ).rejects.toThrow(/over the vendor's/);
+
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('propagates network errors', async () => {
+      configureCredentials('live');
+
+      fetchMock.mockRejectedValue(new Error('network unreachable'));
+
+      const { LettershopService } = await import('./lettershop');
+      const userId = await createTestUser();
+      const claimId = await createTestClaim(userId);
+
+      await expect(
+        LettershopService.sendClaimPdf(
+          claimId,
+          new Uint8Array([1, 2, 3]),
+          userId
+        )
+      ).rejects.toThrow(/network unreachable/);
     });
   });
 });

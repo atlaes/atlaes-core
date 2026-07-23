@@ -9,8 +9,16 @@ import { email } from '../email';
 const adminMigrationToken = new sst.Secret('AdminMigrationToken');
 const mistralApiKey = new sst.Secret('MistralApiKey');
 
-// Lettershop (onlinebrief24.de) SFTP password for claim mailing. Set per-stage:
-//   AWS_PROFILE=atlaes npx sst secret set LettershopSftpPassword <value> --stage <stage>
+// Lettershop (onlinebrief24.de) REST API credentials for claim mailing.
+// Generated in the Kundencenter under Einstellungen > API Zugang, then set
+// per-stage:
+//   AWS_PROFILE=atlaes npx sst secret set LettershopApiKey <value> --stage <stage>
+//   AWS_PROFILE=atlaes npx sst secret set LettershopApiSecret <value> --stage <stage>
+const lettershopApiKey = new sst.Secret('LettershopApiKey');
+const lettershopApiSecret = new sst.Secret('LettershopApiSecret');
+
+// Retained so the secret resource (and its SSM value) survives the move off
+// SFTP. Unused by the backend — drop once the API path has run in staging.
 const lettershopSftpPassword = new sst.Secret('LettershopSftpPassword');
 
 export const backend = new sst.aws.Service('AtlaesBackend', {
@@ -25,6 +33,8 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
     email,
     adminMigrationToken,
     mistralApiKey,
+    lettershopApiKey,
+    lettershopApiSecret,
     lettershopSftpPassword,
   ],
   environment: {
@@ -45,14 +55,12 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
     MISTRAL_OCR_MODEL: process.env.MISTRAL_OCR_MODEL ?? 'mistral-ocr-latest',
     MISTRAL_EXTRACTION_MODEL:
       process.env.MISTRAL_EXTRACTION_MODEL ?? 'mistral-large-latest',
-    // Lettershop claim mailing. Staging stays in 'test' mode: the pipeline
-    // connects and verifies the upload directory but transmits nothing (no
-    // cost, no real mail). The SFTP interface has no server-side test flag,
-    // so any file we actually upload is produced and billed. Flip to 'live'
-    // only when real staging sends are intended.
-    LETTERSHOP_SFTP_HOST: 'api.onlinebrief24.de',
-    LETTERSHOP_SFTP_USER: 'info@atlaes.de',
-    LETTERSHOP_SFTP_PASSWORD: lettershopSftpPassword.value,
+    // Lettershop claim mailing. Staging stays in 'test' mode: orders are
+    // parked in the vendor's shopping cart, where they can be reviewed or
+    // released by hand and are auto-deleted after 7 days — never printed,
+    // never billed. Flip to 'live' only when real sends are intended.
+    LETTERSHOP_API_KEY: lettershopApiKey.value,
+    LETTERSHOP_API_SECRET: lettershopApiSecret.value,
     LETTERSHOP_MODE: 'test',
   },
   loadBalancer: {
