@@ -11,6 +11,16 @@ type CalculatePayload = {
   }>;
 };
 
+type PendingSessionPayload = {
+  calculationResult?: {
+    totalRefund: number;
+    breakdown: unknown[];
+    totalMonths: number;
+  } | null;
+  claimTypes: string[];
+  pensionProvider?: string;
+};
+
 const continueButton = (page: Page) =>
   page.getByRole('button', { name: 'Continue', exact: true });
 
@@ -39,9 +49,41 @@ async function mockCalculation(page: Page, amount = 12000) {
           vblKlassik: amount,
           eligibilityReasons: [],
           rulesApplied: [],
-          monthsContributed: 24,
+          // Mirrors the real VBLCalculationResult: the contribution period is
+          // nested here. There is no top-level `monthsContributed` on the
+          // response — that field belongs to the calculation *input*.
+          calculationDetails: {
+            contributionPeriod: 24,
+            consecutivePeriod: 24,
+            ageAtEmploymentEnd: 40,
+            westGermanyEligible: true,
+            timeSinceEmploymentEnd: 30,
+          },
         },
       }),
+    });
+  });
+
+  return {
+    getPayload: () => payload,
+  };
+}
+
+// Captures the POST the calculator makes when the user starts a claim, so
+// tests can assert what is actually handed over to onboarding.
+async function mockPendingSession(page: Page) {
+  let payload: PendingSessionPayload | null = null;
+
+  await page.route('**/api/vbl/pending-calculator-sessions', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    payload = route.request().postDataJSON() as PendingSessionPayload;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, token: 'test-token' }),
     });
   });
 
@@ -226,6 +268,8 @@ test.describe('Manual VBL calculator', () => {
       page.getByRole('heading', { name: 'Select your company pension' })
     ).toBeVisible();
     await chooseDropdownOption(page, 'Company pension', 'VBL');
+    // Picking VBL gates Continue behind a plan choice.
+    await page.getByRole('button', { name: 'VBLklassik' }).click();
     await continueButton(page).click();
 
     await expect(
@@ -262,6 +306,36 @@ test.describe('Manual VBL calculator', () => {
       ],
       userType: 'insured_person',
     });
+  });
+
+  test('hands the real contribution period to onboarding when starting a claim', async ({
+    page,
+  }) => {
+    await mockCalculation(page);
+    const session = await mockPendingSession(page);
+
+    await chooseManual(page, 'VBL / ZVK refund');
+
+    await chooseDropdownOption(page, 'Employer’s federal state', 'Bavaria');
+    await continueButton(page).click();
+    await chooseDropdownOption(page, 'Company pension', 'VBL');
+    // Picking VBL gates Continue behind a plan choice.
+    await page.getByRole('button', { name: 'VBLklassik' }).click();
+    await continueButton(page).click();
+    await enterContributionPeriod(page, 'January', '2020', 'December', '2021');
+    await page.getByLabel('Average monthly gross salary (€)').fill('3500');
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Your estimated VBL/ZVK refund' })
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Start VBL/ZVK refund' }).click();
+
+    // Regression: this used to read a `monthsContributed` field the API never
+    // sends, so every claim reached onboarding with totalMonths: 0.
+    await expect
+      .poll(() => session.getPayload()?.calculationResult?.totalMonths ?? null)
+      .toBe(24);
   });
 
   test('calculates the manual VddB/VddKO estimate and sends the stage provider payload', async ({
