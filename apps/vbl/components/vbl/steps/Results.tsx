@@ -30,7 +30,9 @@ interface CalculationResult {
   providerBreakdown?: Array<{ provider: string; amount: number }>;
   eligibilityReasons: string[];
   rulesApplied: string[];
-  monthsContributed?: number;
+  // No `monthsContributed` here — that field is on the calculation *input*,
+  // not the response. The contribution period arrives as
+  // `calculationDetails.contributionPeriod` below.
   isVested?: boolean;
   calculationDetails?: {
     contributionPeriod: number;
@@ -432,7 +434,8 @@ export const Results: React.FC = () => {
             calculationResult: {
               totalRefund: total,
               breakdown: [],
-              totalMonths: apiResult.monthsContributed || 0,
+              totalMonths:
+                apiResult.calculationDetails?.contributionPeriod ?? 0,
             },
           });
         }
