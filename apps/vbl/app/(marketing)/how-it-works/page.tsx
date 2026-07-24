@@ -267,14 +267,19 @@ export default function HowItWorksPage() {
         eyebrow="The digital process"
         title="How CompanyPension"
         highlight="works"
+        // Figma keeps "How CompanyPension works" on a single line here.
+        highlightInline
         showDefaultGlows={false}
+        // Figma weights this hero's lead paragraph semibold (the home hero's
+        // stays regular); the platform blurb below it keeps the normal weight.
+        bodyClassName="font-semibold"
         body={
           <>
             Upload your pension document or answer guided questions. The
             platform reads key details, adapts the next steps and prepares your
             cash-out or refund application for your review and digital
             signature.
-            <span className="mt-5 block text-base text-white/70">
+            <span className="mt-5 block text-base font-normal text-white/70">
               CompanyPension is a digital application platform for bAV cash-outs
               and VBL, ZVK, VddB and VddKO refunds. You complete the process
               through a secure English-language flow. Automated document reading
@@ -364,7 +369,14 @@ export default function HowItWorksPage() {
             <SectionHeading
               eyebrow="From first check to payout"
               eyebrowClassName={EYEBROW_LIGHT}
-              title="Complete your company pension claim online in five steps"
+              title={
+                <>
+                  Complete your company pension
+                  {/* Figma breaks after "pension"; the break only applies once
+                      there is room for two balanced lines. */}
+                  <br className="hidden md:block" /> claim online in five steps
+                </>
+              }
               body="Upload your documents or answer guided questions, complete the secure online flow and sign your application digitally."
             />
           </div>
@@ -550,7 +562,12 @@ export default function HowItWorksPage() {
             <SectionHeading
               eyebrow="Direct payment"
               eyebrowClassName={EYEBROW_LIGHT}
-              title="The provider pays approved money directly to you"
+              title={
+                <>
+                  The provider pays approved money
+                  <br className="hidden md:block" /> directly to you
+                </>
+              }
             />
           </div>
           <div className="mt-8 max-w-3xl space-y-4 text-base leading-relaxed text-gray-600">

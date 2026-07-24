@@ -13,6 +13,13 @@ export interface HeroProps {
   eyebrow?: string;
   title: string;
   highlight?: string;
+  /**
+   * Renders `highlight` on the same line as the title instead of on its own.
+   * Figma sets this per page: the home hero breaks before "company pension
+   * online", while the how-it-works hero keeps "How CompanyPension works" on
+   * one line. Opt-in, so heroes that don't pass it keep the block treatment.
+   */
+  highlightInline?: boolean;
   body: ReactNode;
   primaryCta: CtaLink;
   secondaryCta?: CtaLink;
@@ -23,6 +30,13 @@ export interface HeroProps {
    * button (updated pricing hero). Opt-in so other heroes are unaffected.
    */
   secondaryCtaVariant?: 'button' | 'link';
+  /**
+   * Extra classes for the body wrapper, mirroring `SectionHeading`'s prop of
+   * the same name. Figma weights the hero lead per page — the how-it-works
+   * hero sets it semibold while the home hero stays regular — so this is
+   * opt-in and pages that don't pass it are unaffected.
+   */
+  bodyClassName?: string;
   /** Optional muted supporting text rendered under the CTAs. */
   footnote?: ReactNode;
   /** Optional content rendered between the body and the CTAs (e.g. the About
@@ -61,10 +75,12 @@ export function Hero({
   eyebrow,
   title,
   highlight,
+  highlightInline = false,
   body,
   primaryCta,
   secondaryCta,
   secondaryCtaVariant = 'button',
+  bodyClassName = '',
   footnote,
   aboveCta,
   image,
@@ -126,8 +142,14 @@ export function Hero({
           the nav has no bg strip of its own and floats directly over this
           section's background. */}
       <div className="relative z-10 mx-auto flex max-w-[1200px] flex-col items-center px-6 pb-20 pt-36 text-center sm:pb-28 sm:pt-44">
+        {/* Same 40px / 16px `font-display` pill as SectionHeading and CtaBand —
+            the hero eyebrow was the one that never got the updated design's
+            pill treatment. The fill is accent-tinted because `bg-white/5` over
+            the dark brand green renders as effectively no fill at all, while
+            Figma shows a clearly lighter pill on both the home and
+            how-it-works heroes (sampled ≈#305818 over the #103000 hero bg). */}
         {eyebrow ? (
-          <span className="mb-6 inline-flex items-center rounded-full border border-accent/40 bg-white/5 px-5 py-2 text-sm font-medium text-white/90">
+          <span className="mb-6 inline-flex min-h-10 items-center rounded-full border border-accent/40 bg-accent/20 px-5 py-1 font-display text-base font-medium text-white">
             {eyebrow}
           </span>
         ) : null}
@@ -135,7 +157,14 @@ export function Hero({
         <h1 className="max-w-5xl font-display text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
           {title}
           {highlight ? (
-            <span className="block text-accent">{highlight}</span>
+            highlightInline ? (
+              <>
+                {' '}
+                <span className="text-accent">{highlight}</span>
+              </>
+            ) : (
+              <span className="block text-accent">{highlight}</span>
+            )
           ) : null}
         </h1>
 
@@ -144,7 +173,9 @@ export function Hero({
             not a <p> — a <p> inside a <p> is invalid and triggers a hydration
             error. The text styles apply to the div and cascade to any nested
             paragraphs. */}
-        <div className="mt-6 max-w-2xl text-base leading-relaxed text-white sm:text-lg">
+        <div
+          className={`mt-6 max-w-2xl text-base leading-relaxed text-white sm:text-lg ${bodyClassName}`}
+        >
           {body}
         </div>
 
