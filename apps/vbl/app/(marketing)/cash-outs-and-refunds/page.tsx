@@ -8,6 +8,8 @@ import { CtaBand } from '@/components/marketing/CtaBand';
 import { ImportantCallout } from '@/components/marketing/ImportantCallout';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
 import { GlossaryCard } from '@/components/marketing/GlossaryCard';
+import { FaqAccordion } from '@/components/marketing/FaqAccordion';
+import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -39,9 +41,11 @@ function CheckList({ items }: { items: ReactNode[] }) {
     <ul className="space-y-3">
       {items.map((item, index) => (
         <li key={index} className="flex items-start gap-3 text-gray-700">
-          <Check
-            className="mt-0.5 h-5 w-5 shrink-0 text-brand"
+          <img
+            src="/marketing/icons/check-bullet.svg"
+            alt=""
             aria-hidden="true"
+            className="mt-0.5 h-5 w-5 shrink-0"
           />
           <span className="text-base leading-relaxed">{item}</span>
         </li>
@@ -210,7 +214,7 @@ export default function CashOutsAndRefundsPage() {
       </section>
 
       {/* ---- QUICK ANSWER (Figma 1273:6671) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading title="Which company pension cash-out or refund do you need?" />
@@ -370,7 +374,7 @@ export default function CashOutsAndRefundsPage() {
       </section>
 
       {/* ---- bAV CASH-OUTS (Figma 1279:238) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div className="text-brand">
@@ -601,7 +605,7 @@ export default function CashOutsAndRefundsPage() {
       </section>
 
       {/* ---- CASH-OUT VS REFUND (Figma 1312:250) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -738,7 +742,7 @@ export default function CashOutsAndRefundsPage() {
       </section>
 
       {/* ---- PUBLIC-SECTOR VBL / ZVK (Figma 1316:442) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -835,7 +839,7 @@ export default function CashOutsAndRefundsPage() {
       </section>
 
       {/* ---- DRV IS SEPARATE (Figma 1318:743 / 1320:929) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -1005,7 +1009,7 @@ export default function CashOutsAndRefundsPage() {
       </section>
 
       {/* ---- THE DIGITAL PROCESS — 5 STEPS (Figma 1320:1028) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -1167,7 +1171,7 @@ export default function CashOutsAndRefundsPage() {
       </section>
 
       {/* ---- WHICH PROCESS FITS YOUR DOCUMENT (Figma 1322:146) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -1246,13 +1250,7 @@ export default function CashOutsAndRefundsPage() {
         </div>
       </section>
 
-      {/* ---- FAQ (Figma 1322:790) ----
-          FAQ_ANSWER_PENDING: every FAQ item in this frame is a component
-          instance carrying lorem defaults ("How do I pay for the…", "You can
-          pay with a c…", "We need to add new u…", "My team wants to can…").
-          Only the section heading and eyebrow are non-instance verbatim copy.
-          Questions and answers are UNVERIFIABLE from the XML and must not be
-          invented — a backfill pass adds them once Figma access is restored. */}
+      {/* ---- FAQ (Figma 1322:790) — answers from the shared FAQ master copy via faqItems.tsx (FAQ CompanyPension 22062026.pdf) ---- */}
       <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
@@ -1261,12 +1259,18 @@ export default function CashOutsAndRefundsPage() {
               title="German company pension cash-outs and refunds: common questions"
             />
           </div>
-          <div className="mx-auto mt-12 max-w-3xl">
-            <InfoNote>
-              FAQ content for this page is pending. The questions and answers in
-              the source design are placeholder component instances and will be
-              added once the final copy is available.
-            </InfoNote>
+          <div className="mx-auto mt-12 max-w-4xl">
+            <FaqAccordion
+              items={[
+                FAQ.whatIsRefund,
+                FAQ.refundVsCashout,
+                FAQ.cashOutAfterLeaving,
+                FAQ.howMuch,
+                FAQ.howLong,
+                FAQ.howMuchCost,
+              ]}
+              defaultOpenIndex={0}
+            />
           </div>
           <div className="mt-10 flex justify-center">
             <Link
@@ -1280,7 +1284,7 @@ export default function CashOutsAndRefundsPage() {
       </section>
 
       {/* ---- GLOSSARY / KEY TERMS (Figma 1323:125) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -1450,7 +1454,7 @@ export default function CashOutsAndRefundsPage() {
 
       {/* ---- IMPORTANT INFORMATION (Figma 1322:871) ---- */}
       <ImportantCallout>
-        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
           A digital application platform—not a pension advisor or claims agent
         </h2>
         <ul className="mt-6 space-y-4 text-base leading-relaxed text-gray-600">

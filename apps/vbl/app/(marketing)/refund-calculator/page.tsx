@@ -8,6 +8,8 @@ import { StepCard } from '@/components/marketing/StepCard';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import { ImportantCallout } from '@/components/marketing/ImportantCallout';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
+import { FaqAccordion } from '@/components/marketing/FaqAccordion';
+import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -925,13 +927,7 @@ export default function RefundCalculatorPage() {
         </div>
       </section>
 
-      {/* ---- FAQ (Figma 1361:xxx) ----
-          FAQ_ANSWER_PENDING: every FAQ item in this frame is a component
-          instance carrying lorem defaults ("How do I pay for the…", "Can I
-          cancel my Esse…", "We need to add new u…", "My team wants to can…").
-          Only the section heading and eyebrow are non-instance verbatim copy.
-          Questions and answers are UNVERIFIABLE from the XML and must not be
-          invented — a backfill pass fills them once Figma access is restored. */}
+      {/* ---- FAQ — answers from the shared FAQ master copy via faqItems.tsx (FAQ CompanyPension 22062026.pdf) ---- */}
       <section className="bg-neutral-50">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
@@ -940,12 +936,17 @@ export default function RefundCalculatorPage() {
               title="Questions about estimating your refund"
             />
           </div>
-          <div className="mx-auto mt-12 max-w-3xl">
-            <InfoNote>
-              FAQ content for this page is pending. The questions and answers in
-              the source design are placeholder component instances and will be
-              added once the final copy is available.
-            </InfoNote>
+          <div className="mx-auto mt-12 max-w-4xl">
+            <FaqAccordion
+              items={[
+                FAQ.howMuch,
+                FAQ.calculatorFirst,
+                FAQ.whatIsRefund,
+                FAQ.wait24,
+                FAQ.liveOutside,
+              ]}
+              defaultOpenIndex={0}
+            />
           </div>
           <div className="mt-10 flex justify-center">
             <Link

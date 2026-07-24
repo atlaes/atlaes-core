@@ -17,12 +17,14 @@ export interface CtaBandProps {
   /** Optional muted note rendered under the CTAs. */
   note?: ReactNode;
   /**
-   * Optional decorative full-bleed background (Home closing band, Figma
-   * 1179:1923). When set, the band switches to the near-black base and
-   * layers this image with a multiply blend. Other pages omit it and keep
-   * the flat brand background unchanged.
+   * Decorative full-bleed background for the closing band. In Figma the
+   * closing CTA is a shared component that always sits on this near-black
+   * (#231f20) wave background (e.g. Pricing node 1199:9435 "Image"), which is
+   * what separates it from the green footer below. It therefore defaults to
+   * the shared waves asset; pass a different path to override, or `null` to
+   * fall back to the flat brand background.
    */
-  backgroundImageSrc?: string;
+  backgroundImageSrc?: string | null;
 }
 
 /**
@@ -35,7 +37,7 @@ export function CtaBand({
   cta,
   secondaryCta,
   note,
-  backgroundImageSrc,
+  backgroundImageSrc = '/marketing/home/cta-waves-background.png',
 }: CtaBandProps) {
   return (
     <section
@@ -56,11 +58,12 @@ export function CtaBand({
       ) : null}
       <div className="relative mx-auto flex max-w-[1200px] flex-col items-center px-6 py-20 text-center sm:py-24">
         {eyebrow ? (
-          <span className="mb-6 inline-flex items-center rounded-full border border-accent/40 bg-white/5 px-5 py-2 text-sm font-medium text-accent">
+          // 219x40 pill in Figma (client feedback 2026-07-21).
+          <span className="mb-6 inline-flex h-10 w-[219px] items-center justify-center rounded-full border border-accent/40 bg-white/5 font-display text-base font-medium text-accent">
             {eyebrow}
           </span>
         ) : null}
-        <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+        <h2 className="max-w-3xl font-display text-3xl font-bold leading-tight tracking-tight sm:text-[2.5rem] sm:leading-[1.15]">
           {title}
         </h2>
 
@@ -71,16 +74,17 @@ export function CtaBand({
         ) : null}
 
         <div className="mt-9 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
+          {/* Both closing-band CTAs are 345x63 in Figma. */}
           <Link
             href={cta.href}
-            className="rounded-brand bg-accent px-8 py-4 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
+            className="flex h-[63px] items-center justify-center rounded-brand bg-accent px-8 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover sm:w-[345px]"
           >
             {cta.label}
           </Link>
           {secondaryCta ? (
             <Link
               href={secondaryCta.href}
-              className="rounded-brand border border-white/30 px-8 py-4 text-center text-base font-semibold text-white transition-colors hover:bg-white/10"
+              className="flex h-[63px] items-center justify-center rounded-brand border border-white/30 px-8 text-center text-base font-semibold text-white transition-colors hover:bg-white/10 sm:w-[345px]"
             >
               {secondaryCta.label}
             </Link>

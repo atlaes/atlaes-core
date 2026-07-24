@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { ChevronRight } from 'lucide-react';
 import { HeroGridBackground } from './HeroGridBackground';
 
 interface CtaLink {
@@ -15,8 +16,19 @@ export interface HeroProps {
   body: ReactNode;
   primaryCta: CtaLink;
   secondaryCta?: CtaLink;
+  /**
+   * How to render the secondary CTA. `'button'` (default) is the outlined
+   * button shown beside the primary; `'link'` renders it as an underlined
+   * white text link with a trailing chevron, stacked below the primary
+   * button (updated pricing hero). Opt-in so other heroes are unaffected.
+   */
+  secondaryCtaVariant?: 'button' | 'link';
   /** Optional muted supporting text rendered under the CTAs. */
   footnote?: ReactNode;
+  /** Optional content rendered between the body and the CTAs (e.g. the About
+   * hero's second paragraph + supported-claims list, which sit above the
+   * buttons in Figma). */
+  aboveCta?: ReactNode;
   image?: {
     src: string;
     alt: string;
@@ -52,7 +64,9 @@ export function Hero({
   body,
   primaryCta,
   secondaryCta,
+  secondaryCtaVariant = 'button',
   footnote,
+  aboveCta,
   image,
   backgroundImageSrc = '/marketing/home/hero-background.png',
   showDefaultGlows = false,
@@ -118,39 +132,64 @@ export function Hero({
           </span>
         ) : null}
 
-        <h1 className="max-w-4xl text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
+        <h1 className="max-w-5xl font-display text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl">
           {title}
           {highlight ? (
-            <>
-              {' '}
-              <span className="text-accent">{highlight}</span>
-            </>
+            <span className="block text-accent">{highlight}</span>
           ) : null}
         </h1>
 
-        <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/80 sm:text-lg">
+        {/* `body` is a ReactNode that may itself contain <p> elements (e.g. the
+            About hero passes multiple paragraphs), so this wrapper is a <div>,
+            not a <p> — a <p> inside a <p> is invalid and triggers a hydration
+            error. The text styles apply to the div and cascade to any nested
+            paragraphs. */}
+        <div className="mt-6 max-w-2xl text-base leading-relaxed text-white sm:text-lg">
           {body}
-        </p>
+        </div>
 
+        {aboveCta ? (
+          <div className="mt-6 max-w-2xl text-base leading-relaxed text-white/80 sm:text-lg">
+            {aboveCta}
+          </div>
+        ) : null}
+
+        {/* Hero CTAs are a fixed 345x63 in the Figma design (client feedback
+            2026-07-21) — they stretch to the column width below sm. */}
         <div className="mt-9 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
           <Link
             href={primaryCta.href}
-            className="rounded-brand bg-accent px-8 py-4 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
+            className="flex h-[63px] items-center justify-center rounded-brand bg-accent px-8 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover sm:w-[345px]"
           >
             {primaryCta.label}
           </Link>
-          {secondaryCta ? (
+          {secondaryCta && secondaryCtaVariant === 'button' ? (
             <Link
               href={secondaryCta.href}
-              className="rounded-brand border border-white/30 px-8 py-4 text-center text-base font-semibold text-white transition-colors hover:bg-white/10"
+              className="flex h-[63px] items-center justify-center rounded-brand border border-white/30 px-8 text-center text-base font-semibold text-white transition-colors hover:bg-white/10 sm:w-[345px]"
             >
               {secondaryCta.label}
             </Link>
           ) : null}
         </div>
 
+        {secondaryCta && secondaryCtaVariant === 'link' ? (
+          <div className="mt-6">
+            <Link
+              href={secondaryCta.href}
+              className="inline-flex items-center gap-1 text-base font-semibold text-white underline underline-offset-4 transition-colors hover:text-white/80"
+            >
+              {secondaryCta.label}
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
+        ) : null}
+
         {footnote ? (
-          <div className="mt-8 max-w-2xl text-sm leading-relaxed text-white/60">
+          // Wide enough for each footnote sentence to sit on a single line at
+          // desktop, as in Figma (client feedback: "make the first and second
+          // line, one line only").
+          <div className="mt-8 max-w-[1000px] text-sm leading-relaxed text-white/75">
             {footnote}
           </div>
         ) : null}

@@ -41,7 +41,7 @@ export function StepCard({ number, title, body, image }: StepCardProps) {
 
       <h3 className="mt-6 text-xl font-semibold text-brand">{title}</h3>
 
-      <p className="mt-4 text-base leading-relaxed text-gray-600">{body}</p>
+      <div className="mt-4 text-base leading-relaxed text-gray-600">{body}</div>
     </div>
   );
 }
