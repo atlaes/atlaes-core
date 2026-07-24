@@ -518,11 +518,16 @@ export default function PricingPage() {
                   CompanyPension does not deduct its fee from the pension money
                   and does not receive, hold or forward approved pension money.
                 </p>
+                {/* COPY-GOVERNANCE (client item 19): design reads "open a
+                    free EUR account"; the word "free" is dropped per the
+                    established EUR-account transformation (commit 1236ccf),
+                    matching how-it-works, vbl-refund and cash-outs-and-refunds.
+                    "one" (not "a suitable EUR account") because this sentence
+                    already qualifies it as "suitable SEPA-capable" above. */}
                 <p>
                   A German bank account is not required in most cases. Some
                   providers or refund routes may require a suitable SEPA-capable
-                  EUR account. If needed, CompanyPension can help you open a
-                  free EUR account.
+                  EUR account. If needed, CompanyPension can help you open one.
                 </p>
               </div>
             </div>
