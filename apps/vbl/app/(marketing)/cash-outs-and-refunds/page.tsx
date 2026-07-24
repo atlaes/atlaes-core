@@ -36,17 +36,40 @@ const GUIDE_HREF = HOW_HREF;
 // Local, page-only building blocks
 // ---------------------------------------------------------------------------
 
-function CheckList({ items }: { items: ReactNode[] }) {
+function CheckList({
+  items,
+  tone = 'light',
+}: {
+  items: ReactNode[];
+  /** `'dark'` for the brand-green sections, where gray body text is unreadable. */
+  tone?: 'light' | 'dark';
+}) {
   return (
     <ul className="space-y-3">
       {items.map((item, index) => (
-        <li key={index} className="flex items-start gap-3 text-gray-700">
-          <img
-            src="/marketing/icons/check-bullet.svg"
-            alt=""
-            aria-hidden="true"
-            className="mt-0.5 h-5 w-5 shrink-0"
-          />
+        <li
+          key={index}
+          className={`flex items-start gap-3 ${tone === 'dark' ? 'text-white/85' : 'text-gray-700'}`}
+        >
+          {/* The check-bullet SVG is a dark-green disc, so on the brand-green
+              bands it disappears. Dark tone uses the accent-disc + brand check
+              treatment already used by the vbl-refund dark sections. */}
+          {tone === 'dark' ? (
+            <span
+              aria-hidden="true"
+              className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent"
+            >
+              <Check className="h-3.5 w-3.5 text-brand" strokeWidth={3} />
+            </span>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src="/marketing/icons/check-bullet.svg"
+              alt=""
+              aria-hidden="true"
+              className="mt-0.5 h-5 w-5 shrink-0"
+            />
+          )}
           <span className="text-base leading-relaxed">{item}</span>
         </li>
       ))}
@@ -1008,10 +1031,12 @@ export default function CashOutsAndRefundsPage() {
         </div>
       </section>
 
-      {/* ---- THE DIGITAL PROCESS — 5 STEPS (Figma 1320:1028) ---- */}
-      <section className="bg-[#f3f4f4]">
+      {/* ---- THE DIGITAL PROCESS — 5 STEPS (Figma 1320:1028) ----
+           Figma renders this band brand-green with translucent dark step
+           cards (it was light #f3f4f4 here). */}
+      <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className="flex flex-col items-center text-center">
             <SectionHeading
               eyebrow="The digital process"
               title="Complete your cash-out or refund online in five steps"
@@ -1019,26 +1044,31 @@ export default function CashOutsAndRefundsPage() {
           </div>
           <div className="mt-14 grid gap-6 md:grid-cols-2">
             <StepCard
+              tone="dark"
               number="01"
               title="Check which process applies"
               body="Upload a pension document or answer guided questions. The platform identifies whether your case belongs to a bAV cash-out, VBL or ZVK refund, or VddB or VddKO refund."
             />
             <StepCard
+              tone="dark"
               number="02"
               title="Secure your claim"
               body="If your case may be possible, create your secure account, review the pricing and pay the €199 deposit to activate the full process. Your deposit is credited toward your final service fee."
             />
             <StepCard
+              tone="dark"
               number="03"
               title="Complete your details"
               body="Upload your ID and any additional pension, employment or bank documents. Add or confirm the information shown in your secure account."
             />
             <StepCard
+              tone="dark"
               number="04"
               title="Review, sign and submit digitally"
               body="Review the completed application, correct anything necessary and sign it yourself online. After signing, the application is technically transmitted to the relevant employer, provider, pension scheme or institution through the CompanyPension platform. You remain the applicant and claimant."
             />
             <StepCard
+              tone="dark"
               number="05"
               title="Receive approved money and pay the remaining fee"
               body="The provider, scheme or institution reviews the application and makes the final decision. Where authorised, correspondence and requests for additional information can be displayed through your secure account. If approved, the money is paid directly to the bank account you provide. Your €199 deposit is credited toward the 9.75% success fee, and only the remaining service fee becomes due. CompanyPension does not receive, hold or forward approved pension money."
@@ -1166,6 +1196,128 @@ export default function CashOutsAndRefundsPage() {
                 </OutlineLink>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ---- PRICING (Figma 1331:6033) ----
+           Figma places this band directly after "Documents, bank accounts and
+           processing time" (it sat after the glossary here) and renders it
+           brand-green with translucent dark cards. */}
+      <section className="bg-brand text-white">
+        <div className={`${CONTAINER} py-20 sm:py-24`}>
+          <div className="flex flex-col items-center text-center">
+            <SectionHeading
+              eyebrow="Pricing"
+              title="Simple pricing for cash-outs and refunds"
+              body="Every supported process starts with a €199 deposit."
+            />
+          </div>
+          <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-white/10 bg-black/20 p-8">
+            <p className="text-lg font-semibold text-white">If approved:</p>
+            <div className="mt-5">
+              <CheckList
+                tone="dark"
+                items={[
+                  'The success fee is 9.75% of the approved amount',
+                  'The minimum total service fee is €199',
+                  'The €199 deposit is credited toward the final service fee',
+                  'Only the remaining difference becomes due',
+                ]}
+              />
+            </div>
+          </div>
+
+          <div className="mt-12 grid gap-8 lg:grid-cols-2">
+            {/* bAV cash-out pricing */}
+            <div className="flex h-full flex-col rounded-2xl border border-white/10 bg-black/20 p-8">
+              <h3 className="text-xl font-semibold text-white">
+                bAV and company pension cash-outs
+              </h3>
+              <div className="mt-5 flex flex-wrap items-baseline gap-2">
+                <span className="text-3xl font-bold text-accent">
+                  €199 deposit
+                </span>
+                <span className="text-sm text-white/70">
+                  (credited toward the final fee)
+                </span>
+              </div>
+              <p className="mt-2 text-base font-semibold text-white">
+                + 9.75% success fee if approved
+              </p>
+              <div className="mt-6 rounded-2xl bg-black/25 p-6">
+                <p className="text-base font-semibold text-white">
+                  Deposit rule:
+                </p>
+                <p className="mt-2 text-base leading-relaxed text-white/75">
+                  If the cash-out cannot be submitted after the digital case and
+                  document review:
+                </p>
+                <div className="mt-4">
+                  <CheckList
+                    tone="dark"
+                    items={['€79 is retained', '€120 is refunded']}
+                  />
+                </div>
+                <p className="mt-4 text-sm leading-relaxed text-white/70">
+                  The retained amount covers the secure claim setup, document
+                  extraction and case review.
+                </p>
+              </div>
+              <div className="mt-8 flex flex-1 items-end">
+                <Link
+                  href={COMPANY_CASH_OUT}
+                  className="block w-full rounded-brand bg-accent px-6 py-3 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
+                >
+                  Start my bAV cash-out
+                </Link>
+              </div>
+            </div>
+
+            {/* refund pricing */}
+            <div className="flex h-full flex-col rounded-2xl border border-white/10 bg-black/20 p-8">
+              <h3 className="text-xl font-semibold text-white">
+                VBL, ZVK, VddB and VddKO refunds
+              </h3>
+              <div className="mt-5 flex flex-wrap items-baseline gap-2">
+                <span className="text-3xl font-bold text-accent">
+                  €199 deposit
+                </span>
+              </div>
+              <p className="mt-2 text-base font-semibold text-white">
+                + 9.75% success fee if approved
+              </p>
+              <div className="mt-6 rounded-2xl bg-black/25 p-6">
+                <p className="text-base font-semibold text-white">
+                  Deposit rule:
+                </p>
+                <p className="mt-2 text-base leading-relaxed text-white/75">
+                  If the pension institution rejects a completed and submitted
+                  refund request, the €199 deposit is refunded in full.
+                </p>
+                <p className="mt-4 text-sm leading-relaxed text-white/70">
+                  This is different from abandoning the process or leaving the
+                  application incomplete.
+                </p>
+              </div>
+              <div className="mt-8 flex flex-1 items-end">
+                <Link
+                  href={START_HREF}
+                  className="block w-full rounded-brand bg-accent px-6 py-3 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
+                >
+                  Start my refund
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <p className="mx-auto mt-8 max-w-3xl text-center text-sm leading-relaxed text-white/60">
+            If approved, the money is paid directly to the bank account you
+            provide. CompanyPension does not receive, hold or forward approved
+            pension money.
+          </p>
+          <div className="mt-8 flex justify-center">
+            <OutlineLink href={PRICING_HREF}>View full pricing</OutlineLink>
           </div>
         </div>
       </section>
@@ -1333,121 +1485,6 @@ export default function CashOutsAndRefundsPage() {
               term="Unterstützungskasse"
               body="A support-fund structure used for some German company pensions."
             />
-          </div>
-        </div>
-      </section>
-
-      {/* ---- PRICING (Figma 1331:6033) ---- */}
-      <section className="bg-white">
-        <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
-            <SectionHeading
-              eyebrow="Pricing"
-              title="Simple pricing for cash-outs and refunds"
-              body="Every supported process starts with a €199 deposit."
-            />
-          </div>
-          <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
-            <p className="text-lg font-semibold text-brand">If approved:</p>
-            <div className="mt-5">
-              <CheckList
-                items={[
-                  'The success fee is 9.75% of the approved amount',
-                  'The minimum total service fee is €199',
-                  'The €199 deposit is credited toward the final service fee',
-                  'Only the remaining difference becomes due',
-                ]}
-              />
-            </div>
-          </div>
-
-          <div className="mt-12 grid gap-8 lg:grid-cols-2">
-            {/* bAV cash-out pricing */}
-            <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
-              <h3 className="text-xl font-semibold text-brand">
-                bAV and company pension cash-outs
-              </h3>
-              <div className="mt-5 flex flex-wrap items-baseline gap-2">
-                <span className="text-3xl font-bold text-brand">
-                  €199 deposit
-                </span>
-                <span className="text-sm text-gray-600">
-                  (credited toward the final fee)
-                </span>
-              </div>
-              <p className="mt-2 text-base font-semibold text-brand">
-                + 9.75% success fee if approved
-              </p>
-              <div className="mt-6 rounded-2xl bg-neutral-50 p-6">
-                <p className="text-base font-semibold text-brand">
-                  Deposit rule:
-                </p>
-                <p className="mt-2 text-base leading-relaxed text-gray-600">
-                  If the cash-out cannot be submitted after the digital case and
-                  document review:
-                </p>
-                <div className="mt-4">
-                  <CheckList items={['€79 is retained', '€120 is refunded']} />
-                </div>
-                <p className="mt-4 text-sm leading-relaxed text-gray-600">
-                  The retained amount covers the secure claim setup, document
-                  extraction and case review.
-                </p>
-              </div>
-              <div className="mt-8 flex flex-1 items-end">
-                <Link
-                  href={COMPANY_CASH_OUT}
-                  className="block w-full rounded-brand bg-accent px-6 py-3 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
-                >
-                  Start my bAV cash-out
-                </Link>
-              </div>
-            </div>
-
-            {/* refund pricing */}
-            <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
-              <h3 className="text-xl font-semibold text-brand">
-                VBL, ZVK, VddB and VddKO refunds
-              </h3>
-              <div className="mt-5 flex flex-wrap items-baseline gap-2">
-                <span className="text-3xl font-bold text-brand">
-                  €199 deposit
-                </span>
-              </div>
-              <p className="mt-2 text-base font-semibold text-brand">
-                + 9.75% success fee if approved
-              </p>
-              <div className="mt-6 rounded-2xl bg-neutral-50 p-6">
-                <p className="text-base font-semibold text-brand">
-                  Deposit rule:
-                </p>
-                <p className="mt-2 text-base leading-relaxed text-gray-600">
-                  If the pension institution rejects a completed and submitted
-                  refund request, the €199 deposit is refunded in full.
-                </p>
-                <p className="mt-4 text-sm leading-relaxed text-gray-600">
-                  This is different from abandoning the process or leaving the
-                  application incomplete.
-                </p>
-              </div>
-              <div className="mt-8 flex flex-1 items-end">
-                <Link
-                  href={START_HREF}
-                  className="block w-full rounded-brand bg-accent px-6 py-3 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
-                >
-                  Start my refund
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          <p className="mx-auto mt-8 max-w-3xl text-center text-sm leading-relaxed text-gray-500">
-            If approved, the money is paid directly to the bank account you
-            provide. CompanyPension does not receive, hold or forward approved
-            pension money.
-          </p>
-          <div className="mt-8 flex justify-center">
-            <OutlineLink href={PRICING_HREF}>View full pricing</OutlineLink>
           </div>
         </div>
       </section>
