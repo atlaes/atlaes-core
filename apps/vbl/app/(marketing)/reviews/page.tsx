@@ -289,7 +289,7 @@ export default function ReviewsPage() {
         eyebrow="Reviews"
         title="What users say about"
         highlight="CompanyPension"
-        body="Read how users experience the digital application process — from uploading pension documents and completing the guided flow to signing online and receiving an approved cash-out or refund."
+        body="Read how users experience the digital application process—from uploading pension documents and completing the guided flow to signing online and receiving an approved cash-out or refund."
         primaryCta={{ label: 'Start your claim', href: '/get-started' }}
         secondaryCta={{ label: 'Calculate my refund', href: '/calculator' }}
         footnote={

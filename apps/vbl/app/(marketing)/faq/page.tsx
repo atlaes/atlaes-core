@@ -19,6 +19,9 @@ export default function FaqPage() {
         eyebrow="FAQ"
         title="German company pension questions,"
         highlight="answered"
+        // Figma runs "questions, answered" together on the second line rather
+        // than dropping "answered" onto a third line of its own.
+        highlightInline
         body="Answers about bAV cash-outs and VBL, ZVK, VddB and VddKO refunds—including eligibility, DRV differences, pricing, documents and the digital application process."
         primaryCta={{ label: 'Start your claim', href: '/get-started' }}
         secondaryCta={{ label: 'Calculate my refund', href: '/calculator' }}

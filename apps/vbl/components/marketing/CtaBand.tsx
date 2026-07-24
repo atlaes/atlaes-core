@@ -63,7 +63,12 @@ export function CtaBand({
             {eyebrow}
           </span>
         ) : null}
-        <h2 className="max-w-3xl font-display text-3xl font-bold leading-tight tracking-tight sm:text-[2.5rem] sm:leading-[1.15]">
+        {/* max-w-4xl, not 3xl: the FAQ band's "Ready to check your company
+            pension?" needs 778px and Figma renders it on one line, but the old
+            768px cap wrapped it by 10px. Measured across every CtaBand page —
+            how-it-works (506px) and pricing (765px) are unchanged, and
+            home/reviews break via an explicit <br>, so this only unwraps FAQ. */}
+        <h2 className="max-w-4xl font-display text-3xl font-bold leading-tight tracking-tight sm:text-[2.5rem] sm:leading-[1.15]">
           {title}
         </h2>
 
