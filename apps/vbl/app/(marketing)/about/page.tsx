@@ -15,7 +15,10 @@ import {
   User,
 } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
-import { SectionHeading } from '@/components/marketing/SectionHeading';
+import {
+  SectionHeading,
+  FAQ_EYEBROW_WIDTH,
+} from '@/components/marketing/SectionHeading';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import {
   FaqAccordion,
@@ -245,6 +248,7 @@ export default function AboutPage() {
       {/* ---- HERO (Figma 1216:2513) ---- */}
       <Hero
         eyebrow="About CompanyPension"
+        eyebrowWidth={316}
         title="Built to make German"
         highlight="company pension claims easier"
         body={
@@ -426,8 +430,7 @@ export default function AboutPage() {
               eyebrow="Supported claim types"
               title={
                 <>
-                  Cash-outs and refunds for{' '}
-                  <br className="hidden md:block" />
+                  Cash-outs and refunds for <br className="hidden md:block" />
                   German company pensions
                 </>
               }
@@ -490,6 +493,12 @@ export default function AboutPage() {
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="The company behind the platform"
+              // Client feedback 2026-07-23: this pill's text is set in caps.
+              // Uppercasing via CSS rather than the string keeps the copy
+              // readable in source and searchable against the content docs.
+              // `eyebrowClassName` replaces the default border/bg pair, so
+              // those are restated here.
+              eyebrowClassName="border-current/25 bg-current/5 uppercase"
               title="Operated by ATLAES GmbH in Berlin"
             />
           </div>
@@ -586,7 +595,11 @@ export default function AboutPage() {
       <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center">
-            <span className="mb-5 inline-flex items-center rounded-full border border-white/25 bg-white/5 px-4 py-2 text-sm font-medium text-white">
+            {/* 236x40 in Figma (client feedback 2026-07-23). This pill was
+                hand-rolled and never picked up the updated pill treatment its
+                `SectionHeading` siblings have (40px tall, 16px Sora), so it
+                also gains `min-h-10 font-display text-base` here. */}
+            <span className="mb-5 inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-white/25 bg-white/5 px-5 py-1 text-center font-display text-base font-medium text-white sm:w-[236px] sm:whitespace-nowrap">
               Platform scope
             </span>
             <h2 className="max-w-5xl font-display text-3xl font-bold leading-tight tracking-tight text-accent sm:text-[2.5rem] sm:leading-[1.15]">
@@ -698,7 +711,9 @@ export default function AboutPage() {
             </div>
 
             <div className="text-brand">
-              <p className="text-lg font-semibold">The platform allows you to:</p>
+              <p className="text-lg font-semibold">
+                The platform allows you to:
+              </p>
               <GreenCheckList
                 className="mt-6 text-gray-700"
                 items={[
@@ -809,6 +824,7 @@ export default function AboutPage() {
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="FAQ"
+              eyebrowWidth={FAQ_EYEBROW_WIDTH}
               title="Questions about CompanyPension"
               body="CompanyPension is built as a technology platform rather than a traditional claims or advisory service."
             />
@@ -836,8 +852,7 @@ export default function AboutPage() {
           <>
             Start with the{' '}
             <span className="text-accent">
-              pension{' '}
-              <br className="hidden md:block" />
+              pension <br className="hidden md:block" />
               document you already have
             </span>
           </>

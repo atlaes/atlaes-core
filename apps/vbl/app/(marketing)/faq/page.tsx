@@ -1,4 +1,5 @@
 import { Hero } from '@/components/marketing/Hero';
+import { FAQ_EYEBROW_WIDTH } from '@/components/marketing/SectionHeading';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import { FaqExplorer } from '@/components/marketing/FaqExplorer';
 
@@ -17,6 +18,7 @@ export default function FaqPage() {
       {/* ---- HERO (Figma 1199:11653) ---- */}
       <Hero
         eyebrow="FAQ"
+        eyebrowWidth={FAQ_EYEBROW_WIDTH}
         title="German company pension questions,"
         highlight="answered"
         // Figma runs "questions, answered" together on the second line rather

@@ -3,7 +3,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, Calendar, Check, Info, User, X } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
-import { SectionHeading } from '@/components/marketing/SectionHeading';
+import {
+  SectionHeading,
+  FAQ_EYEBROW_WIDTH,
+} from '@/components/marketing/SectionHeading';
 import { StepCard } from '@/components/marketing/StepCard';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import { ImportantCallout } from '@/components/marketing/ImportantCallout';
@@ -168,6 +171,7 @@ export default function RefundCalculatorPage() {
       {/* ---- HERO (Figma 1338:3012) ---- */}
       <Hero
         eyebrow="Refund calculator"
+        eyebrowWidth={259}
         title="Estimate your VBL, ZVK, VddB or VddKO refund"
         body="Upload a pension document or enter what you know to receive a first estimate. You can review the result before deciding whether to continue with your refund application online."
         primaryCta={{
@@ -256,6 +260,7 @@ export default function RefundCalculatorPage() {
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="Start your estimate"
+              eyebrowWidth={272}
               title="Upload a document or enter the details yourself"
               body="Choose whichever option is easier for you."
             />
@@ -933,6 +938,7 @@ export default function RefundCalculatorPage() {
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="FAQ"
+              eyebrowWidth={FAQ_EYEBROW_WIDTH}
               title="Questions about estimating your refund"
             />
           </div>

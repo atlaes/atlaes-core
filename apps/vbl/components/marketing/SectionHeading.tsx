@@ -1,5 +1,13 @@
 import type { CSSProperties, ReactNode } from 'react';
 
+/**
+ * Width of the "FAQ" eyebrow pill. Unlike the other pills — whose widths the
+ * client specifies per section — this one is a global rule from the client's
+ * 2026-07-23 review ("All FAQ badge pill should be 136x40"), so it lives here
+ * rather than being repeated as a literal at all 13 FAQ sections.
+ */
+export const FAQ_EYEBROW_WIDTH = 136;
+
 export interface SectionHeadingProps {
   eyebrow?: string;
   title: ReactNode;

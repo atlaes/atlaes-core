@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ChevronRight } from 'lucide-react';
@@ -11,6 +11,14 @@ interface CtaLink {
 
 export interface HeroProps {
   eyebrow?: string;
+  /**
+   * Exact hero pill width in px, from the Figma design (client feedback gives
+   * these per page, e.g. Pricing = 164x40, About = 316x40). Mirrors
+   * `SectionHeading`'s prop of the same name — height is always 40px
+   * (`min-h-10` below), so only the width varies, and heroes that don't pass
+   * it stay auto-width.
+   */
+  eyebrowWidth?: number;
   title: string;
   highlight?: string;
   /**
@@ -73,6 +81,7 @@ export interface HeroProps {
  */
 export function Hero({
   eyebrow,
+  eyebrowWidth,
   title,
   highlight,
   highlightInline = false,
@@ -148,8 +157,19 @@ export function Hero({
             the dark brand green renders as effectively no fill at all, while
             Figma shows a clearly lighter pill on both the home and
             how-it-works heroes (sampled ≈#305818 over the #103000 hero bg). */}
+        {/* The Figma pill width is applied from `sm` up only (via the CSS
+            variable below), and the pill may wrap on narrow phones — a fixed
+            width plus `nowrap` would overflow the viewport for longer
+            eyebrows. Same approach as `SectionHeading`. */}
         {eyebrow ? (
-          <span className="mb-6 inline-flex min-h-10 items-center rounded-full border border-accent/40 bg-accent/20 px-5 py-1 font-display text-base font-medium text-white">
+          <span
+            className="mb-6 inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-accent/40 bg-accent/20 px-5 py-1 text-center font-display text-base font-medium text-white sm:w-[var(--pill-w)] sm:whitespace-nowrap"
+            style={
+              eyebrowWidth
+                ? ({ '--pill-w': `${eyebrowWidth}px` } as CSSProperties)
+                : undefined
+            }
+          >
             {eyebrow}
           </span>
         ) : null}

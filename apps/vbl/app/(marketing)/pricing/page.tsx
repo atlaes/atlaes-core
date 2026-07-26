@@ -258,6 +258,7 @@ export default function PricingPage() {
       {/* ---- HERO (Figma 1187:4339) ---- */}
       <Hero
         eyebrow="Pricing"
+        eyebrowWidth={164}
         title="Simple pricing for"
         highlight="cash-outs and refunds"
         body={

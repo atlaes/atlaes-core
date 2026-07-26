@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { Hero } from '@/components/marketing/Hero';
-import { SectionHeading } from '@/components/marketing/SectionHeading';
+import {
+  SectionHeading,
+  FAQ_EYEBROW_WIDTH,
+} from '@/components/marketing/SectionHeading';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import {
   ReviewsExplorer,
@@ -287,6 +290,7 @@ export default function ReviewsPage() {
       {/* ---- HERO (Figma 1206:20003) ---- */}
       <Hero
         eyebrow="Reviews"
+        eyebrowWidth={171}
         title="What users say about"
         highlight="CompanyPension"
         body="Read how users experience the digital application process—from uploading pension documents and completing the guided flow to signing online and receiving an approved cash-out or refund."
@@ -313,6 +317,7 @@ export default function ReviewsPage() {
           <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="Independent feedback"
+              eyebrowWidth={303}
               eyebrowClassName={EYEBROW_LIGHT}
               title="Reviews from CompanyPension users"
               body="Read third-party reviews from users who used CompanyPension for bAV cash-outs, VBL and ZVK refunds, VddB and VddKO refunds, and other German company pension cases."
@@ -369,6 +374,7 @@ export default function ReviewsPage() {
           <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="What users mention"
+              eyebrowWidth={278}
               eyebrowClassName={EYEBROW_LIGHT}
               title="What users tend to highlight"
               body="Published reviews often mention the following parts of the experience."
@@ -416,7 +422,10 @@ export default function ReviewsPage() {
         />
         <div className={`relative ${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center">
-            <span className="mb-5 inline-flex items-center rounded-full border border-white/60 px-6 py-2 text-sm font-semibold tracking-wide">
+            {/* 271x40 in Figma (client feedback 2026-07-23). Hand-rolled pill
+                that never picked up the updated treatment (40px, 16px Sora)
+                used by the `SectionHeading` pills elsewhere on this page. */}
+            <span className="mb-5 inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-white/60 px-5 py-1 text-center font-display text-base font-medium sm:w-[271px] sm:whitespace-nowrap">
               The digital process
             </span>
             <h2 className="max-w-3xl font-display text-3xl font-bold leading-tight tracking-tight text-accent sm:text-[2.5rem] sm:leading-[1.15]">
@@ -468,6 +477,7 @@ export default function ReviewsPage() {
           <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="FAQ"
+              eyebrowWidth={FAQ_EYEBROW_WIDTH}
               eyebrowClassName={EYEBROW_LIGHT}
               title="Questions about the review experience"
             />

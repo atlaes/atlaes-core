@@ -1,0 +1,273 @@
+- generic [active] [ref=f5e1]:
+  - generic [ref=f5e3]:
+    - banner [ref=f5e4]:
+      - generic [ref=f5e6]:
+        - link "Company Pension home" [ref=f5e7] [cursor=pointer]:
+          - /url: /
+          - img "Company Pension Cash-outs & Refunds" [ref=f5e8]
+        - navigation "Primary" [ref=f5e9]:
+          - link "How it works" [ref=f5e10] [cursor=pointer]:
+            - /url: /how-it-works
+          - link "Pricing" [ref=f5e11] [cursor=pointer]:
+            - /url: /pricing
+          - link "FAQ" [ref=f5e12] [cursor=pointer]:
+            - /url: /faq
+          - link "About" [ref=f5e13] [cursor=pointer]:
+            - /url: /about
+          - link "Cash-outs & Refunds" [ref=f5e14] [cursor=pointer]:
+            - /url: /cash-outs-and-refunds
+        - link "Start your claim" [ref=f5e15] [cursor=pointer]:
+          - /url: /get-started
+    - main [ref=f5e16]:
+      - generic [ref=f5e18]:
+        - generic [ref=f5e19]: Reviews
+        - heading "What users say about CompanyPension" [level=1] [ref=f5e20]:
+          - text: What users say about
+          - generic [ref=f5e21]: CompanyPension
+        - generic [ref=f5e22]: Read how users experience the digital application process—from uploading pension documents and completing the guided flow to signing online and receiving an approved cash-out or refund.
+        - generic [ref=f5e23]:
+          - link "Start your claim" [ref=f5e24] [cursor=pointer]:
+            - /url: /get-started
+          - link "Calculate my refund" [ref=f5e25] [cursor=pointer]:
+            - /url: /calculator
+        - generic [ref=f5e26]:
+          - paragraph [ref=f5e27]: The refund calculator is available for VBL, ZVK, VddB and VddKO. It is not used for bAV cash-outs.
+          - paragraph [ref=f5e28]: If approved, the money is paid directly to the bank account you provide. CompanyPension does not receive, hold or forward approved pension money.
+      - generic [ref=f5e30]:
+        - generic [ref=f5e31]:
+          - generic [ref=f5e32]:
+            - generic [ref=f5e33]: Independent feedback
+            - heading "Reviews from CompanyPension users" [level=2] [ref=f5e34]
+            - paragraph [ref=f5e35]: Read third-party reviews from users who used CompanyPension for bAV cash-outs, VBL and ZVK refunds, VddB and VddKO refunds, and other German company pension cases.
+          - paragraph [ref=f5e36]: Real experiences with the CompanyPension digital application platform.
+        - generic [ref=f5e37]:
+          - 'img "Google Rating: 4.9 out of 5 from 525 reviews" [ref=f5e38]'
+          - 'img "Trustpilot: 4.8 out of 5 based on 245 reviews" [ref=f5e39]'
+          - 'img "ProvenExpert: Excellent, 100% recommended from 325 customer reviews" [ref=f5e40]'
+        - paragraph [ref=f5e41]: Read verified third-party reviews from users who used CompanyPension for bAV cash-outs, VBL refunds, ZVK refunds, VddB/VddKO refunds and other German company pension cases.
+        - generic [ref=f5e42]:
+          - paragraph [ref=f5e43]: Trusted by users across company pension refund and cash-out cases
+          - img "Reviewer profile photos" [ref=f5e44]
+      - generic [ref=f5e46]:
+        - generic [ref=f5e48]:
+          - generic [ref=f5e49]: What users mention
+          - heading "What users tend to highlight" [level=2] [ref=f5e50]
+          - paragraph [ref=f5e51]: Published reviews often mention the following parts of the experience.
+        - generic [ref=f5e52]:
+          - generic [ref=f5e53]:
+            - generic [ref=f5e54]: "01"
+            - heading "Clear English-language guidance" [level=3] [ref=f5e55]
+            - paragraph [ref=f5e56]: A guided online flow that makes German pension steps easier to understand.
+          - generic [ref=f5e57]:
+            - generic [ref=f5e58]: "02"
+            - heading "Upload instead of typing everything" [level=3] [ref=f5e59]
+            - paragraph [ref=f5e60]: Users can upload pension documents so key information can be extracted and pre-filled for review.
+          - generic [ref=f5e61]:
+            - generic [ref=f5e62]: "03"
+            - heading "Simple digital signing" [level=3] [ref=f5e63]
+            - paragraph [ref=f5e64]: Applications can be reviewed and signed online without printing and mailing German forms.
+          - generic [ref=f5e65]:
+            - generic [ref=f5e66]: "04"
+            - heading "Clear next steps" [level=3] [ref=f5e67]
+            - paragraph [ref=f5e68]: The platform shows what information, document or action is still needed as the application progresses.
+          - generic [ref=f5e69]:
+            - generic [ref=f5e70]: "05"
+            - heading "Human support when needed" [level=3] [ref=f5e71]
+            - paragraph [ref=f5e72]: Support is available when a document, provider letter or follow-up request needs clarification or translation.
+          - generic [ref=f5e73]:
+            - generic [ref=f5e74]: "06"
+            - heading "Approved money paid directly" [level=3] [ref=f5e75]
+            - paragraph [ref=f5e76]: If approved, the provider or pension institution pays the money directly to the bank account the user provides.
+      - generic [ref=f5e78]:
+        - generic [ref=f5e80]:
+          - heading "Latest CompanyPension reviews" [level=2] [ref=f5e81]
+          - paragraph [ref=f5e82]: Read recent feedback from users of the CompanyPension platform.
+        - generic [ref=f5e83]:
+          - generic [ref=f5e84]:
+            - button "All" [pressed] [ref=f5e85] [cursor=pointer]
+            - button "bAV cash-outs" [ref=f5e86] [cursor=pointer]
+            - button "VBL and ZVK refunds" [ref=f5e87] [cursor=pointer]
+            - button "VddB and VddKO refunds" [ref=f5e88] [cursor=pointer]
+            - button "Digital process" [ref=f5e89] [cursor=pointer]
+            - button "Support" [ref=f5e90] [cursor=pointer]
+          - generic [ref=f5e91]:
+            - figure [ref=f5e92]:
+              - generic [ref=f5e93]:
+                - generic [ref=f5e94]:
+                  - generic [ref=f5e95]: DR
+                  - generic [ref=f5e96]: David R.
+                - img "Netherlands" [ref=f5e98]
+              - generic [ref=f5e99]: bAV Cash-Out
+              - blockquote [ref=f5e103]: CompanyPension made the VBL refund process incredibly easy. Everything was handled professionally and I received my refund faster than expected. Excellent service from start to finish.
+              - separator [ref=f5e104]
+              - generic [ref=f5e105]:
+                - img "4 out of 5 stars" [ref=f5e106]
+                - generic [ref=f5e117]: March 2025
+            - figure [ref=f5e118]:
+              - generic [ref=f5e119]:
+                - generic [ref=f5e120]:
+                  - generic [ref=f5e121]: SM
+                  - generic [ref=f5e122]: Sarah M.
+                - img "United Kingdom" [ref=f5e124]
+              - generic [ref=f5e125]: bAV Cash-Out
+              - blockquote [ref=f5e129]: I thought cashing out my German company pension would be complicated, but the process was very clear. The team responded quickly and kept me updated throughout.
+              - separator [ref=f5e130]
+              - generic [ref=f5e131]:
+                - img "5 out of 5 stars" [ref=f5e132]
+                - generic [ref=f5e143]: February 2026
+            - figure [ref=f5e144]:
+              - generic [ref=f5e145]:
+                - generic [ref=f5e146]:
+                  - generic [ref=f5e147]: EL
+                  - generic [ref=f5e148]: Emma L.
+                - img "Spain" [ref=f5e150]
+              - generic [ref=f5e151]: VBL Refund
+              - blockquote [ref=f5e155]: Very smooth experience. I uploaded my documents, followed the online steps, and got clear updates whenever something was needed. Much easier than dealing with German provider letters myself.
+              - separator [ref=f5e156]
+              - generic [ref=f5e157]:
+                - img "5 out of 5 stars" [ref=f5e158]
+                - generic [ref=f5e169]: March 2026
+            - figure [ref=f5e170]:
+              - generic [ref=f5e171]:
+                - generic [ref=f5e172]:
+                  - generic [ref=f5e173]: LK
+                  - generic [ref=f5e174]: Laura K.
+                - img "France" [ref=f5e176]
+              - generic [ref=f5e177]: ZVK Refund
+              - blockquote [ref=f5e181]: From the first contact to the final payment, everything was perfect. They answered all my questions and made a complex process feel simple. Thank you!
+              - separator [ref=f5e182]
+              - generic [ref=f5e183]:
+                - img "5 out of 5 stars" [ref=f5e184]
+                - generic [ref=f5e195]: December 2025
+            - figure [ref=f5e196]:
+              - generic [ref=f5e197]:
+                - generic [ref=f5e198]:
+                  - generic [ref=f5e199]: MB
+                  - generic [ref=f5e200]: Michael B.
+                - img "France" [ref=f5e202]
+              - generic [ref=f5e203]: VddB/VddKO Refund
+              - blockquote [ref=f5e207]: From the first contact to the final payment, everything was perfect. They answered all my questions and made a complex process feel simple. Thank you!
+              - separator [ref=f5e208]
+              - generic [ref=f5e209]:
+                - img "5 out of 5 stars" [ref=f5e210]
+                - generic [ref=f5e221]: January 2026
+            - figure [ref=f5e222]:
+              - generic [ref=f5e223]:
+                - generic [ref=f5e224]:
+                  - generic [ref=f5e225]: JT
+                  - generic [ref=f5e226]: James T.
+                - img "Germany" [ref=f5e228]
+              - generic [ref=f5e229]: bAV Cash-Out
+              - blockquote [ref=f5e233]: Great experience! They helped me claim my public-sector pension refund quickly and guided me through every step. Very professional and trustworthy team.
+              - separator [ref=f5e234]
+              - generic [ref=f5e235]:
+                - img "5 out of 5 stars" [ref=f5e236]
+                - generic [ref=f5e247]: November 2025
+      - generic [ref=f5e249]:
+        - generic [ref=f5e250]:
+          - generic [ref=f5e251]: The digital process
+          - heading "Built for online pension applications" [level=2] [ref=f5e252]
+        - generic [ref=f5e253]:
+          - paragraph [ref=f5e254]: CompanyPension is a digital application platform for German company pension cash-outs and refunds.
+          - paragraph [ref=f5e255]: Upload a pension document or answer guided questions. The platform extracts available details, adapts the flow to your pension type and prepares the application from the information you provide.
+          - paragraph [ref=f5e256]: You review and sign the application yourself. After signing, it is technically transmitted to the relevant provider, pension scheme or institution through the CompanyPension platform.
+          - paragraph [ref=f5e257]: Most standard steps run digitally and automatically. Human support is added when clarification, translation or follow-up is needed.
+        - generic [ref=f5e258]:
+          - link "See how it works" [ref=f5e259] [cursor=pointer]:
+            - /url: /how-it-works
+          - link "View pricing" [ref=f5e260] [cursor=pointer]:
+            - /url: /pricing
+      - generic [ref=f5e262]:
+        - generic [ref=f5e264]:
+          - generic [ref=f5e265]: FAQ
+          - heading "Questions about the review experience" [level=2] [ref=f5e266]
+        - generic [ref=f5e268]:
+          - generic [ref=f5e269]:
+            - button "Are these reviews independent?" [expanded] [ref=f5e270] [cursor=pointer]
+            - generic [ref=f5e273]:
+              - paragraph [ref=f5e274]: The reviews displayed on this page come from the third-party review platforms identified next to each review.
+              - paragraph [ref=f5e275]: Where the review platform marks a review as verified, that status is shown. CompanyPension does not change the reviewer’s original rating or meaning.
+          - button "Is the CompanyPension process fully online?" [ref=f5e277] [cursor=pointer]
+          - button "Can I upload pension documents instead of entering everything manually?" [ref=f5e281] [cursor=pointer]
+          - button "Do I have to manage German pension correspondence myself?" [ref=f5e285] [cursor=pointer]
+          - button "Does CompanyPension decide whether my application is approved?" [ref=f5e289] [cursor=pointer]
+          - button "Who receives the approved money?" [ref=f5e293] [cursor=pointer]
+          - button "Do reviews guarantee that my case will be approved?" [ref=f5e297] [cursor=pointer]
+        - link "See all FAQs" [ref=f5e301] [cursor=pointer]:
+          - /url: /faq
+      - generic [ref=f5e303]:
+        - generic [ref=f5e304]: Start online
+        - heading "Ready to start your company pension claim?" [level=2] [ref=f5e305]
+        - paragraph [ref=f5e306]: Upload your pension document or answer guided questions to start a bAV cash-out or company pension refund. For VBL, ZVK, VddB and VddKO refunds, you can also calculate a first estimate before continuing.
+        - generic [ref=f5e307]:
+          - link "Start your claim" [ref=f5e308] [cursor=pointer]:
+            - /url: /get-started
+          - link "Calculate my refund" [ref=f5e309] [cursor=pointer]:
+            - /url: /calculator
+        - paragraph [ref=f5e310]:
+          - generic [ref=f5e311]: The refund calculator is available for VBL, ZVK, VddB and VddKO. It is not used for bAV cash-outs.
+          - generic [ref=f5e312]: If approved, the money is paid directly to the bank account you provide. CompanyPension does not receive, hold or forward approved pension money.
+    - contentinfo [ref=f5e313]:
+      - generic [ref=f5e314]:
+        - generic [ref=f5e315]:
+          - generic [ref=f5e316]:
+            - img "Company Pension Cash-outs & Refunds" [ref=f5e317]
+            - paragraph [ref=f5e318]: Cash out or refund your German company pension online through a guided digital process, with human support when clarification or follow-up is needed.
+            - paragraph [ref=f5e319]: Operated by ATLAES GmbH, Kaskelstraße 46, 10317 Berlin, Germany.
+          - generic [ref=f5e320]:
+            - generic [ref=f5e321]:
+              - heading "COMPANY" [level=2] [ref=f5e322]
+              - list [ref=f5e323]:
+                - listitem [ref=f5e324]:
+                  - link "About" [ref=f5e325] [cursor=pointer]:
+                    - /url: /about
+                - listitem [ref=f5e326]:
+                  - link "Reviews" [ref=f5e327] [cursor=pointer]:
+                    - /url: /reviews
+                - listitem [ref=f5e328]:
+                  - link "How It Works" [ref=f5e329] [cursor=pointer]:
+                    - /url: /how-it-works
+                - listitem [ref=f5e330]:
+                  - link "Pricing" [ref=f5e331] [cursor=pointer]:
+                    - /url: /pricing
+                - listitem [ref=f5e332]:
+                  - link "FAQ" [ref=f5e333] [cursor=pointer]:
+                    - /url: /faq
+                - listitem [ref=f5e334]:
+                  - link "Contact" [ref=f5e335] [cursor=pointer]:
+                    - /url: /contact
+            - generic [ref=f5e336]:
+              - heading "LEGAL" [level=2] [ref=f5e337]
+              - list [ref=f5e338]:
+                - listitem [ref=f5e339]:
+                  - link "Imprint" [ref=f5e340] [cursor=pointer]:
+                    - /url: /imprint
+                - listitem [ref=f5e341]:
+                  - link "Privacy Policy" [ref=f5e342] [cursor=pointer]:
+                    - /url: /privacy-policy
+                - listitem [ref=f5e343]:
+                  - link "Cookie Policy / Cookie Settings" [ref=f5e344] [cursor=pointer]:
+                    - /url: /cookie-policy
+                - listitem [ref=f5e345]:
+                  - link "Terms and Conditions" [ref=f5e346] [cursor=pointer]:
+                    - /url: /terms
+                - listitem [ref=f5e347]:
+                  - link "Payment Terms" [ref=f5e348] [cursor=pointer]:
+                    - /url: /payment-terms
+                - listitem [ref=f5e349]:
+                  - link "Revocation" [ref=f5e350] [cursor=pointer]:
+                    - /url: /revocation
+            - generic [ref=f5e351]:
+              - heading "PRIVACY REQUESTS" [level=2] [ref=f5e352]
+              - list [ref=f5e353]:
+                - listitem [ref=f5e354]:
+                  - link "Data Access Request" [ref=f5e355] [cursor=pointer]:
+                    - /url: /data-access-request
+                - listitem [ref=f5e356]:
+                  - link "Data Deletion Request" [ref=f5e357] [cursor=pointer]:
+                    - /url: /data-deletion-request
+        - generic [ref=f5e358]:
+          - paragraph [ref=f5e359]: CompanyPension is a digital application platform and brand operated by ATLAES GmbH.
+          - paragraph [ref=f5e360]: The platform uses the information provided by users to complete their applications. Users review and sign their applications themselves and remain the applicant and claimant throughout the process. After signing, ATLAES GmbH technically transmits the application to the relevant pension provider, scheme or institution. Where authorised, ATLAES GmbH may receive and forward correspondence and information about the final decision. Neither CompanyPension nor ATLAES GmbH provides legal, pension, tax, insurance or financial advice or acts as the claimant. Approval and payment decisions are made by the relevant provider, pension scheme or institution. Approved funds are paid directly to the bank account provided by the user. ATLAES GmbH does not receive, hold or forward approved pension money. If separate legal services are needed for a specific case, they are provided by the responsible legal partner under a separate arrangement.
+        - paragraph [ref=f5e362]: Copyright © 2026 Company Pension. All rights reserved.
+  - alert [ref=f5e363]

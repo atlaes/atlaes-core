@@ -3,7 +3,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Check, ChevronRight, Info, X } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
-import { SectionHeading } from '@/components/marketing/SectionHeading';
+import {
+  SectionHeading,
+  FAQ_EYEBROW_WIDTH,
+} from '@/components/marketing/SectionHeading';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import {
   FaqAccordion,
@@ -697,6 +700,7 @@ export default function HowItWorksPage() {
           <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="FAQ"
+              eyebrowWidth={FAQ_EYEBROW_WIDTH}
               eyebrowClassName={EYEBROW_LIGHT}
               title="Questions about the digital process"
             />

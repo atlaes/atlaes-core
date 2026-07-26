@@ -1,0 +1,155 @@
+- generic [active] [ref=f9e1]:
+  - generic [ref=f9e3]:
+    - banner [ref=f9e4]:
+      - generic [ref=f9e6]:
+        - link "Company Pension home" [ref=f9e7] [cursor=pointer]:
+          - /url: /
+          - img "Company Pension Cash-outs & Refunds" [ref=f9e8]
+        - navigation "Primary" [ref=f9e9]:
+          - link "How it works" [ref=f9e10] [cursor=pointer]:
+            - /url: /how-it-works
+          - link "Pricing" [ref=f9e11] [cursor=pointer]:
+            - /url: /pricing
+          - link "FAQ" [ref=f9e12] [cursor=pointer]:
+            - /url: /faq
+          - link "About" [ref=f9e13] [cursor=pointer]:
+            - /url: /about
+          - link "Cash-outs & Refunds" [ref=f9e14] [cursor=pointer]:
+            - /url: /cash-outs-and-refunds
+        - link "Start your claim" [ref=f9e15] [cursor=pointer]:
+          - /url: /get-started
+    - main [ref=f9e16]:
+      - generic [ref=f9e18]:
+        - generic [ref=f9e19]: FAQ
+        - heading "German company pension questions, answered" [level=1] [ref=f9e20]
+        - generic [ref=f9e21]: Answers about bAV cash-outs and VBL, ZVK, VddB and VddKO refunds—including eligibility, DRV differences, pricing, documents and the digital application process.
+        - generic [ref=f9e22]:
+          - link "Start your claim" [ref=f9e23] [cursor=pointer]:
+            - /url: /get-started
+          - link "Calculate my refund" [ref=f9e24] [cursor=pointer]:
+            - /url: /calculator
+        - generic [ref=f9e25]:
+          - paragraph [ref=f9e26]: The refund calculator is available for VBL, ZVK, VddB and VddKO. It is not used for bAV cash-outs.
+          - paragraph [ref=f9e27]: If approved, the money is paid directly to the bank account you provide. CompanyPension does not receive, hold or forward approved pension money.
+      - generic [ref=f9e30]:
+        - textbox "Search company pension questions" [ref=f9e35]
+        - generic [ref=f9e36]:
+          - generic [ref=f9e37]: "Popular searches:"
+          - button "bAV" [ref=f9e38] [cursor=pointer]
+          - button "Direktversicherung" [ref=f9e39] [cursor=pointer]
+          - button "Allianz" [ref=f9e40] [cursor=pointer]
+          - button "AXA" [ref=f9e41] [cursor=pointer]
+          - button "Swiss Life" [ref=f9e42] [cursor=pointer]
+          - button "ERGO" [ref=f9e43] [cursor=pointer]
+          - button "R+V" [ref=f9e44] [cursor=pointer]
+          - button "BVV" [ref=f9e45] [cursor=pointer]
+          - button "VBL" [ref=f9e46] [cursor=pointer]
+          - button "VBLklassik" [ref=f9e47] [cursor=pointer]
+          - button "VBLextra" [ref=f9e48] [cursor=pointer]
+          - button "ZVK" [ref=f9e49] [cursor=pointer]
+          - button "VddB" [ref=f9e50] [cursor=pointer]
+          - button "VddKO" [ref=f9e51] [cursor=pointer]
+          - button "DRV" [ref=f9e52] [cursor=pointer]
+          - button "Abfindung" [ref=f9e53] [cursor=pointer]
+          - button "Deposit" [ref=f9e54] [cursor=pointer]
+          - button "Bank account" [ref=f9e55] [cursor=pointer]
+        - generic [ref=f9e56]:
+          - button "General questions" [pressed] [ref=f9e57] [cursor=pointer]
+          - button "bAV cash-outs" [ref=f9e58] [cursor=pointer]
+          - button "VBL and ZVK refunds" [ref=f9e59] [cursor=pointer]
+          - button "VddB and VddKO refunds" [ref=f9e60] [cursor=pointer]
+          - button "Digital process and documents" [ref=f9e61] [cursor=pointer]
+          - button "Pricing and payment" [ref=f9e62] [cursor=pointer]
+        - generic [ref=f9e64]:
+          - generic [ref=f9e65]:
+            - button "What is a company pension refund?" [expanded] [ref=f9e66] [cursor=pointer]
+            - generic [ref=f9e69]:
+              - paragraph [ref=f9e70]: A company pension refund means applying to get eligible employee contributions back from a contribution-based company pension scheme.
+              - paragraph [ref=f9e71]: This commonly applies to VBL, ZVK, VddB and VddKO cases.
+              - paragraph [ref=f9e72]: Usually, only eligible contributions paid by you as the employee are refundable. Employer-paid amounts are generally not refunded to you.
+              - paragraph [ref=f9e73]: A company pension refund is separate from a German state pension refund through Deutsche Rentenversicherung.
+          - button "What is the difference between a refund and a bAV cash-out?" [ref=f9e75] [cursor=pointer]
+          - button "What is the difference between a company pension and the German state pension?" [ref=f9e79] [cursor=pointer]
+          - button "Can I receive both a German state pension refund and money from my company pension?" [ref=f9e83] [cursor=pointer]
+          - button "Do I need to live outside Germany or the EU?" [ref=f9e87] [cursor=pointer]
+          - button "Do I need to wait 24 months?" [ref=f9e91] [cursor=pointer]
+          - button "How much money can I get?" [ref=f9e95] [cursor=pointer]
+          - button "How long does the process usually take?" [ref=f9e99] [cursor=pointer]
+          - button "Do I need a German bank account?" [ref=f9e103] [cursor=pointer]
+          - button "Who receives the approved money?" [ref=f9e107] [cursor=pointer]
+      - generic [ref=f9e111]:
+        - generic [ref=f9e112]: Start online
+        - heading "Ready to check your company pension?" [level=2] [ref=f9e113]
+        - paragraph [ref=f9e114]: Start the guided claim flow for a bAV cash-out or a VBL, ZVK, VddB or VddKO refund. For refund cases, you can also calculate a first estimate before continuing.
+        - generic [ref=f9e115]:
+          - link "Start your claim" [ref=f9e116] [cursor=pointer]:
+            - /url: /get-started
+          - link "Calculate my refund" [ref=f9e117] [cursor=pointer]:
+            - /url: /calculator
+        - paragraph [ref=f9e118]:
+          - generic [ref=f9e119]: The refund calculator is available for VBL, ZVK, VddB and VddKO. It is not used for bAV cash-outs.
+          - generic [ref=f9e120]: If approved, the money is paid directly to the bank account you provide. CompanyPension does not receive, hold or forward approved pension money.
+    - contentinfo [ref=f9e121]:
+      - generic [ref=f9e122]:
+        - generic [ref=f9e123]:
+          - generic [ref=f9e124]:
+            - img "Company Pension Cash-outs & Refunds" [ref=f9e125]
+            - paragraph [ref=f9e126]: Cash out or refund your German company pension online through a guided digital process, with human support when clarification or follow-up is needed.
+            - paragraph [ref=f9e127]: Operated by ATLAES GmbH, Kaskelstraße 46, 10317 Berlin, Germany.
+          - generic [ref=f9e128]:
+            - generic [ref=f9e129]:
+              - heading "COMPANY" [level=2] [ref=f9e130]
+              - list [ref=f9e131]:
+                - listitem [ref=f9e132]:
+                  - link "About" [ref=f9e133] [cursor=pointer]:
+                    - /url: /about
+                - listitem [ref=f9e134]:
+                  - link "Reviews" [ref=f9e135] [cursor=pointer]:
+                    - /url: /reviews
+                - listitem [ref=f9e136]:
+                  - link "How It Works" [ref=f9e137] [cursor=pointer]:
+                    - /url: /how-it-works
+                - listitem [ref=f9e138]:
+                  - link "Pricing" [ref=f9e139] [cursor=pointer]:
+                    - /url: /pricing
+                - listitem [ref=f9e140]:
+                  - link "FAQ" [ref=f9e141] [cursor=pointer]:
+                    - /url: /faq
+                - listitem [ref=f9e142]:
+                  - link "Contact" [ref=f9e143] [cursor=pointer]:
+                    - /url: /contact
+            - generic [ref=f9e144]:
+              - heading "LEGAL" [level=2] [ref=f9e145]
+              - list [ref=f9e146]:
+                - listitem [ref=f9e147]:
+                  - link "Imprint" [ref=f9e148] [cursor=pointer]:
+                    - /url: /imprint
+                - listitem [ref=f9e149]:
+                  - link "Privacy Policy" [ref=f9e150] [cursor=pointer]:
+                    - /url: /privacy-policy
+                - listitem [ref=f9e151]:
+                  - link "Cookie Policy / Cookie Settings" [ref=f9e152] [cursor=pointer]:
+                    - /url: /cookie-policy
+                - listitem [ref=f9e153]:
+                  - link "Terms and Conditions" [ref=f9e154] [cursor=pointer]:
+                    - /url: /terms
+                - listitem [ref=f9e155]:
+                  - link "Payment Terms" [ref=f9e156] [cursor=pointer]:
+                    - /url: /payment-terms
+                - listitem [ref=f9e157]:
+                  - link "Revocation" [ref=f9e158] [cursor=pointer]:
+                    - /url: /revocation
+            - generic [ref=f9e159]:
+              - heading "PRIVACY REQUESTS" [level=2] [ref=f9e160]
+              - list [ref=f9e161]:
+                - listitem [ref=f9e162]:
+                  - link "Data Access Request" [ref=f9e163] [cursor=pointer]:
+                    - /url: /data-access-request
+                - listitem [ref=f9e164]:
+                  - link "Data Deletion Request" [ref=f9e165] [cursor=pointer]:
+                    - /url: /data-deletion-request
+        - generic [ref=f9e166]:
+          - paragraph [ref=f9e167]: CompanyPension is a digital application platform and brand operated by ATLAES GmbH.
+          - paragraph [ref=f9e168]: The platform uses the information provided by users to complete their applications. Users review and sign their applications themselves and remain the applicant and claimant throughout the process. After signing, ATLAES GmbH technically transmits the application to the relevant pension provider, scheme or institution. Where authorised, ATLAES GmbH may receive and forward correspondence and information about the final decision. Neither CompanyPension nor ATLAES GmbH provides legal, pension, tax, insurance or financial advice or acts as the claimant. Approval and payment decisions are made by the relevant provider, pension scheme or institution. Approved funds are paid directly to the bank account provided by the user. ATLAES GmbH does not receive, hold or forward approved pension money. If separate legal services are needed for a specific case, they are provided by the responsible legal partner under a separate arrangement.
+        - paragraph [ref=f9e170]: Copyright © 2026 Company Pension. All rights reserved.
+  - alert [ref=f9e171]

@@ -2,7 +2,10 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Check, Info } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
-import { SectionHeading } from '@/components/marketing/SectionHeading';
+import {
+  SectionHeading,
+  FAQ_EYEBROW_WIDTH,
+} from '@/components/marketing/SectionHeading';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import { ImportantCallout } from '@/components/marketing/ImportantCallout';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
@@ -866,7 +869,11 @@ export default function VblVsDrvPage() {
       <section className="bg-neutral-50">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
-            <SectionHeading eyebrow="FAQ" title="Common questions" />
+            <SectionHeading
+              eyebrow="FAQ"
+              eyebrowWidth={FAQ_EYEBROW_WIDTH}
+              title="Common questions"
+            />
           </div>
           <div className="mx-auto mt-12 max-w-4xl">
             <FaqAccordion

@@ -1,0 +1,351 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e6]:
+      - link "Company Pension home" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - img "Company Pension Cash-outs & Refunds" [ref=e8]
+      - navigation "Primary" [ref=e9]:
+        - link "How it works" [ref=e10] [cursor=pointer]:
+          - /url: /how-it-works
+        - link "Pricing" [ref=e11] [cursor=pointer]:
+          - /url: /pricing
+        - link "FAQ" [ref=e12] [cursor=pointer]:
+          - /url: /faq
+        - link "About" [ref=e13] [cursor=pointer]:
+          - /url: /about
+        - link "Cash-outs & Refunds" [ref=e14] [cursor=pointer]:
+          - /url: /cash-outs-and-refunds
+      - link "Start your claim" [ref=e15] [cursor=pointer]:
+        - /url: /get-started
+  - main [ref=e16]:
+    - generic [ref=e18]:
+      - generic [ref=e19]: Worked in Germany and have a company pension?
+      - heading "Cash out or refund your German company pension online" [level=1] [ref=e20]:
+        - text: Cash out or refund your German
+        - generic [ref=e21]: company pension online
+      - generic [ref=e22]: For bAV cash-outs and VBL, ZVK, VddB and VddKO refunds. Check your case, add your documents, sign and submit online, with human support when clarification or follow-up is needed.
+      - generic [ref=e23]:
+        - link "Start your claim" [ref=e24] [cursor=pointer]:
+          - /url: /get-started
+        - link "See how it works" [ref=e25] [cursor=pointer]:
+          - /url: /how-it-works
+      - generic [ref=e26]:
+        - paragraph [ref=e27]: Supports bAV documents from Allianz, AXA, Swiss Life, ERGO, R+V, Nürnberger, HDI, BVV and other German pension or insurance providers.
+        - paragraph [ref=e28]: Also supports VBL, ZVK, VddB and VddKO refund cases.
+    - generic [ref=e30]:
+      - generic [ref=e32]:
+        - generic [ref=e33]: Get started
+        - heading "Start your claim or estimate your refund first" [level=2] [ref=e34]
+        - paragraph [ref=e35]: Ready to begin? Start the claim flow for a bAV cash-out or company pension refund. For VBL, ZVK, VddB or VddKO, you can also calculate a first refund estimate before continuing.
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - heading "Start your cash-out or refund" [level=3] [ref=e40]
+          - paragraph [ref=e41]: Answer a few guided questions or upload your pension document. If your case may be possible, create secure access and continue with the full online process.
+          - paragraph [ref=e42]: "Use this route for:"
+          - list [ref=e44]:
+            - listitem [ref=e45]:
+              - generic [ref=e47]: bAV and provider-based company pension cash-outs
+            - listitem [ref=e48]:
+              - generic [ref=e50]: VBL and ZVK refunds
+          - link "Start your claim" [ref=e52] [cursor=pointer]:
+            - /url: /get-started
+        - generic [ref=e53]:
+          - heading "Estimate your refund first" [level=3] [ref=e56]
+          - paragraph [ref=e57]: Upload a pension document or enter your information manually to get a first refund estimate. You can continue into the full online process afterwards.
+          - paragraph [ref=e58]: "Available for:"
+          - list [ref=e60]:
+            - listitem [ref=e61]:
+              - generic [ref=e63]: VBL
+            - listitem [ref=e64]:
+              - generic [ref=e66]: ZVK
+            - listitem [ref=e67]:
+              - generic [ref=e69]: VddB
+            - listitem [ref=e70]:
+              - generic [ref=e72]: VddKO
+          - generic [ref=e73]: The refund calculator is not available for bAV cash-outs.
+          - link "Calculate my refund" [ref=e79] [cursor=pointer]:
+            - /url: /calculator
+    - generic [ref=e82]:
+      - generic [ref=e84]:
+        - heading "Choose your German company pension" [level=2] [ref=e85]
+        - paragraph [ref=e86]: Start with the pension scheme, provider or contract type you recognize from your documents.
+      - generic [ref=e87]:
+        - heading "bAV / Company pension cash-out" [level=3] [ref=e90]
+        - paragraph [ref=e91]: Have a bAV or company pension from a previous job in Germany? Check whether a cash-out may be possible, including contracts from Allianz, AXA, Swiss Life, ERGO, R+V, Nürnberger, HDI, BVV and other providers.
+        - generic [ref=e92]:
+          - link "Start bAV cash-out" [ref=e93] [cursor=pointer]:
+            - /url: /get-started
+          - link "Learn about bAV cash-outs" [ref=e97] [cursor=pointer]:
+            - /url: /how-it-works
+      - generic [ref=e100]:
+        - heading "VBL & ZVK refunds" [level=3] [ref=e103]
+        - paragraph [ref=e104]: Paid into VBLklassik, a ZVK or another public-sector company pension while working in Germany? Start your refund online and apply to get eligible employee contributions back.
+        - generic [ref=e105]:
+          - link "Start VBL/ZVK refund" [ref=e106] [cursor=pointer]:
+            - /url: /get-started
+          - link "Read VBL refund guide" [ref=e110] [cursor=pointer]:
+            - /url: /how-it-works
+      - generic [ref=e113]:
+        - heading "VddB & VddKO refunds" [level=3] [ref=e116]
+        - paragraph [ref=e117]: Worked in theatre, opera, musicals, dance or orchestra employment and paid into VddB or VddKO? Start your refund online through a guided digital flow.
+        - generic [ref=e118]:
+          - link "Start VddB/VddKO refund" [ref=e119] [cursor=pointer]:
+            - /url: /get-started
+          - link "Learn about VddB/VddKO refunds" [ref=e123] [cursor=pointer]:
+            - /url: /how-it-works
+    - generic [ref=e127]:
+      - heading "What CompanyPension does" [level=2] [ref=e129]
+      - generic [ref=e130]:
+        - generic [ref=e133]:
+          - heading "Smart guided process" [level=3] [ref=e134]
+          - paragraph [ref=e135]: Start online and follow clear steps for your bAV cash-out or company pension refund.
+        - generic [ref=e138]:
+          - heading "Human support when needed" [level=3] [ref=e139]
+          - paragraph [ref=e140]: Human support is available when clarification, translation or follow-up is needed.
+        - generic [ref=e143]:
+          - heading "Digital application and signing" [level=3] [ref=e144]
+          - paragraph [ref=e145]: The platform uses the information you provide to complete your application. You review and sign it yourself before it is technically transmitted to the relevant provider or pension scheme.
+        - generic [ref=e148]:
+          - heading "Money paid to your account" [level=3] [ref=e149]
+          - paragraph [ref=e150]: If approved, the money is paid directly to the bank account you provide. CompanyPension does not receive, hold or forward approved pension money.
+    - generic [ref=e152]:
+      - generic [ref=e154]:
+        - heading "Refund Or Cash-Out — What Is The Difference?" [level=2] [ref=e155]: Refund Or Cash-Out —What Is The Difference?
+        - paragraph [ref=e156]: German company pensions are not all handled in the same way. Some cases involve a refund of eligible employee contributions. Others involve a possible bAV cash-out.
+      - generic [ref=e157]:
+        - generic [ref=e158]:
+          - heading "Refund" [level=3] [ref=e160]
+          - paragraph [ref=e161]: A refund means claiming back eligible employee contributions from a contribution-based pension scheme.
+          - paragraph [ref=e162]: "This usually applies to:"
+          - list [ref=e164]:
+            - listitem [ref=e165]:
+              - generic [ref=e167]: VBL
+            - listitem [ref=e168]:
+              - generic [ref=e170]: ZVK
+            - listitem [ref=e171]:
+              - generic [ref=e173]: VddB
+            - listitem [ref=e174]:
+              - generic [ref=e176]: VddKO
+            - listitem [ref=e177]:
+              - generic [ref=e179]: Cash-out card
+            - listitem [ref=e180]:
+              - generic [ref=e182]: Cash-out
+        - generic [ref=e183]:
+          - heading "Cash-out" [level=3] [ref=e185]
+          - paragraph [ref=e186]: A cash-out means requesting a one-time payout from a bAV from a previous job. It may involve a Direktversicherung, Pensionskasse, Pensionsfonds or another provider-based company pension.
+          - paragraph [ref=e187]: "This usually applies to:"
+          - generic [ref=e188]:
+            - list [ref=e189]:
+              - listitem [ref=e190]:
+                - generic [ref=e192]: Allianz
+              - listitem [ref=e193]:
+                - generic [ref=e195]: AXA
+              - listitem [ref=e196]:
+                - generic [ref=e198]: Swiss Life
+              - listitem [ref=e199]:
+                - generic [ref=e201]: ERGO
+              - listitem [ref=e202]:
+                - generic [ref=e204]: R+V
+              - listitem [ref=e205]:
+                - generic [ref=e207]: Nürnberger
+              - listitem [ref=e208]:
+                - generic [ref=e210]: HDI
+              - listitem [ref=e211]:
+                - generic [ref=e213]: BVV
+            - list [ref=e214]:
+              - listitem [ref=e215]:
+                - generic [ref=e217]: other providers Direktversicherung
+              - listitem [ref=e218]:
+                - generic [ref=e220]: other insurance-based bAV contracts
+      - link "See what applies to you" [ref=e222] [cursor=pointer]:
+        - /url: /how-it-works
+    - generic [ref=e225]:
+      - generic [ref=e226]:
+        - generic [ref=e227]: Company pension vs DRV
+        - heading [level=2] [ref=e228]:
+          - generic [ref=e229]: Your DRV Refund Does Not IncludeYour Company Pension
+      - generic [ref=e230]:
+        - paragraph [ref=e231]: Your German state pension and your company pension are two separate systems.
+        - paragraph [ref=e232]: A DRV refund only covers eligible statutory pension contributions paid into Deutsche Rentenversicherung. It does not automatically include a bAV, Direktversicherung, VBL, ZVK, VddB or VddKO pension.
+        - paragraph [ref=e233]: If you paid into both systems, your company pension needs a separate cash-out or refund process.
+      - link "Compare company pension and DRV" [ref=e235] [cursor=pointer]:
+        - /url: /how-it-works
+    - generic [ref=e239]:
+      - generic [ref=e241]:
+        - heading "How it works" [level=2] [ref=e242]
+        - paragraph [ref=e243]: A guided online process from the first check to signing, submission and provider follow-up.
+      - generic [ref=e244]:
+        - generic [ref=e245]:
+          - generic [ref=e246]: "01"
+          - heading "Check what can be started" [level=3] [ref=e248]
+          - paragraph [ref=e249]: Choose your pension type or provider and answer a few questions. The platform checks whether a bAV cash-out or refund may be possible.
+        - generic [ref=e250]:
+          - generic [ref=e251]: "02"
+          - heading "Secure your claim" [level=3] [ref=e253]
+          - paragraph [ref=e254]: Create secure access, review the pricing and pay the €199 deposit to activate the full process. The deposit is credited toward your final service fee.
+        - generic [ref=e255]:
+          - generic [ref=e256]: "03"
+          - heading "Add your documents and details" [level=3] [ref=e258]
+          - paragraph [ref=e259]: Add your ID, bank account and pension information from documents such as a VBL letter, provider statement, bAV contract or Direktversicherung document.
+        - generic [ref=e260]:
+          - generic [ref=e261]: "04"
+          - heading "Review, sign and submit online" [level=3] [ref=e263]
+          - paragraph [ref=e264]: Check your details and sign the application yourself. After you sign, ATLAES GmbH technically transmits it to the relevant provider or pension scheme.
+        - generic [ref=e265]:
+          - generic [ref=e266]: "05"
+          - heading "Provider review and payout" [level=3] [ref=e268]
+          - paragraph [ref=e269]: The provider or pension scheme reviews your request. Correspondence can run through CompanyPension when clarification or follow-up is needed. If approved, the money is paid directly to the bank account you provide.
+      - link "See the full process" [ref=e271] [cursor=pointer]:
+        - /url: /how-it-works
+    - generic [ref=e274]:
+      - img "Person holding a laptop, checking a company pension refund" [ref=e276]
+      - generic [ref=e277]:
+        - generic [ref=e278]:
+          - generic [ref=e279]: Want an estimate before you begin?
+          - heading "Estimate your company pension refund" [level=2] [ref=e280]
+        - generic [ref=e281]:
+          - paragraph [ref=e282]: For VBL, ZVK, VddB or VddKO, upload a pension document or enter your information manually to get a first refund estimate.
+          - paragraph [ref=e283]: You can continue into the full online process afterwards if the result looks relevant.
+        - generic [ref=e284]: Refund estimates are not available for bAV cash-outs.
+        - link "Start quick check" [ref=e290] [cursor=pointer]:
+          - /url: /calculator
+    - generic [ref=e294]:
+      - generic [ref=e296]:
+        - heading "Transparent pricing" [level=2] [ref=e297]
+        - paragraph [ref=e298]: Start with a €199 deposit. Our success fee is 9.75% of the approved cash-out or refund amount, with a minimum total service fee of €199. Your deposit is credited toward the final fee.
+      - generic [ref=e299]:
+        - generic [ref=e300]:
+          - heading "bAV cash-outs" [level=3] [ref=e301]
+          - paragraph [ref=e302]: "For bAV cash-outs from Allianz, AXA, Swiss Life, ERGO, R+V, Nürnberger, HDI, BVV and other providers:"
+          - separator [ref=e303]
+          - list [ref=e305]:
+            - listitem [ref=e306]:
+              - generic [ref=e308]: Start with a €199 deposit
+            - listitem [ref=e309]:
+              - generic [ref=e311]: 9.75% success fee if the cash-out is approved
+            - listitem [ref=e312]:
+              - generic [ref=e314]: "Minimum total service fee: €199"
+            - listitem [ref=e315]:
+              - generic [ref=e317]: Your deposit is credited toward the final fee
+            - listitem [ref=e318]:
+              - generic [ref=e320]: If the cash-out cannot be submitted after review, €79 is retained and €120 is refunded
+        - generic [ref=e321]:
+          - heading "VBL, ZVK, VddB and VddKO refunds" [level=3] [ref=e322]
+          - paragraph [ref=e323]: "For eligible contribution-refund cases:"
+          - separator [ref=e324]
+          - list [ref=e326]:
+            - listitem [ref=e327]:
+              - generic [ref=e329]: Start with a €199 deposit
+            - listitem [ref=e330]:
+              - generic [ref=e332]: 9.75% success fee if the refund is approved
+            - listitem [ref=e333]:
+              - generic [ref=e335]: "Minimum total service fee: €199"
+            - listitem [ref=e336]:
+              - generic [ref=e338]: Your deposit is credited toward the final fee
+            - listitem [ref=e339]:
+              - generic [ref=e341]: If the pension institution rejects your completed and submitted refund request, the €199 deposit is refunded in full
+      - generic [ref=e342]:
+        - paragraph [ref=e343]: If approved, the money is paid directly to the bank account you provide. CompanyPension does not receive, hold or forward approved pension money.
+        - link "View pricing details" [ref=e344] [cursor=pointer]:
+          - /url: /pricing
+    - generic [ref=e346]:
+      - heading "Frequently asked questions" [level=2] [ref=e349]
+      - generic [ref=e351]:
+        - generic [ref=e352]:
+          - button "Can I get money back from my German company pension?" [expanded] [ref=e353] [cursor=pointer]
+          - generic [ref=e356]:
+            - paragraph [ref=e357]: It may be possible, depending on the type of pension and the applicable rules.
+            - paragraph [ref=e358]: VBL, ZVK, VddB and VddKO cases are usually handled as contribution refunds. bAV cases from Allianz, AXA, Swiss Life, ERGO, R+V, Nürnberger, HDI, BVV and other providers need a separate cash-out check.
+        - button "I already received a German state pension refund. Can I also get money from my company pension?" [ref=e360] [cursor=pointer]
+        - button "Do I need to use the calculator first?" [ref=e364] [cursor=pointer]
+        - button "How long does it usually take?" [ref=e368] [cursor=pointer]
+        - button "Do I need a German bank account?" [ref=e372] [cursor=pointer]
+        - button "Can I cash out a bAV after leaving Germany?" [ref=e376] [cursor=pointer]
+        - button "Will CompanyPension receive my pension money?" [ref=e380] [cursor=pointer]
+      - link "Go to FAQ" [ref=e384] [cursor=pointer]:
+        - /url: /faq
+    - generic [ref=e386]:
+      - generic [ref=e388]:
+        - generic [ref=e389]: DRV refund and bAV cash-out
+        - heading "A DRV refund can create the basis for a bAV lump-sum settlement" [level=2] [ref=e390]: A DRV refund can create the basis fora bAV lump-sum settlement
+        - paragraph [ref=e391]: For many vested bAV entitlements, a cash-out is not available simply because you left Germany. An approved DRV refund may first be required.
+      - generic [ref=e392]:
+        - paragraph [ref=e393]: However, once your contributions to Deutsche Rentenversicherung have been refunded, §3(3) BetrAVG can provide the basis for requesting a lump-sum settlement of a vested bAV entitlement.
+        - paragraph [ref=e394]: The DRV refund does not automatically pay out your company pension. After the DRV refund has been approved, a separate request must still be made to the employer, insurance company or pension provider responsible for the bAV.
+        - paragraph [ref=e395]: CompanyPension checks whether your DRV refund status may be relevant to your bAV case and guides you through the separate online request.
+      - paragraph [ref=e396]: Already received your DRV refund?Your vested bAV may now qualify for a separate lump-sum settlement.
+      - link "Check my bAV cash-out" [ref=e398] [cursor=pointer]:
+        - /url: /get-started
+    - generic [ref=e400]:
+      - generic [ref=e401]: Start online
+      - heading "Ready to start your company pension claim?" [level=2] [ref=e402]: Ready to start yourcompany pension claim?
+      - paragraph [ref=e403]: Start the guided claim flow for a bAV cash-out or a VBL, ZVK, VddB or VddKO refund. For refund cases, you can also calculate a first estimate before continuing.
+      - generic [ref=e404]:
+        - link "Start your claim" [ref=e405] [cursor=pointer]:
+          - /url: /get-started
+        - link "Calculate my refund" [ref=e406] [cursor=pointer]:
+          - /url: /calculator
+      - paragraph [ref=e407]: The refund calculator is available for VBL, ZVK, VddB and VddKO cases.It is not used for bAV cash-outs.
+  - contentinfo [ref=e408]:
+    - generic [ref=e409]:
+      - generic [ref=e410]:
+        - generic [ref=e411]:
+          - img "Company Pension Cash-outs & Refunds" [ref=e412]
+          - paragraph [ref=e413]: Cash out or refund your German company pension online through a guided digital process, with human support when clarification or follow-up is needed.
+          - paragraph [ref=e414]: Operated by ATLAES GmbH, Kaskelstraße 46, 10317 Berlin, Germany.
+        - generic [ref=e415]:
+          - generic [ref=e416]:
+            - heading "COMPANY" [level=2] [ref=e417]
+            - list [ref=e418]:
+              - listitem [ref=e419]:
+                - link "About" [ref=e420] [cursor=pointer]:
+                  - /url: /about
+              - listitem [ref=e421]:
+                - link "Reviews" [ref=e422] [cursor=pointer]:
+                  - /url: /reviews
+              - listitem [ref=e423]:
+                - link "How It Works" [ref=e424] [cursor=pointer]:
+                  - /url: /how-it-works
+              - listitem [ref=e425]:
+                - link "Pricing" [ref=e426] [cursor=pointer]:
+                  - /url: /pricing
+              - listitem [ref=e427]:
+                - link "FAQ" [ref=e428] [cursor=pointer]:
+                  - /url: /faq
+              - listitem [ref=e429]:
+                - link "Contact" [ref=e430] [cursor=pointer]:
+                  - /url: /contact
+          - generic [ref=e431]:
+            - heading "LEGAL" [level=2] [ref=e432]
+            - list [ref=e433]:
+              - listitem [ref=e434]:
+                - link "Imprint" [ref=e435] [cursor=pointer]:
+                  - /url: /imprint
+              - listitem [ref=e436]:
+                - link "Privacy Policy" [ref=e437] [cursor=pointer]:
+                  - /url: /privacy-policy
+              - listitem [ref=e438]:
+                - link "Cookie Policy / Cookie Settings" [ref=e439] [cursor=pointer]:
+                  - /url: /cookie-policy
+              - listitem [ref=e440]:
+                - link "Terms and Conditions" [ref=e441] [cursor=pointer]:
+                  - /url: /terms
+              - listitem [ref=e442]:
+                - link "Payment Terms" [ref=e443] [cursor=pointer]:
+                  - /url: /payment-terms
+              - listitem [ref=e444]:
+                - link "Revocation" [ref=e445] [cursor=pointer]:
+                  - /url: /revocation
+          - generic [ref=e446]:
+            - heading "PRIVACY REQUESTS" [level=2] [ref=e447]
+            - list [ref=e448]:
+              - listitem [ref=e449]:
+                - link "Data Access Request" [ref=e450] [cursor=pointer]:
+                  - /url: /data-access-request
+              - listitem [ref=e451]:
+                - link "Data Deletion Request" [ref=e452] [cursor=pointer]:
+                  - /url: /data-deletion-request
+      - generic [ref=e453]:
+        - paragraph [ref=e454]: CompanyPension is a digital application platform and brand operated by ATLAES GmbH.
+        - paragraph [ref=e455]: The platform uses the information provided by users to complete their applications. Users review and sign their applications themselves and remain the applicant and claimant throughout the process. After signing, ATLAES GmbH technically transmits the application to the relevant pension provider, scheme or institution. Where authorised, ATLAES GmbH may receive and forward correspondence and information about the final decision. Neither CompanyPension nor ATLAES GmbH provides legal, pension, tax, insurance or financial advice or acts as the claimant. Approval and payment decisions are made by the relevant provider, pension scheme or institution. Approved funds are paid directly to the bank account provided by the user. ATLAES GmbH does not receive, hold or forward approved pension money. If separate legal services are needed for a specific case, they are provided by the responsible legal partner under a separate arrangement.
+      - paragraph [ref=e457]: Copyright © 2026 Company Pension. All rights reserved.

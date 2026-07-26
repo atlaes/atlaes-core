@@ -496,14 +496,20 @@ export default function HomePage() {
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 bg-brand/50"
         />
-        {/* Large CompanyPension logomark watermark on the right (Figma
-            1174:1243), vertically centered and partially clipped by the
-            section edge. eslint-disable-next-line @next/next/no-img-element */}
+        {/* Large CompanyPension logomark watermark, bottom-right (Figma
+            1174:1243). This is the site logo's own hexagon mark, extracted
+            from `companypension-cashouts-refunds.svg` — the previous
+            `estimate-logo-watermark.svg` was a taller, narrower polygon that
+            is not the brand mark, and its `preserveAspectRatio="none"` +
+            `w-auto` combination squeezed it to 300x400 (a 0.75 ratio against
+            the artwork's 0.86), so it read as a distorted stray shape. Figma
+            bottom-aligns it against the band edge at ~58% of the band height,
+            inset ~30px from the right. eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/marketing/home/estimate-logo-watermark.svg"
+          src="/marketing/shared/companypension-logomark.svg"
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute right-0 top-1/2 h-[400px] w-auto -translate-y-1/2 select-none opacity-[0.15]"
+          className="pointer-events-none absolute bottom-0 right-[30px] h-[70%] w-auto select-none opacity-[0.15]"
         />
         <div className={`relative ${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center">
