@@ -98,9 +98,11 @@ function NumberCard({
 }) {
   return (
     <div className="flex h-full flex-col rounded-2xl border border-neutral-400/60 bg-white p-8 shadow-sm">
+      {/* Figma 1219:6533 puts the card number top-LEFT, above the title
+          (client feedback 2026-07-23: "numbers should be on left not right"). */}
       <span
         aria-hidden="true"
-        className="block text-right text-4xl font-bold text-[#939494]"
+        className="block text-left text-4xl font-bold text-[#939494]"
       >
         {number}
       </span>
