@@ -136,7 +136,12 @@ export default function VblVsDrvPage() {
         body="A DRV refund only covers statutory German state pension contributions paid into Deutsche Rentenversicherung. It does not include VBL. If you worked in the German public sector and paid into VBL, your VBL refund needs a separate check."
         primaryCta={{ label: 'Check my VBL refund', href: START_HREF }}
         secondaryCta={{
-          label: 'Compare company pension vs DRV',
+          // Client feedback 2026-07-23: this right-hand button reads
+          // "Compare all company pensions and DRV". Applied to the two other
+          // CTAs playing the same role (the mid-page pair and the closing
+          // band) so the page does not mix two labels for one action; the
+          // inline link and the RelatedCard keep their contextual wording.
+          label: 'Compare all company pensions and DRV',
           href: VS_DRV_HREF,
         }}
         footnote={
@@ -478,7 +483,7 @@ export default function VblVsDrvPage() {
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <ArrowLink href={START_HREF}>Check my VBL refund</ArrowLink>
             <ArrowLink href={VS_DRV_HREF}>
-              Compare company pension vs DRV
+              Compare all company pensions and DRV
             </ArrowLink>
           </div>
         </div>
@@ -999,7 +1004,7 @@ export default function VblVsDrvPage() {
         body="Start online with your VBL document, VBLklassik statement or pension letter. CompanyPension guides you through the separate VBL refund check and shows what information is still needed."
         cta={{ label: 'Check my VBL refund', href: START_HREF }}
         secondaryCta={{
-          label: 'Compare company pension vs DRV',
+          label: 'Compare all company pensions and DRV',
           href: VS_DRV_HREF,
         }}
         note="If approved, the money is paid directly to the bank account you provide. CompanyPension does not receive, hold or forward approved pension money"

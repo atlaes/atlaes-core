@@ -137,9 +137,16 @@ function ArrowLink({
   href,
   children,
   variant = 'solid',
+  fullWidth = false,
+  showArrow = true,
 }: {
   href: string;
   children: ReactNode;
+  /** Stretches the button to its container and centres the label — Figma
+   *  1346:213 renders the calculator-scope CTAs as block buttons. */
+  fullWidth?: boolean;
+  /** The updated design drops the trailing arrow on section CTAs. */
+  showArrow?: boolean;
   /**
    * `link` renders plain underlined text rather than a button — Figma
    * 1358:1204 shows "See how the full process works" as a text link beside the
@@ -159,10 +166,12 @@ function ArrowLink({
   return (
     <Link
       href={href}
-      className={`inline-flex items-center gap-2 text-base font-semibold transition-colors ${styles}`}
+      className={`${
+        fullWidth ? 'flex w-full justify-center' : 'inline-flex'
+      } items-center gap-2 text-base font-semibold transition-colors ${styles}`}
     >
       {children}
-      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+      {showArrow ? <ArrowRight className="h-4 w-4" aria-hidden="true" /> : null}
     </Link>
   );
 }
@@ -343,7 +352,7 @@ export default function RefundCalculatorPage() {
                   ]}
                 />
               </div>
-              <p className="mt-6 text-sm leading-relaxed text-gray-500">
+              <p className="mt-6 min-h-[3.75rem] text-sm leading-relaxed text-gray-500">
                 Uploaded documents are processed securely for your estimate and
                 next-step routing. See the Privacy Policy for details about
                 processing, retention and deletion.
@@ -509,8 +518,12 @@ export default function RefundCalculatorPage() {
                   ]}
                 />
               </div>
-              <div className="mt-8">
-                <ArrowLink href={CALC_HREF}>
+              {/* Figma 1346:213: left block = solid accent, right block =
+                  outline; both are full-width and carry no arrow. Ours had two
+                  solid inline buttons, which is the button colour/alignment
+                  mismatch the client flagged on 2026-07-23. */}
+              <div className="mt-8 flex flex-1 flex-col justify-end">
+                <ArrowLink href={CALC_HREF} fullWidth showArrow={false}>
                   Estimate my VBL or ZVK refund
                 </ArrowLink>
               </div>
@@ -558,12 +571,17 @@ export default function RefundCalculatorPage() {
                   ]}
                 />
               </div>
-              <div className="mt-8">
-                <ArrowLink href={CALC_HREF}>
+              <div className="mt-8 flex flex-1 flex-col justify-end">
+                <ArrowLink
+                  href={CALC_HREF}
+                  variant="outline"
+                  fullWidth
+                  showArrow={false}
+                >
                   Estimate my VddB or VddKO refund
                 </ArrowLink>
               </div>
-              <p className="mt-6 text-sm leading-relaxed text-gray-500">
+              <p className="mt-6 min-h-[3.75rem] text-sm leading-relaxed text-gray-500">
                 VddB or VddKO confirms your recorded periods, eligibility and
                 final refund amount.
               </p>
