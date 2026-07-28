@@ -138,7 +138,10 @@ function ArrowLink({
   children,
   variant = 'solid',
   fullWidth = false,
-  showArrow = true,
+  // The updated design renders this page's section CTAs as plain buttons with
+  // no trailing arrow (verified against Figma 1346:213 and 1353:419), so the
+  // arrow is opt-in rather than the default despite the component's name.
+  showArrow = false,
 }: {
   href: string;
   children: ReactNode;
@@ -152,7 +155,7 @@ function ArrowLink({
    * 1358:1204 shows "See how the full process works" as a text link beside the
    * solid CTA, not as a second button (client feedback 2026-07-23).
    */
-  variant?: 'solid' | 'outline' | 'link';
+  variant?: 'solid' | 'outline' | 'outlineDark' | 'link';
 }) {
   const styles =
     variant === 'solid'
@@ -162,7 +165,9 @@ function ArrowLink({
         'rounded-brand border border-transparent px-6 py-3 bg-accent text-brand hover:bg-accent-hover'
       : variant === 'outline'
         ? 'rounded-brand px-6 py-3 border border-brand/25 text-brand hover:bg-brand/5'
-        : 'text-brand underline underline-offset-4 hover:text-brand/70';
+        : variant === 'outlineDark'
+          ? 'rounded-brand px-6 py-3 border border-white/60 text-white hover:bg-white/10'
+          : 'text-brand underline underline-offset-4 hover:text-brand/70';
   return (
     <Link
       href={href}
@@ -523,7 +528,7 @@ export default function RefundCalculatorPage() {
                   solid inline buttons, which is the button colour/alignment
                   mismatch the client flagged on 2026-07-23. */}
               <div className="mt-8 flex flex-1 flex-col justify-end">
-                <ArrowLink href={CALC_HREF} fullWidth showArrow={false}>
+                <ArrowLink href={CALC_HREF} fullWidth>
                   Estimate my VBL or ZVK refund
                 </ArrowLink>
               </div>
@@ -572,12 +577,7 @@ export default function RefundCalculatorPage() {
                 />
               </div>
               <div className="mt-8 flex flex-1 flex-col justify-end">
-                <ArrowLink
-                  href={CALC_HREF}
-                  variant="outline"
-                  fullWidth
-                  showArrow={false}
-                >
+                <ArrowLink href={CALC_HREF} variant="outline" fullWidth>
                   Estimate my VddB or VddKO refund
                 </ArrowLink>
               </div>
@@ -759,14 +759,18 @@ export default function RefundCalculatorPage() {
         </div>
       </section>
 
-      {/* ---- THE CALCULATOR PROCESS (Figma 1356:834) ---- */}
-      <section className="bg-neutral-50">
+      {/* ---- THE CALCULATOR PROCESS (Figma 1356:834) ----
+          Brand-green band, not the light-grey wash this shipped with. Figma
+          renders the whole section dark with white step cards and a
+          white-outlined CTA; that mismatch is why the client marked this
+          section "design not followed" on 2026-07-23. */}
+      <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
-            <span className="mb-5 inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-brand/25 bg-white px-5 py-1 text-center font-display text-base font-medium text-brand sm:whitespace-nowrap">
+          <div className="flex flex-col items-center text-center">
+            <span className="mb-5 inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-white/30 bg-white/5 px-5 py-1 text-center font-display text-base font-medium text-white sm:whitespace-nowrap">
               The calculator process
             </span>
-            <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-brand sm:text-4xl">
+            <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-accent sm:text-4xl">
               Get a first estimate in five simple steps
             </h2>
           </div>
@@ -799,7 +803,9 @@ export default function RefundCalculatorPage() {
           </div>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <ArrowLink href={CALC_HREF}>Calculate my refund</ArrowLink>
-            <ArrowLink href={START_HREF} variant="outline">
+            {/* On the dark band the outline CTA needs white borders/text — the
+                brand-green outline is invisible here. */}
+            <ArrowLink href={START_HREF} variant="outlineDark">
               Start my refund directly
             </ArrowLink>
           </div>
