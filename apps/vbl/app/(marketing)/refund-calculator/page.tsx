@@ -84,10 +84,17 @@ function CrossList({ items }: { items: ReactNode[] }) {
     <ul className="space-y-3">
       {items.map((item, index) => (
         <li key={index} className="flex items-start gap-3 text-gray-700">
-          <X
-            className="mt-0.5 h-5 w-5 shrink-0 text-gray-400"
+          {/* Filled red disc with a white cross, mirroring CheckList's green
+              disc. Figma 1358:948 draws these as solid badges; ours was a bare
+              grey tick-mark, part of what the client flagged as "design not
+              followed" on 2026-07-23. The red is matched by eye from the
+              design (anonymous Figma gives no colour readout). */}
+          <span
             aria-hidden="true"
-          />
+            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-600"
+          >
+            <X className="h-3 w-3 text-white" strokeWidth={3} />
+          </span>
           <span className="text-base leading-relaxed">{item}</span>
         </li>
       ))}
@@ -303,7 +310,7 @@ export default function RefundCalculatorPage() {
       </section>
 
       {/* ---- START YOUR ESTIMATE / CHOOSER (Figma 1339:3086) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -591,7 +598,7 @@ export default function RefundCalculatorPage() {
       </section>
 
       {/* ---- CHOOSE THE CORRECT ROUTE (Figma 1353:419) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -812,8 +819,10 @@ export default function RefundCalculatorPage() {
         </div>
       </section>
 
-      {/* ---- UNDERSTANDING THE RESULT (Figma 1358:1010) ---- */}
-      <section className="bg-white">
+      {/* ---- UNDERSTANDING THE RESULT (Figma 1358:948/1010) ----
+          Light-grey band, not white — the design sets this section on the
+          #f3f4f4 wash with its cards in white. */}
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
