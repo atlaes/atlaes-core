@@ -33,10 +33,15 @@ function CheckList({ items }: { items: ReactNode[] }) {
     <ul className="space-y-3">
       {items.map((item, index) => (
         <li key={index} className="flex items-start gap-3 text-gray-700">
-          <Check
-            className="mt-0.5 h-5 w-5 shrink-0 text-brand"
+          {/* Filled brand-green disc with a white tick — the design draws
+              these as solid badges, not bare glyphs (verified on Figma
+              1339:3086 and 1555:7468). Client feedback 2026-07-23. */}
+          <span
             aria-hidden="true"
-          />
+            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand"
+          >
+            <Check className="h-3 w-3 text-white" strokeWidth={3} />
+          </span>
           <span className="text-base leading-relaxed">{item}</span>
         </li>
       ))}
@@ -154,7 +159,7 @@ export default function VblVsDrvPage() {
       />
 
       {/* ---- HERO "IMPORTANT" CALLOUT (Figma 1153:433) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-16 sm:py-20`}>
           <div className="mx-auto max-w-3xl rounded-2xl border border-neutral-400 bg-white p-8">
             <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-brand/20 bg-neutral-50 px-4 py-2 text-sm font-medium text-brand">
@@ -221,7 +226,7 @@ export default function VblVsDrvPage() {
       </section>
 
       {/* ---- VBL VS DRV IN SHORT (Figma 1153:3756) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div className="text-brand">
@@ -284,7 +289,7 @@ export default function VblVsDrvPage() {
       </section>
 
       {/* ---- WHAT IS VBL? (Figma 1153:4438) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
@@ -364,7 +369,7 @@ export default function VblVsDrvPage() {
                 </p>
               </div>
             </div>
-            <div className="rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
+            <div className="rounded-2xl border border-neutral-400 bg-white p-8">
               <p className="text-lg font-semibold text-brand">For example:</p>
               <div className="mt-6">
                 <CheckList
@@ -390,7 +395,7 @@ export default function VblVsDrvPage() {
       </section>
 
       {/* ---- DRV VS VBL REFUND TABLE (Figma 1153:4508) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -490,7 +495,7 @@ export default function VblVsDrvPage() {
       </section>
 
       {/* ---- WHEN CAN VBL CONTRIBUTIONS BE REFUNDED? (Figma 1153:4642) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
@@ -562,7 +567,7 @@ export default function VblVsDrvPage() {
       </section>
 
       {/* ---- HOW TO TELL VBL VS DRV DOCUMENT (Figma 1153:5960) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -666,7 +671,7 @@ export default function VblVsDrvPage() {
           COPY-GOVERNANCE (client item 19): the design describes "a SEPA-capable
           EUR account" and does not use the "free EUR account" wording, so no
           "free"-drop transformation applies to this section. */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
@@ -747,7 +752,7 @@ export default function VblVsDrvPage() {
       </section>
 
       {/* ---- WHAT FITS YOUR DOCUMENT TABLE (Figma 1153:4575) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -871,7 +876,7 @@ export default function VblVsDrvPage() {
       </section>
 
       {/* ---- FAQ (Figma 1153:6104) — answers from the shared FAQ master copy via faqItems.tsx (FAQ CompanyPension 22062026.pdf) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
