@@ -56,11 +56,27 @@ const BAV_HREF = '/company-pension-cash-out';
 // Local, page-only building blocks
 // ---------------------------------------------------------------------------
 
-function CheckList({ items }: { items: ReactNode[] }) {
+function CheckList({
+  items,
+  tone = 'light',
+}: {
+  items: ReactNode[];
+  /**
+   * `dark` is required on the brand-green bands: the light-tone disc is
+   * brand green itself and disappears against them, so the dark tone inverts
+   * to an accent disc with a brand-green check (the treatment the other
+   * dark sections already use).
+   */
+  tone?: 'light' | 'dark';
+}) {
+  const dark = tone === 'dark';
   return (
     <ul className="space-y-3">
       {items.map((item, index) => (
-        <li key={index} className="flex items-start gap-3 text-gray-700">
+        <li
+          key={index}
+          className={`flex items-start gap-3 ${dark ? 'text-white/85' : 'text-gray-700'}`}
+        >
           {/* Filled brand-green disc with a white tick, matching Figma
               1339:3086 and the shared `check-bullet.svg` used on the about and
               pricing pages. This list previously rendered a bare lucide tick
@@ -68,9 +84,14 @@ function CheckList({ items }: { items: ReactNode[] }) {
               flagged on 2026-07-23. */}
           <span
             aria-hidden="true"
-            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand"
+            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+              dark ? 'bg-accent' : 'bg-brand'
+            }`}
           >
-            <Check className="h-3 w-3 text-white" strokeWidth={3} />
+            <Check
+              className={`h-3 w-3 ${dark ? 'text-brand' : 'text-white'}`}
+              strokeWidth={3}
+            />
           </span>
           <span className="text-base leading-relaxed">{item}</span>
         </li>
@@ -491,7 +512,7 @@ export default function RefundCalculatorPage() {
           </div>
 
           <div className="mt-14 grid gap-8 lg:grid-cols-2">
-            <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
+            <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
               <h3 className="text-xl font-semibold text-brand">
                 Estimate a VBL or ZVK refund
               </h3>
@@ -546,7 +567,7 @@ export default function RefundCalculatorPage() {
               </p>
             </div>
 
-            <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
+            <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
               <h3 className="text-xl font-semibold text-brand">
                 Estimate a VddB or VddKO refund
               </h3>
@@ -680,7 +701,7 @@ export default function RefundCalculatorPage() {
           </div>
 
           <div className="mt-12 grid gap-8 lg:grid-cols-2">
-            <div className="rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
+            <div className="rounded-2xl border border-neutral-400 bg-white p-8">
               <p className="text-lg font-semibold text-brand">
                 Your document may show:
               </p>
@@ -716,7 +737,7 @@ export default function RefundCalculatorPage() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
+            <div className="rounded-2xl border border-neutral-400 bg-white p-8">
               <p className="text-lg font-semibold text-brand">
                 That can depend on:
               </p>
@@ -833,7 +854,7 @@ export default function RefundCalculatorPage() {
           </div>
 
           <div className="mt-14 grid gap-8 lg:grid-cols-2">
-            <div className="rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
+            <div className="rounded-2xl border border-neutral-400 bg-white p-8">
               <p className="text-lg font-semibold text-brand">
                 Your estimate can help you:
               </p>
@@ -851,7 +872,7 @@ export default function RefundCalculatorPage() {
                 />
               </div>
             </div>
-            <div className="rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
+            <div className="rounded-2xl border border-neutral-400 bg-white p-8">
               <p className="text-lg font-semibold text-brand">
                 Your estimate cannot:
               </p>
@@ -950,39 +971,44 @@ export default function RefundCalculatorPage() {
           copy, so the transformation does not apply. "The calculator is free to
           use" below is verbatim design copy about the calculator's cost and is
           unaffected. */}
-      <section className="bg-white">
+      {/* Brand-green band with a translucent card — Figma 1358:1382 renders
+          this section dark with white body copy and a white-outlined CTA; it
+          shipped white, which is why the client marked it "design not
+          followed" on 2026-07-23. */}
+      <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
-            <span className="mb-5 inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-brand/25 bg-neutral-50 px-5 py-1 text-center font-display text-base font-medium text-brand sm:whitespace-nowrap">
+          <div className="flex flex-col items-center text-center">
+            <span className="mb-5 inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-white/30 bg-white/5 px-5 py-1 text-center font-display text-base font-medium text-white sm:whitespace-nowrap">
               Continue only when you are ready
             </span>
-            <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-brand sm:text-4xl">
+            <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-accent sm:text-4xl">
               What does the full refund process cost?
             </h2>
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-gray-600">
+            <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/80">
               The calculator is free to use and does not create a payment
               obligation. You only pay if you decide to continue into the full
               refund process.
             </p>
           </div>
 
-          <div className="mx-auto mt-12 max-w-xl rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
+          <div className="mx-auto mt-12 max-w-xl rounded-2xl border border-white/20 bg-black/20 p-8">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span className="text-3xl font-bold text-brand">
+              <span className="text-3xl font-bold text-accent">
                 €199 deposit to start the process
               </span>
-              <span className="text-base text-gray-600">
+              <span className="text-base text-white/70">
                 (credited toward the final fee)
               </span>
             </div>
-            <p className="mt-4 text-lg font-semibold text-brand">
+            <p className="mt-4 text-lg font-semibold text-white">
               9.75% success fee if approved
             </p>
-            <p className="mt-8 text-base font-semibold text-brand">
+            <p className="mt-8 text-base font-semibold text-white">
               Pricing details
             </p>
             <div className="mt-4">
               <CheckList
+                tone="dark"
                 items={[
                   'The minimum total service fee is €199.',
                   'The €199 deposit is credited toward the final service fee.',
@@ -995,7 +1021,7 @@ export default function RefundCalculatorPage() {
             </div>
             <div className="mt-8 flex flex-col gap-4 sm:flex-row">
               <ArrowLink href={START_HREF}>Start my refund</ArrowLink>
-              <ArrowLink href={PRICING_HREF} variant="outline">
+              <ArrowLink href={PRICING_HREF} variant="outlineDark">
                 View full pricing
               </ArrowLink>
             </div>
