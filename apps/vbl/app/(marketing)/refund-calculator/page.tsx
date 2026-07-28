@@ -643,7 +643,7 @@ export default function RefundCalculatorPage() {
       <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="mx-auto max-w-3xl text-center text-brand">
-            <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-4 py-2 text-sm font-medium text-brand">
+            <span className="mb-5 inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-brand/25 bg-brand/5 px-5 py-1 text-center font-display text-base font-medium text-brand sm:whitespace-nowrap">
               bAV cash-outs
             </span>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -745,7 +745,7 @@ export default function RefundCalculatorPage() {
       <section className="bg-neutral-50">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
-            <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-white px-4 py-2 text-sm font-medium text-brand">
+            <span className="mb-5 inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-brand/25 bg-white px-5 py-1 text-center font-display text-base font-medium text-brand sm:whitespace-nowrap">
               The calculator process
             </span>
             <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-brand sm:text-4xl">
@@ -854,7 +854,7 @@ export default function RefundCalculatorPage() {
       <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
-            <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-white px-4 py-2 text-sm font-medium text-brand">
+            <span className="mb-5 inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-brand/25 bg-white px-5 py-1 text-center font-display text-base font-medium text-brand sm:whitespace-nowrap">
               Your next step
             </span>
             <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-brand sm:text-4xl">
@@ -920,7 +920,7 @@ export default function RefundCalculatorPage() {
       <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
-            <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-neutral-50 px-4 py-2 text-sm font-medium text-brand">
+            <span className="mb-5 inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-brand/25 bg-neutral-50 px-5 py-1 text-center font-display text-base font-medium text-brand sm:whitespace-nowrap">
               Continue only when you are ready
             </span>
             <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-brand sm:text-4xl">
