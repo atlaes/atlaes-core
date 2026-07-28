@@ -86,7 +86,9 @@ function MagicLinkPageContent() {
                 </h2>
                 <p className="text-gray-600 mb-4">{message}</p>
                 <div className="animate-pulse">
-                  <p className="text-sm text-gray-500">Redirecting...</p>
+                  <p className="text-sm text-gray-500">
+                    Redirecting...
+                  </p>
                 </div>
               </>
             )}
