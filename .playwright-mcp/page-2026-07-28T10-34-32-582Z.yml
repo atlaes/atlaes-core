@@ -1,0 +1,275 @@
+- generic [active] [ref=f2e1]:
+  - generic [ref=f2e3]:
+    - banner [ref=f2e4]:
+      - generic [ref=f2e6]:
+        - link "Company Pension home" [ref=f2e7] [cursor=pointer]:
+          - /url: /
+          - img "Company Pension Cash-outs & Refunds" [ref=f2e8]
+        - navigation "Primary" [ref=f2e9]:
+          - link "How it works" [ref=f2e10] [cursor=pointer]:
+            - /url: /how-it-works
+          - link "Pricing" [ref=f2e11] [cursor=pointer]:
+            - /url: /pricing
+          - link "FAQ" [ref=f2e12] [cursor=pointer]:
+            - /url: /faq
+          - link "About" [ref=f2e13] [cursor=pointer]:
+            - /url: /about
+          - link "Cash-outs & Refunds" [ref=f2e14] [cursor=pointer]:
+            - /url: /cash-outs-and-refunds
+        - link "Start your claim" [ref=f2e15] [cursor=pointer]:
+          - /url: /get-started
+    - main [ref=f2e16]:
+      - generic [ref=f2e18]:
+        - generic [ref=f2e19]: Pricing
+        - heading "Simple pricing for cash-outs and refunds" [level=1] [ref=f2e20]:
+          - text: Simple pricing for
+          - generic [ref=f2e21]: cash-outs and refunds
+        - paragraph [ref=f2e23]: Start with a €199 deposit. Our success fee is 9.75% of the approved cash-out or refund amount, with a minimum total service fee of €199. Your deposit is always credited toward the final service fee.
+        - paragraph [ref=f2e25]: If approved, the money is paid directly to the bank account you provide. CompanyPension does not receive, hold or forward approved pension money.
+        - link "Start your claim" [ref=f2e27] [cursor=pointer]:
+          - /url: /get-started
+        - link "How the deposit works" [ref=f2e29] [cursor=pointer]:
+          - /url: "#your-deposit"
+      - generic [ref=f2e33]:
+        - generic [ref=f2e35]:
+          - heading "Pricing by claim type" [level=2] [ref=f2e36]
+          - paragraph [ref=f2e37]: Both routes start with a €199 deposit and use the same 9.75% success fee if approved. The deposit rules differ if the case cannot proceed.
+        - generic [ref=f2e38]:
+          - generic [ref=f2e39]:
+            - generic [ref=f2e40]: bAV cash-outs
+            - heading "Company pension cash-outs" [level=3] [ref=f2e41]: Company pensioncash-outs
+            - list [ref=f2e42]:
+              - listitem [ref=f2e43]:
+                - generic [ref=f2e47]: €199 deposit to activate the full process
+              - listitem [ref=f2e48]:
+                - generic [ref=f2e52]: 9.75% success fee if the cash-out is approved
+              - listitem [ref=f2e53]:
+                - generic [ref=f2e57]: "Minimum total service fee: €199"
+              - listitem [ref=f2e58]:
+                - generic [ref=f2e62]: The deposit is credited toward the final service fee
+              - listitem [ref=f2e63]:
+                - generic [ref=f2e67]: Deposit rule
+            - generic [ref=f2e71]:
+              - paragraph [ref=f2e72]: Deposit rule
+              - paragraph [ref=f2e73]: If a cash-out cannot be submitted after the digital case and document review, €79 is retained and €120 is refunded.
+            - link "Start bAV cash-out" [ref=f2e75] [cursor=pointer]:
+              - /url: /get-started
+          - generic [ref=f2e76]:
+            - generic [ref=f2e77]: Contribution refunds
+            - heading "VBL, ZVK, VddB and VddKO refunds" [level=3] [ref=f2e78]
+            - list [ref=f2e79]:
+              - listitem [ref=f2e80]:
+                - generic [ref=f2e84]: €199 deposit to activate the full process
+              - listitem [ref=f2e85]:
+                - generic [ref=f2e89]: 9.75% success fee if the refund is approved
+              - listitem [ref=f2e90]:
+                - generic [ref=f2e94]: "Minimum total service fee: €199"
+              - listitem [ref=f2e95]:
+                - generic [ref=f2e99]: The deposit is credited toward the final service fee
+              - listitem [ref=f2e100]:
+                - generic [ref=f2e104]: Deposit rule
+            - generic [ref=f2e108]:
+              - paragraph [ref=f2e109]: Deposit rule
+              - paragraph [ref=f2e110]: If the pension institution rejects your completed and submitted refund request, the €199 deposit is refunded in full.
+            - link "Start my refund" [ref=f2e112] [cursor=pointer]:
+              - /url: /get-started
+      - generic [ref=f2e114]:
+        - generic [ref=f2e115]:
+          - generic [ref=f2e116]:
+            - heading "Example fee calculations" [level=2] [ref=f2e117]
+            - paragraph [ref=f2e118]: See how the €199 deposit is credited toward the final service fee if your cash-out or refund is approved.
+          - paragraph [ref=f2e119]: The final service fee is 9.75% of the approved amount, subject to a minimum total fee of €199.
+        - generic [ref=f2e120]:
+          - generic [ref=f2e121]:
+            - generic [ref=f2e126]:
+              - paragraph [ref=f2e127]: "Approved amount:"
+              - paragraph [ref=f2e128]: €2,000
+            - generic [ref=f2e129]:
+              - generic [ref=f2e130]:
+                - term [ref=f2e131]: 9.75% success fee
+                - definition [ref=f2e132]: €195
+              - generic [ref=f2e133]:
+                - term [ref=f2e134]: Minimum total fee
+                - definition [ref=f2e135]: €199
+              - generic [ref=f2e136]:
+                - term [ref=f2e137]: Deposit already paid
+                - definition [ref=f2e138]: €199
+              - generic [ref=f2e139]:
+                - term [ref=f2e140]: Remaining fee after approval
+                - definition [ref=f2e141]: €0
+            - generic [ref=f2e142]: The deposit covers the minimum total fee.
+          - generic [ref=f2e146]:
+            - generic [ref=f2e151]:
+              - paragraph [ref=f2e152]: "Approved amount:"
+              - paragraph [ref=f2e153]: €5,000
+            - generic [ref=f2e154]:
+              - generic [ref=f2e155]:
+                - term [ref=f2e156]: 9.75% success fee
+                - definition [ref=f2e157]: €487.50
+              - generic [ref=f2e158]:
+                - term [ref=f2e159]: Deposit already paid
+                - definition [ref=f2e160]: €199
+              - generic [ref=f2e161]:
+                - term [ref=f2e162]: Remaining fee after approval
+                - definition [ref=f2e163]: €288.50
+            - generic [ref=f2e164]: The approved money is paid directly to your bank account. Only the remaining service fee becomes due.
+          - generic [ref=f2e168]:
+            - generic [ref=f2e173]:
+              - paragraph [ref=f2e174]: "Approved amount:"
+              - paragraph [ref=f2e175]: €12,000
+            - generic [ref=f2e176]:
+              - generic [ref=f2e177]:
+                - term [ref=f2e178]: 9.75% success fee
+                - definition [ref=f2e179]: €1,170
+              - generic [ref=f2e180]:
+                - term [ref=f2e181]: Deposit already paid
+                - definition [ref=f2e182]: €199
+              - generic [ref=f2e183]:
+                - term [ref=f2e184]: Remaining fee after approval
+                - definition [ref=f2e185]: €971
+            - generic [ref=f2e186]: Your deposit is fully credited toward the final service fee.
+        - generic [ref=f2e190]: These examples are for illustration only. Your final fee depends on the approved amount and the pricing rules shown before payment.
+      - generic [ref=f2e197]:
+        - generic [ref=f2e198]:
+          - generic [ref=f2e199]:
+            - generic [ref=f2e200]: Your deposit
+            - heading "What your €199 deposit activates" [level=2] [ref=f2e201]
+          - paragraph [ref=f2e202]: The deposit activates the secure digital application process—not just an initial check.
+          - paragraph [ref=f2e203]: Once your claim is activated, the CompanyPension platform provides the tools needed to complete, review, sign and submit your cash-out or refund application online.
+        - generic [ref=f2e204]:
+          - paragraph [ref=f2e205]: "Included in the process:"
+          - list [ref=f2e207]:
+            - listitem [ref=f2e208]:
+              - generic [ref=f2e212]: Secure claim setup
+            - listitem [ref=f2e213]:
+              - generic [ref=f2e217]: Pension-document upload
+            - listitem [ref=f2e218]:
+              - generic [ref=f2e222]: OCR and automated extraction of document details
+            - listitem [ref=f2e223]:
+              - generic [ref=f2e227]: Questions adapted to your pension type and answers
+            - listitem [ref=f2e228]:
+              - generic [ref=f2e232]: Automated checks for missing or inconsistent information
+            - listitem [ref=f2e233]:
+              - generic [ref=f2e237]: Preparation of the application from the information you provide
+            - listitem [ref=f2e238]:
+              - generic [ref=f2e242]: Online review and digital signing
+            - listitem [ref=f2e243]:
+              - generic [ref=f2e247]: Technical transmission after you sign
+            - listitem [ref=f2e248]:
+              - generic [ref=f2e252]: Secure display of provider correspondence and next steps
+            - listitem [ref=f2e253]:
+              - generic [ref=f2e257]: Human support when clarification, translation or follow-up is needed
+          - generic [ref=f2e258]: The deposit is not an additional fee. If your cash-out or refund is approved, it is credited toward your final service fee.
+      - generic [ref=f2e265]:
+        - generic [ref=f2e266]:
+          - generic [ref=f2e267]:
+            - generic [ref=f2e268]: After approval
+            - heading "When is the remaining service fee due?" [level=2] [ref=f2e269]: When is the remainingservice fee due?
+          - paragraph [ref=f2e270]: Only after your cash-out or refund is approved.
+        - generic [ref=f2e271]:
+          - generic [ref=f2e272]:
+            - heading "Company pension cash-out" [level=3] [ref=f2e277]
+            - paragraph [ref=f2e278]: If your bAV cash-out is approved, the 9.75% success fee is calculated from the approved cash-out amount. Your €199 deposit is deducted, and only the remaining service fee becomes due.
+          - generic [ref=f2e279]:
+            - heading "VBL, ZVK, VddB and VddKO refund" [level=3] [ref=f2e283]
+            - paragraph [ref=f2e284]: If your refund is approved, the 9.75% success fee is calculated from the approved refund amount. Your €199 deposit is deducted, and only the remaining service fee becomes due.
+          - generic [ref=f2e285]: If the deposit already covers the minimum total service fee, there is no remaining fee after approval.
+      - generic [ref=f2e291]:
+        - generic [ref=f2e292]:
+          - heading "Approved money is paid directly to you" [level=2] [ref=f2e294]
+          - generic [ref=f2e295]:
+            - paragraph [ref=f2e296]: The relevant provider, pension scheme or institution pays the approved money directly to the bank account you provide.
+            - paragraph [ref=f2e297]: CompanyPension does not deduct its fee from the pension money and does not receive, hold or forward approved pension money.
+            - paragraph [ref=f2e298]: A German bank account is not required in most cases. Some providers or refund routes may require a suitable SEPA-capable EUR account. If needed, CompanyPension can help you open one.
+        - img "A person holding a phone showing a 'Money Received' confirmation" [ref=f2e300]
+      - generic [ref=f2e302]:
+        - heading "Frequently asked questions" [level=2] [ref=f2e305]
+        - generic [ref=f2e307]:
+          - generic [ref=f2e308]:
+            - button "Why do I pay a deposit first?" [expanded] [ref=f2e309] [cursor=pointer]
+            - generic [ref=f2e312]:
+              - paragraph [ref=f2e313]: The €199 deposit activates the secure application process.
+              - paragraph [ref=f2e314]: After payment, you can upload documents, use automated document extraction, complete the guided flow, review your application, sign online and submit through the CompanyPension platform.
+          - button "Is the €199 deposit an extra fee?" [ref=f2e316] [cursor=pointer]
+          - button "Is the €199 deposit always refundable?" [ref=f2e320] [cursor=pointer]
+          - button "When do I pay more than the deposit?" [ref=f2e324] [cursor=pointer]
+          - button "Who receives the approved amount?" [ref=f2e328] [cursor=pointer]
+          - button "Are there hidden fees?" [ref=f2e332] [cursor=pointer]
+        - link "Show more questions" [ref=f2e336] [cursor=pointer]:
+          - /url: /faq
+      - generic [ref=f2e338]:
+        - generic [ref=f2e339]: Start online
+        - heading "Ready to start your cash-out or refund?" [level=2] [ref=f2e340]
+        - paragraph [ref=f2e341]: Start the guided claim flow for a bAV cash-out or a VBL, ZVK, VddB or VddKO refund. For refund cases, you can also calculate a first estimate before continuing.
+        - generic [ref=f2e342]:
+          - link "Start your claim" [ref=f2e343] [cursor=pointer]:
+            - /url: /get-started
+          - link "Calculate my refund" [ref=f2e344] [cursor=pointer]:
+            - /url: /calculator
+        - paragraph [ref=f2e345]:
+          - generic [ref=f2e346]: The refund calculator is available for VBL, ZVK, VddB and VddKO. It is not used for bAV cash-outs.
+          - generic [ref=f2e347]: If approved, the money is paid directly to the bank account you provide. CompanyPension does not receive, hold or forward approved pension money.
+    - contentinfo [ref=f2e348]:
+      - generic [ref=f2e349]:
+        - generic [ref=f2e350]:
+          - generic [ref=f2e351]:
+            - img "Company Pension Cash-outs & Refunds" [ref=f2e352]
+            - paragraph [ref=f2e353]: Cash out or refund your German company pension online through a guided digital process, with human support when clarification or follow-up is needed.
+            - paragraph [ref=f2e354]: Operated by ATLAES GmbH, Kaskelstraße 46, 10317 Berlin, Germany.
+          - generic [ref=f2e355]:
+            - generic [ref=f2e356]:
+              - heading "COMPANY" [level=2] [ref=f2e357]
+              - list [ref=f2e358]:
+                - listitem [ref=f2e359]:
+                  - link "About" [ref=f2e360] [cursor=pointer]:
+                    - /url: /about
+                - listitem [ref=f2e361]:
+                  - link "Reviews" [ref=f2e362] [cursor=pointer]:
+                    - /url: /reviews
+                - listitem [ref=f2e363]:
+                  - link "How It Works" [ref=f2e364] [cursor=pointer]:
+                    - /url: /how-it-works
+                - listitem [ref=f2e365]:
+                  - link "Pricing" [ref=f2e366] [cursor=pointer]:
+                    - /url: /pricing
+                - listitem [ref=f2e367]:
+                  - link "FAQ" [ref=f2e368] [cursor=pointer]:
+                    - /url: /faq
+                - listitem [ref=f2e369]:
+                  - link "Contact" [ref=f2e370] [cursor=pointer]:
+                    - /url: /contact
+            - generic [ref=f2e371]:
+              - heading "LEGAL" [level=2] [ref=f2e372]
+              - list [ref=f2e373]:
+                - listitem [ref=f2e374]:
+                  - link "Imprint" [ref=f2e375] [cursor=pointer]:
+                    - /url: /imprint
+                - listitem [ref=f2e376]:
+                  - link "Privacy Policy" [ref=f2e377] [cursor=pointer]:
+                    - /url: /privacy-policy
+                - listitem [ref=f2e378]:
+                  - link "Cookie Policy / Cookie Settings" [ref=f2e379] [cursor=pointer]:
+                    - /url: /cookie-policy
+                - listitem [ref=f2e380]:
+                  - link "Terms and Conditions" [ref=f2e381] [cursor=pointer]:
+                    - /url: /terms
+                - listitem [ref=f2e382]:
+                  - link "Payment Terms" [ref=f2e383] [cursor=pointer]:
+                    - /url: /payment-terms
+                - listitem [ref=f2e384]:
+                  - link "Revocation" [ref=f2e385] [cursor=pointer]:
+                    - /url: /revocation
+            - generic [ref=f2e386]:
+              - heading "PRIVACY REQUESTS" [level=2] [ref=f2e387]
+              - list [ref=f2e388]:
+                - listitem [ref=f2e389]:
+                  - link "Data Access Request" [ref=f2e390] [cursor=pointer]:
+                    - /url: /data-access-request
+                - listitem [ref=f2e391]:
+                  - link "Data Deletion Request" [ref=f2e392] [cursor=pointer]:
+                    - /url: /data-deletion-request
+        - generic [ref=f2e393]:
+          - paragraph [ref=f2e394]: CompanyPension is a digital application platform and brand operated by ATLAES GmbH.
+          - paragraph [ref=f2e395]: The platform uses the information provided by users to complete their applications. Users review and sign their applications themselves and remain the applicant and claimant throughout the process. After signing, ATLAES GmbH technically transmits the application to the relevant pension provider, scheme or institution. Where authorised, ATLAES GmbH may receive and forward correspondence and information about the final decision. Neither CompanyPension nor ATLAES GmbH provides legal, pension, tax, insurance or financial advice or acts as the claimant. Approval and payment decisions are made by the relevant provider, pension scheme or institution. Approved funds are paid directly to the bank account provided by the user. ATLAES GmbH does not receive, hold or forward approved pension money. If separate legal services are needed for a specific case, they are provided by the responsible legal partner under a separate arrangement.
+        - paragraph [ref=f2e397]: Copyright © 2026 Company Pension. All rights reserved.
+  - alert [ref=f2e398]

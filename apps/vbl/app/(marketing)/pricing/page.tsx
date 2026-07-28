@@ -189,7 +189,14 @@ function ExampleCard({
         </div>
       </div>
 
-      <dl className="mt-6 space-y-3 border-t border-gray-200 pt-6">
+      {/* min-h pins the rows block to the height of the tallest card (the
+          €2,000 example, which carries a fourth "Minimum total fee" row) so
+          the note box below starts at the same y in all three cards. Figma
+          (1190:6861) top-aligns those note boxes and lets their heights differ;
+          bottom-anchoring them instead made the middle card's taller note start
+          46px higher than its neighbours — the misalignment the client
+          flagged on 2026-07-23. */}
+      <dl className="mt-6 min-h-[170px] space-y-3 border-t border-gray-200 pt-6">
         {rows.map((row) => {
           const highlight = row.label === 'Remaining fee after approval';
           return (
@@ -218,7 +225,7 @@ function ExampleCard({
         })}
       </dl>
 
-      <div className="mt-6 flex flex-1 items-end">
+      <div className="mt-6">
         <div className="flex items-start gap-2 rounded-[10px] bg-[#ececec] px-4 py-3 text-sm leading-relaxed text-gray-600">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -300,7 +307,17 @@ export default function PricingPage() {
           <div className="mx-auto mt-14 grid max-w-5xl gap-8 lg:grid-cols-2">
             <PriceCard
               badge="bAV cash-outs"
-              title="Company pension cash-outs"
+              // Client feedback 2026-07-23: break before "cash-outs" so this
+              // title occupies two lines like the refunds card beside it, which
+              // realigns everything below the two headings. Responsive break —
+              // on narrow screens the title wraps on its own.
+              title={
+                <>
+                  Company pension
+                  <br className="hidden sm:block" />
+                  cash-outs
+                </>
+              }
               bullets={[
                 '€199 deposit to activate the full process',
                 '9.75% success fee if the cash-out is approved',
