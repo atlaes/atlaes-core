@@ -16,6 +16,21 @@ import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
+/**
+ * Placeholder for FAQ entries the design lists but the master copy does not
+ * answer. Copy governance: never invent FAQ answers — surface the question and
+ * route the user, then replace once the client supplies the text.
+ */
+const FAQ_ANSWER_PENDING = (
+  <p>
+    The full answer to this question will be published here soon. You can also{' '}
+    <Link href="/faq" className="font-semibold text-brand underline">
+      see all FAQs
+    </Link>{' '}
+    in the meantime.
+  </p>
+);
+
 // ---------------------------------------------------------------------------
 // CTA routing
 // ---------------------------------------------------------------------------
@@ -118,16 +133,23 @@ function ArrowLink({
 }: {
   href: string;
   children: ReactNode;
-  variant?: 'solid' | 'outline';
+  /**
+   * `link` renders plain underlined text rather than a button — Figma
+   * 1358:1204 shows "See how the full process works" as a text link beside the
+   * solid CTA, not as a second button (client feedback 2026-07-23).
+   */
+  variant?: 'solid' | 'outline' | 'link';
 }) {
   const styles =
     variant === 'solid'
-      ? 'bg-accent text-brand hover:bg-accent-hover'
-      : 'border border-brand/25 text-brand hover:bg-brand/5';
+      ? 'rounded-brand px-6 py-3 bg-accent text-brand hover:bg-accent-hover'
+      : variant === 'outline'
+        ? 'rounded-brand px-6 py-3 border border-brand/25 text-brand hover:bg-brand/5'
+        : 'text-brand underline underline-offset-4 hover:text-brand/70';
   return (
     <Link
       href={href}
-      className={`inline-flex items-center gap-2 rounded-brand px-6 py-3 text-base font-semibold transition-colors ${styles}`}
+      className={`inline-flex items-center gap-2 text-base font-semibold transition-colors ${styles}`}
     >
       {children}
       <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -191,7 +213,9 @@ export default function RefundCalculatorPage() {
               pension scheme or institution confirms the final amount and
               decides whether your refund is approved.
             </p>
-            <p>
+            {/* Accent green (#9FE870 = `text-accent`) per client feedback
+                2026-07-23; the two paragraphs above stay muted white. */}
+            <p className="text-accent">
               Using the calculator does not create a contract or obligation. You
               continue only if you choose to.
             </p>
@@ -812,8 +836,10 @@ export default function RefundCalculatorPage() {
         </div>
       </section>
 
-      {/* ---- YOUR NEXT STEP / CONTINUE ONLINE (Figma 1358:1204) ---- */}
-      <section className="bg-neutral-50">
+      {/* ---- YOUR NEXT STEP / CONTINUE ONLINE (Figma 1358:1204) ----
+          White, not the light-grey wash: the client asked for the grey to be
+          removed from this section on 2026-07-23. */}
+      <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-white px-4 py-2 text-sm font-medium text-brand">
@@ -866,7 +892,7 @@ export default function RefundCalculatorPage() {
 
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <ArrowLink href={START_HREF}>Start my refund</ArrowLink>
-            <ArrowLink href={PROCESS_HREF} variant="outline">
+            <ArrowLink href={PROCESS_HREF} variant="link">
               See how the full process works
             </ArrowLink>
           </div>
@@ -932,8 +958,16 @@ export default function RefundCalculatorPage() {
         </div>
       </section>
 
-      {/* ---- FAQ — answers from the shared FAQ master copy via faqItems.tsx (FAQ CompanyPension 22062026.pdf) ---- */}
-      <section className="bg-neutral-50">
+      {/* ---- FAQ (Figma 1361:78) — answers from the shared FAQ master copy via
+           faqItems.tsx (FAQ CompanyPension 22062026.pdf).
+           All 16 questions the design lists are now present (the page shipped
+           only 5; client feedback 2026-07-23). Questions are transcribed from
+           the Figma accordion. Figma leaves 15 of the 16 collapsed, so their
+           answers are not readable there — each question below is wired to the
+           master answer that covers it, and the six with no master match carry
+           the standard pending placeholder rather than invented copy.
+           COPY GAP — FLAGGED: those six need client-supplied answers. */}
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -945,11 +979,72 @@ export default function RefundCalculatorPage() {
           <div className="mx-auto mt-12 max-w-4xl">
             <FaqAccordion
               items={[
-                FAQ.howMuch,
-                FAQ.calculatorFirst,
-                FAQ.whatIsRefund,
-                FAQ.wait24,
-                FAQ.liveOutside,
+                {
+                  ...FAQ.calculatorFirst,
+                  question: 'Can I calculate my German company pension refund?',
+                },
+                {
+                  ...FAQ.howMuch,
+                  question: 'How much VBL refund could I receive?',
+                },
+                {
+                  ...FAQ.zvkRefund,
+                  question: 'Can I calculate my ZVK refund?',
+                },
+                {
+                  ...FAQ.vddbRefund,
+                  question: 'Can I estimate a VddB or VddKO refund?',
+                },
+                {
+                  ...FAQ.refundVsCashout,
+                  question: 'Can I calculate my bAV cash-out?',
+                },
+                {
+                  question:
+                    'Why can I estimate a VBL refund but not a bAV cash-out?',
+                  answer: FAQ_ANSWER_PENDING,
+                },
+                {
+                  ...FAQ.uploadInsteadManual,
+                  question: 'Can I upload a pension letter?',
+                },
+                {
+                  question: 'Can I enter the information myself?',
+                  answer: FAQ_ANSWER_PENDING,
+                },
+                {
+                  ...FAQ.documentsNeeded,
+                  question: 'What if my pension document is incomplete?',
+                },
+                {
+                  question: 'Is my estimated refund guaranteed?',
+                  answer: FAQ_ANSWER_PENDING,
+                },
+                {
+                  ...FAQ.bothRefunds,
+                  question: 'Does the calculator include my DRV refund?',
+                },
+                {
+                  question: 'Do I have to continue after seeing the estimate?',
+                  answer: FAQ_ANSWER_PENDING,
+                },
+                {
+                  question: 'What should I do after getting the estimate?',
+                  answer: FAQ_ANSWER_PENDING,
+                },
+                {
+                  question:
+                    'Can I use the calculator if I do not know what pension I have?',
+                  answer: FAQ_ANSWER_PENDING,
+                },
+                {
+                  ...FAQ.whoReceives,
+                  question: 'Who receives the approved refund?',
+                },
+                {
+                  ...FAQ.advisorOrLawFirm,
+                  question: 'Is CompanyPension a pension advisor?',
+                },
               ]}
               defaultOpenIndex={0}
             />
@@ -971,111 +1066,120 @@ export default function RefundCalculatorPage() {
           verbatim per wave-wide precedent (Tasks 13/14). Replace "[Add actual
           review date]" and "[Add reviewer name and role]" with real values
           before publication. */}
-      <section className="bg-white">
+      {/* Grey band with the content in a white card — Figma 1364:3163 (client
+          feedback 2026-07-23: "background color should be #F3F4F4"). The card
+          is part of that design, not decoration: the grey reads as the section
+          and the white as the panel sitting on it. */}
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="text-brand">
-            <SectionHeading
-              align="left"
-              eyebrow="Platform scope"
-              title="A refund estimate and digital application platform"
-            />
-          </div>
-          <div className="mt-8 max-w-4xl space-y-4 text-base leading-relaxed text-gray-600">
-            <p>
-              The calculator provides a preliminary estimate using the documents
-              and information you provide.
-            </p>
-            <p>
-              It does not approve your refund and does not replace the records
-              or assessment of VBL, your ZVK, VddB or VddKO.
-            </p>
-            <p className="font-semibold text-brand">
-              If you continue into the full refund process:
-            </p>
-            <ul className="space-y-3">
-              {[
-                'The platform prepares the application from the information you provide.',
-                'You review and sign the application yourself.',
-                'You remain the applicant and claimant.',
-                'The signed application is technically transmitted through the CompanyPension platform.',
-                'The pension scheme or institution makes the final decision.',
-              ].map((item) => (
-                <li key={item} className="flex items-start gap-3">
-                  <span
-                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand"
-                    aria-hidden="true"
-                  />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-            <p>
-              CompanyPension does not provide pension, legal, tax, insurance or
-              financial advice.
-            </p>
-            <p>
-              CompanyPension does not receive, hold or forward approved pension
-              money.
-            </p>
-          </div>
-
-          <h3 className="mt-12 text-2xl font-bold tracking-tight text-brand">
-            Limited authorization
-          </h3>
-          <div className="mt-5 max-w-4xl space-y-4 text-base leading-relaxed text-gray-600">
-            <p>You may give ATLAES GmbH limited authorization to:</p>
-            <ul className="space-y-3">
-              {[
-                'Receive and forward relevant correspondence',
-                'Receive information about the final decision',
-                'Receive information about the approved amount',
-              ].map((item) => (
-                <li key={item} className="flex items-start gap-3">
-                  <span
-                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand"
-                    aria-hidden="true"
-                  />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-            <p>
-              This allows the platform to display follow-up requests and
-              calculate the agreed service fee.
-            </p>
-            <p>
-              The authorization does not make ATLAES GmbH the applicant or
-              claimant.
-            </p>
-          </div>
-
-          {/* Source-basis review-metadata row (Figma 1364:3225–3246). */}
-          <div className="mt-12 flex max-w-4xl flex-col gap-8 border-t border-neutral-400 pt-10 sm:flex-row sm:gap-16">
-            <div className="flex items-center gap-4">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-brand bg-accent/20 text-brand">
-                <Calendar className="h-7 w-7" aria-hidden="true" />
-              </span>
-              <span>
-                <span className="block text-sm font-semibold uppercase tracking-wide text-brand">
-                  LAST REVIEWED
-                </span>
-                <span className="mt-1 block text-base text-gray-600">
-                  [Add actual review date]
-                </span>
-              </span>
+          <div className="rounded-2xl bg-white p-8 sm:p-12">
+            <div className="text-brand">
+              <SectionHeading
+                align="left"
+                eyebrow="Platform scope"
+                title="A refund estimate and digital application platform"
+              />
             </div>
-            <div className="flex items-center gap-4">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-brand bg-accent/20 text-brand">
-                <User className="h-7 w-7" aria-hidden="true" />
-              </span>
-              <span>
-                <span className="block text-sm font-semibold uppercase tracking-wide text-brand">
-                  REVIEWED BY
+            <div className="mt-8 max-w-4xl space-y-4 text-base leading-relaxed text-gray-600">
+              <p>
+                The calculator provides a preliminary estimate using the
+                documents and information you provide.
+              </p>
+              <p>
+                It does not approve your refund and does not replace the records
+                or assessment of VBL, your ZVK, VddB or VddKO.
+              </p>
+              <p className="font-semibold text-brand">
+                If you continue into the full refund process:
+              </p>
+              <ul className="space-y-3">
+                {[
+                  'The platform prepares the application from the information you provide.',
+                  'You review and sign the application yourself.',
+                  'You remain the applicant and claimant.',
+                  'The signed application is technically transmitted through the CompanyPension platform.',
+                  'The pension scheme or institution makes the final decision.',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-3">
+                    <span
+                      className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand"
+                      aria-hidden="true"
+                    />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <p>
+                CompanyPension does not provide pension, legal, tax, insurance
+                or financial advice.
+              </p>
+              <p>
+                CompanyPension does not receive, hold or forward approved
+                pension money.
+              </p>
+            </div>
+
+            <h3 className="mt-12 text-2xl font-bold tracking-tight text-brand">
+              Limited authorization
+            </h3>
+            <div className="mt-5 max-w-4xl space-y-4 text-base leading-relaxed text-gray-600">
+              <p>You may give ATLAES GmbH limited authorization to:</p>
+              <ul className="space-y-3">
+                {[
+                  'Receive and forward relevant correspondence',
+                  'Receive information about the final decision',
+                  'Receive information about the approved amount',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-3">
+                    <span
+                      className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand"
+                      aria-hidden="true"
+                    />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <p>
+                This allows the platform to display follow-up requests and
+                calculate the agreed service fee.
+              </p>
+              <p>
+                The authorization does not make ATLAES GmbH the applicant or
+                claimant.
+              </p>
+            </div>
+
+            {/* Source-basis review-metadata row (Figma 1364:3225–3246). */}
+            <div className="mt-12 flex max-w-4xl flex-col gap-8 border-t border-neutral-400 pt-10 sm:flex-row sm:gap-16">
+              <div className="flex items-center gap-4">
+                {/* Figma 1364:3163 renders these review-metadata icons small and
+                  inline (~20px), not in the 56px tinted tiles we had — that
+                  size difference is what the client flagged on 2026-07-23. */}
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent/20 text-brand">
+                  <Calendar className="h-4 w-4" aria-hidden="true" />
                 </span>
-                <span className="mt-1 block text-base text-gray-600">
-                  [Add reviewer name and role]
+                <span>
+                  <span className="block text-sm font-semibold uppercase tracking-wide text-brand">
+                    LAST REVIEWED
+                  </span>
+                  <span className="mt-1 block text-base text-gray-600">
+                    [Add actual review date]
+                  </span>
                 </span>
-              </span>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent/20 text-brand">
+                  <User className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <span>
+                  <span className="block text-sm font-semibold uppercase tracking-wide text-brand">
+                    REVIEWED BY
+                  </span>
+                  <span className="mt-1 block text-base text-gray-600">
+                    [Add reviewer name and role]
+                  </span>
+                </span>
+              </div>
             </div>
           </div>
         </div>
