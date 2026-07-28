@@ -62,12 +62,18 @@ function GreenCheckList({
   );
 }
 
-/** Filled accent-green check badge for the dark Platform-scope lists (Figma). */
+/**
+ * Filled accent-green check badge for the dark Platform-scope lists (Figma).
+ * The badge is a rounded SQUARE, not a circle — Figma 1248:6166 renders the
+ * "limited authorization" checks that way and the client flagged the circular
+ * version on 2026-07-23. Used only by this one section, so the shape change is
+ * scoped to it.
+ */
 function AccentCheck({ className = '' }: { className?: string }) {
   return (
     <span
       aria-hidden="true"
-      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent ${className}`}
+      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-accent ${className}`}
     >
       <Check className="h-3.5 w-3.5 text-brand" strokeWidth={3} />
     </span>
@@ -120,14 +126,18 @@ function PrincipleCard({
   number,
   title,
   children,
+  className = '',
 }: {
   icon: ReactNode;
   number: string;
   title: string;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="relative flex h-full flex-col rounded-2xl border border-neutral-400/60 bg-white p-8">
+    <div
+      className={`relative flex h-full flex-col rounded-2xl border border-neutral-400/60 bg-white p-8 ${className}`}
+    >
       <span
         aria-hidden="true"
         className="absolute right-8 top-6 text-4xl font-bold text-[#939494]"
@@ -296,15 +306,25 @@ export default function AboutPage() {
 
       {/* ---- WHY (Figma 1219:5156) ---- */}
       <section className="relative overflow-hidden bg-white text-brand">
+        {/* Berlin building watermark. Figma 1219:5156 fades it out gradually
+            toward the copy column; the previous `w-1/2` + `object-left` cut it
+            with a hard vertical edge down the middle of the section and showed
+            only the left ~47% of a landscape photo squeezed into a portrait box
+            (client feedback 2026-07-23: "image got cut-off on the center").
+            Now: wider box, centred crop so the colonnade reads, and a mask that
+            dissolves the left edge. The 2000px asset replaces the 500px one —
+            same aspect ratio despite the "portrait" filename, but it was being
+            upscaled ~4x. */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 right-0 w-1/2 opacity-[0.06]"
+          className="pointer-events-none absolute inset-y-0 right-0 w-2/3 opacity-[0.06] [mask-image:linear-gradient(to_right,rgba(0,0,0,0)_0%,rgba(0,0,0,1)_45%)]"
         >
           <Image
-            src="/marketing/shared/berlin-landmark-building-landscape.png"
+            src="/marketing/shared/berlin-landmark-building-portrait.png"
             alt=""
             fill
-            className="object-cover object-left"
+            sizes="66vw"
+            className="object-cover object-center"
           />
         </div>
         <div className={`relative ${CONTAINER} py-20 sm:py-24`}>
@@ -370,6 +390,14 @@ export default function AboutPage() {
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="Digital by design"
+              // ASSUMED MAPPING: the client's 2026-07-23 list gives this width
+              // without naming the pill. Assigned by page order — their item
+              // sits between the hero and the "numbers on the left" item, which
+              // is this section's card grid (1219:6533). The doc's screenshots
+              // are unrecoverable (Drive refuses to export the file) and Figma
+              // gates node selection behind sign-in, so this could not be
+              // measured. Cheap to correct if the client says otherwise.
+              eyebrowWidth={252}
               title="Upload instead of entering everything manually"
               body="CompanyPension is built as a technology platform rather than a traditional claims or advisory service."
             />
@@ -430,6 +458,14 @@ export default function AboutPage() {
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="Supported claim types"
+              // ASSUMED MAPPING: the client's 2026-07-23 list gives this width
+              // without naming the pill. Assigned by page order — their item
+              // sits between the "numbers on the left" item (1219:6533) and the
+              // all-caps item on "the company behind the platform". The doc's screenshots
+              // are unrecoverable (Drive refuses to export the file) and Figma
+              // gates node selection behind sign-in, so this could not be
+              // measured. Cheap to correct if the client says otherwise.
+              eyebrowWidth={303}
               title={
                 <>
                   Cash-outs and refunds for <br className="hidden md:block" />
@@ -796,10 +832,16 @@ export default function AboutPage() {
                 not receive, hold or forward approved pension money.
               </p>
             </PrincipleCard>
+            {/* Figma 1234:72 centers the fifth card under the 2x2 grid rather
+                than leaving it in the left column (client feedback 2026-07-23:
+                "5th block should be centered"). Spanning both columns and
+                halving the width keeps it the same size as its siblings —
+                gap-6 is 24px, hence the 12px half-gutter. */}
             <PrincipleCard
               number="05"
               title="Automation with human oversight"
               icon={<MessageSquare className="h-8 w-8" aria-hidden="true" />}
+              className="md:col-span-2 md:mx-auto md:w-[calc(50%-12px)]"
             >
               <p>
                 Most standard steps run digitally and automatically. Human
