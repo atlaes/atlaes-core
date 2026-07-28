@@ -61,10 +61,17 @@ function CheckList({ items }: { items: ReactNode[] }) {
     <ul className="space-y-3">
       {items.map((item, index) => (
         <li key={index} className="flex items-start gap-3 text-gray-700">
-          <Check
-            className="mt-0.5 h-5 w-5 shrink-0 text-brand"
+          {/* Filled brand-green disc with a white tick, matching Figma
+              1339:3086 and the shared `check-bullet.svg` used on the about and
+              pricing pages. This list previously rendered a bare lucide tick
+              with no disc, which is the checklist-icon mismatch the client
+              flagged on 2026-07-23. */}
+          <span
             aria-hidden="true"
-          />
+            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand"
+          >
+            <Check className="h-3 w-3 text-white" strokeWidth={3} />
+          </span>
           <span className="text-base leading-relaxed">{item}</span>
         </li>
       ))}
@@ -142,7 +149,10 @@ function ArrowLink({
 }) {
   const styles =
     variant === 'solid'
-      ? 'rounded-brand px-6 py-3 bg-accent text-brand hover:bg-accent-hover'
+      ? // `border-transparent` keeps the solid button the same height as the
+        // outline one, so a solid and an outline CTA sitting in adjacent cards
+        // line up exactly rather than 2px apart (client feedback 2026-07-23).
+        'rounded-brand border border-transparent px-6 py-3 bg-accent text-brand hover:bg-accent-hover'
       : variant === 'outline'
         ? 'rounded-brand px-6 py-3 border border-brand/25 text-brand hover:bg-brand/5'
         : 'text-brand underline underline-offset-4 hover:text-brand/70';
@@ -300,7 +310,7 @@ export default function RefundCalculatorPage() {
               title="Upload-assisted estimate"
               body="Upload a VBL, ZVK, VddB or VddKO letter, statement or pension document."
             >
-              <p className="mt-6 text-base font-medium text-brand">
+              <p className="mt-6 text-base font-semibold text-brand">
                 Where possible, the platform reads available information such
                 as:
               </p>
@@ -319,7 +329,7 @@ export default function RefundCalculatorPage() {
                 You can review and correct every extracted detail before it is
                 used.
               </p>
-              <p className="mt-6 text-base font-medium text-brand">
+              <p className="mt-6 text-base font-semibold text-brand">
                 Best if you have
               </p>
               <div className="mt-4">
@@ -333,14 +343,14 @@ export default function RefundCalculatorPage() {
                   ]}
                 />
               </div>
-              <div className="mt-8">
-                <ArrowLink href={CALC_HREF}>Upload my document</ArrowLink>
-              </div>
               <p className="mt-6 text-sm leading-relaxed text-gray-500">
                 Uploaded documents are processed securely for your estimate and
                 next-step routing. See the Privacy Policy for details about
                 processing, retention and deletion.
               </p>
+              <div className="mt-8 flex flex-1 items-end">
+                <ArrowLink href={CALC_HREF}>Upload my document</ArrowLink>
+              </div>
             </OptionCard>
 
             <OptionCard
@@ -348,7 +358,7 @@ export default function RefundCalculatorPage() {
               title="Manual estimate"
               body="Enter the information yourself if you do not want to upload a document yet."
             >
-              <p className="mt-6 text-base font-medium text-brand">
+              <p className="mt-6 text-base font-semibold text-brand">
                 The calculator may ask for:
               </p>
               <div className="mt-4">
@@ -364,7 +374,7 @@ export default function RefundCalculatorPage() {
                   ]}
                 />
               </div>
-              <p className="mt-6 text-base font-medium text-brand">
+              <p className="mt-6 text-base font-semibold text-brand">
                 Best if you know
               </p>
               <div className="mt-4">
@@ -378,7 +388,7 @@ export default function RefundCalculatorPage() {
                   ]}
                 />
               </div>
-              <div className="mt-8">
+              <div className="mt-8 flex flex-1 items-end">
                 <ArrowLink href={CALC_HREF} variant="outline">
                   Enter details manually
                 </ArrowLink>
@@ -399,7 +409,7 @@ export default function RefundCalculatorPage() {
             </p>
             <div className="mt-6 grid gap-10 lg:grid-cols-2">
               <div>
-                <p className="text-base font-medium text-brand">
+                <p className="text-base font-semibold text-brand">
                   The platform helps identify whether you have:
                 </p>
                 <div className="mt-4">
@@ -420,7 +430,7 @@ export default function RefundCalculatorPage() {
                 </p>
               </div>
               <div>
-                <p className="text-base font-medium text-brand">Best if:</p>
+                <p className="text-base font-semibold text-brand">Best if:</p>
                 <div className="mt-4">
                   <CheckList
                     items={[
@@ -433,16 +443,18 @@ export default function RefundCalculatorPage() {
                 </div>
               </div>
             </div>
-            <div className="mt-8">
+            {/* Centred button with the reassurance line beneath it, both
+                inside this card — client feedback 2026-07-23. The line used to
+                sit outside the card entirely, under the whole section. */}
+            <div className="mt-8 flex justify-center">
               <ArrowLink href={CALC_HREF} variant="outline">
                 Identify my pension document
               </ArrowLink>
             </div>
+            <p className="mt-6 text-center text-base leading-relaxed text-gray-600">
+              You can see your estimate before starting the paid refund process.
+            </p>
           </div>
-
-          <p className="mt-8 text-center text-base leading-relaxed text-gray-600">
-            You can see your estimate before starting the paid refund process.
-          </p>
         </div>
       </section>
 
@@ -482,7 +494,7 @@ export default function RefundCalculatorPage() {
                 The calculator can use the information available to estimate
                 eligible employee contributions.
               </p>
-              <p className="mt-6 text-base font-medium text-brand">
+              <p className="mt-6 text-base font-semibold text-brand">
                 Helpful information
               </p>
               <div className="mt-4">
@@ -531,7 +543,7 @@ export default function RefundCalculatorPage() {
                 The calculator can use your employment and contribution
                 information to provide a first estimate.
               </p>
-              <p className="mt-6 text-base font-medium text-brand">
+              <p className="mt-6 text-base font-semibold text-brand">
                 Helpful information
               </p>
               <div className="mt-4">

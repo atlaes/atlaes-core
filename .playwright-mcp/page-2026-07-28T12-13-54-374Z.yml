@@ -1,0 +1,641 @@
+- generic [ref=f1e3]:
+  - banner [ref=f1e4]:
+    - generic [ref=f1e6]:
+      - link "Company Pension home" [ref=f1e7] [cursor=pointer]:
+        - /url: /
+        - img "Company Pension Cash-outs & Refunds" [ref=f1e8]
+      - navigation "Primary" [ref=f1e9]:
+        - link "How it works" [ref=f1e10] [cursor=pointer]:
+          - /url: /how-it-works
+        - link "Pricing" [ref=f1e11] [cursor=pointer]:
+          - /url: /pricing
+        - link "FAQ" [ref=f1e12] [cursor=pointer]:
+          - /url: /faq
+        - link "About" [ref=f1e13] [cursor=pointer]:
+          - /url: /about
+        - link "Cash-outs & Refunds" [ref=f1e14] [cursor=pointer]:
+          - /url: /cash-outs-and-refunds
+      - link "Start your claim" [ref=f1e15] [cursor=pointer]:
+        - /url: /get-started
+  - main [ref=f1e16]:
+    - generic [ref=f1e18]:
+      - generic [ref=f1e19]: Refund calculator
+      - heading "Estimate your VBL, ZVK, VddB or VddKO refund" [level=1] [ref=f1e20]
+      - generic [ref=f1e21]: Upload a pension document or enter what you know to receive a first estimate. You can review the result before deciding whether to continue with your refund application online.
+      - generic [ref=f1e22]:
+        - link "Upload my pension document" [ref=f1e23] [cursor=pointer]:
+          - /url: /calculator
+        - link "Enter details manually" [ref=f1e24] [cursor=pointer]:
+          - /url: /calculator
+      - generic [ref=f1e26]:
+        - paragraph [ref=f1e27]: Have a bAV, Direktversicherung, Pensionskasse, Pensionsfonds or provider-based company pension? Use the bAV cash-out check instead.
+        - paragraph [ref=f1e28]: Your result is an estimate based on the information available. The pension scheme or institution confirms the final amount and decides whether your refund is approved.
+        - paragraph [ref=f1e29]: Using the calculator does not create a contract or obligation. You continue only if you choose to.
+    - generic [ref=f1e31]:
+      - generic [ref=f1e32]:
+        - generic [ref=f1e33]:
+          - heading "Made for people who no longer want to deal with German paperwork" [level=2] [ref=f1e34]
+          - paragraph [ref=f1e35]: Company pension cases are often confusing after you leave Germany.
+        - paragraph [ref=f1e36]: Your provider may write in German. Your former employer may no longer be involved. Your documents may mention bAV, VBL, ZVK, VddB or VddKO without clearly explaining what you can do next.
+      - generic [ref=f1e38]:
+        - paragraph [ref=f1e39]: "CompanyPension turns this into a guided online process:"
+        - list [ref=f1e41]:
+          - listitem [ref=f1e42]:
+            - generic [ref=f1e46]: You enter your pension details online
+          - listitem [ref=f1e47]:
+            - generic [ref=f1e51]: You upload your provider documents or add the details manually
+          - listitem [ref=f1e52]:
+            - generic [ref=f1e56]: The platform builds the right cash-out or refund flow based on your answers
+          - listitem [ref=f1e57]:
+            - generic [ref=f1e61]: You review your details and sign online
+          - listitem [ref=f1e62]:
+            - generic [ref=f1e66]: You submit your request digitally inside the platform
+          - listitem [ref=f1e67]:
+            - generic [ref=f1e71]: Human support is available when translation, clarification or follow-up is needed
+        - paragraph [ref=f1e72]: "The goal is simple: help you handle your German company pension cash-out or refund without getting lost in German paperwork"
+    - generic [ref=f1e75]:
+      - generic [ref=f1e76]:
+        - generic [ref=f1e77]:
+          - generic [ref=f1e78]: Start your estimate
+          - heading "Upload a document or enter the details yourself" [level=2] [ref=f1e79]
+          - paragraph [ref=f1e80]: Choose whichever option is easier for you.
+        - paragraph [ref=f1e81]: Uploading a document can reduce the amount you need to enter manually. You can also start without uploading anything.
+      - generic [ref=f1e82]:
+        - generic [ref=f1e83]:
+          - generic [ref=f1e84]: "1"
+          - heading "Upload-assisted estimate" [level=3] [ref=f1e85]
+          - paragraph [ref=f1e86]: Upload a VBL, ZVK, VddB or VddKO letter, statement or pension document.
+          - paragraph [ref=f1e87]: "Where possible, the platform reads available information such as:"
+          - list [ref=f1e89]:
+            - listitem [ref=f1e90]:
+              - generic [ref=f1e94]: Pension scheme or institution
+            - listitem [ref=f1e95]:
+              - generic [ref=f1e99]: Insurance or membership number
+            - listitem [ref=f1e100]:
+              - generic [ref=f1e104]: Employment or contribution periods
+            - listitem [ref=f1e105]:
+              - generic [ref=f1e109]: Employee contributions
+            - listitem [ref=f1e110]:
+              - generic [ref=f1e114]: Salary or pension values shown on the document
+          - paragraph [ref=f1e115]: You can review and correct every extracted detail before it is used.
+          - paragraph [ref=f1e116]: Best if you have
+          - list [ref=f1e118]:
+            - listitem [ref=f1e119]:
+              - generic [ref=f1e123]: A pension letter
+            - listitem [ref=f1e124]:
+              - generic [ref=f1e128]: An annual statement
+            - listitem [ref=f1e129]:
+              - generic [ref=f1e133]: A contribution record
+            - listitem [ref=f1e134]:
+              - generic [ref=f1e138]: An insurance or membership number
+            - listitem [ref=f1e139]:
+              - generic [ref=f1e143]: An old provider document
+          - paragraph [ref=f1e144]: Uploaded documents are processed securely for your estimate and next-step routing. See the Privacy Policy for details about processing, retention and deletion.
+          - link "Upload my document" [ref=f1e146] [cursor=pointer]:
+            - /url: /calculator
+        - generic [ref=f1e149]:
+          - generic [ref=f1e150]: "2"
+          - heading "Manual estimate" [level=3] [ref=f1e151]
+          - paragraph [ref=f1e152]: Enter the information yourself if you do not want to upload a document yet.
+          - paragraph [ref=f1e153]: "The calculator may ask for:"
+          - list [ref=f1e155]:
+            - listitem [ref=f1e156]:
+              - generic [ref=f1e160]: Your pension scheme
+            - listitem [ref=f1e161]:
+              - generic [ref=f1e165]: Your German employer
+            - listitem [ref=f1e166]:
+              - generic [ref=f1e170]: Your employment dates
+            - listitem [ref=f1e171]:
+              - generic [ref=f1e175]: Your contribution period
+            - listitem [ref=f1e176]:
+              - generic [ref=f1e180]: Your employee contribution amount
+            - listitem [ref=f1e181]:
+              - generic [ref=f1e185]: Your salary, where relevant
+            - listitem [ref=f1e186]:
+              - generic [ref=f1e190]: Your federal state or pension institution
+          - paragraph [ref=f1e191]: Best if you know
+          - list [ref=f1e193]:
+            - listitem [ref=f1e194]:
+              - generic [ref=f1e198]: When you started and stopped working
+            - listitem [ref=f1e199]:
+              - generic [ref=f1e203]: Which employer you worked for
+            - listitem [ref=f1e204]:
+              - generic [ref=f1e208]: Which pension scheme appears on your documents
+            - listitem [ref=f1e209]:
+              - generic [ref=f1e213]: Your salary or contribution amounts
+            - listitem [ref=f1e214]:
+              - generic [ref=f1e218]: Some, but not all, of your pension details
+          - link "Enter details manually" [ref=f1e220] [cursor=pointer]:
+            - /url: /calculator
+      - generic [ref=f1e223]:
+        - generic [ref=f1e224]: "3"
+        - heading "Not sure what pension you have?" [level=3] [ref=f1e225]
+        - paragraph [ref=f1e226]: Start with the document title, provider name or scheme name shown on your letter.
+        - generic [ref=f1e227]:
+          - generic [ref=f1e228]:
+            - paragraph [ref=f1e229]: "The platform helps identify whether you have:"
+            - list [ref=f1e231]:
+              - listitem [ref=f1e232]:
+                - generic [ref=f1e236]: VBL
+              - listitem [ref=f1e237]:
+                - generic [ref=f1e241]: ZVK
+              - listitem [ref=f1e242]:
+                - generic [ref=f1e246]: VddB
+              - listitem [ref=f1e247]:
+                - generic [ref=f1e251]: VddKO
+              - listitem [ref=f1e252]:
+                - generic [ref=f1e256]: A bAV or Direktversicherung
+              - listitem [ref=f1e257]:
+                - generic [ref=f1e261]: A DRV state pension document
+            - paragraph [ref=f1e262]: If this refund calculator is not the right route, you will be guided toward the relevant alternative.
+          - generic [ref=f1e263]:
+            - paragraph [ref=f1e264]: "Best if:"
+            - list [ref=f1e266]:
+              - listitem [ref=f1e267]:
+                - generic [ref=f1e271]: You have a German pension document but do not understand it
+              - listitem [ref=f1e272]:
+                - generic [ref=f1e276]: You recognise only the provider name
+              - listitem [ref=f1e277]:
+                - generic [ref=f1e281]: You are unsure whether you need a refund or cash-out
+              - listitem [ref=f1e282]:
+                - generic [ref=f1e286]: You do not know which pension scheme you paid into
+        - link "Identify my pension document" [ref=f1e288] [cursor=pointer]:
+          - /url: /calculator
+        - paragraph [ref=f1e291]: You can see your estimate before starting the paid refund process.
+    - generic [ref=f1e293]:
+      - generic [ref=f1e295]:
+        - generic [ref=f1e296]: Calculator scope
+        - heading "Which refund do you want to estimate?" [level=2] [ref=f1e297]
+        - paragraph [ref=f1e298]: The calculator is designed for pensions where a first estimate can be based on employment periods, salary information, contribution records or pension documents.
+      - generic [ref=f1e299]:
+        - generic [ref=f1e300]:
+          - heading "Estimate a VBL or ZVK refund" [level=3] [ref=f1e301]
+          - paragraph [ref=f1e302]: "You may have paid into VBL or a ZVK if you worked for a German public-sector employer, such as:"
+          - list [ref=f1e304]:
+            - listitem [ref=f1e305]:
+              - generic [ref=f1e309]: A university
+            - listitem [ref=f1e310]:
+              - generic [ref=f1e314]: A public hospital
+            - listitem [ref=f1e315]:
+              - generic [ref=f1e319]: A research institute
+            - listitem [ref=f1e320]:
+              - generic [ref=f1e324]: A municipality
+            - listitem [ref=f1e325]:
+              - generic [ref=f1e329]: A public authority
+            - listitem [ref=f1e330]:
+              - generic [ref=f1e334]: Another public-sector organisation
+          - paragraph [ref=f1e335]: The calculator can use the information available to estimate eligible employee contributions.
+          - paragraph [ref=f1e336]: Helpful information
+          - list [ref=f1e338]:
+            - listitem [ref=f1e339]:
+              - generic [ref=f1e343]: VBL or ZVK documents
+            - listitem [ref=f1e344]:
+              - generic [ref=f1e348]: Employment start and end dates
+            - listitem [ref=f1e349]:
+              - generic [ref=f1e353]: Contribution periods
+            - listitem [ref=f1e354]:
+              - generic [ref=f1e358]: Employee contribution amounts
+            - listitem [ref=f1e359]:
+              - generic [ref=f1e363]: Salary or payslip information
+            - listitem [ref=f1e364]:
+              - generic [ref=f1e368]: Annual pension statements
+          - link "Estimate my VBL or ZVK refund" [ref=f1e370] [cursor=pointer]:
+            - /url: /calculator
+          - paragraph [ref=f1e373]: Uploaded documents are processed securely for your estimate and next-step routing. See the Privacy Policy for details about processing, retention and deletion.
+        - generic [ref=f1e374]:
+          - heading "Estimate a VddB or VddKO refund" [level=3] [ref=f1e375]
+          - paragraph [ref=f1e376]: "You may have paid into VddB or VddKO if you worked in German:"
+          - list [ref=f1e378]:
+            - listitem [ref=f1e379]:
+              - generic [ref=f1e383]: Theatre
+            - listitem [ref=f1e384]:
+              - generic [ref=f1e388]: Stage production
+            - listitem [ref=f1e389]:
+              - generic [ref=f1e393]: Opera
+            - listitem [ref=f1e394]:
+              - generic [ref=f1e398]: Dance
+            - listitem [ref=f1e399]:
+              - generic [ref=f1e403]: Orchestra employment
+          - paragraph [ref=f1e404]: The calculator can use your employment and contribution information to provide a first estimate.
+          - paragraph [ref=f1e405]: Helpful information
+          - list [ref=f1e407]:
+            - listitem [ref=f1e408]:
+              - generic [ref=f1e412]: VddB or VddKO letters
+            - listitem [ref=f1e413]:
+              - generic [ref=f1e417]: Employment dates
+            - listitem [ref=f1e418]:
+              - generic [ref=f1e422]: Stage or orchestra employer details
+            - listitem [ref=f1e423]:
+              - generic [ref=f1e427]: Contribution periods
+            - listitem [ref=f1e428]:
+              - generic [ref=f1e432]: Employee contribution information
+            - listitem [ref=f1e433]:
+              - generic [ref=f1e437]: Pension statements
+          - link "Estimate my VddB or VddKO refund" [ref=f1e439] [cursor=pointer]:
+            - /url: /calculator
+          - paragraph [ref=f1e442]: VddB or VddKO confirms your recorded periods, eligibility and final refund amount.
+    - generic [ref=f1e444]:
+      - generic [ref=f1e446]:
+        - generic [ref=f1e447]: Choose the correct route
+        - heading "Is this refund calculator right for your pension?" [level=2] [ref=f1e448]
+        - paragraph [ref=f1e449]: Check the wording on your pension document.
+      - table [ref=f1e452]:
+        - caption [ref=f1e453]: Is this refund calculator right for your pension?
+        - rowgroup [ref=f1e454]:
+          - row [ref=f1e455]:
+            - columnheader "Your document says" [ref=f1e456]
+            - columnheader "Use the calculator?" [ref=f1e457]
+            - columnheader "Best next step" [ref=f1e458]
+        - rowgroup [ref=f1e459]:
+          - row [ref=f1e460]:
+            - rowheader "VBL, VBLklassik, ZVK, Zusatzversorgungskasse" [ref=f1e461]
+            - cell "Yes" [ref=f1e462]
+            - cell "Estimate your VBL or ZVK refund" [ref=f1e463]
+          - row [ref=f1e464]:
+            - rowheader "VddB, VddKO, Bühnenversorgung, Orchesterversorgung" [ref=f1e465]
+            - cell "Yes" [ref=f1e466]
+            - cell "Estimate your VddB or VddKO refund" [ref=f1e467]
+          - row [ref=f1e468]:
+            - rowheader "bAV, betriebliche Altersversorgung, Entgeltumwandlung" [ref=f1e469]
+            - cell "No" [ref=f1e470]
+            - cell "Check whether your bAV can be cashed out" [ref=f1e471]
+          - row [ref=f1e472]:
+            - rowheader "Direktversicherung, Pensionskasse, Pensionsfonds, Unterstützungskasse" [ref=f1e473]
+            - cell "No" [ref=f1e474]
+            - cell "Start the company pension cash-out check" [ref=f1e475]
+          - row [ref=f1e476]:
+            - rowheader "Allianz, AXA, Swiss Life, ERGO, R+V, Nürnberger, HDI, BVV or another provider" [ref=f1e477]
+            - cell "Usually not" [ref=f1e478]
+            - cell "Start with your provider document" [ref=f1e479]
+          - row [ref=f1e480]:
+            - rowheader "DRV, Deutsche Rentenversicherung" [ref=f1e481]
+            - cell "No" [ref=f1e482]
+            - cell "Use the separate German state pension refund process" [ref=f1e483]
+      - paragraph [ref=f1e484]: Still unsure? Upload the document you have. The platform can help identify the wording and show you the most relevant next step.
+      - generic [ref=f1e485]:
+        - link "Calculate my refund" [ref=f1e486] [cursor=pointer]:
+          - /url: /calculator
+        - link "Check my bAV cash-out" [ref=f1e489] [cursor=pointer]:
+          - /url: /company-pension-cash-out
+    - generic [ref=f1e493]:
+      - generic [ref=f1e494]:
+        - generic [ref=f1e495]: bAV cash-outs
+        - heading "Have a bAV or Direktversicherung? Use the cash-out check instead." [level=2] [ref=f1e496]
+        - paragraph [ref=f1e497]: A bAV is a German company pension arranged through an employer.
+      - generic [ref=f1e498]:
+        - generic [ref=f1e499]:
+          - paragraph [ref=f1e500]: "Your document may show:"
+          - list [ref=f1e502]:
+            - listitem [ref=f1e503]:
+              - generic [ref=f1e505]: bAV
+            - listitem [ref=f1e506]:
+              - generic [ref=f1e508]: betriebliche Altersversorgung
+            - listitem [ref=f1e509]:
+              - generic [ref=f1e511]: Entgeltumwandlung
+            - listitem [ref=f1e512]:
+              - generic [ref=f1e514]: Direktversicherung
+            - listitem [ref=f1e515]:
+              - generic [ref=f1e517]: Pensionskasse
+            - listitem [ref=f1e518]:
+              - generic [ref=f1e520]: Pensionsfonds
+            - listitem [ref=f1e521]:
+              - generic [ref=f1e523]: Unterstützungskasse
+            - listitem [ref=f1e524]:
+              - generic [ref=f1e526]: Allianz
+            - listitem [ref=f1e527]:
+              - generic [ref=f1e529]: AXA
+            - listitem [ref=f1e530]:
+              - generic [ref=f1e532]: Swiss Life
+            - listitem [ref=f1e533]:
+              - generic [ref=f1e535]: ERGO
+            - listitem [ref=f1e536]:
+              - generic [ref=f1e538]: R+V
+            - listitem [ref=f1e539]:
+              - generic [ref=f1e541]: Nürnberger
+            - listitem [ref=f1e542]:
+              - generic [ref=f1e544]: HDI
+            - listitem [ref=f1e545]:
+              - generic [ref=f1e547]: BVV
+            - listitem [ref=f1e548]:
+              - generic [ref=f1e550]: Another pension or insurance provider
+          - paragraph [ref=f1e551]: A bAV cannot usually be estimated by adding up refundable employee contributions.
+          - paragraph [ref=f1e552]: The important question is whether the pension can be paid out as a one-time amount or lumpsum settlement.
+        - generic [ref=f1e553]:
+          - paragraph [ref=f1e554]: "That can depend on:"
+          - list [ref=f1e556]:
+            - listitem [ref=f1e557]:
+              - generic [ref=f1e559]: The type of pension
+            - listitem [ref=f1e560]:
+              - generic [ref=f1e562]: Whether your entitlement is vested
+            - listitem [ref=f1e563]:
+              - generic [ref=f1e565]: The monthly pension or capital value
+            - listitem [ref=f1e566]:
+              - generic [ref=f1e568]: Your former employer
+            - listitem [ref=f1e569]:
+              - generic [ref=f1e571]: The pension provider
+            - listitem [ref=f1e572]:
+              - generic [ref=f1e574]: The contract terms
+            - listitem [ref=f1e575]:
+              - generic [ref=f1e577]: Whether a permitted cash-out route applies
+            - listitem [ref=f1e578]:
+              - generic [ref=f1e580]: Whether your German state pension contributions have already been refunded
+          - paragraph [ref=f1e581]: Small company pensions can sometimes be settled under the small-benefit rules.
+          - paragraph [ref=f1e582]: For a larger vested bAV, an approved DRV refund can create the basis for requesting a separate lump-sum settlement under §3(3) BetrAVG.
+      - generic [ref=f1e583]: Do not use the refund calculator for a bAV, Direktversicherung, Pensionskasse, Pensionsfonds or provider-based company pension.
+      - generic [ref=f1e588]:
+        - link "Check my bAV cash-out" [ref=f1e589] [cursor=pointer]:
+          - /url: /company-pension-cash-out
+        - link "Learn about company pension cash-outs" [ref=f1e592] [cursor=pointer]:
+          - /url: /company-pension-cash-out
+    - generic [ref=f1e596]:
+      - generic [ref=f1e597]:
+        - generic [ref=f1e598]: The calculator process
+        - heading "Get a first estimate in five simple steps" [level=2] [ref=f1e599]
+      - generic [ref=f1e600]:
+        - generic [ref=f1e601]:
+          - generic [ref=f1e602]: "01"
+          - heading "Tell us which pension you have" [level=3] [ref=f1e603]
+          - generic [ref=f1e604]: Choose VBL, ZVK, VddB or VddKO. Do not worry if you are unsure. You can start with the wording on your document.
+        - generic [ref=f1e605]:
+          - generic [ref=f1e606]: "02"
+          - heading "Upload a document or enter what you know" [level=3] [ref=f1e607]
+          - generic [ref=f1e608]: Upload a pension letter for an assisted estimate or enter your information manually.
+        - generic [ref=f1e609]:
+          - generic [ref=f1e610]: "03"
+          - heading "Check the information" [level=3] [ref=f1e611]
+          - generic [ref=f1e612]: Review the pension scheme, employment dates, contribution periods and amounts used for the estimate. Add or correct anything that is missing.
+        - generic [ref=f1e613]:
+          - generic [ref=f1e614]: "04"
+          - heading "See your estimated refund" [level=3] [ref=f1e615]
+          - generic [ref=f1e616]: The calculator gives you a first indication based on the information provided. The result is not a guaranteed payout or final calculation.
+        - generic [ref=f1e617]:
+          - generic [ref=f1e618]: "05"
+          - heading "Decide whether to continue" [level=3] [ref=f1e619]
+          - generic [ref=f1e620]: Review the estimate and decide whether you want to start your refund application online. You are not required to continue.
+      - generic [ref=f1e621]:
+        - link "Calculate my refund" [ref=f1e622] [cursor=pointer]:
+          - /url: /calculator
+        - link "Start my refund directly" [ref=f1e625] [cursor=pointer]:
+          - /url: /get-started
+    - generic [ref=f1e629]:
+      - generic [ref=f1e631]:
+        - generic [ref=f1e632]: Understanding the result
+        - heading "A useful first indication—not a guaranteed payout" [level=2] [ref=f1e633]
+        - paragraph [ref=f1e634]: Your estimate can help you decide whether pursuing the refund appears worthwhile. The pension scheme or institution still checks its own records and makes the final decision.
+      - generic [ref=f1e635]:
+        - generic [ref=f1e636]:
+          - paragraph [ref=f1e637]: "Your estimate can help you:"
+          - list [ref=f1e639]:
+            - listitem [ref=f1e640]:
+              - generic [ref=f1e644]: Understand the possible size of a VBL refund
+            - listitem [ref=f1e645]:
+              - generic [ref=f1e649]: Estimate a possible ZVK refund
+            - listitem [ref=f1e650]:
+              - generic [ref=f1e654]: Estimate a possible VddB or VddKO refund
+            - listitem [ref=f1e655]:
+              - generic [ref=f1e659]: Use information from an uploaded document
+            - listitem [ref=f1e660]:
+              - generic [ref=f1e664]: Calculate with information entered manually
+            - listitem [ref=f1e665]:
+              - generic [ref=f1e669]: Identify whether you need a refund or bAV cash-out
+            - listitem [ref=f1e670]:
+              - generic [ref=f1e674]: Choose the relevant next step
+        - generic [ref=f1e675]:
+          - paragraph [ref=f1e676]: "Your estimate cannot:"
+          - list [ref=f1e678]:
+            - listitem [ref=f1e679]:
+              - generic [ref=f1e683]: Approve your refund
+            - listitem [ref=f1e684]:
+              - generic [ref=f1e688]: Guarantee the final amount
+            - listitem [ref=f1e689]:
+              - generic [ref=f1e693]: Replace the pension institution’s records
+            - listitem [ref=f1e694]:
+              - generic [ref=f1e698]: Include contribution periods that were not entered or found
+            - listitem [ref=f1e699]:
+              - generic [ref=f1e703]: Calculate a bAV cash-out
+            - listitem [ref=f1e704]:
+              - generic [ref=f1e708]: Calculate a DRV state pension refund
+            - listitem [ref=f1e709]:
+              - generic [ref=f1e713]: Provide legal, pension, tax, insurance or financial advice
+      - paragraph [ref=f1e714]: The relevant pension scheme or institution confirms your contribution record, eligibility and final refund amount.
+      - link "Calculate my refund" [ref=f1e716] [cursor=pointer]:
+        - /url: /calculator
+    - generic [ref=f1e720]:
+      - generic [ref=f1e721]:
+        - generic [ref=f1e722]: Your next step
+        - heading "Like the estimate? Continue with your refund online." [level=2] [ref=f1e723]
+        - paragraph [ref=f1e724]: You can stop after viewing the result or continue into the secure CompanyPension refund process.
+        - paragraph [ref=f1e725]: "If you continue:"
+      - generic [ref=f1e726]:
+        - generic [ref=f1e727]:
+          - generic [ref=f1e728]: Step 1
+          - heading "Secure your claim" [level=3] [ref=f1e729]
+          - generic [ref=f1e730]: Create secure access, review the pricing and pay the €199 deposit. The deposit is credited toward your final service fee.
+        - generic [ref=f1e731]:
+          - generic [ref=f1e732]: Step 2
+          - heading "Complete your information" [level=3] [ref=f1e733]
+          - generic [ref=f1e734]: Upload your ID and any pension or employment documents still needed.
+        - generic [ref=f1e735]:
+          - generic [ref=f1e736]: Step 3
+          - heading "Review and sign your application" [level=3] [ref=f1e737]
+          - generic [ref=f1e738]: Check the completed information and sign the application yourself online. You remain the applicant and claimant.
+        - generic [ref=f1e739]:
+          - generic [ref=f1e740]: Step 4
+          - heading "Submit digitally" [level=3] [ref=f1e741]
+          - generic [ref=f1e742]: After you sign, the application is technically transmitted to the relevant pension scheme or institution through the CompanyPension platform.
+        - generic [ref=f1e743]:
+          - generic [ref=f1e744]: Step 5
+          - heading "Submit digitally" [level=3] [ref=f1e745]
+          - generic [ref=f1e746]: After you sign, the application is technically transmitted to the relevant pension scheme or institution through the CompanyPension platform. The pension scheme or institution makes the final decision.
+        - generic [ref=f1e747]:
+          - generic [ref=f1e748]: Step 6
+          - heading "Receive approved money directly" [level=3] [ref=f1e749]
+          - generic [ref=f1e750]: If approved, the refund is paid directly to the bank account you provide. CompanyPension does not receive, hold or forward approved pension money.
+      - generic [ref=f1e751]:
+        - link "Start my refund" [ref=f1e752] [cursor=pointer]:
+          - /url: /get-started
+        - link "See how the full process works" [ref=f1e755] [cursor=pointer]:
+          - /url: /how-it-works
+    - generic [ref=f1e759]:
+      - generic [ref=f1e760]:
+        - generic [ref=f1e761]: Continue only when you are ready
+        - heading "What does the full refund process cost?" [level=2] [ref=f1e762]
+        - paragraph [ref=f1e763]: The calculator is free to use and does not create a payment obligation. You only pay if you decide to continue into the full refund process.
+      - generic [ref=f1e764]:
+        - generic [ref=f1e765]:
+          - generic [ref=f1e766]: €199 deposit to start the process
+          - generic [ref=f1e767]: (credited toward the final fee)
+        - paragraph [ref=f1e768]: 9.75% success fee if approved
+        - paragraph [ref=f1e769]: Pricing details
+        - list [ref=f1e771]:
+          - listitem [ref=f1e772]:
+            - generic [ref=f1e776]: The minimum total service fee is €199.
+          - listitem [ref=f1e777]:
+            - generic [ref=f1e781]: The €199 deposit is credited toward the final service fee.
+          - listitem [ref=f1e782]:
+            - generic [ref=f1e786]: Only the remaining difference becomes due after approval.
+          - listitem [ref=f1e787]:
+            - generic [ref=f1e791]: If the pension institution rejects a completed and submitted refund request, the €199 deposit is refunded in full.
+          - listitem [ref=f1e792]:
+            - generic [ref=f1e796]: This does not apply if the application is abandoned or left incomplete.
+          - listitem [ref=f1e797]:
+            - generic [ref=f1e801]: If approved, the pension institution pays the refund directly to the bank account you provide. CompanyPension does not deduct its fee from the refund and does not receive, hold or forward approved pension money.
+        - generic [ref=f1e802]:
+          - link "Start my refund" [ref=f1e803] [cursor=pointer]:
+            - /url: /get-started
+          - link "View full pricing" [ref=f1e806] [cursor=pointer]:
+            - /url: /pricing
+    - generic [ref=f1e810]:
+      - generic [ref=f1e812]:
+        - generic [ref=f1e813]: FAQ
+        - heading "Questions about estimating your refund" [level=2] [ref=f1e814]
+      - generic [ref=f1e816]:
+        - generic [ref=f1e817]:
+          - button "Can I calculate my German company pension refund?" [expanded] [ref=f1e818] [cursor=pointer]
+          - generic [ref=f1e821]:
+            - paragraph [ref=f1e822]: No.
+            - paragraph [ref=f1e823]: "Start your claim is the main route for:"
+            - list [ref=f1e824]:
+              - listitem [ref=f1e825]: bAV cash-outs
+              - listitem [ref=f1e826]: VBL refunds
+              - listitem [ref=f1e827]: ZVK refunds
+              - listitem [ref=f1e828]: VddB refunds
+              - listitem [ref=f1e829]: VddKO refunds
+            - paragraph [ref=f1e830]: The calculator is optional and is available only for VBL, ZVK, VddB and VddKO refund estimates.
+            - paragraph [ref=f1e831]: It does not calculate bAV cash-out amounts.
+        - button "How much VBL refund could I receive?" [ref=f1e833] [cursor=pointer]
+        - button "Can I calculate my ZVK refund?" [ref=f1e837] [cursor=pointer]
+        - button "Can I estimate a VddB or VddKO refund?" [ref=f1e841] [cursor=pointer]
+        - button "Can I calculate my bAV cash-out?" [ref=f1e845] [cursor=pointer]
+        - button "Why can I estimate a VBL refund but not a bAV cash-out?" [ref=f1e849] [cursor=pointer]
+        - button "Can I upload a pension letter?" [ref=f1e853] [cursor=pointer]
+        - button "Can I enter the information myself?" [ref=f1e857] [cursor=pointer]
+        - button "What if my pension document is incomplete?" [ref=f1e861] [cursor=pointer]
+        - button "Is my estimated refund guaranteed?" [ref=f1e865] [cursor=pointer]
+        - button "Does the calculator include my DRV refund?" [ref=f1e869] [cursor=pointer]
+        - button "Do I have to continue after seeing the estimate?" [ref=f1e873] [cursor=pointer]
+        - button "What should I do after getting the estimate?" [ref=f1e877] [cursor=pointer]
+        - button "Can I use the calculator if I do not know what pension I have?" [ref=f1e881] [cursor=pointer]
+        - button "Who receives the approved refund?" [ref=f1e885] [cursor=pointer]
+        - button "Is CompanyPension a pension advisor?" [ref=f1e889] [cursor=pointer]
+      - link "See all FAQs" [ref=f1e893] [cursor=pointer]:
+        - /url: /faq
+    - generic [ref=f1e896]:
+      - generic [ref=f1e898]:
+        - generic [ref=f1e899]: Platform scope
+        - heading "A refund estimate and digital application platform" [level=2] [ref=f1e900]
+      - generic [ref=f1e901]:
+        - paragraph [ref=f1e902]: The calculator provides a preliminary estimate using the documents and information you provide.
+        - paragraph [ref=f1e903]: It does not approve your refund and does not replace the records or assessment of VBL, your ZVK, VddB or VddKO.
+        - paragraph [ref=f1e904]: "If you continue into the full refund process:"
+        - list [ref=f1e905]:
+          - listitem [ref=f1e906]:
+            - generic [ref=f1e908]: The platform prepares the application from the information you provide.
+          - listitem [ref=f1e909]:
+            - generic [ref=f1e911]: You review and sign the application yourself.
+          - listitem [ref=f1e912]:
+            - generic [ref=f1e914]: You remain the applicant and claimant.
+          - listitem [ref=f1e915]:
+            - generic [ref=f1e917]: The signed application is technically transmitted through the CompanyPension platform.
+          - listitem [ref=f1e918]:
+            - generic [ref=f1e920]: The pension scheme or institution makes the final decision.
+        - paragraph [ref=f1e921]: CompanyPension does not provide pension, legal, tax, insurance or financial advice.
+        - paragraph [ref=f1e922]: CompanyPension does not receive, hold or forward approved pension money.
+      - heading "Limited authorization" [level=3] [ref=f1e923]
+      - generic [ref=f1e924]:
+        - paragraph [ref=f1e925]: "You may give ATLAES GmbH limited authorization to:"
+        - list [ref=f1e926]:
+          - listitem [ref=f1e927]:
+            - generic [ref=f1e929]: Receive and forward relevant correspondence
+          - listitem [ref=f1e930]:
+            - generic [ref=f1e932]: Receive information about the final decision
+          - listitem [ref=f1e933]:
+            - generic [ref=f1e935]: Receive information about the approved amount
+        - paragraph [ref=f1e936]: This allows the platform to display follow-up requests and calculate the agreed service fee.
+        - paragraph [ref=f1e937]: The authorization does not make ATLAES GmbH the applicant or claimant.
+      - generic [ref=f1e938]:
+        - generic [ref=f1e943]:
+          - generic [ref=f1e944]: LAST REVIEWED
+          - generic [ref=f1e945]: "[Add actual review date]"
+        - generic [ref=f1e951]:
+          - generic [ref=f1e952]: REVIEWED BY
+          - generic [ref=f1e953]: "[Add reviewer name and role]"
+    - region "Important information" [ref=f1e954]:
+      - generic [ref=f1e955]:
+        - generic [ref=f1e956]: Important information
+        - generic [ref=f1e959]:
+          - heading "A digital application platform, not pension advice" [level=2] [ref=f1e960]
+          - paragraph [ref=f1e961]: Company Pension provides a digital application platform for German company pension cash-outs and refunds. Company Pension does not provide legal, tax, pension, insurance or financial advice and does not act as a legal representative, pension advisor, insurance broker or financial advisor. Information on this website is general guidance only and does not replace professional advice. Users remain the claimant. Approval and payment decisions are made by the relevant pension provider, pension scheme or institution. If legal services are required for a specific case, they are carried out separately by the responsible legal partner. Approved funds are paid directly to the bank account provided by the user.
+    - generic [ref=f1e963]:
+      - generic [ref=f1e964]: Start with an estimate
+      - heading "How much could your company pension refund be?" [level=2] [ref=f1e965]
+      - paragraph [ref=f1e966]: Upload a VBL, ZVK, VddB or VddKO document or enter the information you know. You can review the estimate before deciding whether to continue.
+      - generic [ref=f1e967]:
+        - link "Upload my pension document" [ref=f1e968] [cursor=pointer]:
+          - /url: /calculator
+        - link "Enter details manually" [ref=f1e969] [cursor=pointer]:
+          - /url: /calculator
+      - paragraph [ref=f1e970]: Using the calculator does not create a contract or obligation. Your result is a preliminary estimate, not a guaranteed payout or final approval.
+  - contentinfo [ref=f1e971]:
+    - generic [ref=f1e972]:
+      - generic [ref=f1e973]:
+        - generic [ref=f1e974]:
+          - img "Company Pension Cash-outs & Refunds" [ref=f1e975]
+          - paragraph [ref=f1e976]: Cash out or refund your German company pension online through a guided digital process, with human support when clarification or follow-up is needed.
+          - paragraph [ref=f1e977]: Operated by ATLAES GmbH, Kaskelstraße 46, 10317 Berlin, Germany.
+        - generic [ref=f1e978]:
+          - generic [ref=f1e979]:
+            - heading "COMPANY" [level=2] [ref=f1e980]
+            - list [ref=f1e981]:
+              - listitem [ref=f1e982]:
+                - link "About" [ref=f1e983] [cursor=pointer]:
+                  - /url: /about
+              - listitem [ref=f1e984]:
+                - link "Reviews" [ref=f1e985] [cursor=pointer]:
+                  - /url: /reviews
+              - listitem [ref=f1e986]:
+                - link "How It Works" [ref=f1e987] [cursor=pointer]:
+                  - /url: /how-it-works
+              - listitem [ref=f1e988]:
+                - link "Pricing" [ref=f1e989] [cursor=pointer]:
+                  - /url: /pricing
+              - listitem [ref=f1e990]:
+                - link "FAQ" [ref=f1e991] [cursor=pointer]:
+                  - /url: /faq
+              - listitem [ref=f1e992]:
+                - link "Contact" [ref=f1e993] [cursor=pointer]:
+                  - /url: /contact
+          - generic [ref=f1e994]:
+            - heading "LEGAL" [level=2] [ref=f1e995]
+            - list [ref=f1e996]:
+              - listitem [ref=f1e997]:
+                - link "Imprint" [ref=f1e998] [cursor=pointer]:
+                  - /url: /imprint
+              - listitem [ref=f1e999]:
+                - link "Privacy Policy" [ref=f1e1000] [cursor=pointer]:
+                  - /url: /privacy-policy
+              - listitem [ref=f1e1001]:
+                - link "Cookie Policy / Cookie Settings" [ref=f1e1002] [cursor=pointer]:
+                  - /url: /cookie-policy
+              - listitem [ref=f1e1003]:
+                - link "Terms and Conditions" [ref=f1e1004] [cursor=pointer]:
+                  - /url: /terms
+              - listitem [ref=f1e1005]:
+                - link "Payment Terms" [ref=f1e1006] [cursor=pointer]:
+                  - /url: /payment-terms
+              - listitem [ref=f1e1007]:
+                - link "Revocation" [ref=f1e1008] [cursor=pointer]:
+                  - /url: /revocation
+          - generic [ref=f1e1009]:
+            - heading "PRIVACY REQUESTS" [level=2] [ref=f1e1010]
+            - list [ref=f1e1011]:
+              - listitem [ref=f1e1012]:
+                - link "Data Access Request" [ref=f1e1013] [cursor=pointer]:
+                  - /url: /data-access-request
+              - listitem [ref=f1e1014]:
+                - link "Data Deletion Request" [ref=f1e1015] [cursor=pointer]:
+                  - /url: /data-deletion-request
+      - generic [ref=f1e1016]:
+        - paragraph [ref=f1e1017]: CompanyPension is a digital application platform and brand operated by ATLAES GmbH.
+        - paragraph [ref=f1e1018]: The platform uses the information provided by users to complete their applications. Users review and sign their applications themselves and remain the applicant and claimant throughout the process. After signing, ATLAES GmbH technically transmits the application to the relevant pension provider, scheme or institution. Where authorised, ATLAES GmbH may receive and forward correspondence and information about the final decision. Neither CompanyPension nor ATLAES GmbH provides legal, pension, tax, insurance or financial advice or acts as the claimant. Approval and payment decisions are made by the relevant provider, pension scheme or institution. Approved funds are paid directly to the bank account provided by the user. ATLAES GmbH does not receive, hold or forward approved pension money. If separate legal services are needed for a specific case, they are provided by the responsible legal partner under a separate arrangement.
+      - paragraph [ref=f1e1020]: Copyright © 2026 Company Pension. All rights reserved.
