@@ -134,54 +134,110 @@ test.describe('Stage / Performing Arts Eligibility', () => {
     await expectNotEligibleResult(page);
   });
 
-  test('VddB 36-119mo with 60+ months after 2001 → not eligible', async ({
+  test('VddB 36-119mo ending 2010 with 60+ months since 2001 → not eligible', async ({
     page,
   }) => {
     await selectStagePensionDetails(page, 'VddB');
     await selectStageContributionDuration(page, '36 to 119 months');
+    await selectEmploymentEndDate(page, 'June', '2010');
     await expect(
       page.getByRole('heading', {
-        name: 'How many of those contribution months were after 1 January 2001?',
+        name: 'How many VddB contribution months did you have since 1 January 2001?',
       })
     ).toBeVisible();
     await selectStageContributionDuration(page, '60 months or more');
     await expectNotEligibleResult(page);
   });
 
-  test('VddKO 36-119mo with 36+ months after 2018 → not eligible', async ({
+  // The since-2001 question is keyed on the employment end date, not on the
+  // provider — VddKO reaches it exactly like VddB.
+  test('VddKO 36-119mo ending 2010 with 60+ months since 2001 → not eligible', async ({
     page,
   }) => {
     await selectStagePensionDetails(page, 'VddKO');
     await selectStageContributionDuration(page, '36 to 119 months');
+    await selectEmploymentEndDate(page, 'June', '2010');
     await expect(
       page.getByRole('heading', {
-        name: 'How many of those contribution months were after 1 January 2018?',
+        name: 'How many VddKO contribution months did you have since 1 January 2001?',
+      })
+    ).toBeVisible();
+    await selectStageContributionDuration(page, '60 months or more');
+    await expectNotEligibleResult(page);
+  });
+
+  test('VddKO 36-119mo ending after 2018 with 36+ months since 2018 → not eligible', async ({
+    page,
+  }) => {
+    await selectStagePensionDetails(page, 'VddKO');
+    await selectStageContributionDuration(page, '36 to 119 months');
+    const date = monthsAgo(36);
+    await selectEmploymentEndDate(page, date.month, date.year);
+    await expect(
+      page.getByRole('heading', {
+        name: 'How many VddKO contribution months did you have since 1 January 2018?',
       })
     ).toBeVisible();
     await selectStageContributionDuration(page, '36 months or more');
     await expectNotEligibleResult(page);
   });
 
-  test('VddB 36-119mo with less than 60 months after 2001 → eligible', async ({
+  test('VddB 36-119mo ending 2010 with less than 60 months since 2001 → eligible', async ({
     page,
   }) => {
     await selectStagePensionDetails(page, 'VddB');
     await selectStageContributionDuration(page, '36 to 119 months');
+    await selectEmploymentEndDate(page, 'June', '2010');
     await selectStageContributionDuration(page, 'Less than 60 months');
-    const date = monthsAgo(36);
-    await selectEmploymentEndDate(page, date.month, date.year);
     await expectEligibleResult(page);
   });
 
-  test('VddKO 36-119mo with less than 36 months after 2018 → eligible', async ({
+  // End dates from 2018 onwards ask the since-2018 question first and only
+  // then the since-2001 one — for both providers.
+  test('VddB 36-119mo ending after 2018 asks since-2018 then since-2001 → eligible', async ({
+    page,
+  }) => {
+    await selectStagePensionDetails(page, 'VddB');
+    await selectStageContributionDuration(page, '36 to 119 months');
+    const date = monthsAgo(36);
+    await selectEmploymentEndDate(page, date.month, date.year);
+    await expect(
+      page.getByRole('heading', {
+        name: 'How many VddB contribution months did you have since 1 January 2018?',
+      })
+    ).toBeVisible();
+    await selectStageContributionDuration(page, 'Less than 36 months');
+    await expect(
+      page.getByRole('heading', {
+        name: 'How many VddB contribution months did you have since 1 January 2001?',
+      })
+    ).toBeVisible();
+    await selectStageContributionDuration(page, 'Less than 60 months');
+    await expectEligibleResult(page);
+  });
+
+  test('VddKO 36-119mo ending after 2018 with both thresholds under the limit → eligible', async ({
     page,
   }) => {
     await selectStagePensionDetails(page, 'VddKO');
     await selectStageContributionDuration(page, '36 to 119 months');
-    await selectStageContributionDuration(page, 'Less than 36 months');
     const date = monthsAgo(36);
     await selectEmploymentEndDate(page, date.month, date.year);
+    await selectStageContributionDuration(page, 'Less than 36 months');
+    await selectStageContributionDuration(page, 'Less than 60 months');
     await expectEligibleResult(page);
+  });
+
+  test('36-119mo ending 6mo ago with both thresholds under the limit → waiting', async ({
+    page,
+  }) => {
+    await selectStagePensionDetails(page, 'VddB');
+    await selectStageContributionDuration(page, '36 to 119 months');
+    const date = monthsAgo(6);
+    await selectEmploymentEndDate(page, date.month, date.year);
+    await selectStageContributionDuration(page, 'Less than 36 months');
+    await selectStageContributionDuration(page, 'Less than 60 months');
+    await expectWaitingResult(page);
   });
 
   // ============================================================
@@ -324,7 +380,20 @@ test.describe('Stage / Performing Arts Eligibility', () => {
         'VddKO uses contribution-period rules based on how long and when contributions were paid.'
       )
     ).toBeVisible();
+    // The employment ended after January 2018, so the since-2018 question is
+    // asked first and the since-2001 one follows once it comes back under 36.
+    await expect(
+      page.getByRole('heading', {
+        name: 'How many VddKO contribution months did you have since 1 January 2018?',
+      })
+    ).toBeVisible();
     await page.getByText('Less than 36 months').click();
+    await expect(
+      page.getByRole('heading', {
+        name: 'How many VddKO contribution months did you have since 1 January 2001?',
+      })
+    ).toBeVisible();
+    await page.getByText('Less than 60 months').click();
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     await expectWaitingResult(page);

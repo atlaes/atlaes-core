@@ -196,7 +196,7 @@ export async function selectStageContributionDuration(
 ) {
   await expect(
     page.getByRole('heading', {
-      name: /How many ((VddB|VddKO) contribution months do you have in total|of those contribution months were after 1 January (2001|2018))/,
+      name: /How many (VddB|VddKO|VddB\/VddKO) contribution months (do you have in total|did you have since 1 January (2001|2018))/,
     })
   ).toBeVisible({ timeout: 5_000 });
   await page.getByText(duration).click();
