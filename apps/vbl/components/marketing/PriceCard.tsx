@@ -41,14 +41,14 @@ export function PriceCard({
   cta,
 }: PriceCardProps) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
+    <div className="flex h-full flex-col rounded-2xl border border-[#ececec] bg-white p-8 shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
       {badge ? (
-        <span className="inline-flex w-fit items-center rounded-full bg-accent/20 px-4 py-1.5 text-sm font-semibold text-brand">
+        <span className="inline-flex w-fit items-center rounded-full border border-brand/30 bg-brand/5 px-4 py-1.5 text-sm font-semibold text-brand">
           {badge}
         </span>
       ) : null}
 
-      <h3 className="mt-5 text-2xl font-bold leading-tight text-brand sm:text-3xl">
+      <h3 className="mt-5 text-2xl font-bold leading-tight text-[#231f20] sm:text-3xl">
         {title}
       </h3>
 
@@ -70,7 +70,7 @@ export function PriceCard({
       </ul>
 
       {note ? (
-        <div className="mt-6 flex items-start gap-2 rounded-brand bg-accent/10 px-4 py-3 text-sm leading-relaxed text-gray-600">
+        <div className="mt-6 flex items-start gap-2 rounded-brand border border-brand/20 bg-[#f3fced] px-4 py-3 text-sm leading-relaxed text-gray-600">
           <Info
             className="mt-0.5 h-5 w-5 shrink-0 text-brand"
             aria-hidden="true"
@@ -84,7 +84,7 @@ export function PriceCard({
           href={cta.href}
           className={
             cta.variant === 'outline'
-              ? 'w-full rounded-brand border border-neutral-400 bg-white px-6 py-4 text-center text-base font-semibold text-brand transition-colors hover:bg-neutral-50'
+              ? 'w-full rounded-brand border border-[#231f20]/25 bg-white px-6 py-4 text-center text-base font-semibold text-[#231f20] transition-colors hover:bg-neutral-50'
               : 'w-full rounded-brand bg-accent px-6 py-4 text-center text-base font-semibold text-brand transition-colors hover:bg-accent-hover'
           }
         >

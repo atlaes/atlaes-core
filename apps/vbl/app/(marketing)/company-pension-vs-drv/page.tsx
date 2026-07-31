@@ -3,13 +3,18 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, Calendar, Check, Info, User } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
-import { SectionHeading } from '@/components/marketing/SectionHeading';
+import {
+  SectionHeading,
+  FAQ_EYEBROW_WIDTH,
+} from '@/components/marketing/SectionHeading';
 import { FeatureCard } from '@/components/marketing/FeatureCard';
 import { StepCard } from '@/components/marketing/StepCard';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import { ImportantCallout } from '@/components/marketing/ImportantCallout';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
 import { GlossaryCard } from '@/components/marketing/GlossaryCard';
+import { FaqAccordion } from '@/components/marketing/FaqAccordion';
+import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -1027,26 +1032,26 @@ export default function CompanyPensionVsDrvPage() {
         </div>
       </section>
 
-      {/* ---- FAQ (Figma 1392:70) ----
-          FAQ_ANSWER_PENDING: every FAQ item in this frame is a component
-          instance carrying lorem defaults ("How do I pay for the…", "We need to
-          add new u…", "My team wants to can…"). Questions and answers are
-          UNVERIFIABLE from the XML and must not be invented — a backfill pass
-          fills them once final copy is available. */}
+      {/* ---- FAQ (Figma 1392:70) — answers from the shared FAQ master copy via faqItems.tsx (FAQ CompanyPension 22062026.pdf) ---- */}
       <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="FAQ"
+              eyebrowWidth={FAQ_EYEBROW_WIDTH}
               title="Questions about company pensions and DRV refunds"
             />
           </div>
-          <div className="mx-auto mt-12 max-w-3xl">
-            <InfoNote>
-              FAQ content for this page is pending. The questions and answers in
-              the source design are placeholder component instances and will be
-              added once the final copy is available.
-            </InfoNote>
+          <div className="mx-auto mt-12 max-w-4xl">
+            <FaqAccordion
+              items={[
+                FAQ.companyVsStatePension,
+                FAQ.bothRefunds,
+                FAQ.liveOutside,
+                FAQ.wait24,
+              ]}
+              defaultOpenIndex={0}
+            />
           </div>
           <div className="mt-10 flex justify-center">
             <Link
