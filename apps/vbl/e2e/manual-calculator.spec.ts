@@ -851,8 +851,10 @@ test.describe('Manual VBL calculator', () => {
     await mockCalculation(page, 9000);
 
     await chooseStageProvider(page, 'VddB');
-    // Ends December 2020, so the since-2018 question comes first.
-    await enterContributionPeriod(page, 'January', '2004', 'December', '2020');
+    // 60 contribution months ending December 2019, so the since-2018
+    // question comes first (a longer period would trip the >=120-month
+    // block before any question is asked).
+    await enterContributionPeriod(page, 'January', '2015', 'December', '2019');
 
     await expect(
       page.getByRole('heading', { name: /since 1 January 2018/ })
@@ -876,7 +878,7 @@ test.describe('Manual VBL calculator', () => {
 
     // Moving the end date into the 2001–2017 window must skip the since-2018
     // question, even though it was already answered.
-    await chooseDropdownOption(page, 'End year', '2010');
+    await chooseDropdownOption(page, 'End year', '2017');
     await continueButton(page).click();
 
     await expect(
