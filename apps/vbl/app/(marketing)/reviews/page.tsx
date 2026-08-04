@@ -1,14 +1,34 @@
 import Link from 'next/link';
 import { Hero } from '@/components/marketing/Hero';
-import { SectionHeading } from '@/components/marketing/SectionHeading';
+import {
+  SectionHeading,
+  FAQ_EYEBROW_WIDTH,
+} from '@/components/marketing/SectionHeading';
 import { CtaBand } from '@/components/marketing/CtaBand';
-import { ReviewCard } from '@/components/marketing/ReviewCard';
+import {
+  ReviewsExplorer,
+  type ReviewItem,
+} from '@/components/marketing/ReviewsExplorer';
 import {
   FaqAccordion,
   type FaqAccordionItem,
 } from '@/components/marketing/FaqAccordion';
+import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
+
+/**
+ * Charcoal ink for headings/titles on light sections (updated Figma design —
+ * was brand green). Dark sections keep their white/accent titles. Mirrors the
+ * home, how-it-works, pricing and FAQ pages.
+ */
+const INK = 'text-[#231f20]';
+
+/**
+ * Brand-green eyebrow pill for light sections: the pill stays brand green even
+ * though the heading beside it is charcoal (INK).
+ */
+const EYEBROW_LIGHT = 'border-brand/30 bg-transparent text-brand';
 
 // ---------------------------------------------------------------------------
 // Copy source note
@@ -25,26 +45,27 @@ const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 // point to the FAQ page. FLAGGED as a copy gap in the task report.
 // ---------------------------------------------------------------------------
 
-interface Review {
-  name: string;
-  initials: string;
-  category: string;
-  quote: string;
-  meta: string;
-  rating: number;
-  flag: { src: string; label: string };
-}
-
 const FLAG = (code: string, label: string) => ({
   src: `/marketing/reviews/flags/${code}.svg`,
   label,
 });
 
-const REVIEWS: Review[] = [
+// `category` = the case-type pill shown on the card (unchanged copy).
+// `categories` = the filter tabs this review answers to (see FILTERS). Mapping
+// rules (the static design does not specify them — FLAGGED in the report):
+//   • the case-type pill maps to a scheme tab (bAV Cash-Out → "bAV cash-outs";
+//     VBL/ZVK Refund → "VBL and ZVK refunds"; VddB/VddKO → "VddB and VddKO
+//     refunds").
+//   • "Digital process" is assigned when the quote mentions uploading documents
+//     or online/guided steps.
+//   • "Support" is assigned when the quote mentions the team, answering
+//     questions, being guided or kept updated.
+const REVIEWS: ReviewItem[] = [
   {
     name: 'David R.',
     initials: 'DR',
     category: 'bAV Cash-Out',
+    categories: ['bAV cash-outs'],
     quote:
       'CompanyPension made the VBL refund process incredibly easy. Everything was handled professionally and I received my refund faster than expected. Excellent service from start to finish.',
     meta: 'March 2025',
@@ -55,6 +76,7 @@ const REVIEWS: Review[] = [
     name: 'Sarah M.',
     initials: 'SM',
     category: 'bAV Cash-Out',
+    categories: ['bAV cash-outs', 'Support'],
     quote:
       'I thought cashing out my German company pension would be complicated, but the process was very clear. The team responded quickly and kept me updated throughout.',
     meta: 'February 2026',
@@ -65,6 +87,7 @@ const REVIEWS: Review[] = [
     name: 'Emma L.',
     initials: 'EL',
     category: 'VBL Refund',
+    categories: ['VBL and ZVK refunds', 'Digital process'],
     quote:
       'Very smooth experience. I uploaded my documents, followed the online steps, and got clear updates whenever something was needed. Much easier than dealing with German provider letters myself.',
     meta: 'March 2026',
@@ -75,6 +98,7 @@ const REVIEWS: Review[] = [
     name: 'Laura K.',
     initials: 'LK',
     category: 'ZVK Refund',
+    categories: ['VBL and ZVK refunds', 'Support'],
     quote:
       'From the first contact to the final payment, everything was perfect. They answered all my questions and made a complex process feel simple. Thank you!',
     meta: 'December 2025',
@@ -85,6 +109,7 @@ const REVIEWS: Review[] = [
     name: 'Michael B.',
     initials: 'MB',
     category: 'VddB/VddKO Refund',
+    categories: ['VddB and VddKO refunds', 'Support'],
     quote:
       'From the first contact to the final payment, everything was perfect. They answered all my questions and made a complex process feel simple. Thank you!',
     meta: 'January 2026',
@@ -95,6 +120,7 @@ const REVIEWS: Review[] = [
     name: 'James T.',
     initials: 'JT',
     category: 'bAV Cash-Out',
+    categories: ['bAV cash-outs', 'Support'],
     quote:
       'Great experience! They helped me claim my public-sector pension refund quickly and guided me through every step. Very professional and trustworthy team.',
     meta: 'November 2025',
@@ -152,16 +178,10 @@ const FILTERS = [
 // link to the FAQ page until the client supplies copy. FLAGGED in the report.
 // ---------------------------------------------------------------------------
 
-const FAQ_ANSWER_PENDING = (
-  <p>
-    You can find the answer on our{' '}
-    <Link href="/faq" className="font-semibold text-brand underline">
-      FAQ page
-    </Link>
-    .
-  </p>
-);
-
+// Review-experience FAQ (Figma 1216:824). Q1 keeps the design's own expanded
+// answer; the process questions reuse the shared FAQ master copy via
+// faqItems.tsx (FAQ CompanyPension 22062026.pdf). The last item is composed
+// (reviews-specific, no master answer) — flagged for client review.
 const REVIEW_FAQ_ITEMS: FaqAccordionItem[] = [
   {
     question: 'Are these reviews independent?',
@@ -180,26 +200,39 @@ const REVIEW_FAQ_ITEMS: FaqAccordionItem[] = [
     ),
   },
   {
+    ...FAQ.howItWorks,
     question: 'Is the CompanyPension process fully online?',
-    answer: FAQ_ANSWER_PENDING,
   },
   {
+    ...FAQ.uploadInsteadManual,
     question:
       'Can I upload pension documents instead of entering everything manually?',
-    answer: FAQ_ANSWER_PENDING,
   },
   {
+    ...FAQ.manageCorrespondence,
     question: 'Do I have to manage German pension correspondence myself?',
-    answer: FAQ_ANSWER_PENDING,
   },
   {
+    ...FAQ.whoSubmits,
     question: 'Does CompanyPension decide whether my application is approved?',
-    answer: FAQ_ANSWER_PENDING,
   },
-  { question: 'Who receives the approved money?', answer: FAQ_ANSWER_PENDING },
+  FAQ.whoReceives,
   {
+    // Composed: reviews-specific question with no match in the master copy.
     question: 'Do reviews guarantee that my case will be approved?',
-    answer: FAQ_ANSWER_PENDING,
+    answer: (
+      <>
+        <p>
+          No. Reviews describe other people&rsquo;s experiences and do not
+          guarantee any outcome.
+        </p>
+        <p className="mt-2">
+          Every cash-out or refund is decided by the relevant pension provider,
+          scheme or institution based on your individual record. CompanyPension
+          does not decide whether a case is approved.
+        </p>
+      </>
+    ),
   },
 ];
 
@@ -217,11 +250,11 @@ function NumberedCard({
   body: string;
 }) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
-      <span aria-hidden="true" className="text-4xl font-bold text-accent">
+    <div className="flex h-full flex-col items-center rounded-2xl border border-[#ececec] bg-white p-8 text-center shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
+      <span aria-hidden="true" className="text-4xl font-bold text-brand">
         {number}
       </span>
-      <h3 className="mt-6 text-lg font-semibold text-brand">{title}</h3>
+      <h3 className={`mt-6 text-lg font-semibold ${INK}`}>{title}</h3>
       <p className="mt-3 text-base leading-relaxed text-gray-600">{body}</p>
     </div>
   );
@@ -239,7 +272,11 @@ function RatingBadge({
 }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} className={`h-auto w-full object-contain ${className}`} />
+    <img
+      src={src}
+      alt={alt}
+      className={`h-auto w-full object-contain ${className}`}
+    />
   );
 }
 
@@ -253,13 +290,15 @@ export default function ReviewsPage() {
       {/* ---- HERO (Figma 1206:20003) ---- */}
       <Hero
         eyebrow="Reviews"
-        title="What users say about CompanyPension"
-        body="Read how users experience the digital application process — from uploading pension documents and completing the guided flow to signing online and receiving an approved cash-out or refund."
+        eyebrowWidth={171}
+        title="What users say about"
+        highlight="CompanyPension"
+        body="Read how users experience the digital application process—from uploading pension documents and completing the guided flow to signing online and receiving an approved cash-out or refund."
         primaryCta={{ label: 'Start your claim', href: '/get-started' }}
         secondaryCta={{ label: 'Calculate my refund', href: '/calculator' }}
         footnote={
           <>
-            <p>
+            <p className="font-medium text-white/90">
               The refund calculator is available for VBL, ZVK, VddB and VddKO.
               It is not used for bAV cash-outs.
             </p>
@@ -275,9 +314,11 @@ export default function ReviewsPage() {
       {/* ---- INDEPENDENT FEEDBACK / RATING SUMMARY (Figma 1206:20357) ---- */}
       <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="Independent feedback"
+              eyebrowWidth={303}
+              eyebrowClassName={EYEBROW_LIGHT}
               title="Reviews from CompanyPension users"
               body="Read third-party reviews from users who used CompanyPension for bAV cash-outs, VBL and ZVK refunds, VddB and VddKO refunds, and other German company pension cases."
             />
@@ -328,11 +369,13 @@ export default function ReviewsPage() {
       </section>
 
       {/* ---- WHAT USERS TEND TO HIGHLIGHT (Figma 1206:21497) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="What users mention"
+              eyebrowWidth={278}
+              eyebrowClassName={EYEBROW_LIGHT}
               title="What users tend to highlight"
               body="Published reviews often mention the following parts of the experience."
             />
@@ -354,43 +397,15 @@ export default function ReviewsPage() {
       {/* ---- LATEST REVIEWS (Figma 1206:21698) ---- */}
       <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               title="Latest CompanyPension reviews"
               body="Read recent feedback from users of the CompanyPension platform."
             />
           </div>
 
-          {/* Category filters (visual, matching the Figma tab row). */}
-          <div className="mt-10 flex flex-wrap justify-center gap-3">
-            {FILTERS.map((filter, index) => (
-              <span
-                key={filter}
-                className={
-                  index === 0
-                    ? 'rounded-full bg-brand px-5 py-2 text-sm font-medium text-white'
-                    : 'rounded-full border border-neutral-400 bg-white px-5 py-2 text-sm font-medium text-gray-600'
-                }
-              >
-                {filter}
-              </span>
-            ))}
-          </div>
-
-          <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {REVIEWS.map((review) => (
-              <ReviewCard
-                key={review.name + review.meta}
-                name={review.name}
-                initials={review.initials}
-                category={review.category}
-                quote={review.quote}
-                meta={review.meta}
-                rating={review.rating}
-                flag={review.flag}
-              />
-            ))}
-          </div>
+          {/* Functional category filters + review grid (client component). */}
+          <ReviewsExplorer reviews={REVIEWS} filters={FILTERS} />
         </div>
       </section>
 
@@ -407,10 +422,13 @@ export default function ReviewsPage() {
         />
         <div className={`relative ${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center">
-            <span className="mb-5 inline-flex items-center rounded-full border border-white/60 px-6 py-2 text-sm font-semibold tracking-wide">
+            {/* 271x40 in Figma (client feedback 2026-07-23). Hand-rolled pill
+                that never picked up the updated treatment (40px, 16px Sora)
+                used by the `SectionHeading` pills elsewhere on this page. */}
+            <span className="mb-5 inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-white/60 px-5 py-1 text-center font-display text-base font-medium sm:w-[271px] sm:whitespace-nowrap">
               The digital process
             </span>
-            <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-accent sm:text-4xl">
+            <h2 className="max-w-3xl font-display text-3xl font-bold leading-tight tracking-tight text-accent sm:text-[2.5rem] sm:leading-[1.15]">
               Built for online pension applications
             </h2>
           </div>
@@ -454,11 +472,13 @@ export default function ReviewsPage() {
       </section>
 
       {/* ---- FAQ (Figma 1216:824) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className={`flex flex-col items-center text-center ${INK}`}>
             <SectionHeading
               eyebrow="FAQ"
+              eyebrowWidth={FAQ_EYEBROW_WIDTH}
+              eyebrowClassName={EYEBROW_LIGHT}
               title="Questions about the review experience"
             />
           </div>
@@ -481,10 +501,16 @@ export default function ReviewsPage() {
       {/* ---- CLOSING CTA BAND (Figma 1216:881) ---- */}
       <CtaBand
         eyebrow="Start online"
-        title="Ready to start your company pension claim?"
+        title={
+          <>
+            Ready to start your <br className="hidden md:block" />
+            <span className="text-accent">company pension claim?</span>
+          </>
+        }
         body="Upload your pension document or answer guided questions to start a bAV cash-out or company pension refund. For VBL, ZVK, VddB and VddKO refunds, you can also calculate a first estimate before continuing."
         cta={{ label: 'Start your claim', href: '/get-started' }}
         secondaryCta={{ label: 'Calculate my refund', href: '/calculator' }}
+        backgroundImageSrc="/marketing/home/cta-waves-background.png"
         note={
           <>
             <span className="block text-accent">

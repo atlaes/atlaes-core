@@ -2,11 +2,16 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Check, Info } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
-import { SectionHeading } from '@/components/marketing/SectionHeading';
+import {
+  SectionHeading,
+  FAQ_EYEBROW_WIDTH,
+} from '@/components/marketing/SectionHeading';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import { ImportantCallout } from '@/components/marketing/ImportantCallout';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
 import { GlossaryCard } from '@/components/marketing/GlossaryCard';
+import { FaqAccordion } from '@/components/marketing/FaqAccordion';
+import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -28,10 +33,15 @@ function CheckList({ items }: { items: ReactNode[] }) {
     <ul className="space-y-3">
       {items.map((item, index) => (
         <li key={index} className="flex items-start gap-3 text-gray-700">
-          <Check
-            className="mt-0.5 h-5 w-5 shrink-0 text-brand"
+          {/* Filled brand-green disc with a white tick — the design draws
+              these as solid badges, not bare glyphs (verified on Figma
+              1339:3086 and 1555:7468). Client feedback 2026-07-23. */}
+          <span
             aria-hidden="true"
-          />
+            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand"
+          >
+            <Check className="h-3 w-3 text-white" strokeWidth={3} />
+          </span>
           <span className="text-base leading-relaxed">{item}</span>
         </li>
       ))}
@@ -131,7 +141,12 @@ export default function VblVsDrvPage() {
         body="A DRV refund only covers statutory German state pension contributions paid into Deutsche Rentenversicherung. It does not include VBL. If you worked in the German public sector and paid into VBL, your VBL refund needs a separate check."
         primaryCta={{ label: 'Check my VBL refund', href: START_HREF }}
         secondaryCta={{
-          label: 'Compare company pension vs DRV',
+          // Client feedback 2026-07-23: this right-hand button reads
+          // "Compare all company pensions and DRV". Applied to the two other
+          // CTAs playing the same role (the mid-page pair and the closing
+          // band) so the page does not mix two labels for one action; the
+          // inline link and the RelatedCard keep their contextual wording.
+          label: 'Compare all company pensions and DRV',
           href: VS_DRV_HREF,
         }}
         footnote={
@@ -144,7 +159,7 @@ export default function VblVsDrvPage() {
       />
 
       {/* ---- HERO "IMPORTANT" CALLOUT (Figma 1153:433) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-16 sm:py-20`}>
           <div className="mx-auto max-w-3xl rounded-2xl border border-neutral-400 bg-white p-8">
             <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-brand/20 bg-neutral-50 px-4 py-2 text-sm font-medium text-brand">
@@ -211,7 +226,7 @@ export default function VblVsDrvPage() {
       </section>
 
       {/* ---- VBL VS DRV IN SHORT (Figma 1153:3756) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div className="text-brand">
@@ -274,7 +289,7 @@ export default function VblVsDrvPage() {
       </section>
 
       {/* ---- WHAT IS VBL? (Figma 1153:4438) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
@@ -354,7 +369,7 @@ export default function VblVsDrvPage() {
                 </p>
               </div>
             </div>
-            <div className="rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
+            <div className="rounded-2xl border border-neutral-400 bg-white p-8">
               <p className="text-lg font-semibold text-brand">For example:</p>
               <div className="mt-6">
                 <CheckList
@@ -380,7 +395,7 @@ export default function VblVsDrvPage() {
       </section>
 
       {/* ---- DRV VS VBL REFUND TABLE (Figma 1153:4508) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -473,14 +488,14 @@ export default function VblVsDrvPage() {
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <ArrowLink href={START_HREF}>Check my VBL refund</ArrowLink>
             <ArrowLink href={VS_DRV_HREF}>
-              Compare company pension vs DRV
+              Compare all company pensions and DRV
             </ArrowLink>
           </div>
         </div>
       </section>
 
       {/* ---- WHEN CAN VBL CONTRIBUTIONS BE REFUNDED? (Figma 1153:4642) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
@@ -552,7 +567,7 @@ export default function VblVsDrvPage() {
       </section>
 
       {/* ---- HOW TO TELL VBL VS DRV DOCUMENT (Figma 1153:5960) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -656,7 +671,7 @@ export default function VblVsDrvPage() {
           COPY-GOVERNANCE (client item 19): the design describes "a SEPA-capable
           EUR account" and does not use the "free EUR account" wording, so no
           "free"-drop transformation applies to this section. */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
@@ -737,7 +752,7 @@ export default function VblVsDrvPage() {
       </section>
 
       {/* ---- WHAT FITS YOUR DOCUMENT TABLE (Figma 1153:4575) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -860,25 +875,26 @@ export default function VblVsDrvPage() {
         </div>
       </section>
 
-      {/* ---- FAQ (Figma 1153:6104) ----
-          FAQ_ANSWER_PENDING: every FAQ item in this frame is a component
-          instance carrying lorem defaults ("How do I pay for the…", "You can
-          pay with a c…", "We need to add new u…") and the section heading is a
-          stale instance ("Direktversicherung cash-out: common questions") from
-          another page. Only the "FAQ" eyebrow is reliable. Questions and
-          answers are UNVERIFIABLE from the XML and must not be invented — a
-          backfill pass fills them once Figma access is restored. */}
-      <section className="bg-neutral-50">
+      {/* ---- FAQ (Figma 1153:6104) — answers from the shared FAQ master copy via faqItems.tsx (FAQ CompanyPension 22062026.pdf) ---- */}
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
-            <SectionHeading eyebrow="FAQ" title="Common questions" />
+            <SectionHeading
+              eyebrow="FAQ"
+              eyebrowWidth={FAQ_EYEBROW_WIDTH}
+              title="Common questions"
+            />
           </div>
-          <div className="mx-auto mt-12 max-w-3xl">
-            <InfoNote>
-              FAQ content for this page is pending. The questions and answers in
-              the source design are placeholder component instances and will be
-              added once the final copy is available.
-            </InfoNote>
+          <div className="mx-auto mt-12 max-w-4xl">
+            <FaqAccordion
+              items={[
+                FAQ.whatIsVbl,
+                FAQ.canGetVblRefund,
+                FAQ.companyVsStatePension,
+                FAQ.bothRefunds,
+              ]}
+              defaultOpenIndex={0}
+            />
           </div>
           <div className="mt-10 flex justify-center">
             <Link
@@ -993,7 +1009,7 @@ export default function VblVsDrvPage() {
         body="Start online with your VBL document, VBLklassik statement or pension letter. CompanyPension guides you through the separate VBL refund check and shows what information is still needed."
         cta={{ label: 'Check my VBL refund', href: START_HREF }}
         secondaryCta={{
-          label: 'Compare company pension vs DRV',
+          label: 'Compare all company pensions and DRV',
           href: VS_DRV_HREF,
         }}
         note="If approved, the money is paid directly to the bank account you provide. CompanyPension does not receive, hold or forward approved pension money"

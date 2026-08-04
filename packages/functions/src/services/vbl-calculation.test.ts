@@ -317,30 +317,44 @@ describe('VBLCalculationService', () => {
       expect(result.isEligible).toBe(true);
     });
 
-    it('rejects 36+ months for post-2003 employment', async () => {
+    it('rejects 120 or more months of contributions', async () => {
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeStageInput({
+          monthsContributed: 120,
+          employmentStart: '2005-01-01',
+          employmentEnd: '2020-06-30',
+        })
+      );
+      expect(result.isEligible).toBe(false);
+      expect(result.eligibilityReasons).toContain(
+        'Maximum contribution period of 119 months'
+      );
+    });
+
+    it('accepts exactly 119 months (boundary)', async () => {
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeStageInput({
+          monthsContributed: 119,
+          employmentStart: '2005-01-01',
+          employmentEnd: '2020-06-30',
+        })
+      );
+      expect(result.isEligible).toBe(true);
+      expect(result.rulesApplied).toContain(
+        'Maximum 119 months contribution period'
+      );
+    });
+
+    it('allows 36+ months regardless of the employment end year', async () => {
       const result = await VBLCalculationService.calculateVBLRefund(
         makeStageInput({
           monthsContributed: 36,
           employmentEnd: '2020-06-30',
         })
       );
-      expect(result.isEligible).toBe(false);
-      expect(result.eligibilityReasons).toContain(
-        'Maximum contribution period of 35 months for employments ending after 2003'
-      );
-    });
-
-    it('allows unlimited contribution period for pre-2003 employment', async () => {
-      const result = await VBLCalculationService.calculateVBLRefund(
-        makeStageInput({
-          monthsContributed: 50,
-          employmentStart: '1998-01-01',
-          employmentEnd: '2002-06-30',
-        })
-      );
-      // Should not have the max contribution period error
+      expect(result.isEligible).toBe(true);
       expect(result.eligibilityReasons).not.toContain(
-        'Maximum contribution period of 35 months for employments ending after 2003'
+        'Maximum contribution period of 119 months'
       );
     });
 
