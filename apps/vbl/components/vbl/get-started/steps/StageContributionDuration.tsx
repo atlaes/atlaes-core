@@ -49,10 +49,14 @@ function getConfig(
   currentStepId: string | null,
   data: ReturnType<typeof useEligibility>['data']
 ): StageDurationConfig {
+  const providerLabel =
+    data.pensionProvider === 'VddB' || data.pensionProvider === 'VddKO'
+      ? data.pensionProvider
+      : 'VddB/VddKO';
+
   if (currentStepId === 'stage_post_2001_contribution_duration') {
     return {
-      heading:
-        'How many of those contribution months were after 1 January 2001?',
+      heading: `How many ${providerLabel} contribution months did you have since 1 January 2001?`,
       selectedValue: data.stagePost2001ContributionDuration,
       options: POST_2001_OPTIONS,
       getUpdate: (selected) => ({
@@ -64,8 +68,7 @@ function getConfig(
 
   if (currentStepId === 'stage_post_2018_contribution_duration') {
     return {
-      heading:
-        'How many of those contribution months were after 1 January 2018?',
+      heading: `How many ${providerLabel} contribution months did you have since 1 January 2018?`,
       selectedValue: data.stagePost2018ContributionDuration,
       options: POST_2018_OPTIONS,
       getUpdate: (selected) => ({
@@ -74,11 +77,6 @@ function getConfig(
       }),
     };
   }
-
-  const providerLabel =
-    data.pensionProvider === 'VddB' || data.pensionProvider === 'VddKO'
-      ? data.pensionProvider
-      : 'VddB/VddKO';
 
   return {
     heading: `How many ${providerLabel} contribution months do you have in total?`,

@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   ArrowRight,
+  Bell,
   Building2,
   Check,
   ChevronDown,
+  Clock,
   FileText,
   Info,
   Landmark,
@@ -37,6 +39,7 @@ type StageProvider = 'VddB' | 'VddKO' | '';
 type VBLPlan = 'VBLklassik' | 'VBLextra' | '';
 type Threshold36 = 'less_than_36' | '36_or_more' | '';
 type Threshold60 = 'less_than_60' | '60_or_more' | '';
+type YesNo = 'yes' | 'no' | '';
 type CalculatorScreen =
   | 'pension-type'
   | 'entry-method'
@@ -44,13 +47,28 @@ type CalculatorScreen =
   | 'federal-state'
   | 'provider'
   | 'period'
-  | 'thresholds'
+  | 'stage-post2018'
+  | 'stage-post2001'
   | 'salary'
   | 'result'
+  | 'eligibility-questions'
+  | 'ready'
+  | 'waiting'
+  | 'not-startable'
   | 'vested'
   | 'blocked';
 
-interface ManualFormData {
+// The post-estimate questionnaire answers. Kept as flat fields to match the
+// rest of the form; the question catalogues below map each field to its copy.
+type EligibilityField =
+  | 'eligWorkedPublicAfter'
+  | 'eligOtherInstitution'
+  | 'eligPriorRefund'
+  | 'eligCivilServant'
+  | 'eligDisabled'
+  | 'eligMandatoryInsurance';
+
+interface ManualFormData extends Record<EligibilityField, YesNo> {
   pensionType: PensionType;
   entryMethod: EntryMethod;
   federalState: string;
@@ -65,6 +83,55 @@ interface ManualFormData {
   post2001Months: Threshold60;
   averageMonthlyGrossSalary: string;
 }
+
+interface EligibilityQuestion {
+  field: EligibilityField;
+  question: string;
+  helper?: string;
+}
+
+const PUBLIC_ELIGIBILITY_QUESTIONS: EligibilityQuestion[] = [
+  {
+    field: 'eligWorkedPublicAfter',
+    question:
+      'After your compulsory pension insurance ended, did you work for another German public-sector employer?',
+  },
+  {
+    field: 'eligOtherInstitution',
+    question:
+      'Have you been insured with another public-sector or church supplementary pension institution?',
+    helper: 'This includes another VBL or ZVK pension institution.',
+  },
+  {
+    field: 'eligPriorRefund',
+    question:
+      'Have contributions from another public-sector or church supplementary pension institution already been refunded?',
+  },
+  {
+    field: 'eligCivilServant',
+    question: 'Did you later become a German civil servant?',
+  },
+];
+
+const STAGE_ELIGIBILITY_QUESTIONS: EligibilityQuestion[] = [
+  {
+    field: 'eligDisabled',
+    question: 'Are you currently occupationally disabled or unable to work?',
+    helper: 'This means berufsunfähig or erwerbsunfähig.',
+  },
+  {
+    field: 'eligMandatoryInsurance',
+    question:
+      'Are you currently doing, or will you start, work that is subject to mandatory insurance with another supplementary pension institution?',
+    helper:
+      'This means Pflichtversicherung with another Zusatzversorgungseinrichtung like VBL for example.',
+  },
+];
+
+const getEligibilityQuestions = (pensionType: PensionType) =>
+  pensionType === 'stage'
+    ? STAGE_ELIGIBILITY_QUESTIONS
+    : PUBLIC_ELIGIBILITY_QUESTIONS;
 
 interface CalculationResult {
   isEligible: boolean;
@@ -161,14 +228,29 @@ const INITIAL_FORM_DATA: ManualFormData = {
   post2018Months: '',
   post2001Months: '',
   averageMonthlyGrossSalary: '',
+  eligWorkedPublicAfter: '',
+  eligOtherInstitution: '',
+  eligPriorRefund: '',
+  eligCivilServant: '',
+  eligDisabled: '',
+  eligMandatoryInsurance: '',
 };
 
 const monthToNumber = (month: string) =>
   String(MONTHS.indexOf(month) + 1).padStart(2, '0');
 
+// Everything from the estimate onwards belongs to the last sidebar step.
+const ESTIMATE_SECTION_SCREENS: CalculatorScreen[] = [
+  'result',
+  'eligibility-questions',
+  'ready',
+  'waiting',
+  'not-startable',
+];
+
 const getCurrentSection = (screen: CalculatorScreen): 0 | 1 | 2 => {
   if (screen === 'pension-type') return 0;
-  if (screen === 'result') return 2;
+  if (ESTIMATE_SECTION_SCREENS.includes(screen)) return 2;
   return 1;
 };
 
@@ -189,17 +271,26 @@ const getContributionMonthCount = (form: ManualFormData) => {
   return end - start + 1;
 };
 
-const startsIn2018OrLater = (form: ManualFormData) =>
-  Number(form.startYear) >= 2018;
+// Month indexes (year * 12 + zero-based month) for the two stage cut-off dates.
+const JANUARY_2001 = 2001 * 12;
+const JANUARY_2018 = 2018 * 12;
 
-const shouldShowAdditionalContributionCheck = (form: ManualFormData) => {
-  if (form.pensionType !== 'stage') return false;
-  if (startsIn2018OrLater(form)) return false;
+const getEmploymentEndIndex = (form: ManualFormData) =>
+  Number(form.endYear) * 12 + MONTHS.indexOf(form.endMonth);
 
-  const months = getContributionMonthCount(form);
-  return months >= 36 && months <= 119;
+const getMonthsSinceEmploymentEnd = (form: ManualFormData) => {
+  const now = new Date();
+  return now.getFullYear() * 12 + now.getMonth() - getEmploymentEndIndex(form);
 };
 
+// Employment end + 24 months, e.g. "January 2027".
+const getStartEligibleDate = (form: ManualFormData) => {
+  const index = getEmploymentEndIndex(form) + 24;
+  return `${MONTHS[index % 12]} ${Math.floor(index / 12)}`;
+};
+
+// Stage (VddB/VddKO) pre-estimate branching. Which extra question is asked
+// depends on the contribution length and on when the employment *ended*.
 const getNextScreenAfterPeriod = (form: ManualFormData): CalculatorScreen => {
   const months = getContributionMonthCount(form);
 
@@ -207,11 +298,26 @@ const getNextScreenAfterPeriod = (form: ManualFormData): CalculatorScreen => {
   // VBL/ZVK periods of any length reach the estimate.
   if (form.pensionType !== 'stage') return 'salary';
   if (months < 12) return 'blocked';
-  if (shouldShowAdditionalContributionCheck(form)) return 'thresholds';
-  if (startsIn2018OrLater(form) && months >= 36) return 'blocked';
   if (months >= 120) return 'blocked';
+  // The design labels the buckets "Less than 12" and "13 to 35", so exactly 12
+  // months is not covered by either label. We keep the previous inclusive
+  // behaviour and treat 12 as part of the no-extra-questions bucket.
+  if (months < 36) return 'salary';
 
-  return 'salary';
+  const end = getEmploymentEndIndex(form);
+  if (end < JANUARY_2001) return 'salary';
+  if (end < JANUARY_2018) return 'stage-post2001';
+  return 'stage-post2018';
+};
+
+// The stage question screen that sits directly before the salary step, if any.
+const getStageQuestionBeforeSalary = (
+  form: ManualFormData
+): CalculatorScreen | null => {
+  const next = getNextScreenAfterPeriod(form);
+  return next === 'stage-post2018' || next === 'stage-post2001'
+    ? 'stage-post2001'
+    : null;
 };
 
 const getSelectedProvider = (form: ManualFormData) =>
@@ -549,6 +655,47 @@ const RadioRow: React.FC<RadioRowProps> = ({
   </label>
 );
 
+interface YesNoQuestionProps {
+  number: number;
+  name: string;
+  question: string;
+  helper?: string;
+  value: YesNo;
+  onChange: (value: YesNo) => void;
+}
+
+// A fieldset/legend pair keeps the two "Yes"/"No" rows tied to their question
+// for screen readers — several identical answer labels share one screen.
+const YesNoQuestion: React.FC<YesNoQuestionProps> = ({
+  number,
+  name,
+  question,
+  helper,
+  value,
+  onChange,
+}) => (
+  <fieldset className="border-0 p-0">
+    <legend className="mb-3 text-sm font-bold text-gray-800">
+      {number}. {question}
+    </legend>
+    <div className="space-y-3">
+      <RadioRow
+        name={name}
+        label="Yes"
+        checked={value === 'yes'}
+        onChange={() => onChange('yes')}
+      />
+      <RadioRow
+        name={name}
+        label="No"
+        checked={value === 'no'}
+        onChange={() => onChange('no')}
+      />
+    </div>
+    {helper && <p className="mt-3 text-sm leading-5 text-gray-600">{helper}</p>}
+  </fieldset>
+);
+
 const PlanChip: React.FC<{
   label: VBLPlan;
   selected: boolean;
@@ -726,6 +873,10 @@ export const ManualVBLCalculator: React.FC = () => {
     React.useState<File | null>(null);
   const [showUnlistedStateInfo, setShowUnlistedStateInfo] =
     React.useState(false);
+  const [reminderStep, setReminderStep] = React.useState<
+    'initial' | 'form' | 'set'
+  >('initial');
+  const [reminderEmail, setReminderEmail] = React.useState('');
 
   const updateForm = (updates: Partial<ManualFormData>) => {
     setForm((previous) => ({ ...previous, ...updates }));
@@ -741,6 +892,11 @@ export const ManualVBLCalculator: React.FC = () => {
     setIsExtracting(false);
     setSelectedUploadFile(null);
     setShowUnlistedStateInfo(false);
+    setReminderStep('initial');
+    setReminderEmail('');
+    // Without this the input keeps the old file, so re-picking the same
+    // document after a restart fires no change event.
+    if (uploadInputRef.current) uploadInputRef.current.value = '';
   };
 
   const showUploadReview = (details: PensionDocumentExtractionDetails) => {
@@ -790,10 +946,10 @@ export const ManualVBLCalculator: React.FC = () => {
     }
   };
 
-  const isThresholdBlocked =
-    form.pensionType === 'stage' &&
-    (form.post2018Months === '36_or_more' ||
-      form.post2001Months === '60_or_more');
+  // The screen a stage question was reached from — 'period' on the manual
+  // path, 'upload-review' when the details came from a document.
+  const screenBeforeStageQuestions: CalculatorScreen =
+    form.entryMethod === 'upload' ? 'upload-review' : 'period';
 
   const goBack = () => {
     if (screen === 'entry-method') setScreen('pension-type');
@@ -801,11 +957,28 @@ export const ManualVBLCalculator: React.FC = () => {
     else if (screen === 'federal-state') setScreen('entry-method');
     else if (screen === 'provider') setScreen('federal-state');
     else if (screen === 'period') setScreen('provider');
-    else if (screen === 'thresholds') setScreen('period');
-    else if (screen === 'salary') {
+    else if (screen === 'stage-post2018') {
+      setScreen(screenBeforeStageQuestions);
+    } else if (screen === 'stage-post2001') {
       setScreen(
-        shouldShowAdditionalContributionCheck(form) ? 'thresholds' : 'period'
+        getEmploymentEndIndex(form) >= JANUARY_2018
+          ? 'stage-post2018'
+          : screenBeforeStageQuestions
       );
+    } else if (screen === 'salary') {
+      setScreen(getStageQuestionBeforeSalary(form) ?? 'period');
+    } else if (screen === 'result') {
+      // Only reachable from the error state — a successful estimate uses its
+      // own "Back to calculator" button.
+      setScreen(form.entryMethod === 'upload' ? 'upload-review' : 'salary');
+    } else if (screen === 'eligibility-questions') {
+      setScreen('result');
+    } else if (
+      screen === 'ready' ||
+      screen === 'waiting' ||
+      screen === 'not-startable'
+    ) {
+      setScreen('eligibility-questions');
     } else if (screen === 'vested') {
       // Two ways in: the client-side VBLextra check (from provider /
       // upload-review) and the API's isVested verdict (after the estimate ran).
@@ -818,10 +991,20 @@ export const ManualVBLCalculator: React.FC = () => {
         EAST_STATES.includes(form.federalState)
       ) {
         setScreen('upload-review');
-      } else if (shouldShowAdditionalContributionCheck(form)) {
-        setScreen('thresholds');
+      } else if (
+        // Both answers can survive a later date change, so only treat them as
+        // the cause of the block while their screen is still part of the flow.
+        form.post2018Months === '36_or_more' &&
+        getNextScreenAfterPeriod(form) === 'stage-post2018'
+      ) {
+        setScreen('stage-post2018');
+      } else if (
+        form.post2001Months === '60_or_more' &&
+        getStageQuestionBeforeSalary(form) === 'stage-post2001'
+      ) {
+        setScreen('stage-post2001');
       } else {
-        setScreen('period');
+        setScreen(screenBeforeStageQuestions);
       }
     }
   };
@@ -861,6 +1044,30 @@ export const ManualVBLCalculator: React.FC = () => {
     }
   };
 
+  // On the upload path the salary is already known, so the salary screen is
+  // skipped and the estimate runs straight away.
+  const advanceTo = (nextScreen: CalculatorScreen) => {
+    if (nextScreen === 'salary' && form.entryMethod === 'upload') {
+      void calculateEstimate();
+      return;
+    }
+    setScreen(nextScreen);
+  };
+
+  const continueFromEligibilityQuestions = () => {
+    const questions = getEligibilityQuestions(form.pensionType);
+    if (questions.some((question) => form[question.field] === 'yes')) {
+      setScreen('not-startable');
+      return;
+    }
+    if (form.pensionType !== 'stage') {
+      setScreen('ready');
+      return;
+    }
+    // Stage refunds can only be started 24 months after the employment ended.
+    setScreen(getMonthsSinceEmploymentEnd(form) >= 24 ? 'ready' : 'waiting');
+  };
+
   const handleContinue = () => {
     if (screen === 'pension-type') {
       setScreen('entry-method');
@@ -882,21 +1089,22 @@ export const ManualVBLCalculator: React.FC = () => {
         setScreen('blocked');
         return;
       }
-      const nextScreen = getNextScreenAfterPeriod(form);
-      if (nextScreen === 'salary') {
-        void calculateEstimate();
-      } else {
-        setScreen(nextScreen);
-      }
+      advanceTo(getNextScreenAfterPeriod(form));
     } else if (screen === 'federal-state') setScreen('provider');
     else if (screen === 'provider') {
       setScreen(form.vblPlan === 'VBLextra' ? 'vested' : 'period');
     } else if (screen === 'period') {
-      setScreen(getNextScreenAfterPeriod(form));
-    } else if (screen === 'thresholds') {
-      setScreen(isThresholdBlocked ? 'blocked' : 'salary');
+      advanceTo(getNextScreenAfterPeriod(form));
+    } else if (screen === 'stage-post2018') {
+      advanceTo(
+        form.post2018Months === '36_or_more' ? 'blocked' : 'stage-post2001'
+      );
+    } else if (screen === 'stage-post2001') {
+      advanceTo(form.post2001Months === '60_or_more' ? 'blocked' : 'salary');
     } else if (screen === 'salary') {
       void calculateEstimate();
+    } else if (screen === 'eligibility-questions') {
+      continueFromEligibilityQuestions();
     }
   };
 
@@ -954,6 +1162,11 @@ export const ManualVBLCalculator: React.FC = () => {
     (screen === 'entry-method' && form.entryMethod !== '') ||
     (screen === 'upload-review' &&
       getSelectedProvider(form) !== '' &&
+      // Extraction can return VBL without a plan; without this the VBLextra
+      // question would be skipped and a VBLklassik estimate assumed.
+      (form.pensionType !== 'public' ||
+        form.publicProvider !== 'VBL' ||
+        form.vblPlan !== '') &&
       form.federalState !== '' &&
       isDateRangeValid(form) &&
       form.averageMonthlyGrossSalary !== '') ||
@@ -964,10 +1177,13 @@ export const ManualVBLCalculator: React.FC = () => {
         form.publicProvider !== 'VBL' ||
         form.vblPlan !== '')) ||
     (screen === 'period' && isDateRangeValid(form)) ||
-    (screen === 'thresholds' &&
-      form.post2018Months !== '' &&
-      form.post2001Months !== '') ||
-    (screen === 'salary' && form.averageMonthlyGrossSalary !== '');
+    (screen === 'stage-post2018' && form.post2018Months !== '') ||
+    (screen === 'stage-post2001' && form.post2001Months !== '') ||
+    (screen === 'salary' && form.averageMonthlyGrossSalary !== '') ||
+    (screen === 'eligibility-questions' &&
+      getEligibilityQuestions(form.pensionType).every(
+        (question) => form[question.field] !== ''
+      ));
 
   const refundAmount =
     calculation?.vblKlassik ??
@@ -1446,63 +1662,102 @@ export const ManualVBLCalculator: React.FC = () => {
               </FormShell>
             )}
 
-            {screen === 'thresholds' && (
+            {screen === 'stage-post2018' && (
               <FormShell
-                title="A few more details are needed for your estimate"
-                subtitle="VddB and VddKO use different contribution thresholds depending on when contributions were paid."
+                title={`How many ${getStageProviderLabel(
+                  form.stageProvider
+                )} contribution months did you have since 1 January 2018?`}
+                canContinue={canContinue}
+                onBack={goBack}
+                onContinue={handleContinue}
+              >
+                <p className="mb-3 text-sm font-bold text-gray-800">
+                  Contribution period
+                </p>
+                <div className="space-y-3">
+                  <RadioRow
+                    name="post2018Months"
+                    label="Less than 36 months"
+                    checked={form.post2018Months === 'less_than_36'}
+                    onChange={() =>
+                      updateForm({ post2018Months: 'less_than_36' })
+                    }
+                  />
+                  <RadioRow
+                    name="post2018Months"
+                    label="36 months or more"
+                    checked={form.post2018Months === '36_or_more'}
+                    onChange={() =>
+                      updateForm({ post2018Months: '36_or_more' })
+                    }
+                  />
+                </div>
+              </FormShell>
+            )}
+
+            {screen === 'stage-post2001' && (
+              <FormShell
+                title={`How many ${getStageProviderLabel(
+                  form.stageProvider
+                )} contribution months did you have since 1 January 2001?`}
+                canContinue={canContinue}
+                onBack={goBack}
+                onContinue={handleContinue}
+              >
+                <p className="mb-3 text-sm font-bold text-gray-800">
+                  Contribution period
+                </p>
+                <div className="space-y-3">
+                  <RadioRow
+                    name="post2001Months"
+                    label="Less than 60 months"
+                    checked={form.post2001Months === 'less_than_60'}
+                    onChange={() =>
+                      updateForm({ post2001Months: 'less_than_60' })
+                    }
+                  />
+                  <RadioRow
+                    name="post2001Months"
+                    label="60 months or more"
+                    checked={form.post2001Months === '60_or_more'}
+                    onChange={() =>
+                      updateForm({ post2001Months: '60_or_more' })
+                    }
+                  />
+                </div>
+              </FormShell>
+            )}
+
+            {screen === 'eligibility-questions' && (
+              <FormShell
+                title={
+                  form.pensionType === 'stage'
+                    ? `A few more details about your ${getStageProviderLabel(
+                        form.stageProvider
+                      )} insurance`
+                    : 'A few more details about your public-sector pension'
+                }
+                subtitle="Please answer these final questions so we can complete your refund check."
                 canContinue={canContinue}
                 onBack={goBack}
                 onContinue={handleContinue}
               >
                 <div className="space-y-7">
-                  <div>
-                    <p className="mb-3 text-sm font-bold text-gray-800">
-                      How many of these contribution months were after 1 January
-                      2018?
-                    </p>
-                    <div className="space-y-3">
-                      <RadioRow
-                        name="post2018Months"
-                        label="Less than 36 months"
-                        checked={form.post2018Months === 'less_than_36'}
-                        onChange={() =>
-                          updateForm({ post2018Months: 'less_than_36' })
+                  {getEligibilityQuestions(form.pensionType).map(
+                    (question, index) => (
+                      <YesNoQuestion
+                        key={question.field}
+                        number={index + 1}
+                        name={question.field}
+                        question={question.question}
+                        helper={question.helper}
+                        value={form[question.field]}
+                        onChange={(value) =>
+                          updateForm({ [question.field]: value })
                         }
                       />
-                      <RadioRow
-                        name="post2018Months"
-                        label="36 months or more"
-                        checked={form.post2018Months === '36_or_more'}
-                        onChange={() =>
-                          updateForm({ post2018Months: '36_or_more' })
-                        }
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <p className="mb-3 text-sm font-bold text-gray-800">
-                      How many of these contribution months were after 1 January
-                      2001?
-                    </p>
-                    <div className="space-y-3">
-                      <RadioRow
-                        name="post2001Months"
-                        label="Less than 60 months"
-                        checked={form.post2001Months === 'less_than_60'}
-                        onChange={() =>
-                          updateForm({ post2001Months: 'less_than_60' })
-                        }
-                      />
-                      <RadioRow
-                        name="post2001Months"
-                        label="60 months or more"
-                        checked={form.post2001Months === '60_or_more'}
-                        onChange={() =>
-                          updateForm({ post2001Months: '60_or_more' })
-                        }
-                      />
-                    </div>
-                  </div>
+                    )
+                  )}
                 </div>
               </FormShell>
             )}
@@ -1599,6 +1854,178 @@ export const ManualVBLCalculator: React.FC = () => {
               </div>
             )}
 
+            {screen === 'not-startable' && (
+              <div className="mx-auto w-full max-w-[560px] text-center">
+                <div className="mx-auto mb-8 flex h-[122px] w-[122px] items-center justify-center rounded-full bg-[#F1CFCB]">
+                  <div className="flex h-[94px] w-[94px] items-center justify-center rounded-full bg-[#B91C0B]">
+                    <X className="h-14 w-14 text-white" />
+                  </div>
+                </div>
+                <h1
+                  className="mx-auto max-w-[560px] text-[25px] font-bold leading-tight text-gray-950"
+                  style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
+                >
+                  This refund cannot currently be started with CompanyPension
+                </h1>
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="mx-auto mt-9 flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-md bg-[#9FE870] font-semibold text-[#163300] shadow-md transition hover:bg-[#8AD860]"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  Return to start
+                </button>
+              </div>
+            )}
+
+            {screen === 'ready' && (
+              <div className="mx-auto flex w-full max-w-[620px] flex-col items-center text-center">
+                <div className="mb-9 flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#9FE870]">
+                  <div className="flex h-[78px] w-[78px] items-center justify-center rounded-full bg-[#163300]">
+                    <Check
+                      className="h-11 w-11 text-[#9FE870]"
+                      strokeWidth={3}
+                    />
+                  </div>
+                </div>
+                <h1
+                  className="text-[25px] font-bold leading-tight text-gray-950"
+                  style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
+                >
+                  Your refund can be started with CompanyPension
+                </h1>
+                <button
+                  type="button"
+                  onClick={() => void startClaim()}
+                  className="mt-9 flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-md bg-[#9FE870] font-semibold text-[#163300] shadow-md transition hover:bg-[#8AD860]"
+                >
+                  {getStartClaimLabel(form.pensionType, form.stageProvider)}
+                  <ArrowRight className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+
+            {screen === 'waiting' && reminderStep === 'set' && (
+              <div className="mx-auto flex w-full max-w-[620px] flex-col items-center text-center">
+                <div className="mb-9 flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#9FE870]">
+                  <div className="flex h-[78px] w-[78px] items-center justify-center rounded-full bg-[#163300]">
+                    <Check
+                      className="h-11 w-11 text-[#9FE870]"
+                      strokeWidth={3}
+                    />
+                  </div>
+                </div>
+                <h1
+                  className="text-[25px] font-bold leading-tight text-gray-950"
+                  style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
+                >
+                  Reminder set
+                </h1>
+                <p className="mt-4 max-w-[460px] text-base leading-6 text-[#4B5563]">
+                  We&apos;ll email you when you can start your refund.
+                </p>
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="mt-8 flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-md bg-[#9FE870] font-semibold text-[#163300] shadow-md transition hover:bg-[#8AD860]"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  Return to start
+                </button>
+              </div>
+            )}
+
+            {screen === 'waiting' && reminderStep === 'form' && (
+              <div className="mx-auto flex w-full max-w-[620px] flex-col items-center text-center">
+                <div className="mb-9 flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#EEF6EA]">
+                  <div className="flex h-[78px] w-[78px] items-center justify-center rounded-full bg-[#5A9A23]">
+                    <Clock className="h-11 w-11 text-white" strokeWidth={2.5} />
+                  </div>
+                </div>
+                <h1
+                  className="text-[25px] font-bold leading-tight text-gray-950"
+                  style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
+                >
+                  Your refund cannot be started yet
+                </h1>
+                <p className="mb-8 mt-4 max-w-[520px] text-base leading-6 text-[#4B5563]">
+                  You can return on or after {getStartEligibleDate(form)}.
+                </p>
+
+                <label className="w-full max-w-[400px] text-left">
+                  <span className="mb-2 block text-sm font-semibold text-[#4A4F58]">
+                    Email address
+                  </span>
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={reminderEmail}
+                    onChange={(event) => setReminderEmail(event.target.value)}
+                    className="mb-5 h-12 w-full rounded-lg border border-[#D3DAE8] bg-white px-4 text-gray-900 shadow-sm outline-none transition focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/25"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => setReminderStep('set')}
+                  disabled={!reminderEmail}
+                  className="flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-md bg-[#9FE870] font-semibold text-[#163300] shadow-md transition hover:bg-[#8AD860] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  Set reminder
+                  <ArrowRight className="h-5 w-5" />
+                </button>
+                <p className="mt-4 max-w-[430px] text-sm italic leading-5 text-[#6B7280]">
+                  We&apos;ll send you an email reminder when you can start your
+                  refund.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setReminderStep('initial')}
+                  className="mt-6 text-[15px] font-semibold text-[#163300] underline underline-offset-2 transition hover:text-[#2A5A00]"
+                >
+                  Back
+                </button>
+              </div>
+            )}
+
+            {screen === 'waiting' && reminderStep === 'initial' && (
+              <div className="mx-auto flex w-full max-w-[620px] flex-col items-center text-center">
+                <div className="mb-9 flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#EEF6EA]">
+                  <div className="flex h-[78px] w-[78px] items-center justify-center rounded-full bg-[#5A9A23]">
+                    <Clock className="h-11 w-11 text-white" strokeWidth={2.5} />
+                  </div>
+                </div>
+                <h1
+                  className="text-[25px] font-bold leading-tight text-gray-950"
+                  style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
+                >
+                  Your refund cannot be started yet
+                </h1>
+                <p className="mb-8 mt-4 max-w-[460px] text-base leading-6 text-[#4B5563]">
+                  You can return on or after {getStartEligibleDate(form)}.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => setReminderStep('form')}
+                  className="flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-md bg-[#9FE870] font-semibold text-[#163300] shadow-md transition hover:bg-[#8AD860]"
+                >
+                  <Bell className="h-5 w-5" />
+                  Notify me when I can start
+                </button>
+                <p className="mt-4 text-sm italic leading-5 text-[#6B7280]">
+                  We&apos;ll send you an email reminder.
+                </p>
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="mt-6 text-[15px] font-semibold text-[#163300] underline underline-offset-2 transition hover:text-[#2A5A00]"
+                >
+                  Back
+                </button>
+              </div>
+            )}
+
             {screen === 'result' && (
               <div className="mx-auto w-full max-w-[640px] text-center">
                 {isCalculating ? (
@@ -1617,13 +2044,23 @@ export const ManualVBLCalculator: React.FC = () => {
                       Calculation Error
                     </h1>
                     <p className="mt-3 text-sm text-red-700">{error}</p>
-                    <button
-                      type="button"
-                      onClick={() => void calculateEstimate()}
-                      className="mx-auto mt-8 flex h-12 items-center justify-center rounded-md bg-[#9FE870] px-6 font-semibold text-[#163300]"
-                    >
-                      Try again
-                    </button>
+                    <div className="mx-auto mt-8 flex flex-wrap items-center justify-center gap-4">
+                      <button
+                        type="button"
+                        onClick={goBack}
+                        className="flex h-12 items-center justify-center gap-2 rounded-md border border-[#D7DCE8] bg-white px-6 font-semibold text-[#163300] shadow-sm transition hover:bg-gray-50"
+                      >
+                        <ArrowLeft className="h-5 w-5" />
+                        Back
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void calculateEstimate()}
+                        className="flex h-12 items-center justify-center rounded-md bg-[#9FE870] px-6 font-semibold text-[#163300]"
+                      >
+                        Try again
+                      </button>
+                    </div>
                   </>
                 ) : (
                   <>
@@ -1666,7 +2103,7 @@ export const ManualVBLCalculator: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => void startClaim()}
+                        onClick={() => setScreen('eligibility-questions')}
                         className="flex h-12 items-center justify-center gap-2 rounded-md bg-[#9FE870] font-semibold text-[#163300] shadow-md transition hover:bg-[#8AD860]"
                       >
                         {getStartClaimLabel(

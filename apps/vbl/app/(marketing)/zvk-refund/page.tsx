@@ -3,12 +3,17 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, Check, Info } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
-import { SectionHeading } from '@/components/marketing/SectionHeading';
+import {
+  SectionHeading,
+  FAQ_EYEBROW_WIDTH,
+} from '@/components/marketing/SectionHeading';
 import { StepCard } from '@/components/marketing/StepCard';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import { ImportantCallout } from '@/components/marketing/ImportantCallout';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
 import { GlossaryCard } from '@/components/marketing/GlossaryCard';
+import { FaqAccordion } from '@/components/marketing/FaqAccordion';
+import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -34,9 +39,11 @@ function CheckList({ items }: { items: ReactNode[] }) {
     <ul className="space-y-3">
       {items.map((item, index) => (
         <li key={index} className="flex items-start gap-3 text-gray-700">
-          <Check
-            className="mt-0.5 h-5 w-5 shrink-0 text-brand"
+          <img
+            src="/marketing/icons/check-bullet.svg"
+            alt=""
             aria-hidden="true"
+            className="mt-0.5 h-5 w-5 shrink-0"
           />
           <span className="text-base leading-relaxed">{item}</span>
         </li>
@@ -183,7 +190,7 @@ export default function ZvkRefundPage() {
 
       {/* ---- IMPORTANT CALLOUT (Figma 1108:526) ---- */}
       <ImportantCallout>
-        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
           A ZVK refund is separate from a DRV refund and separate from bAV
           cash-outs.
         </h2>
@@ -217,7 +224,7 @@ export default function ZvkRefundPage() {
               <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-4 py-2 text-sm font-medium text-brand">
                 QUICK ANSWER
               </span>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Can I get a ZVK refund after leaving Germany?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -260,14 +267,14 @@ export default function ZvkRefundPage() {
       </section>
 
       {/* ---- WHAT IS ZVK? (Figma 1108:3834) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-white px-4 py-2 text-sm font-medium text-brand">
                 WHAT ZVK IS
               </span>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 What is ZVK?
               </h2>
               <p className="mt-5 text-lg font-semibold text-brand">
@@ -352,14 +359,14 @@ export default function ZvkRefundPage() {
       </section>
 
       {/* ---- WHAT CAN BE REFUNDED? (Figma 1109:5264) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-white px-4 py-2 text-sm font-medium text-brand">
                 ZVK REFUND BASICS
               </span>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 What can be refunded?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -453,14 +460,14 @@ export default function ZvkRefundPage() {
       </section>
 
       {/* ---- IS ZVK THE SAME AS VBL? (Figma 1110:5961) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid items-start gap-12 lg:grid-cols-2">
             <div>
               <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-white px-4 py-2 text-sm font-medium text-brand">
                 ZVK VS VBL
               </span>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Is ZVK the same as VBL?
               </h2>
               <p className="mt-5 text-lg font-semibold text-brand">
@@ -507,7 +514,7 @@ export default function ZvkRefundPage() {
               <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-4 py-2 text-sm font-medium text-brand">
                 DRV VS ZVK
               </span>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Your DRV refund does not include ZVK
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -541,14 +548,14 @@ export default function ZvkRefundPage() {
       </section>
 
       {/* ---- CAN YOU ESTIMATE YOUR ZVK REFUND? (Figma 1113:7354) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid items-start gap-12 lg:grid-cols-2">
             <div>
               <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-white px-4 py-2 text-sm font-medium text-brand">
                 CALCULATOR
               </span>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Can you estimate your ZVK refund?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -644,14 +651,14 @@ export default function ZvkRefundPage() {
       </section>
 
       {/* ---- WHAT DOCUMENTS ARE NEEDED? (Figma 1117:127) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-white px-4 py-2 text-sm font-medium text-brand">
                 DOCUMENTS
               </span>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 What documents are usually needed?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -702,7 +709,7 @@ export default function ZvkRefundPage() {
               <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-4 py-2 text-sm font-medium text-brand">
                 PRICING
               </span>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Pricing for ZVK refunds
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -734,7 +741,7 @@ export default function ZvkRefundPage() {
       </section>
 
       {/* ---- ZVK/VBL/DRV/bAV COMPARISON TABLE (Figma 1118:832) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -849,27 +856,26 @@ export default function ZvkRefundPage() {
         </div>
       </section>
 
-      {/* ---- FAQ (Figma 1118:981) ----
-          FAQ_ANSWER_PENDING: every FAQ item in this frame is a component
-          instance carrying lorem defaults ("How do I pay for the…", "We need to
-          add new u…", "My team wants to can…", "You can pay with a c…"). Only
-          the section heading and eyebrow are non-instance verbatim copy. The
-          questions and answers are UNVERIFIABLE from the XML and must not be
-          invented; they are backfilled once final copy is available. */}
-      <section className="bg-neutral-50">
+      {/* ---- FAQ (Figma 1118:981) — answers from the shared FAQ master copy via faqItems.tsx (FAQ CompanyPension 22062026.pdf) ---- */}
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="FAQ"
+              eyebrowWidth={FAQ_EYEBROW_WIDTH}
               title="ZVK refunds: common questions"
             />
           </div>
-          <div className="mx-auto mt-12 max-w-3xl">
-            <InfoNote>
-              FAQ content for this page is pending. The questions and answers in
-              the source design are placeholder component instances and will be
-              added once the final copy is available.
-            </InfoNote>
+          <div className="mx-auto mt-12 max-w-4xl">
+            <FaqAccordion
+              items={[
+                FAQ.zvkRefund,
+                FAQ.earlierPeriods,
+                FAQ.wait24VblZvk,
+                FAQ.whatIsRefund,
+              ]}
+              defaultOpenIndex={0}
+            />
           </div>
           <div className="mt-10 flex justify-center">
             <Link
@@ -934,13 +940,13 @@ export default function ZvkRefundPage() {
           placeholders authored in the design ("[Add actual review date before
           publication]" / "[Add reviewer name and role before publication]").
           Rendered verbatim per the copy rules; must be filled before go-live. */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="mx-auto max-w-3xl">
             <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-white px-4 py-2 text-sm font-medium text-brand">
               SOURCE BASIS
             </span>
-            <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+            <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
               Source basis
             </h2>
             <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -981,7 +987,7 @@ export default function ZvkRefundPage() {
 
       {/* ---- IMPORTANT INFORMATION (Figma 1118:1854) ---- */}
       <ImportantCallout>
-        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
           Important information
         </h2>
         <ul className="mt-6 space-y-4 text-base leading-relaxed text-gray-600">

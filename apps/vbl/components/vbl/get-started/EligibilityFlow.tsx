@@ -84,7 +84,12 @@ export function EligibilityFlow() {
 
   return (
     <GetStartedLayout showBack={showLayoutBack} onBack={goBack}>
-      <StepComponent />
+      {/* Several step ids share one component (the two stage threshold
+          questions both render StageContributionDuration, and they can follow
+          each other directly). Keying on the step id forces a remount so each
+          question starts from its own answer instead of inheriting the
+          previous step's local selection. */}
+      <StepComponent key={currentStepId} />
     </GetStartedLayout>
   );
 }

@@ -339,7 +339,7 @@ export class VBLCalculationService {
 
   /**
    * Calculate refund for Stage/Orchestra (VddB/VddKO)
-   * Rate: 4.5% of gross salary, min 12 months, max 35 months refundable
+   * Rate: 4.5% of gross salary, min 12 months, max 119 months refundable
    */
   private static calculateStageOrchestraRefund(
     input: VBLCalculationInput
@@ -357,20 +357,11 @@ export class VBLCalculationService {
       rulesApplied.push('Minimum 12 months contribution period');
     }
 
-    // Rule 2: Maximum contribution period (max 35 months refundable)
-    const employmentEndDate = new Date(input.employmentEnd);
-    const isPre2003 = employmentEndDate < new Date('2003-01-01');
-
-    if (!isPre2003 && input.monthsContributed > 35) {
-      eligibilityReasons.push(
-        'Maximum contribution period of 35 months for employments ending after 2003'
-      );
+    // Rule 2: Maximum contribution period (max 119 months refundable)
+    if (input.monthsContributed >= 120) {
+      eligibilityReasons.push('Maximum contribution period of 119 months');
     } else {
-      rulesApplied.push(
-        isPre2003
-          ? 'Unlimited contribution period (pre-2003)'
-          : 'Maximum 35 months contribution period'
-      );
+      rulesApplied.push('Maximum 119 months contribution period');
     }
 
     // Rule 3: User left employment with specific conditions

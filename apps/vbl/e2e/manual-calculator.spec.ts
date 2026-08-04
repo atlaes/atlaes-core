@@ -92,7 +92,12 @@ async function mockPendingSession(page: Page) {
   };
 }
 
-async function mockExtraction(page: Page) {
+// `details` overrides let a test mock a stage (VddB/VddKO) statement without
+// repeating the whole extraction envelope.
+async function mockExtraction(
+  page: Page,
+  details: Record<string, string | null> = {}
+) {
   await page.route('**/api/vbl/extract-pension-document', async (route) => {
     await route.fulfill({
       status: 200,
@@ -114,6 +119,7 @@ async function mockExtraction(page: Page) {
             statePensionRefundReceived: null,
             bavStatementValueType: null,
             bavStatementAmount: null,
+            ...details,
           },
           confidence: {
             provider: 0.95,
@@ -189,6 +195,28 @@ async function enterContributionPeriod(
   await chooseDropdownOption(page, 'End month', endMonth);
   await chooseDropdownOption(page, 'End year', endYear);
   await continueButton(page).click();
+}
+
+// Walks the manual stage flow up to the contribution-period screen.
+async function chooseStageProvider(page: Page, provider: string) {
+  await chooseManual(page, 'VddB / VddKO refund');
+
+  await chooseDropdownOption(page, 'Employer’s federal state', 'Bavaria');
+  await continueButton(page).click();
+  await chooseDropdownOption(page, 'Company pension', provider);
+  await continueButton(page).click();
+}
+
+// Every post-estimate question renders as its own fieldset, so the repeated
+// "Yes"/"No" answers can be scoped to the question they belong to.
+async function answerEligibilityQuestions(page: Page, answer: 'Yes' | 'No') {
+  const questions = page.getByRole('group');
+  await expect(questions.first()).toBeVisible();
+
+  const count = await questions.count();
+  for (let index = 0; index < count; index += 1) {
+    await questions.nth(index).getByLabel(answer, { exact: true }).check();
+  }
 }
 
 test.describe('Manual VBL calculator', () => {
@@ -308,7 +336,7 @@ test.describe('Manual VBL calculator', () => {
     });
   });
 
-  test('hands the real contribution period to onboarding when starting a claim', async ({
+  test('asks the public eligibility questions and hands the real contribution period to onboarding', async ({
     page,
   }) => {
     await mockCalculation(page);
@@ -331,11 +359,77 @@ test.describe('Manual VBL calculator', () => {
     ).toBeVisible();
     await page.getByRole('button', { name: 'Start VBL/ZVK refund' }).click();
 
+    // The estimate no longer starts the claim directly — the eligibility
+    // questionnaire runs first.
+    await expect(
+      page.getByRole('heading', {
+        name: 'A few more details about your public-sector pension',
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'Please answer these final questions so we can complete your refund check.'
+      )
+    ).toBeVisible();
+    await expect(
+      page.getByText('This includes another VBL or ZVK pension institution.')
+    ).toBeVisible();
+    await answerEligibilityQuestions(page, 'No');
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'Your refund can be started with CompanyPension',
+      })
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Start VBL/ZVK refund' }).click();
+
     // Regression: this used to read a `monthsContributed` field the API never
     // sends, so every claim reached onboarding with totalMonths: 0.
     await expect
       .poll(() => session.getPayload()?.calculationResult?.totalMonths ?? null)
       .toBe(24);
+    await expect(page).toHaveURL(/\/calculator\/onboarding/);
+  });
+
+  test('stops the public flow when an eligibility question is answered yes', async ({
+    page,
+  }) => {
+    await mockCalculation(page);
+
+    await chooseManual(page, 'VBL / ZVK refund');
+
+    await chooseDropdownOption(page, 'Employer’s federal state', 'Bavaria');
+    await continueButton(page).click();
+    await chooseDropdownOption(page, 'Company pension', 'VBL');
+    await page.getByRole('button', { name: 'VBLklassik' }).click();
+    await continueButton(page).click();
+    await enterContributionPeriod(page, 'January', '2020', 'December', '2021');
+    await page.getByLabel('Average monthly gross salary (€)').fill('3500');
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Your estimated VBL/ZVK refund' })
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Start VBL/ZVK refund' }).click();
+
+    await answerEligibilityQuestions(page, 'No');
+    await page
+      .getByRole('group', {
+        name: /Did you later become a German civil servant/,
+      })
+      .getByLabel('Yes', { exact: true })
+      .check();
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'This refund cannot currently be started with CompanyPension',
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Return to start' })
+    ).toBeVisible();
   });
 
   test('calculates the manual VddB/VddKO estimate and sends the stage provider payload', async ({
@@ -382,19 +476,48 @@ test.describe('Manual VBL calculator', () => {
     });
   });
 
-  test('blocks VddB/VddKO manual estimates when contribution thresholds are exceeded', async ({
+  test('asks only the since-2001 stage question when the employment ended between 2001 and 2017', async ({
     page,
   }) => {
-    await chooseManual(page, 'VddB / VddKO refund');
+    await mockCalculation(page, 9000);
 
-    await chooseDropdownOption(page, 'Employer’s federal state', 'Bavaria');
-    await continueButton(page).click();
-    await chooseDropdownOption(page, 'Company pension', 'VddB');
-    await continueButton(page).click();
+    await chooseStageProvider(page, 'VddB');
+    // 36 contribution months ending December 2006 — inside the 2001-2017 window.
+    await enterContributionPeriod(page, 'January', '2004', 'December', '2006');
 
-    await enterContributionPeriod(page, 'January', '2017', 'December', '2019');
-    await page.getByLabel('36 months or more').check();
+    await expect(
+      page.getByRole('heading', {
+        name: 'How many VddB contribution months did you have since 1 January 2001?',
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /since 1 January 2018/ })
+    ).toHaveCount(0);
+
     await page.getByLabel('Less than 60 months').check();
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'What was your average gross monthly salary?',
+      })
+    ).toBeVisible();
+    await page.getByLabel('Average monthly gross salary (€)').fill('5000');
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Your estimated VddB refund' })
+    ).toBeVisible();
+    await expect(page.getByText('€ 9,000')).toBeVisible();
+  });
+
+  test('blocks the stage flow at 60 or more contribution months since 2001', async ({
+    page,
+  }) => {
+    await chooseStageProvider(page, 'VddB');
+    await enterContributionPeriod(page, 'January', '2004', 'December', '2006');
+
+    await page.getByLabel('60 months or more').check();
     await continueButton(page).click();
 
     await expect(
@@ -407,26 +530,131 @@ test.describe('Manual VBL calculator', () => {
     ).toBeVisible();
   });
 
-  test('does not show the additional contribution check when VddB/VddKO starts in 2018 or later', async ({
+  test('asks the since-2018 stage question first when the employment ended in 2018 or later', async ({
     page,
   }) => {
-    await chooseManual(page, 'VddB / VddKO refund');
-
-    await chooseDropdownOption(page, 'Employer’s federal state', 'Bavaria');
-    await continueButton(page).click();
-    await chooseDropdownOption(page, 'Company pension', 'VddB');
-    await continueButton(page).click();
-    await enterContributionPeriod(page, 'January', '2020', 'December', '2022');
+    await chooseStageProvider(page, 'VddB');
+    // 36 contribution months ending December 2020.
+    await enterContributionPeriod(page, 'January', '2018', 'December', '2020');
 
     await expect(
       page.getByRole('heading', {
-        name: 'A few more details are needed for your estimate',
+        name: 'How many VddB contribution months did you have since 1 January 2018?',
       })
-    ).toHaveCount(0);
+    ).toBeVisible();
+
+    await page.getByLabel('Less than 36 months').check();
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'How many VddB contribution months did you have since 1 January 2001?',
+      })
+    ).toBeVisible();
+  });
+
+  test('blocks the stage flow at 36 or more contribution months since 2018', async ({
+    page,
+  }) => {
+    await chooseStageProvider(page, 'VddB');
+    await enterContributionPeriod(page, 'January', '2018', 'December', '2020');
+
+    await page.getByLabel('36 months or more').check();
+    await continueButton(page).click();
+
     await expect(
       page.getByRole('heading', {
         name: 'This refund cannot currently be claimed with CompanyPension',
       })
+    ).toBeVisible();
+  });
+
+  test('offers a reminder when a stage refund is still inside the 24-month wait', async ({
+    page,
+  }) => {
+    await mockCalculation(page, 9000);
+    const currentYear = new Date().getFullYear();
+
+    await chooseStageProvider(page, 'VddB');
+    // 12 contribution months ending January of the current year, so the
+    // 24-month wait after the employment ended is still running.
+    await enterContributionPeriod(
+      page,
+      'February',
+      String(currentYear - 1),
+      'January',
+      String(currentYear)
+    );
+
+    await page.getByLabel('Average monthly gross salary (€)').fill('5000');
+    await continueButton(page).click();
+    await expect(
+      page.getByRole('heading', { name: 'Your estimated VddB refund' })
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Start VddB refund' }).click();
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'A few more details about your VddB insurance',
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByText('This means berufsunfähig or erwerbsunfähig.')
+    ).toBeVisible();
+    await answerEligibilityQuestions(page, 'No');
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Your refund cannot be started yet' })
+    ).toBeVisible();
+    await expect(
+      page.getByText(`You can return on or after January ${currentYear + 2}.`)
+    ).toBeVisible();
+
+    await page
+      .getByRole('button', { name: 'Notify me when I can start' })
+      .click();
+    await page.getByLabel('Email address').fill('tester@example.com');
+    await page.getByRole('button', { name: 'Set reminder' }).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Reminder set' })
+    ).toBeVisible();
+    await expect(
+      page.getByText("We'll email you when you can start your refund.")
+    ).toBeVisible();
+  });
+
+  test('lets a stage refund start once the 24-month wait has passed', async ({
+    page,
+  }) => {
+    await mockCalculation(page, 9000);
+
+    await chooseStageProvider(page, 'VddKO');
+    await enterContributionPeriod(page, 'January', '2010', 'December', '2011');
+
+    await page.getByLabel('Average monthly gross salary (€)').fill('5000');
+    await continueButton(page).click();
+    await expect(
+      page.getByRole('heading', { name: 'Your estimated VddKO refund' })
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Start VddKO refund' }).click();
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'A few more details about your VddKO insurance',
+      })
+    ).toBeVisible();
+    await answerEligibilityQuestions(page, 'No');
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'Your refund can be started with CompanyPension',
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Start VddKO refund' })
     ).toBeVisible();
   });
 
@@ -543,5 +771,121 @@ test.describe('Manual VBL calculator', () => {
       ],
       userType: 'insured_person',
     });
+  });
+
+  test('asks both stage questions on the upload path and skips the salary screen', async ({
+    page,
+  }) => {
+    const api = await mockCalculation(page, 9000);
+    // 36 contribution months ending December 2020, so both the since-2018 and
+    // the since-2001 questions apply.
+    await mockExtraction(page, {
+      provider: 'VddB',
+      vblPlan: null,
+      federalState: 'Bavaria',
+      startMonth: 'January',
+      startYear: '2018',
+      endMonth: 'December',
+      endYear: '2020',
+      employmentEndMonth: 'December',
+      employmentEndYear: '2020',
+      averageMonthlyGrossSalary: '5000',
+    });
+
+    await chooseUpload(page, 'VddB / VddKO refund');
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'We found these details in your document',
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /Company pension provider VddB/ })
+    ).toBeVisible();
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'How many VddB contribution months did you have since 1 January 2018?',
+      })
+    ).toBeVisible();
+    await page.getByLabel('Less than 36 months').check();
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'How many VddB contribution months did you have since 1 January 2001?',
+      })
+    ).toBeVisible();
+    await page.getByLabel('Less than 60 months').check();
+    await continueButton(page).click();
+
+    // The upload already captured the salary, so the estimate runs straight
+    // after the last question.
+    await expect(
+      page.getByRole('heading', { name: 'Your estimated VddB refund' })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', {
+        name: 'What was your average gross monthly salary?',
+      })
+    ).toHaveCount(0);
+    expect(api.getPayload()).toEqual({
+      jobs: [
+        {
+          employmentType: 'Stage / Performing Arts',
+          supplementaryPensions: ['VddB'],
+          startDate: '2018-01',
+          endDate: '2020-12',
+          averageMonthlyGrossSalary: '5000',
+          germanFederalState: 'Bavaria',
+        },
+      ],
+      userType: 'insured_person',
+    });
+  });
+
+  test('walks back out of the stage questions and re-routes after an end-date change', async ({
+    page,
+  }) => {
+    await mockCalculation(page, 9000);
+
+    await chooseStageProvider(page, 'VddB');
+    // 60 contribution months ending December 2019, so the since-2018
+    // question comes first (a longer period would trip the >=120-month
+    // block before any question is asked).
+    await enterContributionPeriod(page, 'January', '2015', 'December', '2019');
+
+    await expect(
+      page.getByRole('heading', { name: /since 1 January 2018/ })
+    ).toBeVisible();
+    await page.getByLabel('Less than 36 months').check();
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: /since 1 January 2001/ })
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
+
+    await expect(
+      page.getByRole('heading', { name: /since 1 January 2018/ })
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'When did you pay into this pension?' })
+    ).toBeVisible();
+
+    // Moving the end date into the 2001–2017 window must skip the since-2018
+    // question, even though it was already answered.
+    await chooseDropdownOption(page, 'End year', '2017');
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: /since 1 January 2001/ })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /since 1 January 2018/ })
+    ).toHaveCount(0);
   });
 });

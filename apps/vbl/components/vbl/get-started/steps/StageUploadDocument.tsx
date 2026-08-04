@@ -222,15 +222,50 @@ function getMissingCount(form: StageUploadForm): number {
   ].filter((value) => !value).length;
 }
 
+// Month indexes (year * 12 + zero-based month) for the two stage cut-off
+// dates, matching ManualVBLCalculator and the stage eligibility flow.
+const JANUARY_2001 = 2001 * 12;
+const JANUARY_2018 = 2018 * 12;
+
+function getEmploymentEndIndex(form: StageUploadForm): number | null {
+  if (!hasDateParts(form.employmentEndMonth, form.employmentEndYear)) {
+    return null;
+  }
+  return (
+    Number(form.employmentEndYear) * 12 + getMonthIndex(form.employmentEndMonth)
+  );
+}
+
+// Both providers follow the same decision tree: which extra question applies
+// depends on the total bucket and on when the employment ended.
+function needsPost2018Check(
+  form: StageUploadForm,
+  check: ContributionCheckForm
+): boolean {
+  if (check.total !== '36_to_119') return false;
+  const end = getEmploymentEndIndex(form);
+  return end !== null && end >= JANUARY_2018;
+}
+
+function needsPost2001Check(
+  form: StageUploadForm,
+  check: ContributionCheckForm
+): boolean {
+  if (check.total !== '36_to_119') return false;
+  const end = getEmploymentEndIndex(form);
+  if (end === null || end < JANUARY_2001) return false;
+  if (end < JANUARY_2018) return true;
+  return check.post2018 === 'less_than_36';
+}
+
 function canContinueContributionCheck(
   form: StageUploadForm,
   check: ContributionCheckForm
 ): boolean {
   if (!check.total) return false;
-  if (check.total !== '36_to_119') return true;
-  if (form.provider === 'VddB') return Boolean(check.post2001);
-  if (form.provider === 'VddKO') return Boolean(check.post2018);
-  return Boolean(check.post2001 || check.post2018);
+  if (needsPost2018Check(form, check) && !check.post2018) return false;
+  if (needsPost2001Check(form, check) && !check.post2001) return false;
+  return true;
 }
 
 interface SelectFieldProps {
@@ -515,8 +550,8 @@ export const StageUploadDocument: React.FC = () => {
   };
 
   if (phase === 'contribution_check') {
-    const showPost2018 = form.provider === 'VddKO';
-    const showPost2001 = form.provider === 'VddB';
+    const showPost2018 = needsPost2018Check(form, contributionCheck);
+    const showPost2001 = needsPost2001Check(form, contributionCheck);
     const providerLabel = form.provider || 'VddB/VddKO';
 
     return (
@@ -548,18 +583,18 @@ export const StageUploadDocument: React.FC = () => {
             }
           />
 
-          {contributionCheck.total === '36_to_119' && showPost2018 && (
+          {showPost2018 && (
             <OptionGroup
-              title="How many of those contribution months were after 1 January 2018?"
+              title={`How many ${providerLabel} contribution months did you have since 1 January 2018?`}
               options={POST_2018_OPTIONS}
               selected={contributionCheck.post2018}
               onSelect={(value) => updateContributionCheck({ post2018: value })}
             />
           )}
 
-          {contributionCheck.total === '36_to_119' && showPost2001 && (
+          {showPost2001 && (
             <OptionGroup
-              title="How many of those contribution months were after 1 January 2001?"
+              title={`How many ${providerLabel} contribution months did you have since 1 January 2001?`}
               options={POST_2001_OPTIONS}
               selected={contributionCheck.post2001}
               onSelect={(value) => updateContributionCheck({ post2001: value })}
