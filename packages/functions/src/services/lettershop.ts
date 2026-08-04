@@ -7,20 +7,37 @@ import { auditLogs } from '../drizzle/schema/shared';
 import { claimsTable } from '../drizzle/schema/claims';
 
 // Print specification per "API-Schnittstelle Dokumentation" (01.04.2025).
-// Mirrors the old SFTP filecode 1001000000000: colour, single-sided, DIN
-// lang auto (c4 = 0 lets the vendor upgrade the envelope past 8 sheets),
+// Mirrors the old SFTP filecode 1001000000000: colour, single-sided,
 // national shipping. No registered mail, no payment slip.
+//
+// `c4: 0` means "do not force a C4 envelope". The doc describes the flag
+// only as "for C4 envelope under 9 sheets", so 1 buys a C4 envelope for a
+// letter that would otherwise go DIN lang. What the vendor does at 9+
+// sheets with c4: 0 is NOT stated anywhere in the doc — a full claim packet
+// (cover letter + L203 + PoA + attachments) can cross that, so treat the
+// envelope upgrade as unconfirmed until support says otherwise.
 const LETTER_SPECIFICATION = {
   color: '4', // 1 = black/white, 4 = colour
-  mode: 'simplex', // simplex | duplex
+  mode: 'simplex', // simplex | duplex — NOT auth.mode, which is test|live
   shipping: 'national', // national | international | auto
   c4: 0,
 } as const;
 
-// The vendor rejects anything larger, per PDF and per request.
-const MAX_PDF_BYTES = 50 * 1024 * 1024;
+// Doc §1: "Maximale Dateigröße darf 50 MB je PDF / Request nicht
+// überschreiten" — the ceiling is on the request, so it has to be measured
+// on the base64 payload we actually send, not the raw PDF. Base64 inflates
+// by ~4/3, so a 40 MB PDF is already a ~54 MB request.
+const MAX_REQUEST_BYTES = 50 * 1024 * 1024;
 
 const REQUEST_TIMEOUT_MS = 60_000;
+
+// Doc §4 (GET /v1/printjobs filters): a job parked in the Warenkorb reads
+// as 'draft', one heading for production as 'queue'. Which one comes back
+// is the only positive evidence that auth.mode did what we asked.
+const EXPECTED_JOB_STATUS = {
+  test: 'draft',
+  live: 'queue',
+} as const;
 
 interface PrintjobResponse {
   status?: number;
@@ -80,14 +97,18 @@ export class LettershopService {
       return null;
     }
 
-    if (pdfBytes.byteLength > MAX_PDF_BYTES) {
+    const base64File = Buffer.from(pdfBytes).toString('base64');
+
+    // Measured after encoding: the vendor's ceiling is on the request, and
+    // base64 is what the request carries.
+    if (base64File.length > MAX_REQUEST_BYTES) {
       throw new Error(
-        `Claim PDF is ${pdfBytes.byteLength} bytes, over the vendor's ` +
-          `${MAX_PDF_BYTES}-byte limit`
+        `Claim PDF is ${pdfBytes.byteLength} bytes, which encodes to ` +
+          `${base64File.length} base64 bytes — over the vendor's ` +
+          `${MAX_REQUEST_BYTES}-byte request limit`
       );
     }
 
-    const base64File = Buffer.from(pdfBytes).toString('base64');
     // Checksum is over the base64 STRING, not the decoded PDF bytes.
     const checksum = createHash('md5').update(base64File).digest('hex');
     const filenameOriginal = this.buildOriginalFilename(claimId);
@@ -130,6 +151,8 @@ export class LettershopService {
       }
 
       const submissionId = String(printjobId);
+      const jobStatus = body?.data?.status;
+      const expectedStatus = EXPECTED_JOB_STATUS[mode];
 
       await db.transaction(async (tx: any) => {
         await tx
@@ -146,20 +169,43 @@ export class LettershopService {
             submissionId,
             filenameOriginal,
             mode,
-            jobStatus: body?.data?.status,
+            jobStatus,
           },
         });
       });
+
+      // Checked AFTER the row is written, deliberately. The job exists on
+      // the vendor's side either way, and the printjob id is the only way
+      // to delete it inside the 15-minute window — losing that to a throw
+      // would be strictly worse than recording a job we're unhappy about.
+      // Logged rather than thrown for the same reason: the send succeeded,
+      // and reporting it as a failure invites a resend, i.e. two letters.
+      if (jobStatus !== expectedStatus) {
+        logger.error('Lettershop job landed in an unexpected state', {
+          claimId,
+          submissionId,
+          mode,
+          jobStatus,
+          expectedStatus,
+          // The case that matters: mode 'test' answering 'queue' means the
+          // order is heading for production, not the Warenkorb.
+          headedForProduction: mode === 'test' && jobStatus === 'queue',
+          remedy:
+            `DELETE ${env.LETTERSHOP_API_BASE_URL}/printjobs/${submissionId} ` +
+            `within 15 minutes of submission, or delete it in the Kundencenter`,
+        });
+      }
 
       logger.info('Claim PDF delivered to lettershop', {
         claimId,
         submissionId,
         filenameOriginal,
         mode,
-        jobStatus: body?.data?.status,
-        // In test mode the job sits in the vendor's cart and is deleted
-        // after 7 days unless someone releases it by hand.
-        parkedInCart: mode === 'test',
+        jobStatus,
+        // Read off the vendor's answer, not the mode we asked for: a job
+        // in the cart is deleted after 7 days unless someone releases it
+        // by hand, and that only holds if they actually parked it.
+        parkedInCart: jobStatus === 'draft',
       });
 
       return { submissionId };

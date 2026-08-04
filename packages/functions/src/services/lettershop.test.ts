@@ -319,8 +319,15 @@ describe('LettershopService', () => {
 
     it('passes mode=test through so the order parks in the vendor cart', async () => {
       configureCredentials('test');
+      // 'draft' is the vendor's own word for "sitting in the Warenkorb"
+      // (doc §4, GET /v1/printjobs filters) — the proof that auth.mode
+      // took effect rather than just being accepted.
+      fetchMock.mockResolvedValue(okResponse(6035143, 'draft'));
 
       const { LettershopService } = await import('./lettershop');
+      const { logger } = await import('../utils/logger');
+      const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+
       const userId = await createTestUser();
       const claimId = await createTestClaim(userId);
 
@@ -336,6 +343,49 @@ describe('LettershopService', () => {
       // A cart entry is still a real printjob id worth recording — it is
       // what someone needs to find or release the order in the Kundencenter.
       expect(result).toEqual({ submissionId: '6035143' });
+      expect(errorSpy).not.toHaveBeenCalled();
+    });
+
+    it('screams when a test-mode job comes back queued for production', async () => {
+      configureCredentials('test');
+      // The failure that costs money: auth.mode said 'test', but the job
+      // is in the production queue, not the cart.
+      fetchMock.mockResolvedValue(okResponse(6035143, 'queue'));
+
+      const { LettershopService } = await import('./lettershop');
+      const { logger } = await import('../utils/logger');
+      const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+
+      const userId = await createTestUser();
+      const claimId = await createTestClaim(userId);
+
+      const result = await LettershopService.sendClaimPdf(
+        claimId,
+        new Uint8Array([1, 2, 3]),
+        userId
+      );
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Lettershop job landed in an unexpected state',
+        expect.objectContaining({
+          mode: 'test',
+          jobStatus: 'queue',
+          expectedStatus: 'draft',
+          headedForProduction: true,
+        })
+      );
+
+      // Reported, not thrown: the job exists on their side either way, and
+      // the id is what a human needs to delete it inside the 15-minute
+      // window. Throwing would lose the id and invite a duplicate send.
+      expect(result).toEqual({ submissionId: '6035143' });
+
+      const [claim] = await testDb
+        .select()
+        .from(claimsTable)
+        .where(eq(claimsTable.id, claimId))
+        .limit(1);
+      expect((claim as any).lettershopSubmissionId).toBe('6035143');
     });
 
     it('honours a LETTERSHOP_API_BASE_URL override', async () => {
@@ -443,6 +493,26 @@ describe('LettershopService', () => {
       await expect(
         LettershopService.sendClaimPdf(claimId, oversized, userId)
       ).rejects.toThrow(/over the vendor's/);
+
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    // The doc caps the REQUEST at 50 MB, and the request carries base64,
+    // which is ~4/3 the size of the PDF. A 40 MB PDF is therefore already
+    // a ~53 MB request — under a raw-bytes guard it would have been sent.
+    it('rejects a PDF that only exceeds 50 MB once base64-encoded', async () => {
+      configureCredentials('live');
+
+      const { LettershopService } = await import('./lettershop');
+      const userId = await createTestUser();
+      const claimId = await createTestClaim(userId);
+
+      const underRawLimit = new Uint8Array(40 * 1024 * 1024);
+      expect(underRawLimit.byteLength).toBeLessThan(50 * 1024 * 1024);
+
+      await expect(
+        LettershopService.sendClaimPdf(claimId, underRawLimit, userId)
+      ).rejects.toThrow(/base64 bytes/);
 
       expect(fetchMock).not.toHaveBeenCalled();
     });
