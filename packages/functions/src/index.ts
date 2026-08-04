@@ -5,7 +5,7 @@ import { requestLogger } from './middleware/logger';
 import { errorHandler } from './middleware/error-handler';
 import { rateLimiter } from './middleware/rate-limiter';
 import { logger } from './utils/logger';
-import { env } from './utils/env';
+import { env, assertMigrationTokenConfigured } from './utils/env';
 
 // Import routes
 import health from './routes/health';
@@ -21,6 +21,10 @@ import signaturesRouter from './routes/signatures';
 import admin from './routes/admin';
 import migrations from './routes/migrations';
 import payments from './routes/payments';
+
+// Fail fast before serving traffic if this backend would expose
+// /api/migrations/run with the publicly-known dev token.
+assertMigrationTokenConfigured();
 
 const app = new Hono();
 
