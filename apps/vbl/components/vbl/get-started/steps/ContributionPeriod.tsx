@@ -12,7 +12,9 @@ export const ContributionPeriod: React.FC = () => {
     data.consecutiveContribution || ''
   );
 
-  const providerName = data.pensionProvider === 'VBL' ? 'VBL-covered' : 'pension-covered';
+  // Figma 455-13690 (tester feedback 2026-08-04): the question reads
+  // "Did you pay into VBL for 36 consecutive months or more?"
+  const providerName = data.pensionProvider || 'VBL';
 
   const handleContinue = () => {
     if (!selected) return;
@@ -33,7 +35,7 @@ export const ContributionPeriod: React.FC = () => {
       </div>
 
       <p className="mb-4 text-center text-[15px] font-bold text-[#4A4F58]">
-        Did your {providerName} employment last 36 consecutive months or more?
+        Did you pay into {providerName} for 36 consecutive months or more?
       </p>
 
       <div className="mb-6 flex justify-center gap-4">

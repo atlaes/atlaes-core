@@ -14,6 +14,9 @@ interface CreateAccountProps {
 export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
   const { data, updateData } = useOnboarding();
   const [email, setEmail] = useState(data.email);
+  // Figma 1156-4891 (tester feedback 2026-08-04): the bAV flow has its own
+  // subtitle on the secure-claim screen.
+  const isPrivate = data.pensionType === 'private';
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
@@ -31,10 +34,15 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
       // by this email could resume the draft. Fire-and-forget — failure here
       // is not user-visible and the magic-link flow is the source of truth.
       if (typeof window !== 'undefined') {
-        const token = sessionStorage.getItem('vbl-pending-calculator-session-token');
+        const token = sessionStorage.getItem(
+          'vbl-pending-calculator-session-token'
+        );
         if (token) {
           linkEmailToPendingCalculatorSession(token, email).catch((err) => {
-            console.warn('Failed to link email to pending calculator session', err);
+            console.warn(
+              'Failed to link email to pending calculator session',
+              err
+            );
           });
         }
       }
@@ -46,7 +54,10 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
         if (token) {
           const verifyResult = await verifyMagicLink(token);
           localStorage.setItem('accessToken', verifyResult.tokens.accessToken);
-          localStorage.setItem('refreshToken', verifyResult.tokens.refreshToken);
+          localStorage.setItem(
+            'refreshToken',
+            verifyResult.tokens.refreshToken
+          );
           updateData({
             email,
             authMethod: 'email',
@@ -61,7 +72,8 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
       updateData({ email, authMethod: 'email' });
       setMagicLinkSent(true);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to send magic link';
+      const message =
+        err instanceof Error ? err.message : 'Failed to send magic link';
       setError(message);
     } finally {
       setIsSubmitting(false);
@@ -103,8 +115,8 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
         </h2>
         <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
         <p className="text-gray-600 mb-6">
-          We sent a secure login link to <strong>{email}</strong>.
-          Click the link in the email to verify your account and continue.
+          We sent a secure login link to <strong>{email}</strong>. Click the
+          link in the email to verify your account and continue.
         </p>
         <button
           onClick={() => setMagicLinkSent(false)}
@@ -124,8 +136,9 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
-        Create secure access to continue your refund request. We'll guide you
-        step by step through the online process.
+        {isPrivate
+          ? "Enter your email to create secure access to your bAV cash-out request. We'll send you a secure login link so you can continue safely."
+          : "Create secure access to continue your refund request. We'll guide you step by step through the online process."}
       </p>
 
       {/* Error Message */}
@@ -138,7 +151,10 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
       {/* Email Form */}
       <form onSubmit={handleEmailSubmit}>
         <div className="mb-4">
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Email address
           </label>
           <input
@@ -146,7 +162,7 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email..."
+            placeholder={isPrivate ? 'your.email@example.com' : 'Email...'}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none transition-all"
             required
           />
@@ -198,7 +214,9 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
             />
           </svg>
-          <span className="font-medium text-gray-700">Continue with Google</span>
+          <span className="font-medium text-gray-700">
+            Continue with Google
+          </span>
         </button>
 
         <button

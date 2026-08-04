@@ -136,20 +136,25 @@ test.describe('Eligibility Edge Cases', () => {
       ).toBeVisible({ timeout: 5_000 });
     });
 
-    test('Back from non-VBL end date returns to provider', async ({ page }) => {
+    // Figma 454-10444 / 455-15644 (tester feedback 2026-08-04): ZVK no
+    // longer continues into the VBL question flow — it ends on the
+    // homepage-returning rejection screen.
+    test('ZVK provider ends on the rejection screen instead of the end-date step', async ({
+      page,
+    }) => {
       await navigateToGetStarted(page);
       await selectEmploymentType(page, 'VBL / ZVK Refund');
       await selectPublicEntryPath(page, 'Answer questions');
       await selectFederalState(page, 'Hesse');
-      await selectPensionProvider(page, 'ZVK Darmstadt');
+      await selectPensionProvider(page, 'ZVK');
       await expect(
-        page.getByRole('heading', { name: 'When did this employment end?' })
+        page.getByRole('heading', {
+          name: 'This refund cannot currently be claimed with CompanyPension',
+        })
       ).toBeVisible({ timeout: 5_000 });
-
-      await page.getByRole('button', { name: 'Back' }).click();
       await expect(
-        page.getByRole('heading', { name: 'Select your company pension' })
-      ).toBeVisible({ timeout: 5_000 });
+        page.getByRole('link', { name: /Return to homepage/i })
+      ).toBeVisible();
     });
   });
 
@@ -259,7 +264,7 @@ test.describe('Eligibility Edge Cases', () => {
       await selectPrivateStatePensionRefund(page, 'No');
       await expect(
         page.getByRole('heading', {
-          name: 'Who is your bAV provider?',
+          name: 'Which company pension did you contribute to?',
         })
       ).toBeVisible({ timeout: 5_000 });
 
@@ -286,7 +291,7 @@ test.describe('Eligibility Edge Cases', () => {
       await page.getByRole('button', { name: 'Back' }).click();
       await expect(
         page.getByRole('heading', {
-          name: 'Who is your bAV provider?',
+          name: 'Which company pension did you contribute to?',
         })
       ).toBeVisible({ timeout: 5_000 });
     });

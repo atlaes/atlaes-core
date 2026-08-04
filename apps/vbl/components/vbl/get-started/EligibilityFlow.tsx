@@ -12,6 +12,7 @@ import { PensionProvider } from './steps/PensionProvider';
 import { PensionScheme } from './steps/PensionScheme';
 import { ContributionPeriod } from './steps/ContributionPeriod';
 import { ContributionDuration } from './steps/ContributionDuration';
+import { PublicFinalQuestions } from './steps/PublicFinalQuestions';
 import { StagePensionDetails } from './steps/StagePensionDetails';
 import { StageContributionDuration } from './steps/StageContributionDuration';
 import { StageUploadDocument } from './steps/StageUploadDocument';
@@ -30,6 +31,7 @@ const STEP_COMPONENTS: Record<string, React.FC> = {
   pension_scheme: PensionScheme,
   contribution_period: ContributionPeriod,
   contribution_duration: ContributionDuration,
+  public_final_questions: PublicFinalQuestions,
   // Stage steps
   stage_entry_path: PublicEntryPath,
   stage_upload: StageUploadDocument,
@@ -79,7 +81,8 @@ export function EligibilityFlow() {
     currentStepId !== 'stage_upload' &&
     currentStepId !== 'private_entry_path' &&
     currentStepId !== 'private_upload' &&
-    currentStepId !== 'private_state_pension_refund' &&
+    // private_state_pension_refund uses the layout Back (Figma 1156-3069);
+    // private_statement_amount still renders its own Back/Continue row.
     currentStepId !== 'private_statement_amount';
 
   return (

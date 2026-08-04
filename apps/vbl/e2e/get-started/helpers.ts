@@ -169,6 +169,24 @@ export async function selectContributionDuration(
   await page.getByRole('button', { name: 'Continue' }).click();
 }
 
+// Figma 1858-711 (tester feedback 2026-08-04): the final public-sector
+// questionnaire between the contribution-duration step and the result.
+export async function completePublicFinalQuestions(
+  page: Page,
+  answers: ('Yes' | 'No')[] = ['No', 'No', 'No', 'No']
+) {
+  await expect(
+    page.getByRole('heading', {
+      name: 'A few more details about your public-sector pension',
+    })
+  ).toBeVisible({ timeout: 5_000 });
+  const fieldsets = page.locator('fieldset');
+  for (let i = 0; i < answers.length; i++) {
+    await fieldsets.nth(i).getByLabel(answers[i], { exact: true }).check();
+  }
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+}
+
 export async function selectStagePensionDetails(
   page: Page,
   provider: 'VddB' | 'VddKO'
@@ -224,14 +242,15 @@ export async function selectPrivatePensionProvider(
   provider: 'Allianz' | 'Axa' | 'BVV' | 'Swiss_Life' | 'Other',
   otherName?: string
 ) {
+  // Figma 1451-2591 / 1156-3132 (tester feedback 2026-08-04)
   await expect(
     page.getByRole('heading', {
-      name: 'Who is your bAV provider?',
+      name: 'Which company pension did you contribute to?',
     })
   ).toBeVisible({ timeout: 5_000 });
-  await page.getByLabel('bAV provider').selectOption(provider);
+  await page.getByLabel('Pension provider').selectOption(provider);
   if (provider === 'Other' && otherName) {
-    await page.getByPlaceholder('Pension provider name').fill(otherName);
+    await page.getByPlaceholder('Enter pension provider name').fill(otherName);
   }
   await page.getByRole('button', { name: 'Continue' }).click();
 }
@@ -245,11 +264,8 @@ export async function selectPrivateStatePensionRefund(
       name: 'Have you already received your German state pension refund?',
     })
   ).toBeVisible({ timeout: 5_000 });
-  const label =
-    received === 'Yes'
-      ? 'Yes, my German state pension refund has been approved'
-      : 'No, I have not received a German state pension refund';
-  await page.getByRole('button', { name: label }).click();
+  // Figma 1156-3069 (tester feedback 2026-08-04): plain Yes/No buttons.
+  await page.getByRole('button', { name: received, exact: true }).click();
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
 }
 
@@ -308,13 +324,19 @@ export async function expectEligibleResult(page: Page) {
 export async function expectNotEligibleResult(page: Page) {
   await expect(
     page.getByRole('heading', {
-      name: /not eligible|cannot currently be claimed|cannot currently be started through CompanyPension/i,
+      name: /not eligible|cannot currently be (claimed|started)/i,
     })
   ).toBeVisible({ timeout: 5_000 });
+  // "Return to homepage" (ZVK rejection, Figma 455-15644) renders as a link;
+  // every other rejection action is a button.
   await expect(
-    page.getByRole('button', {
-      name: /Go back|Return to start|Return to homepage|Go back and edit answers/i,
-    })
+    page
+      .locator('a, button')
+      .filter({
+        hasText:
+          /Go back|Return to start|Return to homepage|Go back and edit answers/i,
+      })
+      .first()
   ).toBeVisible();
 }
 
@@ -346,6 +368,7 @@ export async function navigatePublicSectorToEligible(page: Page) {
   // the flow goes straight from employment end date to contribution duration.
   await selectEmploymentEndDate(page, 'January', '2017');
   await selectContributionDuration(page, 'Less than 36 months');
+  await completePublicFinalQuestions(page);
   await expectEligibleResult(page);
 }
 
@@ -396,8 +419,14 @@ export async function completePayment(page: Page) {
     })
   ).toBeVisible({ timeout: 10_000 });
   // Button label also branches: public/stage "Pay €199 deposit", bAV/private
-  // "Pay €199 and complete your claim" — neither contains "deposit" in the
-  // private case, so match on the common "Pay €199" prefix instead.
+  // "Pay €199 deposit and continue" — match on the common "Pay €199" prefix.
+  // The bAV paygate additionally gates the button behind two consent
+  // checkboxes (Figma 1156-4761) — check any that are present.
+  const consentBoxes = page.getByRole('checkbox');
+  const consentCount = await consentBoxes.count();
+  for (let i = 0; i < consentCount; i++) {
+    await consentBoxes.nth(i).check();
+  }
   await page.getByRole('button', { name: /Pay €199/i }).click();
   // Wait for processing to finish — simulated 1.5s delay
   await expect(

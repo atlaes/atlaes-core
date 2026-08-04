@@ -198,18 +198,20 @@ test.describe('Private Sector Eligibility', () => {
     await selectPrivateStatePensionRefund(page, 'No');
     await expect(
       page.getByRole('heading', {
-        name: 'Who is your bAV provider?',
+        name: 'Which company pension did you contribute to?',
       })
     ).toBeVisible({ timeout: 5_000 });
 
-    await page.getByLabel('bAV provider').selectOption('Other');
+    await page.getByLabel('Pension provider').selectOption('Other');
 
     // Continue button should be disabled without provider name
     const continueBtn = page.getByRole('button', { name: 'Continue' });
     await expect(continueBtn).toBeDisabled();
 
     // Fill provider name
-    await page.getByPlaceholder('Pension provider name').fill('MyPensionCo');
+    await page
+      .getByPlaceholder('Enter pension provider name')
+      .fill('MyPensionCo');
     await expect(continueBtn).toBeEnabled();
   });
 
@@ -291,13 +293,11 @@ test.describe('Private Sector Eligibility', () => {
     ).toBeVisible();
     await expect(
       page.getByText(
-        'For some bAV cash-outs, an approved German state pension refund can be important'
+        'This means a refund of your DRV / Deutsche Rentenversicherung contributions.'
       )
     ).toBeVisible();
     await expect(
-      page.getByRole('button', {
-        name: 'Yes, my German state pension refund has been approved',
-      })
+      page.getByRole('button', { name: 'Yes', exact: true })
     ).toHaveAttribute('aria-pressed', 'true');
 
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
@@ -345,11 +345,7 @@ test.describe('Private Sector Eligibility', () => {
     await expect(
       page.getByRole('button', { name: 'Continue', exact: true })
     ).toBeDisabled();
-    await page
-      .getByRole('button', {
-        name: 'No, I have not received a German state pension refund',
-      })
-      .click();
+    await page.getByRole('button', { name: 'No', exact: true }).click();
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     await expectEligibleResult(page);

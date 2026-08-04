@@ -86,37 +86,46 @@ export function GetStartedOnboardingFlow() {
   // key is genuinely absent too (a fresh visitor who has never confirmed
   // eligibility with a real employment type).
   useEffect(() => {
-    if (data.pensionType !== '') return;
-
-    if (eligibilityData.employmentType === '') {
-      const savedIdentity = loadFlowIdentity();
-      if (savedIdentity?.pensionType) {
-        // Same magic-link tab boundary as above: the C1 eligibility carry-over
-        // never runs on this resume path, so restore pensionProvider from the
-        // same localStorage blob here too — but only when nothing else
-        // (in-memory state or a loaded claim) has already set it.
-        if (savedIdentity.pensionProvider && !data.membership.pensionProvider) {
-          updateData({
-            pensionType: savedIdentity.pensionType,
-            membership: {
-              ...data.membership,
-              pensionProvider: savedIdentity.pensionProvider,
-            },
-          });
-          return;
-        }
-        updateData({ pensionType: savedIdentity.pensionType });
-        return;
+    // Tester feedback 2026-08-04 (bAV paygate showed the public copy): a
+    // fresh eligibility walk in THIS tab is the strongest signal there is —
+    // it must override any pensionType restored from an earlier run's
+    // sessionStorage blob (e.g. a public test run followed by a private
+    // one in the same tab). Only when eligibility knows nothing
+    // (employmentType === '', i.e. the fromAuth/resume paths) do the
+    // restored value and the localStorage identity fallback apply.
+    if (eligibilityData.employmentType !== '') {
+      const eligibilityPensionType =
+        eligibilityData.employmentType === 'private_sector'
+          ? ('private' as const)
+          : ('public' as const);
+      if (data.pensionType !== eligibilityPensionType) {
+        updateData({ pensionType: eligibilityPensionType });
       }
-      updateData({ pensionType: 'public' });
       return;
     }
 
-    const pensionType =
-      eligibilityData.employmentType === 'private_sector'
-        ? 'private'
-        : 'public';
-    updateData({ pensionType });
+    if (data.pensionType !== '') return;
+
+    const savedIdentity = loadFlowIdentity();
+    if (savedIdentity?.pensionType) {
+      // Same magic-link tab boundary as above: the C1 eligibility carry-over
+      // never runs on this resume path, so restore pensionProvider from the
+      // same localStorage blob here too — but only when nothing else
+      // (in-memory state or a loaded claim) has already set it.
+      if (savedIdentity.pensionProvider && !data.membership.pensionProvider) {
+        updateData({
+          pensionType: savedIdentity.pensionType,
+          membership: {
+            ...data.membership,
+            pensionProvider: savedIdentity.pensionProvider,
+          },
+        });
+        return;
+      }
+      updateData({ pensionType: savedIdentity.pensionType });
+      return;
+    }
+    updateData({ pensionType: 'public' });
   }, [
     data.pensionType,
     data.membership,
@@ -135,8 +144,6 @@ export function GetStartedOnboardingFlow() {
   // fallback by design — and a permanently disabled Continue. Now the
   // private path is mapped explicitly.
   useEffect(() => {
-    if (data.membership.pensionProvider !== '') return;
-
     let mappedProvider = '';
     if (eligibilityData.privatePensionProvider) {
       mappedProvider =
@@ -153,6 +160,12 @@ export function GetStartedOnboardingFlow() {
     }
 
     if (!mappedProvider) return;
+    // Tester feedback 2026-08-04: a provider derived from a fresh
+    // eligibility walk in this tab overrides a stale restored one (same
+    // precedence flip as the pensionType effect above). When eligibility has
+    // no provider (fromAuth/resume paths), mappedProvider is '' and the
+    // restored value stays untouched.
+    if (data.membership.pensionProvider === mappedProvider) return;
 
     updateData({
       membership: {
