@@ -73,7 +73,6 @@ export async function selectEmploymentType(
     | 'VddB / VddKO Refund'
     | 'Private Sector'
     | 'bAV / Company Pension Cash-Out'
-    | 'Not sure'
 ) {
   const labelByLegacyName: Record<string, string> = {
     'Public sector': 'VBL / ZVK Refund',

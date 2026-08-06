@@ -23,8 +23,12 @@ test.describe('Eligibility Edge Cases', () => {
         page.getByText('bAV / Company Pension Cash-Out')
       ).toBeVisible();
       await expect(page.getByText('VBL / ZVK Refund')).toBeVisible();
+      await expect(
+        page.getByText('For public-sector company pensions.')
+      ).toBeVisible();
       await expect(page.getByText('VddB / VddKO Refund')).toBeVisible();
-      await expect(page.getByText('Not sure')).toBeVisible();
+      await expect(page.getByText('Not sure')).not.toBeVisible();
+      await expect(page.locator('button img[alt=""]').count()).resolves.toBe(4);
     });
 
     test('Default bAV choice opens the upload/manual choice', async ({
