@@ -11,7 +11,7 @@ const EMPLOYMENT_OPTIONS = [
     employmentType: 'private_sector' as EmploymentTypeValue,
     label: 'bAV / Company Pension Cash-Out',
     description: 'For Direktversicherung and other bAV contracts.',
-    icon: '/get-started/pension-type-bav.png',
+    icon: '/assets/get-started/pension-type-bav.png',
     iconWidth: 53,
     iconHeight: 53,
   },
@@ -20,7 +20,7 @@ const EMPLOYMENT_OPTIONS = [
     employmentType: 'public_sector' as EmploymentTypeValue,
     label: 'VBL / ZVK Refund',
     description: 'For public-sector company pensions.',
-    icon: '/get-started/pension-type-public.svg',
+    icon: '/assets/get-started/pension-type-public.svg',
     iconWidth: 48,
     iconHeight: 48,
   },
@@ -29,7 +29,7 @@ const EMPLOYMENT_OPTIONS = [
     employmentType: 'stage_performing_arts' as EmploymentTypeValue,
     label: 'VddB / VddKO Refund',
     description: 'For stage, theatre and orchestra pensions.',
-    icon: '/get-started/pension-type-stage.svg',
+    icon: '/assets/get-started/pension-type-stage.svg',
     iconWidth: 62,
     iconHeight: 53,
   },
@@ -118,7 +118,7 @@ export const EmploymentType: React.FC = () => {
       >
         Start check
         <img
-          src="/get-started/pension-type-arrow.svg"
+          src="/assets/get-started/pension-type-arrow.svg"
           alt=""
           width={16}
           height={16}

@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "NODE_ENV=production next build",
+    "build": "pnpm test:routing && NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
+    "test:routing": "node --test tests/public-route-collisions.test.mjs",
     "clean": "rm -rf .next"
   },
   "dependencies": {
