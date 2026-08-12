@@ -87,6 +87,7 @@ test('vbl-refund follows the approved Figma section structure and bands', async 
     ],
     ['What documents do I need for a VBL refund?', 'rgb(243, 244, 244)', null],
   ] as const;
+  const sectionPositions: number[] = [];
 
   for (const [heading, background, distinguishingCopy] of expectedBands) {
     const headingLocator = page.getByRole('heading', {
@@ -103,7 +104,15 @@ test('vbl-refund follows the approved Figma section structure and bands', async 
 
     await expect(section).toHaveCount(1);
     await expect(section).toHaveCSS('background-color', background);
+    sectionPositions.push(
+      await section.evaluate(
+        (element) => element.getBoundingClientRect().top + window.scrollY
+      )
+    );
   }
+
+  expect(sectionPositions).toEqual([...sectionPositions].sort((a, b) => a - b));
+  expect(new Set(sectionPositions).size).toBe(sectionPositions.length);
 
   const importantInformation = page.getByRole('region', {
     name: 'Important information',
@@ -165,6 +174,14 @@ test('vbl-refund renders the approved cards, split imagery and action sizes', as
   await expect(
     ineligibleSection.getByTestId('vbl-ineligible-background')
   ).toHaveCSS('opacity', '0.34');
+  await expect(page.getByTestId('vbl-eligibility-background')).toHaveCSS(
+    'opacity',
+    '0.15'
+  );
+  await expect(page.getByTestId('vbl-can-refund-background')).toHaveCSS(
+    'opacity',
+    '0.15'
+  );
 
   const sourceAlphaRanges = await page.evaluate(async () => {
     const paths = [
@@ -238,6 +255,56 @@ test('vbl-refund renders the approved cards, split imagery and action sizes', as
     await expect(action).toHaveCSS('width', '564px');
     await expect(action).toHaveCSS('height', '63px');
   }
+});
+
+test('vbl-refund keeps split CTAs inside their tablet columns', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 1000 });
+  await page.goto('/vbl-refund');
+
+  const splitSections = [
+    {
+      heading: 'When can I get a VBL refund?',
+      cardText: 'VBL refund rules',
+    },
+    {
+      heading: 'When is a VBL refund not possible?',
+      cardText: 'You generally cannot get a VBL refund if:',
+    },
+  ];
+
+  for (const { heading, cardText } of splitSections) {
+    const section = page
+      .getByRole('heading', { name: heading, exact: true })
+      .locator('xpath=ancestor::section[1]');
+    const action = section.getByRole('link', {
+      name: 'Check my VBL refund',
+      exact: true,
+    });
+    const leftColumn = action.locator('xpath=../..');
+    const rightCard = section
+      .getByText(cardText, { exact: true })
+      .locator('..');
+
+    const [actionBox, leftColumnBox, rightCardBox] = await Promise.all([
+      action.boundingBox(),
+      leftColumn.boundingBox(),
+      rightCard.boundingBox(),
+    ]);
+    expect(actionBox).not.toBeNull();
+    expect(leftColumnBox).not.toBeNull();
+    expect(rightCardBox).not.toBeNull();
+
+    expect(actionBox!.x + actionBox!.width).toBeLessThanOrEqual(
+      rightCardBox!.x + 1
+    );
+    expect(actionBox!.width).toBeLessThanOrEqual(leftColumnBox!.width + 1);
+  }
+
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth)
+  ).toBeLessThanOrEqual(1024);
 });
 
 test('vbl-refund preserves the approved eight-step process order', async ({

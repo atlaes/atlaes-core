@@ -144,6 +144,7 @@ export default function VblRefundPage() {
             alt=""
             fill
             sizes="58vw"
+            data-testid="vbl-can-refund-background"
             className="object-cover object-left opacity-[0.15]"
           />
         </div>
@@ -396,6 +397,7 @@ export default function VblRefundPage() {
             alt=""
             fill
             sizes="58vw"
+            data-testid="vbl-eligibility-background"
             className="object-cover object-left opacity-[0.15]"
           />
         </div>
@@ -426,7 +428,7 @@ export default function VblRefundPage() {
               <div className="mt-8">
                 <ArrowLink
                   href={START_HREF}
-                  className="h-[63px] w-full justify-center sm:w-[564px]"
+                  className="h-[63px] w-full justify-center sm:w-[564px] lg:w-full xl:w-[564px]"
                 >
                   Check my VBL refund
                 </ArrowLink>
@@ -494,7 +496,7 @@ export default function VblRefundPage() {
               <div className="mt-8">
                 <ArrowLink
                   href={START_HREF}
-                  className="h-[63px] w-full justify-center sm:w-[564px]"
+                  className="h-[63px] w-full justify-center sm:w-[564px] lg:w-full xl:w-[564px]"
                 >
                   Check my VBL refund
                 </ArrowLink>
