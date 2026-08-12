@@ -15,8 +15,9 @@ copy remains authoritative where the frame does not expose a copy change.
 
 Apply a complete page-local alignment pass. Remove the section that does not
 exist in Figma, correct every mismatched section band and split layout, restore
-the missing pension-type card, and replace the duplicated process step with the
-distinct step shown in the design.
+the missing pension-type card, and preserve all eight process cards in the exact
+order and wording shown in Figma, including the similar approved wording of
+steps 07 and 08.
 
 This is preferable to a minimal patch because the staging comparison revealed
 several related structural errors. It is also safer than a shared marketing
@@ -96,7 +97,7 @@ unchanged.
 
 Extend the VBL Refund Playwright spec before changing page code. The regression
 contract will cover the removed section, section order and colours, the three
-product-type cards, the corrected eight-step process, the split-layout image,
+product-type cards, the approved eight-step process order, the split-layout image,
 and the approved CTA dimensions.
 
 Run the focused VBL Refund spec first, then the complete marketing suite, VBL
@@ -107,6 +108,6 @@ check for unloaded images, clipped content, and horizontal overflow.
 ## Non-goals
 
 - No eligibility, pension, pricing, or application-flow logic changes.
-- No rewrite of approved marketing copy except the duplicated process step.
+- No rewrite of approved marketing copy.
 - No changes to unrelated marketing pages.
 - No production deployment as part of this code fix.
