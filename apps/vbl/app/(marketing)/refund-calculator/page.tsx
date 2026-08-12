@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { ArrowRight, Calendar, Check, Info, User, X } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
 import {
@@ -9,7 +8,6 @@ import {
 } from '@/components/marketing/SectionHeading';
 import { StepCard } from '@/components/marketing/StepCard';
 import { CtaBand } from '@/components/marketing/CtaBand';
-import { ImportantCallout } from '@/components/marketing/ImportantCallout';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
 import { FaqAccordion } from '@/components/marketing/FaqAccordion';
 import { FAQ } from '@/components/marketing/faqItems';
@@ -166,6 +164,7 @@ function ArrowLink({
   children,
   variant = 'solid',
   fullWidth = false,
+  size = 'default',
   // The updated design renders this page's section CTAs as plain buttons with
   // no trailing arrow (verified against Figma 1346:213 and 1353:419), so the
   // arrow is opt-in rather than the default despite the component's name.
@@ -176,6 +175,8 @@ function ArrowLink({
   /** Stretches the button to its container and centres the label — Figma
    *  1346:213 renders the calculator-scope CTAs as block buttons. */
   fullWidth?: boolean;
+  /** Exact page-local button dimensions from the approved Figma frames. */
+  size?: 'default' | 'continuation' | 'pricing';
   /** The updated design drops the trailing arrow on section CTAs. */
   showArrow?: boolean;
   /**
@@ -196,12 +197,18 @@ function ArrowLink({
         : variant === 'outlineDark'
           ? 'rounded-brand px-6 py-3 border border-white/60 text-white hover:bg-white/10'
           : 'text-brand underline underline-offset-4 hover:text-brand/70';
+  const sizeStyles = {
+    default: '',
+    continuation: 'h-[63px] sm:w-[369px]',
+    pricing: 'h-[63px] sm:w-[355px]',
+  } as const;
+  const fillsAvailableWidth = fullWidth || size !== 'default';
   return (
     <Link
       href={href}
       className={`${
-        fullWidth ? 'flex w-full justify-center' : 'inline-flex'
-      } items-center gap-2 text-base font-semibold transition-colors ${styles}`}
+        fillsAvailableWidth ? 'flex w-full justify-center' : 'inline-flex'
+      } items-center gap-2 text-base font-semibold transition-colors ${styles} ${sizeStyles[size]}`}
     >
       {children}
       {showArrow ? <ArrowRight className="h-4 w-4" aria-hidden="true" /> : null}
@@ -274,61 +281,6 @@ export default function RefundCalculatorPage() {
           </div>
         }
       />
-
-      {/* ---- MADE FOR PEOPLE / GUIDED ONLINE PROCESS (Figma 1338:3029) ---- */}
-      <section className="bg-white">
-        <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
-            <SectionHeading
-              title="Made for people who no longer want to deal with German paperwork"
-              body="Company pension cases are often confusing after you leave Germany."
-            />
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-gray-600">
-              Your provider may write in German. Your former employer may no
-              longer be involved. Your documents may mention bAV, VBL, ZVK, VddB
-              or VddKO without clearly explaining what you can do next.
-            </p>
-          </div>
-
-          <div className="mt-14 grid items-start gap-10 lg:grid-cols-2">
-            <div>
-              <p className="text-lg font-semibold text-brand">
-                CompanyPension turns this into a guided online process:
-              </p>
-              <div className="mt-6">
-                <CheckList
-                  items={[
-                    'You enter your pension details online',
-                    'You upload your provider documents or add the details manually',
-                    'The platform builds the right cash-out or refund flow based on your answers',
-                    'You review your details and sign online',
-                    'You submit your request digitally inside the platform',
-                    'Human support is available when translation, clarification or follow-up is needed',
-                  ]}
-                />
-              </div>
-              <p className="mt-6 text-base leading-relaxed text-gray-600">
-                The goal is simple: help you handle your German company pension
-                cash-out or refund without getting lost in German paperwork
-              </p>
-            </div>
-            {/* Figma 1338:3056 "image 827" — supporting illustration (same
-                source as vbl-refund 1244:3769; deduped to marketing/shared) */}
-            <div
-              aria-hidden="true"
-              className="hidden min-h-[420px] items-center justify-center rounded-2xl bg-neutral-50 lg:flex"
-            >
-              <Image
-                src="/marketing/shared/guided-process-smiling-man-laptop.png"
-                alt=""
-                width={521}
-                height={597}
-                className="h-full max-h-[420px] w-auto object-contain"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* ---- START YOUR ESTIMATE / CHOOSER (Figma 1339:3086) ---- */}
       <section className="bg-[#f3f4f4]">
@@ -908,7 +860,7 @@ export default function RefundCalculatorPage() {
       <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
-            <span className="mb-5 inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-brand/25 bg-white px-5 py-1 text-center font-display text-base font-medium text-brand sm:whitespace-nowrap">
+            <span className="mb-5 inline-flex min-h-10 w-full max-w-full items-center justify-center rounded-full border border-brand/25 bg-white px-5 py-1 text-center font-display text-base font-medium text-brand sm:w-[228px] sm:whitespace-nowrap">
               Your next step
             </span>
             <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-brand sm:text-4xl">
@@ -957,7 +909,9 @@ export default function RefundCalculatorPage() {
           </div>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <ArrowLink href={START_HREF}>Start my refund</ArrowLink>
+            <ArrowLink href={START_HREF} size="continuation">
+              Start my refund
+            </ArrowLink>
             <ArrowLink href={PROCESS_HREF} variant="link">
               See how the full process works
             </ArrowLink>
@@ -1015,16 +969,23 @@ export default function RefundCalculatorPage() {
                   'Only the remaining difference becomes due after approval.',
                   'If the pension institution rejects a completed and submitted refund request, the €199 deposit is refunded in full.',
                   'This does not apply if the application is abandoned or left incomplete.',
-                  'If approved, the pension institution pays the refund directly to the bank account you provide. CompanyPension does not deduct its fee from the refund and does not receive, hold or forward approved pension money.',
                 ]}
               />
             </div>
-            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-              <ArrowLink href={START_HREF}>Start my refund</ArrowLink>
-              <ArrowLink href={PRICING_HREF} variant="outlineDark">
-                View full pricing
-              </ArrowLink>
-            </div>
+          </div>
+          <p className="mx-auto mt-8 max-w-3xl text-center text-base leading-relaxed text-white/80">
+            If approved, the pension institution pays the refund directly to the
+            bank account you provide. CompanyPension does not deduct its fee
+            from the refund and does not receive, hold or forward approved
+            pension money.
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-4 lg:flex-row">
+            <ArrowLink href={START_HREF} size="pricing">
+              Start my refund
+            </ArrowLink>
+            <ArrowLink href={PRICING_HREF} variant="outlineDark" size="pricing">
+              View full pricing
+            </ArrowLink>
           </div>
         </div>
       </section>
@@ -1255,26 +1216,6 @@ export default function RefundCalculatorPage() {
           </div>
         </div>
       </section>
-
-      {/* ---- IMPORTANT INFORMATION (Figma footer disclaimer 1365:3282) ---- */}
-      <ImportantCallout>
-        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          A digital application platform, not pension advice
-        </h2>
-        <p className="mt-6 text-base leading-relaxed text-gray-600">
-          Company Pension provides a digital application platform for German
-          company pension cash-outs and refunds. Company Pension does not
-          provide legal, tax, pension, insurance or financial advice and does
-          not act as a legal representative, pension advisor, insurance broker
-          or financial advisor. Information on this website is general guidance
-          only and does not replace professional advice. Users remain the
-          claimant. Approval and payment decisions are made by the relevant
-          pension provider, pension scheme or institution. If legal services are
-          required for a specific case, they are carried out separately by the
-          responsible legal partner. Approved funds are paid directly to the
-          bank account provided by the user.
-        </p>
-      </ImportantCallout>
 
       {/* ---- CLOSING CTA BAND (Figma 1365:3252) ---- */}
       <CtaBand
