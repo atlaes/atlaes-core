@@ -32,3 +32,20 @@ test('direktversicherung-cash-out shows the pension-type comparison table', asyn
     page.getByRole('rowheader', { name: 'Direktversicherung', exact: true })
   ).toBeVisible();
 });
+
+test('direktversicherung-cash-out uses the Figma dark process and pricing bands', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/direktversicherung-cash-out');
+
+  for (const heading of [
+    'How the Direktversicherung cash-out process works',
+    'Pricing for Direktversicherung cash-outs',
+  ]) {
+    const section = page
+      .getByRole('heading', { name: heading })
+      .locator('xpath=ancestor::section[1]');
+    await expect(section).toHaveCSS('background-color', 'rgb(22, 51, 0)');
+  }
+});

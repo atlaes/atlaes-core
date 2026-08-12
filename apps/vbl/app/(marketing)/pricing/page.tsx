@@ -243,9 +243,17 @@ function ExampleCard({
 
 /** Muted green info note (updated Figma design): #f3fced tint, brand-green
  *  border and info icon. Matches the home / how-it-works InfoNote. */
-function InfoNote({ children }: { children: ReactNode }) {
+function InfoNote({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="flex items-start gap-2 rounded-brand border border-brand/20 bg-[#f3fced] px-4 py-3 text-sm leading-relaxed text-gray-600">
+    <div
+      className={`flex items-start gap-2 rounded-brand border border-brand/20 bg-[#f3fced] px-4 py-3 text-sm leading-relaxed text-gray-600 ${className}`}
+    >
       <Info className="mt-0.5 h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
       <div>{children}</div>
     </div>
@@ -413,8 +421,8 @@ export default function PricingPage() {
             />
           </div>
 
-          <div className="mt-10">
-            <InfoNote>
+          <div className="mx-auto mt-10 min-h-[46px] w-full max-w-[951px]">
+            <InfoNote className="h-[46px] items-center py-0">
               These examples are for illustration only. Your final fee depends
               on the approved amount and the pricing rules shown before payment.
             </InfoNote>

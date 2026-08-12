@@ -46,3 +46,40 @@ test('about closing band routes to the funnel', async ({ page }) => {
     page.getByRole('link', { name: 'Calculate my refund' }).first()
   ).toHaveAttribute('href', '/calculator');
 });
+
+test('about uses the approved number colour and supported-claim CTA size', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/about');
+
+  const digitalSection = page
+    .getByRole('heading', {
+      name: 'Upload instead of entering everything manually',
+    })
+    .locator('xpath=ancestor::section[1]');
+  await expect(digitalSection.getByText('01', { exact: true })).toHaveCSS(
+    'color',
+    'rgb(92, 92, 92)'
+  );
+
+  const principlesSection = page
+    .getByRole('heading', { name: 'How CompanyPension is built' })
+    .locator('xpath=ancestor::section[1]');
+  await expect(principlesSection.getByText('01', { exact: true })).toHaveCSS(
+    'color',
+    'rgb(92, 92, 92)'
+  );
+
+  const supportedSection = page
+    .getByRole('heading', {
+      name: /Cash-outs and refunds for German company pensions/,
+    })
+    .locator('xpath=ancestor::section[1]');
+  const startClaim = supportedSection.getByRole('link', {
+    name: 'Start your claim',
+    exact: true,
+  });
+  await expect(startClaim).toHaveCSS('width', '461px');
+  await expect(startClaim).toHaveCSS('height', '63px');
+});

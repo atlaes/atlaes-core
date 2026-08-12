@@ -457,13 +457,13 @@ export default function ReviewsPage() {
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link
               href="/how-it-works"
-              className="inline-flex items-center justify-center rounded-[10px] bg-accent px-8 py-4 text-base font-semibold text-brand shadow-sm transition-colors hover:bg-accent-hover"
+              className="inline-flex h-[63px] w-full items-center justify-center rounded-[10px] bg-accent px-8 text-base font-semibold text-brand shadow-sm transition-colors hover:bg-accent-hover sm:w-[345px]"
             >
               See how it works
             </Link>
             <Link
               href="/pricing"
-              className="inline-flex items-center justify-center rounded-[10px] border-2 border-white px-8 py-4 text-base font-semibold text-white transition-colors hover:bg-white/10"
+              className="inline-flex h-[63px] w-full items-center justify-center rounded-[10px] border-2 border-white px-8 text-base font-semibold text-white transition-colors hover:bg-white/10 sm:w-[345px]"
             >
               View pricing
             </Link>

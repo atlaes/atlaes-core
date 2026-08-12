@@ -14,17 +14,19 @@ test('home renders hero, nav and funnel CTAs', async ({ page }) => {
   await expect(calcCta).toHaveAttribute('href', '/calculator');
 });
 
-test('home hero shows the two app mockup windows', async ({ page }) => {
+test('home hero follows the updated design without legacy app mockups', async ({
+  page,
+}) => {
   await page.goto('/');
-  // Both mockup windows anchored at the bottom of the dark hero (side-by-side
-  // at >=lg). Desktop Chrome (1280px) renders the lg block, which is first in
-  // the DOM, so .first() targets the visible instance.
+  // The updated Home Figma frame removed both legacy app-window images. Keep
+  // this assertion aligned with the current hero contract so the marketing
+  // suite does not require assets that the page intentionally dropped.
   await expect(
-    page.getByRole('img', { name: /create your secure claim/i }).first()
-  ).toBeVisible();
+    page.getByRole('img', { name: /create your secure claim/i })
+  ).toHaveCount(0);
   await expect(
-    page.getByRole('img', { name: /refund request submitted/i }).first()
-  ).toBeVisible();
+    page.getByRole('img', { name: /refund request submitted/i })
+  ).toHaveCount(0);
 });
 
 test('home no longer force-redirects to /auth', async ({ page }) => {

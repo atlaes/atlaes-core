@@ -27,17 +27,35 @@ const FAQ_HREF = '/faq';
 // Local, page-only building blocks (mirrors the vbl-refund product template)
 // ---------------------------------------------------------------------------
 
-function CheckList({ items }: { items: ReactNode[] }) {
+function CheckList({
+  items,
+  tone = 'light',
+}: {
+  items: ReactNode[];
+  tone?: 'light' | 'dark';
+}) {
   return (
     <ul className="space-y-3">
       {items.map((item, index) => (
-        <li key={index} className="flex items-start gap-3 text-gray-700">
-          <img
-            src="/marketing/icons/check-bullet.svg"
-            alt=""
-            aria-hidden="true"
-            className="mt-0.5 h-5 w-5 shrink-0"
-          />
+        <li
+          key={index}
+          className={`flex items-start gap-3 ${tone === 'dark' ? 'text-white/85' : 'text-gray-700'}`}
+        >
+          {tone === 'dark' ? (
+            <span
+              aria-hidden="true"
+              className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent"
+            >
+              <Check className="h-3.5 w-3.5 text-brand" strokeWidth={3} />
+            </span>
+          ) : (
+            <img
+              src="/marketing/icons/check-bullet.svg"
+              alt=""
+              aria-hidden="true"
+              className="mt-0.5 h-5 w-5 shrink-0"
+            />
+          )}
           <span className="text-base leading-relaxed">{item}</span>
         </li>
       ))}
@@ -766,9 +784,9 @@ export default function DirektversicherungCashOutPage() {
       </section>
 
       {/* ---- HOW THE PROCESS WORKS (Figma 1120:2410) ---- */}
-      <section className="bg-[#f3f4f4]">
+      <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className="flex flex-col items-center text-center">
             <SectionHeading
               eyebrow="Process"
               title="How the Direktversicherung cash-out process works"
@@ -777,31 +795,37 @@ export default function DirektversicherungCashOutPage() {
           </div>
           <div className="mt-14 grid gap-6 md:grid-cols-2">
             <StepCard
+              tone="dark"
               number="01"
               title="Check if your cash-out can be started"
               body="Choose Direktversicherung or your provider name and answer a few quick questions so CompanyPension can check whether your cash-out can be started through the platform."
             />
             <StepCard
+              tone="dark"
               number="02"
               title="Create your case and pay the deposit"
               body="Create your case and pay the €199 deposit to activate the full process. Your deposit is credited toward the final fee if the cash-out is approved."
             />
             <StepCard
+              tone="dark"
               number="03"
               title="Add your documents and details"
               body="Add your ID, bank details and pension documents such as your Direktversicherung policy, provider statement, employer pension letter or old payslip."
             />
             <StepCard
+              tone="dark"
               number="04"
               title="Review, sign and submit online"
               body="Check your details, sign online and submit your Direktversicherung cash-out request inside the guided flow."
             />
             <StepCard
+              tone="dark"
               number="05"
               title="Provider follow-up runs through CompanyPension"
               body="For Direktversicherung cash-outs, provider messages run through CompanyPension, with human oversight when clarification, translation or follow-up is needed."
             />
             <StepCard
+              tone="dark"
               number="06"
               title="Receive approved funds directly"
               body="If the cash-out is approved, the money is paid directly to the bank account you provide. CompanyPension does not receive, hold or forward approved pension money."
@@ -881,40 +905,41 @@ export default function DirektversicherungCashOutPage() {
       </section>
 
       {/* ---- PRICING (Figma 1124:374) ---- */}
-      <section className="bg-[#f3f4f4]">
+      <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className="flex flex-col items-center text-center">
             <SectionHeading
               eyebrow="Pricing"
               title="Pricing for Direktversicherung cash-outs"
               body="Direktversicherung cash-outs start with a €199 deposit and a 9.75% success fee if approved."
             />
           </div>
-          <div className="mx-auto mt-12 max-w-3xl rounded-2xl border border-neutral-400 bg-white p-8">
-            <div className="flex flex-wrap items-end justify-center gap-6 text-brand">
+          <div className="mx-auto mt-12 max-w-3xl rounded-2xl border border-white/20 bg-black/20 p-8">
+            <div className="flex flex-wrap items-end justify-center gap-6 text-white">
               <div className="text-center">
-                <span className="text-4xl font-bold">€199</span>
-                <span className="mt-1 block text-sm text-gray-600">
+                <span className="text-4xl font-bold text-accent">€199</span>
+                <span className="mt-1 block text-sm text-white/70">
                   deposit
                 </span>
               </div>
-              <span className="pb-6 text-3xl font-bold text-gray-400">+</span>
+              <span className="pb-6 text-3xl font-bold text-white/50">+</span>
               <div className="text-center">
-                <span className="text-4xl font-bold">9.75%</span>
-                <span className="mt-1 block text-sm text-gray-600">
+                <span className="text-4xl font-bold text-accent">9.75%</span>
+                <span className="mt-1 block text-sm text-white/70">
                   success fee if approved
                 </span>
               </div>
             </div>
-            <p className="mt-4 text-center text-base text-gray-600">
+            <p className="mt-4 text-center text-base text-white/75">
               For Direktversicherung and other bAV or company pension cash-outs.
             </p>
 
             <div className="mt-8 grid gap-8 md:grid-cols-2">
               <div>
-                <p className="text-lg font-semibold text-brand">Pricing</p>
+                <p className="text-lg font-semibold text-white">Pricing</p>
                 <div className="mt-4">
                   <CheckList
+                    tone="dark"
                     items={[
                       '€199 upfront deposit',
                       '9.75% success fee if approved',
@@ -925,11 +950,12 @@ export default function DirektversicherungCashOutPage() {
                 </div>
               </div>
               <div>
-                <p className="text-lg font-semibold text-brand">
+                <p className="text-lg font-semibold text-white">
                   This includes:
                 </p>
                 <div className="mt-4">
                   <CheckList
+                    tone="dark"
                     items={[
                       'Digital claim setup',
                       'Cash-out check',
@@ -944,14 +970,17 @@ export default function DirektversicherungCashOutPage() {
               </div>
             </div>
 
-            <div className="mt-8 rounded-2xl bg-neutral-50 p-6">
-              <p className="text-base font-semibold text-brand">
+            <div className="mt-8 rounded-2xl bg-white/10 p-6">
+              <p className="text-base font-semibold text-white">
                 If the cash-out cannot be submitted after review:
               </p>
               <div className="mt-4">
-                <CheckList items={['€79 retained', '€120 refunded']} />
+                <CheckList
+                  tone="dark"
+                  items={['€79 retained', '€120 refunded']}
+                />
               </div>
-              <p className="mt-4 text-sm leading-relaxed text-gray-600">
+              <p className="mt-4 text-sm leading-relaxed text-white/70">
                 The €79 covers the digital claim setup, document check and case
                 review.
               </p>
@@ -961,13 +990,13 @@ export default function DirektversicherungCashOutPage() {
               <ArrowLink href={START_HREF}>Start my cash-out</ArrowLink>
               <Link
                 href={PRICING_HREF}
-                className="inline-flex items-center gap-2 rounded-brand border border-neutral-400 bg-white px-6 py-3 text-base font-semibold text-brand transition-colors hover:bg-neutral-50"
+                className="inline-flex items-center gap-2 rounded-brand border border-white/60 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-white/10"
               >
                 See full pricing
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             </div>
-            <p className="mt-6 text-center text-sm leading-relaxed text-gray-600">
+            <p className="mt-6 text-center text-sm leading-relaxed text-white/70">
               If approved, the money is paid directly to the bank account you
               provide. CompanyPension does not receive or hold your pension
               money.

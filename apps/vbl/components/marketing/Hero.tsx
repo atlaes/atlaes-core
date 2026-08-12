@@ -183,7 +183,10 @@ export function Hero({
                 <span className="text-accent">{highlight}</span>
               </>
             ) : (
-              <span className="block text-accent">{highlight}</span>
+              <>
+                {' '}
+                <span className="block text-accent">{highlight}</span>
+              </>
             )
           ) : null}
         </h1>

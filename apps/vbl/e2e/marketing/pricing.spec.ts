@@ -37,3 +37,16 @@ test('pricing FAQ shows the first answer and links out', async ({ page }) => {
     page.getByRole('link', { name: 'Show more questions' })
   ).toHaveAttribute('href', '/faq');
 });
+
+test('pricing centers the example note at the approved dimensions', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/pricing');
+
+  const note = page
+    .getByText(/These examples are for illustration only/)
+    .locator('..');
+  await expect(note).toHaveCSS('width', '951px');
+  await expect(note).toHaveCSS('height', '46px');
+});

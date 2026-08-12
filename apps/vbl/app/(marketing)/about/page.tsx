@@ -108,7 +108,7 @@ function NumberCard({
           (client feedback 2026-07-23: "numbers should be on left not right"). */}
       <span
         aria-hidden="true"
-        className="block text-left text-4xl font-bold text-[#939494]"
+        className="block text-left text-4xl font-bold text-[#5c5c5c]"
       >
         {number}
       </span>
@@ -140,7 +140,7 @@ function PrincipleCard({
     >
       <span
         aria-hidden="true"
-        className="absolute right-8 top-6 text-4xl font-bold text-[#939494]"
+        className="absolute right-8 top-6 text-4xl font-bold text-[#5c5c5c]"
       >
         {number}
       </span>
@@ -182,7 +182,7 @@ function ClaimTypeCard({
           href={cta.href}
           className={
             ctaVariant === 'solid'
-              ? 'inline-flex rounded-brand bg-accent px-8 py-3 text-base font-semibold text-brand transition-colors hover:bg-accent-hover'
+              ? 'inline-flex h-[63px] w-full items-center justify-center rounded-brand bg-accent px-8 text-base font-semibold text-brand transition-colors hover:bg-accent-hover sm:w-[461px]'
               : 'inline-flex w-full justify-center rounded-brand border border-neutral-400 bg-transparent px-8 py-3 text-base font-semibold text-brand transition-colors hover:bg-white'
           }
         >
