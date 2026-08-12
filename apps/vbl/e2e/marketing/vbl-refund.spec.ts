@@ -166,6 +166,61 @@ test('vbl-refund renders the approved cards, split imagery and action sizes', as
     ineligibleSection.getByTestId('vbl-ineligible-background')
   ).toHaveCSS('opacity', '0.34');
 
+  const sourceAlphaRanges = await page.evaluate(async () => {
+    const paths = [
+      '/marketing/vbl-refund/laptop-vbl-document-checklist.png',
+      '/marketing/vbl-refund/vbl-refund-eligibility-calendar.png',
+      '/marketing/vbl-refund/vbl-refund-ineligible-review.png',
+    ];
+
+    return Promise.all(
+      paths.map(async (path) => {
+        const image = new Image();
+        image.src = path;
+        await image.decode();
+
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        if (!context) throw new Error(`Could not inspect ${path}`);
+        context.drawImage(image, 0, 0);
+
+        const pixels = context.getImageData(
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        ).data;
+        let minimum = 255;
+        let maximum = 0;
+        for (let index = 3; index < pixels.length; index += 4) {
+          minimum = Math.min(minimum, pixels[index]);
+          maximum = Math.max(maximum, pixels[index]);
+        }
+
+        return { path, minimum, maximum };
+      })
+    );
+  });
+  expect(sourceAlphaRanges).toEqual([
+    {
+      path: '/marketing/vbl-refund/laptop-vbl-document-checklist.png',
+      minimum: 255,
+      maximum: 255,
+    },
+    {
+      path: '/marketing/vbl-refund/vbl-refund-eligibility-calendar.png',
+      minimum: 255,
+      maximum: 255,
+    },
+    {
+      path: '/marketing/vbl-refund/vbl-refund-ineligible-review.png',
+      minimum: 255,
+      maximum: 255,
+    },
+  ]);
+
   const actionSections = [
     'Can I get a VBL refund?',
     'Worked in Germany’s public sector and paid into VBL?',

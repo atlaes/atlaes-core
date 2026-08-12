@@ -83,18 +83,9 @@ function ExclusionList({ items }: { items: ReactNode[] }) {
   );
 }
 
-function InfoNote({
-  children,
-  tone = 'neutral',
-}: {
-  children: ReactNode;
-  tone?: 'neutral' | 'green';
-}) {
-  const tones = { neutral: 'bg-neutral-50', green: 'bg-accent/10' } as const;
+function InfoNote({ children }: { children: ReactNode }) {
   return (
-    <div
-      className={`flex items-start gap-2 rounded-brand ${tones[tone]} px-4 py-3 text-sm text-gray-600`}
-    >
+    <div className="flex items-start gap-2 rounded-brand bg-neutral-50 px-4 py-3 text-sm text-gray-600">
       <Info className="mt-0.5 h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
       <div>{children}</div>
     </div>
