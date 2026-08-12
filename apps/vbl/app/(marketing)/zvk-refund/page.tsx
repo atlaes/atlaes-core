@@ -34,17 +34,35 @@ const CASHOUT_HREF = '/company-pension-cash-out';
 // Local, page-only building blocks (mirrors the vbl-refund product template)
 // ---------------------------------------------------------------------------
 
-function CheckList({ items }: { items: ReactNode[] }) {
+function CheckList({
+  items,
+  tone = 'light',
+}: {
+  items: ReactNode[];
+  tone?: 'light' | 'dark';
+}) {
   return (
     <ul className="space-y-3">
       {items.map((item, index) => (
-        <li key={index} className="flex items-start gap-3 text-gray-700">
-          <img
-            src="/marketing/icons/check-bullet.svg"
-            alt=""
-            aria-hidden="true"
-            className="mt-0.5 h-5 w-5 shrink-0"
-          />
+        <li
+          key={index}
+          className={`flex items-start gap-3 ${tone === 'dark' ? 'text-white/85' : 'text-gray-700'}`}
+        >
+          {tone === 'dark' ? (
+            <span
+              aria-hidden="true"
+              className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent"
+            >
+              <Check className="h-3.5 w-3.5 text-brand" strokeWidth={3} />
+            </span>
+          ) : (
+            <img
+              src="/marketing/icons/check-bullet.svg"
+              alt=""
+              aria-hidden="true"
+              className="mt-0.5 h-5 w-5 shrink-0"
+            />
+          )}
           <span className="text-base leading-relaxed">{item}</span>
         </li>
       ))}
@@ -85,14 +103,20 @@ function ArrowLink({ href, children }: { href: string; children: ReactNode }) {
 function OutlineLink({
   href,
   children,
+  tone = 'light',
 }: {
   href: string;
   children: ReactNode;
+  tone?: 'light' | 'dark';
 }) {
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-2 rounded-brand border border-neutral-400 bg-white px-6 py-3 text-base font-semibold text-brand transition-colors hover:bg-neutral-50"
+      className={`inline-flex items-center gap-2 rounded-brand border px-6 py-3 text-base font-semibold transition-colors ${
+        tone === 'dark'
+          ? 'border-white/60 text-white hover:bg-white/10'
+          : 'border-neutral-400 bg-white text-brand hover:bg-neutral-50'
+      }`}
     >
       {children}
     </Link>
@@ -138,11 +162,13 @@ function AssetPanel({
   alt,
   width = 1122,
   height = 1402,
+  tone = 'light',
 }: {
   src?: string;
   alt?: string;
   width?: number;
   height?: number;
+  tone?: 'light' | 'dark';
 }) {
   if (!src) {
     return (
@@ -153,7 +179,11 @@ function AssetPanel({
     );
   }
   return (
-    <div className="hidden min-h-[420px] overflow-hidden rounded-2xl border border-neutral-400 lg:block">
+    <div
+      className={`hidden min-h-[420px] overflow-hidden rounded-2xl border lg:block ${
+        tone === 'dark' ? 'border-white/20 bg-black/20' : 'border-neutral-400'
+      }`}
+    >
       <Image
         src={src}
         alt={alt ?? ''}
@@ -592,7 +622,7 @@ export default function ZvkRefundPage() {
       {/* ---- A GUIDED ONLINE PROCESS / STEPS (Figma 1113:8025) ---- */}
       {/* Figma 1113:8023 "image 851" — section illustration, reusing the
           shared abstract ribbon swirl asset (dedupe: identical checksum) */}
-      <section className="relative overflow-hidden bg-white">
+      <section className="relative overflow-hidden bg-brand text-white">
         <Image
           src="/marketing/shared/abstract-white-ribbon-swirl-close.png"
           alt=""
@@ -602,7 +632,7 @@ export default function ZvkRefundPage() {
           className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-10 grayscale"
         />
         <div className={`${CONTAINER} relative py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className="flex flex-col items-center text-center">
             <SectionHeading
               eyebrow="HOW COMPANYPENSION HELPS"
               title="A guided online process for ZVK refunds"
@@ -611,31 +641,37 @@ export default function ZvkRefundPage() {
           </div>
           <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <StepCard
+              tone="dark"
               number="01"
               title="Choose ZVK"
               body="Start with the name shown on your document: ZVK, Zusatzversorgung or Zusatzversorgungskasse."
             />
             <StepCard
+              tone="dark"
               number="02"
               title="Answer guided questions"
               body="The online flow asks for your employer information, contribution periods and ZVK details."
             />
             <StepCard
+              tone="dark"
               number="03"
               title="Add your documents"
               body="Upload the ZVK letters, payslips or employer documents you have."
             />
             <StepCard
+              tone="dark"
               number="04"
               title="Review and sign online"
               body="Check your details and sign online where required."
             />
             <StepCard
+              tone="dark"
               number="05"
               title="ZVK follow-up runs through CompanyPension"
               body="Messages from the pension institution run through CompanyPension, with human oversight when clarification, translation or follow-up is needed"
             />
             <StepCard
+              tone="dark"
               number="06"
               title="Receive approved funds directly"
               body="If approved, the refund is paid directly to the bank account you provide. CompanyPension does not receive or hold your pension money."
@@ -643,7 +679,7 @@ export default function ZvkRefundPage() {
           </div>
           <div className="mt-12 flex flex-col items-center gap-4">
             <ArrowLink href={START_HREF}>Start My ZVK Refund</ArrowLink>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-white/70">
               CompanyPension does not receive or hold approved pension money.
             </p>
           </div>
@@ -702,39 +738,42 @@ export default function ZvkRefundPage() {
       </section>
 
       {/* ---- PRICING (Figma 1117:172) ---- */}
-      <section className="bg-white">
+      <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid items-start gap-12 lg:grid-cols-2">
             <div>
-              <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-4 py-2 text-sm font-medium text-brand">
+              <span className="mb-5 inline-flex items-center rounded-full border border-white/25 bg-white/5 px-4 py-2 text-sm font-medium text-white">
                 PRICING
               </span>
-              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-accent sm:text-[2.5rem] sm:leading-[1.15]">
                 Pricing for ZVK refunds
               </h2>
-              <p className="mt-5 text-base leading-relaxed text-gray-600">
+              <p className="mt-5 text-base leading-relaxed text-white/75">
                 CompanyPension shows the relevant pricing before you continue
                 into the full ZVK refund process.
               </p>
-              <p className="mt-4 text-base leading-relaxed text-gray-600">
+              <p className="mt-4 text-base leading-relaxed text-white/75">
                 Pricing for ZVK refund cases follows the refund pricing shown on
                 our Pricing page, unless your case requires a different process.
                 You will see the applicable pricing before you continue.
               </p>
-              <p className="mt-4 text-base leading-relaxed text-gray-600">
+              <p className="mt-4 text-base leading-relaxed text-white/75">
                 The approved refund is paid directly to the bank account you
                 provide. CompanyPension does not receive or hold your pension
                 money.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <ArrowLink href={PRICING_HREF}>See Pricing</ArrowLink>
-                <OutlineLink href={START_HREF}>Start My ZVK Refund</OutlineLink>
+                <OutlineLink href={START_HREF} tone="dark">
+                  Start My ZVK Refund
+                </OutlineLink>
               </div>
             </div>
             {/* Figma 1117:831 "image 849" — supporting illustration */}
             <AssetPanel
               src="/marketing/zvk-refund/zvk-refund-pricing-paid-directly-no-hold.png"
               alt="Pricing shown before you continue; approved funds paid directly to your account; CompanyPension does not hold your pension money"
+              tone="dark"
             />
           </div>
         </div>
