@@ -486,7 +486,8 @@ export default function VblRefundPage() {
             alt=""
             fill
             sizes="58vw"
-            className="object-cover object-left opacity-[0.15]"
+            data-testid="vbl-ineligible-background"
+            className="object-cover object-left opacity-[0.34]"
           />
         </div>
         <div className={`${CONTAINER} relative py-20 sm:py-24`}>

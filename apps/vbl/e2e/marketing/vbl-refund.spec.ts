@@ -156,6 +156,16 @@ test('vbl-refund renders the approved cards, split imagery and action sizes', as
     )
     .toBeGreaterThan(0);
 
+  const ineligibleSection = page
+    .getByRole('heading', {
+      name: 'When is a VBL refund not possible?',
+      exact: true,
+    })
+    .locator('xpath=ancestor::section[1]');
+  await expect(
+    ineligibleSection.getByTestId('vbl-ineligible-background')
+  ).toHaveCSS('opacity', '0.34');
+
   const actionSections = [
     'Can I get a VBL refund?',
     'Worked in Germany’s public sector and paid into VBL?',
