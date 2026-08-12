@@ -51,36 +51,57 @@ test('vbl-refund follows the approved Figma section structure and bands', async 
   ).toHaveCount(0);
 
   const expectedBands = [
-    ['Can I get a VBL refund?', 'rgb(243, 244, 244)'],
-    ['Built for VBLklassik refunds', 'rgb(243, 244, 244)'],
+    ['Can I get a VBL refund?', 'rgb(243, 244, 244)', null],
+    [
+      'Built for VBLklassik refunds',
+      'rgb(243, 244, 244)',
+      'For people who paid into VBLklassik while working',
+    ],
     [
       'Worked in Germany’s public sector and paid into VBL?',
       'rgb(255, 255, 255)',
+      null,
     ],
-    ['When can I get a VBL refund?', 'rgb(249, 254, 245)'],
-    ['When is a VBL refund not possible?', 'rgb(251, 244, 242)'],
+    ['When can I get a VBL refund?', 'rgb(249, 254, 245)', null],
+    ['When is a VBL refund not possible?', 'rgb(251, 244, 242)', null],
     [
       'Do ZVK or other public-sector pension periods count?',
       'rgb(243, 244, 244)',
+      null,
     ],
     [
       'What is the difference between VBL West and VBL East?',
       'rgb(255, 255, 255)',
+      null,
     ],
-    ['How much can I get back from VBL?', 'rgb(243, 244, 244)'],
-    ['Your DRV refund does not include your VBL refund', 'rgb(255, 255, 255)'],
+    ['How much can I get back from VBL?', 'rgb(243, 244, 244)', null],
+    [
+      'Your DRV refund does not include your VBL refund',
+      'rgb(255, 255, 255)',
+      null,
+    ],
     [
       'A VBL refund is for people who have left public-sector employment',
       'rgb(243, 244, 244)',
+      null,
     ],
-    ['What documents do I need for a VBL refund?', 'rgb(243, 244, 244)'],
+    ['What documents do I need for a VBL refund?', 'rgb(243, 244, 244)', null],
   ] as const;
 
-  for (const [heading, background] of expectedBands) {
-    const section = page
-      .getByRole('heading', { name: heading, exact: true })
-      .first()
-      .locator('xpath=ancestor::section[1]');
+  for (const [heading, background, distinguishingCopy] of expectedBands) {
+    const headingLocator = page.getByRole('heading', {
+      name: heading,
+      exact: true,
+    });
+    let section = headingLocator.locator('xpath=ancestor::section[1]');
+
+    if (distinguishingCopy) {
+      section = section.filter({ hasText: distinguishingCopy });
+    } else {
+      await expect(headingLocator).toHaveCount(1);
+    }
+
+    await expect(section).toHaveCount(1);
     await expect(section).toHaveCSS('background-color', background);
   }
 

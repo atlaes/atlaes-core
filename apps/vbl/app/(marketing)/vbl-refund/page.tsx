@@ -1082,7 +1082,7 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- IMPORTANT INFORMATION 1 (Figma 1251:7540) ---- */}
-      <ImportantCallout>
+      <ImportantCallout tone="gray">
         <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
           You apply through the platform in your own name
         </h2>
