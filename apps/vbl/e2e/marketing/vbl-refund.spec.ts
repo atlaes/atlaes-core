@@ -118,3 +118,59 @@ test('vbl-refund follows the approved Figma section structure and bands', async 
     'rgb(255, 255, 255)'
   );
 });
+
+test('vbl-refund renders the approved cards, split imagery and action sizes', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/vbl-refund');
+
+  const pensionTypeSection = page
+    .getByRole('heading', { name: 'VBLklassik or VBLextra?', exact: true })
+    .locator('xpath=ancestor::section[1]');
+  await expect(
+    pensionTypeSection.getByRole('heading', { level: 3 })
+  ).toHaveCount(3);
+  await expect(
+    pensionTypeSection.getByRole('heading', {
+      level: 3,
+      name: 'Not sure which one you had?',
+      exact: true,
+    })
+  ).toBeVisible();
+
+  const audienceSection = page
+    .getByRole('heading', {
+      name: 'Worked in Germany’s public sector and paid into VBL?',
+      exact: true,
+    })
+    .locator('xpath=ancestor::section[1]');
+  const audienceImage = audienceSection.getByRole('img', {
+    name: 'Woman reviewing her VBL refund documents online',
+    exact: true,
+  });
+  await expect(audienceImage).toBeVisible();
+  await expect
+    .poll(() =>
+      audienceImage.evaluate((image: HTMLImageElement) => image.naturalWidth)
+    )
+    .toBeGreaterThan(0);
+
+  const actionSections = [
+    'Can I get a VBL refund?',
+    'Worked in Germany’s public sector and paid into VBL?',
+    'When can I get a VBL refund?',
+    'When is a VBL refund not possible?',
+  ];
+
+  for (const heading of actionSections) {
+    const section = page
+      .getByRole('heading', { name: heading, exact: true })
+      .locator('xpath=ancestor::section[1]');
+    const action = section.getByRole('link', {
+      name: /start my vbl refund|check my vbl refund/i,
+    });
+    await expect(action).toHaveCSS('width', '564px');
+    await expect(action).toHaveCSS('height', '63px');
+  }
+});
