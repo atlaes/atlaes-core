@@ -239,3 +239,24 @@ test('vbl-refund renders the approved cards, split imagery and action sizes', as
     await expect(action).toHaveCSS('height', '63px');
   }
 });
+
+test('vbl-refund preserves the approved eight-step process order', async ({
+  page,
+}) => {
+  await page.goto('/vbl-refund');
+
+  const processSection = page
+    .getByRole('heading', { name: 'Start your VBL refund online', exact: true })
+    .locator('xpath=ancestor::section[1]');
+
+  await expect(processSection.locator('h3')).toHaveText([
+    'Upload your VBL document or answer guided questions',
+    'Check whether a VBL refund may be possible',
+    'Secure your VBL refund claim',
+    'Complete your details',
+    'Review, sign and submit online',
+    'VBL review and follow-up',
+    'Receive your approved refund directly',
+    'Receive your refund directly',
+  ]);
+});
