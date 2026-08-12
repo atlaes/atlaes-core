@@ -25,6 +25,7 @@
 ### Task 1: Refund Calculator regression contract
 
 **Files:**
+
 - Modify: apps/vbl/e2e/marketing/refund-calculator.spec.ts
 - Modify: apps/vbl/app/(marketing)/refund-calculator/page.tsx
 
@@ -39,7 +40,7 @@ Add a 1440 by 1000 test that asserts both rejected headings have count zero. The
 
 Use the nearest section ancestor for duplicate action names:
 
-~~~ts
+```ts
 const section = page
   .getByRole('heading', {
     name: 'Like the estimate? Continue with your refund online.',
@@ -48,15 +49,15 @@ const section = page
 const action = section.getByRole('link', { name: 'Start my refund' });
 await expect(action).toHaveCSS('width', '369px');
 await expect(action).toHaveCSS('height', '63px');
-~~~
+```
 
 - [ ] **Step 2: Run the focused test and verify RED**
 
 Run:
 
-~~~bash
+```bash
 pnpm --filter vbl exec playwright test e2e/marketing/refund-calculator.spec.ts --project=chromium
-~~~
+```
 
 Expected: FAIL because the rejected headings still exist and the measured elements still use intrinsic dimensions.
 
@@ -64,13 +65,13 @@ Expected: FAIL because the rejected headings still exist and the measured elemen
 
 Delete the complete “Made for people…” section and its now-unused Image import. Delete the late ImportantCallout and its import. Extend page-local ArrowLink with size values default, continuation, and pricing:
 
-~~~ts
+```ts
 const sizes = {
   default: '',
   continuation: 'h-[63px] w-full justify-center sm:w-[369px]',
   pricing: 'h-[63px] w-full justify-center sm:w-[355px]',
 } as const;
-~~~
+```
 
 Apply sm:w-[228px] to the “Your next step” pill. Remove the direct-payout sentence from CheckList, close the translucent card after the abandoned-application item, and render the existing direct-payout sentence below the card. Place both pricing actions in a sibling flex container after that paragraph.
 
@@ -80,14 +81,15 @@ Run the Step 2 command. Expected: all calculator marketing tests pass.
 
 - [ ] **Step 5: Commit**
 
-~~~bash
+```bash
 git add apps/vbl/e2e/marketing/refund-calculator.spec.ts 'apps/vbl/app/(marketing)/refund-calculator/page.tsx'
 git commit -m "fix(marketing): align refund calculator with tester layout"
-~~~
+```
 
 ### Task 2: Exact dimensions on About, Reviews, Pricing, and VBL Refund
 
 **Files:**
+
 - Modify: apps/vbl/e2e/marketing/about.spec.ts
 - Modify: apps/vbl/e2e/marketing/reviews.spec.ts
 - Modify: apps/vbl/e2e/marketing/pricing.spec.ts
@@ -107,9 +109,9 @@ Use exact role/text selectors and nearest section ancestors to avoid matching he
 
 - [ ] **Step 2: Run all four specs and verify RED**
 
-~~~bash
+```bash
 pnpm --filter vbl exec playwright test e2e/marketing/about.spec.ts e2e/marketing/reviews.spec.ts e2e/marketing/pricing.spec.ts e2e/marketing/vbl-refund.spec.ts --project=chromium
-~~~
+```
 
 Expected: the new exact assertions fail with current intrinsic sizes and rgb(147, 148, 148) number colour.
 
@@ -123,14 +125,15 @@ Run the Step 2 command. Expected: all four specs pass.
 
 - [ ] **Step 5: Commit**
 
-~~~bash
+```bash
 git add apps/vbl/e2e/marketing/{about,reviews,pricing,vbl-refund}.spec.ts 'apps/vbl/app/(marketing)/about/page.tsx' 'apps/vbl/app/(marketing)/reviews/page.tsx' 'apps/vbl/app/(marketing)/pricing/page.tsx' 'apps/vbl/app/(marketing)/vbl-refund/page.tsx'
 git commit -m "fix(marketing): apply tester CTA and note dimensions"
-~~~
+```
 
 ### Task 3: Product-page dark process and pricing bands
 
 **Files:**
+
 - Modify: apps/vbl/e2e/marketing/zvk-refund.spec.ts
 - Modify: apps/vbl/e2e/marketing/direktversicherung-cash-out.spec.ts
 - Modify: apps/vbl/e2e/marketing/company-pension-cash-out.spec.ts
@@ -146,7 +149,7 @@ For each process/pricing heading, locate the nearest section and assert backgrou
 
 Add this ZVK guard so the lazy illustrations cannot be removed as “empty”:
 
-~~~ts
+```ts
 const illustration = page.getByRole('img', {
   name: /ZVK Refund.*bAV Cash-Out.*different process/i,
 });
@@ -156,13 +159,13 @@ await expect
     illustration.evaluate((image: HTMLImageElement) => image.naturalWidth)
   )
   .toBeGreaterThan(0);
-~~~
+```
 
 - [ ] **Step 2: Run the three product specs and verify RED**
 
-~~~bash
+```bash
 pnpm --filter vbl exec playwright test e2e/marketing/zvk-refund.spec.ts e2e/marketing/direktversicherung-cash-out.spec.ts e2e/marketing/company-pension-cash-out.spec.ts --project=chromium
-~~~
+```
 
 Expected: all six band assertions fail because the sections are white or rgb(243, 244, 244); the lazy-image guard passes.
 
@@ -184,30 +187,31 @@ Run the Step 2 command. Expected: all product specs pass, including the ZVK lazy
 
 - [ ] **Step 7: Commit**
 
-~~~bash
+```bash
 git add apps/vbl/e2e/marketing/{zvk-refund,direktversicherung-cash-out,company-pension-cash-out}.spec.ts 'apps/vbl/app/(marketing)/zvk-refund/page.tsx' 'apps/vbl/app/(marketing)/direktversicherung-cash-out/page.tsx' 'apps/vbl/app/(marketing)/company-pension-cash-out/page.tsx'
 git commit -m "fix(marketing): restore product-page dark bands"
-~~~
+```
 
 ### Task 4: Full verification and visual QA
 
 **Files:**
+
 - Verify only; no planned source edits.
 
 - [ ] **Step 1: Run the complete marketing suite**
 
-~~~bash
+```bash
 pnpm --filter vbl exec playwright test e2e/marketing --project=chromium
-~~~
+```
 
 Expected: all marketing tests pass.
 
 - [ ] **Step 2: Run VBL lint and production build**
 
-~~~bash
+```bash
 pnpm --filter vbl lint
 pnpm --filter vbl build
-~~~
+```
 
 Expected: both commands exit 0 and the build includes all affected routes.
 
@@ -217,11 +221,10 @@ Start the production server and inspect the eight affected routes at 1440 by 100
 
 - [ ] **Step 4: Review the final diff**
 
-~~~bash
+```bash
 git diff --check origin/staging...HEAD
 git status --short
 git log --oneline origin/staging..HEAD
-~~~
+```
 
 Expected: no whitespace errors, only scoped marketing files and design/plan documents changed, and the worktree is clean after commits.
-
