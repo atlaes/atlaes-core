@@ -14,13 +14,11 @@ current staging site and the tester/Figma evidence:
 - Refund Calculator: remove the two rejected content sections; restore the
   specified pill and CTA dimensions; move the pricing actions and direct-payout
   explanation outside the pricing card.
-- About: correct number colour, supported-claims CTA size, and principle icons.
+- About: correct number colour and supported-claims CTA size.
 - Reviews: make both dark-band actions 345 by 63 pixels on desktop.
-- Pricing: constrain and centre the example note and use the Figma-matched
-  calculator artwork in the service-fee explanation.
+- Pricing: constrain and centre the example note.
 - VBL Refund: make the eligibility CTA 564 by 63 pixels on desktop.
-- ZVK Refund: remove empty split-layout columns and restore the dark/light band
-  pattern shown in Figma.
+- ZVK Refund: restore the dark/light band pattern shown in Figma.
 - Direktversicherung Cash-out and Company Pension Cash-out: complete the
   section-level dark/light band pass that commit `ebf67ae` explicitly left
   pending.
@@ -58,22 +56,23 @@ also sit outside the checklist card, immediately before those actions.
 ### About, Reviews, Pricing, and VBL Refund
 
 These are exact visual corrections rather than component redesigns. About
-numbers use `#5c5c5c`; the supported-claims CTA becomes 461 by 63 pixels; and
-the principle cards use the design’s dedicated icon assets or closest existing
-brand illustrations rather than generic Lucide symbols. Reviews receives two
-equal 345 by 63 pixel actions. Pricing’s example note is constrained to 951 by
-46 pixels at desktop and centred. VBL Refund’s eligibility CTA becomes 564 by
-63 pixels.
+numbers use `#5c5c5c` and the supported-claims CTA becomes 461 by 63 pixels.
+Reviews receives two equal 345 by 63 pixel actions. Pricing’s example note is
+constrained to 951 by 46 pixels at desktop and centred. VBL Refund’s eligibility
+CTA becomes 564 by 63 pixels.
 
 ### Product-page section bands
 
-ZVK layouts that currently reserve an empty right column will become single
-content surfaces unless the Figma section contains real artwork/content for
-that column. The process and pricing sections on ZVK, Direktversicherung, and
-Company Pension Cash-out will adopt the same established dark-band treatment
-used by VBL Refund and Cash-outs & Refunds: brand-green outer section,
-accent/white heading treatment, translucent inner cards, and dark-tone checks
-and step cards. Other light informational sections remain unchanged.
+The process and pricing sections on ZVK, Direktversicherung, and Company
+Pension Cash-out will adopt the same established dark-band treatment used by
+VBL Refund and Cash-outs & Refunds: brand-green outer section, accent/white
+heading treatment, translucent inner cards, and dark-tone checks and step
+cards. Other light informational sections remain unchanged.
+
+The ZVK split-layout illustrations are not defects. They are lazy-loaded Next
+images: a direct staging check confirmed that the apparently blank panels load
+their 1122 by 1402 pixel assets after the section enters the viewport. The
+existing illustration columns and assets remain unchanged.
 
 ## Accessibility and responsive behaviour
 
@@ -89,7 +88,8 @@ and step cards. Other light informational sections remain unchanged.
 Extend the existing Playwright marketing specs. Each affected route will assert
 the required content presence/absence, exact desktop bounding boxes with a
 small rendering tolerance, and the expected section background treatment.
-Product-page tests will also assert that no empty split-layout panel remains.
+Product-page tests will scroll the ZVK illustration sections into view and
+assert that the design assets finish loading with non-zero intrinsic sizes.
 
 Verification consists of the focused marketing specs at desktop and mobile,
 the VBL lint/build commands, and browser screenshots for the affected pages.
