@@ -83,11 +83,19 @@ function InfoNote({
   );
 }
 
-function ArrowLink({ href, children }: { href: string; children: ReactNode }) {
+function ArrowLink({
+  href,
+  children,
+  className = '',
+}: {
+  href: string;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-2 rounded-brand bg-accent px-6 py-3 text-base font-semibold text-brand transition-colors hover:bg-accent-hover"
+      className={`inline-flex items-center gap-2 rounded-brand bg-accent px-6 py-3 text-base font-semibold text-brand transition-colors hover:bg-accent-hover ${className}`}
     >
       {children}
       <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -232,7 +240,12 @@ export default function VblRefundPage() {
             {/* Exact design casing per Figma node 1244:3298 ("Start My VBL
                 Refund"); other CTA instances on this page use design's
                 sentence-case wording and are unaffected. */}
-            <ArrowLink href={START_HREF}>Start My VBL Refund</ArrowLink>
+            <ArrowLink
+              href={START_HREF}
+              className="h-[63px] w-full justify-center sm:w-[564px]"
+            >
+              Start My VBL Refund
+            </ArrowLink>
           </div>
         </div>
       </section>
