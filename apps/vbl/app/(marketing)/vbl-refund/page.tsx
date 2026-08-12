@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Check, Info } from 'lucide-react';
+import { ArrowRight, Check, Info, X } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
 import {
   SectionHeading,
@@ -65,18 +65,27 @@ function CheckList({
   );
 }
 
-function InfoNote({
-  children,
-  tone = 'neutral',
-}: {
-  children: ReactNode;
-  tone?: 'neutral' | 'green';
-}) {
-  const tones = { neutral: 'bg-neutral-50', green: 'bg-accent/10' } as const;
+function ExclusionList({ items }: { items: ReactNode[] }) {
   return (
-    <div
-      className={`flex items-start gap-2 rounded-brand ${tones[tone]} px-4 py-3 text-sm text-gray-600`}
-    >
+    <ul className="space-y-3">
+      {items.map((item, index) => (
+        <li key={index} className="flex items-start gap-3 text-gray-700">
+          <span
+            aria-hidden="true"
+            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#b42318]"
+          >
+            <X className="h-3.5 w-3.5 text-white" strokeWidth={3} />
+          </span>
+          <span className="text-base leading-relaxed">{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function InfoNote({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex items-start gap-2 rounded-brand bg-neutral-50 px-4 py-3 text-sm text-gray-600">
       <Info className="mt-0.5 h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
       <div>{children}</div>
     </div>
@@ -127,63 +136,19 @@ export default function VblRefundPage() {
         }
       />
 
-      {/* ---- MADE FOR PEOPLE / GUIDED ONLINE PROCESS (Figma 1244:3742) ---- */}
-      <section className="bg-white">
-        <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
-            <SectionHeading
-              title="Made for people who no longer want to deal with German paperwork"
-              body="Company pension cases are often confusing after you leave Germany."
-            />
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-gray-600">
-              Your provider may write in German. Your former employer may no
-              longer be involved. Your documents may mention bAV, VBL, ZVK, VddB
-              or VddKO without clearly explaining what you can do next.
-            </p>
-          </div>
-
-          <div className="mt-14 grid items-start gap-10 lg:grid-cols-2">
-            <div>
-              <p className="text-lg font-semibold text-brand">
-                CompanyPension turns this into a guided online process:
-              </p>
-              <div className="mt-6">
-                <CheckList
-                  items={[
-                    'You enter your pension details online',
-                    'You upload your provider documents or add the details manually',
-                    'The platform builds the right cash-out or refund flow based on your answers',
-                    'You review your details and sign online',
-                    'You submit your request digitally inside the platform',
-                    'Human support is available when translation, clarification or follow-up is needed',
-                  ]}
-                />
-              </div>
-              <p className="mt-6 text-base leading-relaxed text-gray-600">
-                The goal is simple: help you handle your German company pension
-                cash-out or refund without getting lost in German paperwork.
-              </p>
-            </div>
-            {/* Figma 1244:3769 "image 827" — supporting illustration */}
-            <div
-              aria-hidden="true"
-              className="hidden min-h-[420px] items-center justify-center rounded-2xl bg-neutral-50 lg:flex"
-            >
-              <Image
-                src="/marketing/shared/guided-process-smiling-man-laptop.png"
-                alt=""
-                width={521}
-                height={597}
-                className="h-full max-h-[420px] w-auto object-contain"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ---- CAN I GET A VBL REFUND? (Figma 1244:3245) ---- */}
-      <section className="bg-[#f3f4f4]">
-        <div className={`${CONTAINER} py-20 sm:py-24`}>
+      <section className="relative overflow-hidden bg-[#f3f4f4]">
+        <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-[58%] sm:block">
+          <Image
+            src="/marketing/vbl-refund/laptop-vbl-document-checklist.png"
+            alt=""
+            fill
+            sizes="58vw"
+            data-testid="vbl-can-refund-background"
+            className="object-cover object-left opacity-[0.15]"
+          />
+        </div>
+        <div className={`${CONTAINER} relative py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
@@ -251,7 +216,7 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- BUILT FOR VBLKLASSIK + COMMON WORDING (Figma 1312:203) ---- */}
-      <section className="bg-white">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
@@ -286,7 +251,7 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- WHO THIS IS FOR (Figma 1244:5592) ---- */}
-      <section className="bg-[#f3f4f4]">
+      <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -295,33 +260,49 @@ export default function VblRefundPage() {
               body="This page is for people who worked in Germany’s public sector and paid into VBLklassik through a university, research institute, hospital, public employer or publicly funded organisation."
             />
           </div>
-          <div className="mx-auto mt-12 max-w-3xl rounded-2xl border border-neutral-400 bg-white p-8">
-            <p className="text-lg font-semibold text-brand">
-              You may be in the right place if
-            </p>
-            <div className="mt-6">
-              <CheckList
-                items={[
-                  'The contributions you want refunded were paid into VBLklassik in VBL West / Abrechnungsverband West.',
-                  'You left German public-sector employment',
-                  'Your VBL periods are still below the refund limits',
-                  'You do not have VBLextra contributions',
-                  'You want to get your own VBL employee contributions back',
-                  'You want to complete the process through a guided online flow, with digital signing and support when clarification or follow-up is needed.',
-                ]}
-              />
+          <div className="mt-12 grid items-stretch gap-10 lg:grid-cols-2">
+            <div className="flex flex-col justify-center">
+              <p className="text-lg font-semibold text-brand">
+                You may be in the right place if
+              </p>
+              <div className="mt-6">
+                <CheckList
+                  items={[
+                    'The contributions you want refunded were paid into VBLklassik in VBL West / Abrechnungsverband West.',
+                    'You left German public-sector employment',
+                    'Your VBL periods are still below the refund limits',
+                    'You do not have VBLextra contributions',
+                    'You want to get your own VBL employee contributions back',
+                    'You want to complete the process through a guided online flow, with digital signing and support when clarification or follow-up is needed.',
+                  ]}
+                />
+              </div>
+              <div className="mt-6">
+                <InfoNote>
+                  Contributions paid into VBL East (Abrechnungsverband Ost) are
+                  generally not refundable. VBLextra contributions are also not
+                  refundable. If your record includes both VBLextra and
+                  VBLklassik, the VBLklassik periods must be checked separately.
+                </InfoNote>
+              </div>
             </div>
-            <div className="mt-6">
-              <InfoNote>
-                Contributions paid into VBL East (Abrechnungsverband Ost) are
-                generally not refundable. VBLextra contributions are also not
-                refundable. If your record includes both VBLextra and
-                VBLklassik, the VBLklassik periods must be checked separately.
-              </InfoNote>
+            <div className="relative min-h-[420px] overflow-hidden rounded-2xl sm:min-h-[520px] lg:min-h-[633px]">
+              <Image
+                src="/marketing/vbl-refund/laptop-vbl-document-checklist.png"
+                alt="Woman reviewing her VBL refund documents online"
+                fill
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                className="object-cover"
+              />
             </div>
           </div>
           <div className="mt-10 flex justify-center">
-            <ArrowLink href={START_HREF}>Check my VBL refund</ArrowLink>
+            <ArrowLink
+              href={START_HREF}
+              className="h-[63px] w-full justify-center sm:w-[564px]"
+            >
+              Check my VBL refund
+            </ArrowLink>
           </div>
         </div>
       </section>
@@ -388,7 +369,7 @@ export default function VblRefundPage() {
               body="VBLklassik may be refundable. VBLextra is not."
             />
           </div>
-          <div className="mt-14 grid gap-8 lg:grid-cols-2">
+          <div className="mt-14 grid gap-8 lg:grid-cols-3">
             <FeatureCard
               icon={<Check className="h-7 w-7" aria-hidden="true" />}
               title="VBLklassik"
@@ -399,25 +380,28 @@ export default function VblRefundPage() {
               title="VBLextra"
               body="A voluntary additional VBL plan with a vested entitlement from the first contribution. No contribution refund is possible."
             />
-          </div>
-          <div className="mx-auto mt-10 max-w-3xl">
-            <InfoNote tone="green">
-              <p className="font-semibold text-brand">
-                Not sure which one you had?
-              </p>
-              <p className="mt-1">
-                Upload your VBL letter or pension document when using the refund
-                calculator or starting your refund claim. The document can help
-                identify whether you had VBLklassik, VBLextra, or both.
-              </p>
-            </InfoNote>
+            <FeatureCard
+              icon={<Info className="h-7 w-7" aria-hidden="true" />}
+              title="Not sure which one you had?"
+              body="Upload your VBL letter or pension document when using the refund calculator or starting your refund claim. The document can help identify whether you had VBLklassik, VBLextra, or both."
+            />
           </div>
         </div>
       </section>
 
       {/* ---- WHEN CAN I GET A VBL REFUND? (Figma 1245:5737) ---- */}
-      <section className="bg-white">
-        <div className={`${CONTAINER} py-20 sm:py-24`}>
+      <section className="relative overflow-hidden bg-[#f9fef5]">
+        <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-[58%] sm:block">
+          <Image
+            src="/marketing/vbl-refund/vbl-refund-eligibility-calendar.png"
+            alt=""
+            fill
+            sizes="58vw"
+            data-testid="vbl-eligibility-background"
+            className="object-cover object-left opacity-[0.15]"
+          />
+        </div>
+        <div className={`${CONTAINER} relative py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
@@ -442,7 +426,12 @@ export default function VblRefundPage() {
                 />
               </div>
               <div className="mt-8">
-                <ArrowLink href={START_HREF}>Check my VBL refund</ArrowLink>
+                <ArrowLink
+                  href={START_HREF}
+                  className="h-[63px] w-full justify-center sm:w-[564px] lg:w-full xl:w-[564px]"
+                >
+                  Check my VBL refund
+                </ArrowLink>
               </div>
             </div>
             <div className="rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
@@ -483,8 +472,18 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- WHEN IS A VBL REFUND NOT POSSIBLE? (Figma 1245:5813) ---- */}
-      <section className="bg-[#f3f4f4]">
-        <div className={`${CONTAINER} py-20 sm:py-24`}>
+      <section className="relative overflow-hidden bg-[#fbf4f2]">
+        <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-[58%] sm:block">
+          <Image
+            src="/marketing/vbl-refund/vbl-refund-ineligible-review.png"
+            alt=""
+            fill
+            sizes="58vw"
+            data-testid="vbl-ineligible-background"
+            className="object-cover object-left opacity-[0.34]"
+          />
+        </div>
+        <div className={`${CONTAINER} relative py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
@@ -495,7 +494,12 @@ export default function VblRefundPage() {
                 exclusion rules applies.
               </p>
               <div className="mt-8">
-                <ArrowLink href={START_HREF}>Check my VBL refund</ArrowLink>
+                <ArrowLink
+                  href={START_HREF}
+                  className="h-[63px] w-full justify-center sm:w-[564px] lg:w-full xl:w-[564px]"
+                >
+                  Check my VBL refund
+                </ArrowLink>
               </div>
             </div>
             <div className="rounded-2xl border border-neutral-400 bg-white p-8">
@@ -503,7 +507,7 @@ export default function VblRefundPage() {
                 You generally cannot get a VBL refund if:
               </p>
               <div className="mt-6">
-                <CheckList
+                <ExclusionList
                   items={[
                     'You are still working in German public-sector employment',
                     'Your record includes VBLextra contributions',
@@ -528,7 +532,7 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- DO ZVK PERIODS COUNT? (Figma 1245:5877) ---- */}
-      <section className="bg-white">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
@@ -573,12 +577,12 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- VBL WEST VS EAST (Figma 1247:5902) ---- */}
-      <section className="bg-[#f3f4f4]">
+      <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
-                Only eligible VBL West employee contributions may be refundable
+                What is the difference between VBL West and VBL East?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
                 VBL refund rules differ between VBL West and VBL East.
@@ -617,12 +621,12 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- HOW MUCH CAN YOU GET BACK? (Figma 1247:5963) ---- */}
-      <section className="bg-white">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
               <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
-                How much VBL money can you get back?
+                How much can I get back from VBL?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
                 A VBL refund generally covers eligible employee-paid VBLklassik
@@ -674,7 +678,7 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- VBL VS DRV COMPARISON (Figma 1248:6008 / table 1248:6025) ---- */}
-      <section className="bg-[#f3f4f4]">
+      <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -755,7 +759,7 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- RETURNING TO PUBLIC SERVICE (Figma 1248:6130) ---- */}
-      <section className="bg-white">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div className="text-brand">
@@ -844,7 +848,7 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- WHAT DOCUMENTS DO I NEED? (Figma 1248:6295) ---- */}
-      <section className="bg-white">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
@@ -1136,7 +1140,7 @@ export default function VblRefundPage() {
       </section>
 
       {/* ---- IMPORTANT INFORMATION 1 (Figma 1251:7540) ---- */}
-      <ImportantCallout>
+      <ImportantCallout tone="gray">
         <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
           You apply through the platform in your own name
         </h2>
@@ -1185,7 +1189,7 @@ export default function VblRefundPage() {
       </ImportantCallout>
 
       {/* ---- IMPORTANT INFORMATION 2 (Figma 1251:7619) ---- */}
-      <ImportantCallout>
+      <ImportantCallout tone="white">
         <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
           A digital application platform, not pension advice
         </h2>

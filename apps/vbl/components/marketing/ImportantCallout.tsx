@@ -3,6 +3,7 @@ import { Info } from 'lucide-react';
 
 export interface ImportantCalloutProps {
   children: ReactNode;
+  tone?: 'neutral' | 'gray' | 'white';
 }
 
 /**
@@ -12,12 +13,21 @@ export interface ImportantCalloutProps {
  * Self-contained light section so sibling product pages can drop it in without
  * repeating the section chrome.
  */
-export function ImportantCallout({ children }: ImportantCalloutProps) {
+export function ImportantCallout({
+  children,
+  tone = 'neutral',
+}: ImportantCalloutProps) {
+  const sectionTone = {
+    neutral: 'bg-neutral-50',
+    gray: 'bg-[#f3f4f4]',
+    white: 'bg-white',
+  } as const;
+
   return (
     <section
       role="region"
       aria-label="Important information"
-      className="bg-neutral-50"
+      className={sectionTone[tone]}
     >
       <div className="mx-auto max-w-[1200px] px-6 py-16 sm:py-20">
         <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-brand/20 bg-white px-4 py-2 text-sm font-medium text-brand">
