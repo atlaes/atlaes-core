@@ -249,7 +249,7 @@ test('vbl-refund preserves the approved eight-step process order', async ({
     .getByRole('heading', { name: 'Start your VBL refund online', exact: true })
     .locator('xpath=ancestor::section[1]');
 
-  await expect(processSection.locator('h3')).toHaveText([
+  await expect(processSection.getByRole('heading', { level: 3 })).toHaveText([
     'Upload your VBL document or answer guided questions',
     'Check whether a VBL refund may be possible',
     'Secure your VBL refund claim',
