@@ -1355,20 +1355,35 @@ test.describe('Calculator identity fields', () => {
       }
     });
     await expect
-      .poll(() =>
-        page.evaluate(() => {
-          const taskWindow = window as Window & {
-            __task7DrawImageCalls?: Array<{
-              width: number | null;
-              canvasWidth: number;
-            }>;
-          };
-          const calls = taskWindow.__task7DrawImageCalls ?? [];
-          const latestCall = calls.at(-1);
-          return (
-            calls.length > 0 && latestCall?.width === latestCall?.canvasWidth
-          );
-        })
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const taskWindow = window as Window & {
+              __task7DrawImageCalls?: Array<{
+                width: number | null;
+                canvasWidth: number;
+              }>;
+            };
+            const calls = taskWindow.__task7DrawImageCalls ?? [];
+            const latestCall = calls.at(-1);
+            const signatureCanvas = document.querySelector('canvas');
+            const context = signatureCanvas?.getContext('2d');
+            if (!signatureCanvas || !context) return false;
+            const hasPreservedPixels = context
+              .getImageData(0, 0, signatureCanvas.width, signatureCanvas.height)
+              .data.some((value, index) => index % 4 === 3 && value > 0);
+            const dpr = window.devicePixelRatio || 1;
+            return (
+              calls.length > 0 &&
+              latestCall?.width === latestCall?.canvasWidth &&
+              signatureCanvas.width ===
+                Math.round(signatureCanvas.clientWidth * dpr) &&
+              signatureCanvas.height ===
+                Math.round(signatureCanvas.clientHeight * dpr) &&
+              hasPreservedPixels
+            );
+          }),
+        { timeout: 5_000 }
       )
       .toBe(true);
     await page.evaluate(() => {
@@ -1383,28 +1398,35 @@ test.describe('Calculator identity fields', () => {
     await expect(continueButton).toBeEnabled();
 
     await page.setViewportSize({ width: 390, height: 844 });
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const signatureCanvas = document.querySelector('canvas');
+            const context = signatureCanvas?.getContext('2d');
+            if (!signatureCanvas || !context) return false;
+
+            const dpr = window.devicePixelRatio || 1;
+            const hasPreservedPixels = context
+              .getImageData(0, 0, signatureCanvas.width, signatureCanvas.height)
+              .data.some((value, index) => index % 4 === 3 && value > 0);
+            return (
+              signatureCanvas.width ===
+                Math.round(signatureCanvas.clientWidth * dpr) &&
+              signatureCanvas.height ===
+                Math.round(signatureCanvas.clientHeight * dpr) &&
+              hasPreservedPixels
+            );
+          }),
+        { timeout: 5_000 }
+      )
+      .toBe(true);
     const resizedCanvasBox = await canvas.boundingBox();
     expect(resizedCanvasBox).not.toBeNull();
     expect(resizedCanvasBox!.x).toBeGreaterThanOrEqual(0);
     expect(resizedCanvasBox!.x + resizedCanvasBox!.width).toBeLessThanOrEqual(
       390
     );
-    expect(
-      await canvas.evaluate((node) => {
-        const signatureCanvas = node as HTMLCanvasElement;
-        const context = signatureCanvas.getContext('2d');
-        if (!context) return false;
-        const pixels = context.getImageData(
-          0,
-          0,
-          signatureCanvas.width,
-          signatureCanvas.height
-        ).data;
-        return Array.from(pixels).some(
-          (value, index) => index % 4 === 3 && value > 0
-        );
-      })
-    ).toBe(true);
     await expect(continueButton).toBeEnabled();
 
     await draw();
