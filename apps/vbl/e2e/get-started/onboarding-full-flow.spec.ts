@@ -53,7 +53,10 @@ test.describe('Calculator identity helpers', () => {
   });
 });
 
-async function mockOnboardingApi(page: import('@playwright/test').Page) {
+async function mockOnboardingApi(
+  page: import('@playwright/test').Page,
+  baseURL = 'http://localhost:3000'
+) {
   const user = {
     id: 'user_mock',
     email: TEST_EMAIL,
@@ -132,7 +135,7 @@ async function mockOnboardingApi(page: import('@playwright/test').Page) {
     route.fulfill(
       json({
         success: true,
-        url: 'http://localhost:3000/get-started?payment=success&session_id=cs_mock',
+        url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
         sessionId: 'cs_mock',
       })
     )
@@ -221,9 +224,10 @@ test.describe('Onboarding Eligibility resource copy', () => {
 
   test('mocked public onboarding reaches review and submitted states', async ({
     page,
+    baseURL,
   }) => {
     test.setTimeout(120_000);
-    await mockOnboardingApi(page);
+    await mockOnboardingApi(page, baseURL);
 
     await navigatePublicSectorToEligible(page);
     await page
@@ -231,10 +235,7 @@ test.describe('Onboarding Eligibility resource copy', () => {
       .click();
     await completeCreateAccount(page);
     await completePayment(page);
-    await uploadIdentityDocument(page);
-    await page.getByLabel('Full Name').fill('Test User');
-    await page.getByLabel('Date of Birth').fill('1990-01-15');
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await completeIdentityUpload(page);
     await completeMembership(page);
     await completeAddress(page);
     await completeBankDetails(page);
@@ -244,7 +245,7 @@ test.describe('Onboarding Eligibility resource copy', () => {
       page.getByRole('heading', { name: 'Review your refund request' })
     ).toBeVisible({ timeout: 10_000 });
     await expect(
-      page.getByRole('button', { name: 'Pension details' })
+      page.getByRole('button', { name: 'Pension details', exact: true })
     ).toBeVisible();
     await page
       .getByRole('button', { name: /Continue to confirmation/i })
@@ -571,7 +572,10 @@ test.describe('Calculator identity fields', () => {
     await declarations.nth(0).check();
     await declarations.nth(1).check();
     await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
-    await completeIdentityUpload(page);
+    await uploadIdentityDocument(page);
+    await page.getByLabel('Full Name').fill('Test User');
+    await page.getByLabel('Date of Birth').fill('1990-01-15');
+    await page.getByRole('button', { name: 'Continue' }).click();
     await completeMembership(page);
     await completeAddress(page);
     await completeBankDetails(page);
