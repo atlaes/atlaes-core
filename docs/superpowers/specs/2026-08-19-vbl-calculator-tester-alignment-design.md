@@ -20,7 +20,7 @@ This work changes presentation, navigation visibility, copy, form composition, a
 The change has three deliberately separate surfaces:
 
 1. `ManualVBLCalculator` owns findings 1–5: vertical density, introductory card styling and icons, entry-method order, sidebar descriptions, and removal of the sidebar from the final public-pension questionnaire.
-2. The `/calculator/onboarding` route owns findings 6–16. `OnboardingFlow` will pass an explicit calculator variant into shared layout and step components. Existing shared behavior remains the default so `/get-started` and private onboarding do not inherit the calculator-specific changes.
+2. The calculator-origin onboarding journey owns findings 6–16. It begins at `/calculator/onboarding`, but production magic-link authentication and Stripe checkout return through `/get-started`. A non-sensitive `origin: "calculator"` flow marker will therefore travel with the existing pension-type/provider identity state across those redirects. Both onboarding coordinators pass an explicit calculator variant into shared layout and step components only when that marker is present. Existing shared behavior remains the default so direct `/get-started` and private onboarding do not inherit the calculator-specific changes.
 3. The POA PDF layout owns finding 17. Only the signature placement on the generated POA letter changes.
 
 Prefer a small `variant="calculator"` prop (or an equivalent typed calculator-only option object) over route-name checks inside leaf components. Layout visibility belongs in `OnboardingLayout`; screen-specific content and validation stay in their corresponding step components.
@@ -57,7 +57,7 @@ Exact design assets retrieved from Figma must be downloaded into the VBL public 
 
 ### Calculator-only onboarding variant
 
-The shared components retain their current behavior when no variant is passed. `/calculator/onboarding` opts into the calculator variant. This variant controls:
+The shared components retain their current behavior when no variant is passed. `/calculator/onboarding` opts into the calculator variant directly and records the calculator origin alongside the existing non-sensitive flow identity. When authentication or payment returns through `/get-started`, that flow reads the marker and keeps the same variant until completion or an explicit restart clears all flow persistence. This variant controls:
 
 - payment content, legal gates, and Back-button visibility;
 - identity field composition;
@@ -70,7 +70,7 @@ The stopped and final Sign & Submit screens hide the identity-to-signature subst
 
 The UI collects a trimmed Full Name. Validation requires at least two non-empty whitespace-separated parts. The last part maps to the existing `lastName` field; all preceding parts map to `firstName`, preserving multi-part given names without a backend schema change. A single-token name produces an inline error and cannot continue.
 
-Date of Birth is collected with one accessible date control. A valid selected date maps to the existing day, month, and year fields. Invalid, incomplete, or future dates produce an inline error and cannot continue. Existing server payloads remain unchanged.
+Date of Birth is collected with one accessible date control. A valid selected date maps to the existing ISO `dateOfBirth` value (`YYYY-MM-DD`). Invalid, incomplete, future, or under-18 dates produce an inline error and cannot continue. Existing server payloads remain unchanged.
 
 ### Payment declarations
 
