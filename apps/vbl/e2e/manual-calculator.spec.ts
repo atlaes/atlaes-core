@@ -204,6 +204,12 @@ test.describe('Manual VBL calculator', () => {
     ).toBeVisible();
     await expect(
       page.getByText('Estimate your possible VBL, ZVK, VddB or VddKO refund.')
+    ).toHaveCSS('color', 'rgb(62, 63, 60)');
+    await expect(
+      page.locator('img[src="/marketing/icons/pension-vbl.svg"]')
+    ).toBeVisible();
+    await expect(
+      page.locator('img[src="/marketing/icons/pension-vddb.svg"]')
     ).toBeVisible();
     await expect(
       page.getByRole('button', {
@@ -218,6 +224,58 @@ test.describe('Manual VBL calculator', () => {
     await expect(
       page.getByRole('button', { name: /bAV|Company Pension Cash-Out/ })
     ).toHaveCount(0);
+  });
+
+  test('orders upload first and shows the approved sidebar descriptions', async ({
+    page,
+  }) => {
+    await page.goto('/calculator');
+    await page.getByRole('button', { name: 'VBL / ZVK refund' }).click();
+    await continueButton(page).click();
+
+    const entryMethodCards = page.getByTestId('entry-method-card');
+    await expect(entryMethodCards).toHaveCount(2);
+    await expect(entryMethodCards.nth(0)).toContainText('Upload document');
+    await expect(entryMethodCards.nth(1)).toContainText(
+      'Enter details manually'
+    );
+
+    const sidebar = page.getByTestId('calculator-sidebar');
+    if (await sidebar.isVisible()) {
+      await expect(
+        sidebar.getByText('Pick what you want to check.', { exact: true })
+      ).toBeVisible();
+      await expect(
+        sidebar.getByText('A few quick questions.', { exact: true })
+      ).toBeVisible();
+      await expect(
+        sidebar.getByText('See your estimated refund', { exact: true })
+      ).toBeVisible();
+    }
+  });
+
+  test('keeps the calculator heading visible without horizontal overflow', async ({
+    page,
+  }) => {
+    for (const width of [390, 1024, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/calculator');
+
+      const heading = page.getByRole('heading', {
+        name: 'What refund do you want to estimate?',
+      });
+      await expect(heading).toBeVisible();
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () => document.documentElement.scrollWidth <= window.innerWidth
+          )
+        )
+        .toBe(true);
+      await expect
+        .poll(async () => (await heading.boundingBox())?.y ?? Infinity)
+        .toBeLessThan(900 * 0.45);
+    }
   });
 
   test('calculates the manual VBL/ZVK estimate and sends the public-sector payload', async ({
@@ -393,6 +451,12 @@ test.describe('Manual VBL calculator', () => {
     await continueButton(page).click();
 
     await enterContributionPeriod(page, 'January', '2017', 'December', '2019');
+    await expect(
+      page.getByRole('heading', {
+        name: 'A few more details are needed for your estimate',
+      })
+    ).toBeVisible();
+    await expect(page.getByTestId('calculator-sidebar')).toHaveCount(0);
     await page.getByLabel('36 months or more').check();
     await page.getByLabel('Less than 60 months').check();
     await continueButton(page).click();
