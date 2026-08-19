@@ -422,25 +422,7 @@ export async function completePayment(page: Page) {
 }
 
 export async function completeIdentityUpload(page: Page) {
-  await expect(
-    page.getByRole('heading', { name: /passport|Upload/i })
-  ).toBeVisible({ timeout: 10_000 });
-
-  const fileInput = page.locator('input[type="file"]');
-  if (existsSync(TEST_PASSPORT_PATH)) {
-    await fileInput.setInputFiles(TEST_PASSPORT_PATH);
-  } else {
-    await fileInput.setInputFiles({
-      name: 'passport.pdf',
-      mimeType: 'application/pdf',
-      buffer: Buffer.from('%PDF-1.4\n%EOF'),
-    });
-  }
-
-  // Wait for OCR processing and confirm phase
-  await expect(
-    page.getByRole('heading', { name: /Confirm your identity details/i })
-  ).toBeVisible({ timeout: 30_000 });
+  await uploadIdentityDocument(page);
 
   // Fill identity fields if empty
   const firstNameInput = page.getByPlaceholder('John');
@@ -477,6 +459,28 @@ export async function completeIdentityUpload(page: Page) {
     await placeOfBirthInput.fill('Sydney');
   }
   await page.getByRole('button', { name: /Continue/i }).click();
+}
+
+export async function uploadIdentityDocument(page: Page) {
+  await expect(
+    page.getByRole('heading', { name: /passport|Upload/i })
+  ).toBeVisible({ timeout: 10_000 });
+
+  const fileInput = page.locator('input[type="file"]');
+  if (existsSync(TEST_PASSPORT_PATH)) {
+    await fileInput.setInputFiles(TEST_PASSPORT_PATH);
+  } else {
+    await fileInput.setInputFiles({
+      name: 'passport.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4\n%EOF'),
+    });
+  }
+
+  // Wait for OCR processing and confirm phase
+  await expect(
+    page.getByRole('heading', { name: /Confirm your identity details/i })
+  ).toBeVisible({ timeout: 30_000 });
 }
 
 export async function completeMembership(page: Page) {

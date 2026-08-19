@@ -13,6 +13,7 @@ import {
   completeCreateAccount,
   completePayment,
   completeIdentityUpload,
+  uploadIdentityDocument,
   completeMembership,
   completeAddress,
   completeBankDetails,
@@ -22,12 +23,35 @@ import {
   seedCalculatorOrigin,
   TEST_EMAIL,
 } from './helpers';
+import {
+  splitCalculatorFullName,
+  validateCalculatorBirthDate,
+} from '../../lib/calculator-onboarding-identity';
 
 // ============================================================
 // Backend Health Check — skip all onboarding tests if unavailable
 // ============================================================
 
 let backendAvailable = false;
+
+test.describe('Calculator identity helpers', () => {
+  test('calculator full names preserve all given-name tokens', () => {
+    expect(splitCalculatorFullName('  Anna Maria   Dela Cruz  ')).toEqual({
+      firstName: 'Anna Maria Dela',
+      lastName: 'Cruz',
+    });
+    expect(splitCalculatorFullName('Cher')).toBeNull();
+  });
+
+  test('calculator birth dates reject future, invalid, and underage values', () => {
+    const today = new Date(Date.UTC(2026, 7, 19));
+
+    expect(validateCalculatorBirthDate('1990-02-28', today)).toBeNull();
+    expect(validateCalculatorBirthDate('2027-01-01', today)).toBe('future');
+    expect(validateCalculatorBirthDate('2012-02-30', today)).toBe('invalid');
+    expect(validateCalculatorBirthDate('2010-08-20', today)).toBe('underage');
+  });
+});
 
 async function mockOnboardingApi(page: import('@playwright/test').Page) {
   const user = {
@@ -512,6 +536,113 @@ test.describe('Calculator payment', () => {
       `${baseURL}/get-started?payment=success&session_id=cs_mock`
     );
     expect(checkoutCalls).toBe(1);
+  });
+});
+
+test.describe('Calculator identity fields', () => {
+  test('calculator confirm uses full name and a single birth-date field', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    const declarations = page.getByRole('checkbox');
+    await declarations.nth(0).check();
+    await declarations.nth(1).check();
+    await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
+    await uploadIdentityDocument(page);
+
+    const fullName = page.getByLabel('Full Name');
+    const dateOfBirth = page.getByLabel('Date of Birth');
+    await expect(fullName).toHaveCount(1);
+    await expect(dateOfBirth).toHaveAttribute('type', 'date');
+    await expect(page.getByText('First name', { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByText('Middle name (optional)', { exact: true })
+    ).toHaveCount(0);
+    await expect(page.getByText('Last name', { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByText('Use the date of birth shown on your passport.', {
+        exact: true,
+      })
+    ).toHaveCount(0);
+
+    await fullName.fill('Cher');
+    await expect(
+      page.getByText('Enter your full first and last name.', { exact: true })
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(fullName).toBeFocused();
+
+    await fullName.fill('Anna Maria Dela Cruz');
+    await dateOfBirth.fill('2010-08-20');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(dateOfBirth).toBeFocused();
+    await dateOfBirth.fill('1990-01-15');
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+    await expect(
+      page.getByRole('heading', { name: 'Review your refund request' })
+    ).toBeVisible({ timeout: 10_000 });
+    await page.getByRole('button', { name: 'Personal information' }).click();
+    await expect(
+      page.getByText('Name: Anna Maria Dela Cruz', { exact: true })
+    ).toBeVisible();
+  });
+
+  test('direct get-started keeps the name parts and date controls', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    await uploadIdentityDocument(page);
+
+    await expect(page.getByText('First name', { exact: true })).toHaveCount(1);
+    await expect(
+      page.getByText('Middle name (optional)', { exact: true })
+    ).toHaveCount(1);
+    await expect(page.getByText('Last name', { exact: true })).toHaveCount(1);
+    await expect(page.getByPlaceholder('Day')).toHaveCount(1);
+    await expect(page.getByPlaceholder('Year')).toHaveCount(1);
   });
 });
 

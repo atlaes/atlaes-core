@@ -679,7 +679,11 @@ export function GetStartedOnboardingFlow() {
     switch (currentSubStep) {
       case 'identity':
         return (
-          <Identity onNext={saveAndAdvance} setBackOverride={setBackOverride} />
+          <Identity
+            onNext={saveAndAdvance}
+            setBackOverride={setBackOverride}
+            variant={variant}
+          />
         );
       case 'membership':
         return (

@@ -402,7 +402,7 @@ export function OnboardingFlow({
   const renderSubStep = () => {
     switch (currentSubStep) {
       case 'identity':
-        return <Identity onNext={handleSubStepNext} />;
+        return <Identity onNext={handleSubStepNext} variant={variant} />;
       case 'membership':
         return <Membership onNext={handleSubStepNext} />;
       case 'address':
