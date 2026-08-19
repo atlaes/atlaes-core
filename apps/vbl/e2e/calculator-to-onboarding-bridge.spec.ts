@@ -21,7 +21,7 @@ const FIXTURE_SESSION = {
   calculationResult: null,
   scenario: 'private_may_be_possible',
   // Single claim type → no PensionTypeSelection screen, goes
-  // straight to "Create your account".
+  // straight to "Create your secure claim".
   pensionProvider: 'BVV',
   claimTypes: ['private'],
   privateProvider: 'BVV',
@@ -31,7 +31,7 @@ const FIXTURE_SESSION = {
 };
 
 test.describe('Calculator → Onboarding bridge', () => {
-  test('hydrates onboarding from ?session=<token> via GET /api/vbl/pending-calculator-sessions/:token', async ({
+  test('hydrates calculator origin from ?session=<token> via GET /api/vbl/pending-calculator-sessions/:token', async ({
     page,
     context,
   }) => {
@@ -62,10 +62,19 @@ test.describe('Calculator → Onboarding bridge', () => {
       .not.toBeNull();
 
     // Single claim type → PensionTypeSelection is skipped and we land
-    // straight on "Create your account".
+    // straight on "Create your secure claim".
     await expect(
-      page.getByRole('heading', { name: 'Create your account' })
+      page.getByRole('heading', { name: 'Create your secure claim' })
     ).toBeVisible({ timeout: 10_000 });
+
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const raw = window.localStorage.getItem('vbl_flow_identity_v1');
+          return raw ? JSON.parse(raw).origin : null;
+        })
+      )
+      .toBe('calculator');
   });
 
   test('soft-fail: no ?session= and legacy sessionStorage drives the UI without a GET', async ({
@@ -101,7 +110,7 @@ test.describe('Calculator → Onboarding bridge', () => {
     await page.goto('/calculator/onboarding');
 
     await expect(
-      page.getByRole('heading', { name: 'Create your account' })
+      page.getByRole('heading', { name: 'Create your secure claim' })
     ).toBeVisible({ timeout: 10_000 });
 
     // No token in the URL → the bridge GET should never have fired.

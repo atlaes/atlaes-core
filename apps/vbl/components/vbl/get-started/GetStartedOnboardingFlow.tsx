@@ -37,6 +37,10 @@ import { ReviewSubmit } from '@/components/vbl/onboarding/steps/ReviewSubmit';
 import { ConfirmStep } from '@/components/vbl/onboarding/steps/ConfirmStep';
 import { SuccessScreen } from '@/components/vbl/onboarding/steps/SuccessScreen';
 import { DRVUpsellModal } from '@/components/vbl/onboarding/DRVUpsellModal';
+import {
+  isCalculatorVariant,
+  type OnboardingVariant,
+} from '@/components/vbl/onboarding/onboarding-variant';
 
 export function GetStartedOnboardingFlow() {
   const router = useRouter();
@@ -56,6 +60,19 @@ export function GetStartedOnboardingFlow() {
     loadFromClaim,
     resetOnboarding,
   } = useOnboarding();
+
+  // Keep the source decision stable for the life of this mounted flow. A
+  // calculator return can restore public eligibility asynchronously, but a
+  // direct flow must never become calculator-origin later in the session.
+  const [calculatorOrigin] = useState(
+    () => loadFlowIdentity()?.origin === 'calculator'
+  );
+  const variant: OnboardingVariant =
+    calculatorOrigin && data.pensionType !== 'private' ? 'calculator' : 'default';
+
+  // Receiving components gain typed variant props in Tasks 3–7. Evaluate the
+  // local guard now so private/bAV claims remain on the default variant.
+  void isCalculatorVariant(variant);
 
   // Task 15: Health Insurance only appears for bAV/private pension type
   // claimants — see getSubmitDetailsSubsteps in OnboardingContext.tsx.
@@ -173,6 +190,7 @@ export function GetStartedOnboardingFlow() {
     saveFlowIdentity({
       pensionType: resolvedPensionType,
       pensionProvider: mappedProvider,
+      origin: loadFlowIdentity()?.origin ?? 'get-started',
     });
   }, [
     eligibilityData.pensionProvider,

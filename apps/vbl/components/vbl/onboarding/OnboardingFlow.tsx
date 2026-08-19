@@ -16,6 +16,11 @@ import { Signature } from '@/components/vbl/onboarding/steps/Signature';
 import { ReviewSubmit } from '@/components/vbl/onboarding/steps/ReviewSubmit';
 import { SuccessScreen } from '@/components/vbl/onboarding/steps/SuccessScreen';
 import { DRVUpsellModal } from '@/components/vbl/onboarding/DRVUpsellModal';
+import {
+  isCalculatorVariant,
+  type OnboardingVariant,
+} from '@/components/vbl/onboarding/onboarding-variant';
+import { saveFlowIdentity } from '@/lib/flow-persistence';
 
 interface OnboardingFlowProps {
   headerTitle?: string;
@@ -38,6 +43,24 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
     setEditingFromReview,
     updateSuccessData,
   } = useOnboarding();
+
+  // The calculator may surface a private/bAV claim, but its calculator
+  // variant must never be applied to that paygate.
+  const variant: OnboardingVariant =
+    data.pensionType !== 'private' ? 'calculator' : 'default';
+
+  // Variant-specific UI begins in Tasks 3–7. Keep the guard evaluated here
+  // so this flow cannot accidentally treat a private/bAV claim as calculator
+  // variant while redirect persistence is added independently below.
+  void isCalculatorVariant(variant);
+
+  useEffect(() => {
+    saveFlowIdentity({
+      pensionType: data.pensionType,
+      pensionProvider: data.membership.pensionProvider,
+      origin: 'calculator',
+    });
+  }, [data.pensionType, data.membership.pensionProvider]);
 
   // Track if user has completed pension type selection (pre-step).
   // Client #8: only show it when the calculator detected multiple claim
@@ -336,7 +359,12 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
-        return <CreateAccount onNext={handleStep1Next} />;
+        return (
+          <CreateAccount
+            onNext={handleStep1Next}
+            redirectUrl="/get-started?fromAuth=1&origin=calculator"
+          />
+        );
       case 2:
         return <Payment onNext={handleStep2Next} />;
       case 3:

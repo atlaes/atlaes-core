@@ -362,12 +362,17 @@ export interface PersistedFlowIdentity {
   version: number;
   pensionType: 'public' | 'private' | '';
   pensionProvider: string;
+  origin?: 'calculator' | 'get-started';
 }
 
 export function saveFlowIdentity(
   state: Omit<PersistedFlowIdentity, 'version'>
 ): void {
-  if (state.pensionType === '' && state.pensionProvider === '') {
+  if (
+    state.pensionType === '' &&
+    state.pensionProvider === '' &&
+    state.origin !== 'calculator'
+  ) {
     clearFlowIdentity();
     return;
   }

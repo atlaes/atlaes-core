@@ -18,11 +18,27 @@ async function clearFlowPersistence(page: Page): Promise<boolean> {
   return page.evaluate(() => {
     const hadState = !!(
       window.sessionStorage.getItem('vbl_eligibility_v1') ||
-      window.sessionStorage.getItem('vbl_onboarding_v1')
+      window.sessionStorage.getItem('vbl_onboarding_v1') ||
+      window.localStorage.getItem('vbl_flow_identity_v1')
     );
     window.sessionStorage.removeItem('vbl_eligibility_v1');
     window.sessionStorage.removeItem('vbl_onboarding_v1');
+    window.localStorage.removeItem('vbl_flow_identity_v1');
     return hadState;
+  });
+}
+
+export async function seedCalculatorOrigin(page: Page) {
+  await page.evaluate(() => {
+    window.localStorage.setItem(
+      'vbl_flow_identity_v1',
+      JSON.stringify({
+        version: 1,
+        pensionType: 'public',
+        pensionProvider: 'VBLklassik',
+        origin: 'calculator',
+      })
+    );
   });
 }
 

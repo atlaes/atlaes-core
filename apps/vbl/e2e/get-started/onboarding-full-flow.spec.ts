@@ -610,6 +610,7 @@ test.describe('Onboarding Full Flow', () => {
         /Money-back guarantee:.*pension provider rejects your claim/i
       )
     ).toBeVisible();
+    await expect(page.locator('input[type="checkbox"]')).toHaveCount(0);
   });
 
   test('Submit details tabs match Eligibility resource labels', async ({
