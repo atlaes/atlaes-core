@@ -170,6 +170,7 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
   const [isStopping, setIsStopping] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
   const pendingYesTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const stopDialogRef = useRef<HTMLDivElement | null>(null);
   const stopActionRef = useRef<HTMLButtonElement | null>(null);
   const keepNoActionRef = useRef<HTMLButtonElement | null>(null);
   const stopInFlightRef = useRef(false);
@@ -222,10 +223,23 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
     if (!pendingYesKey) return;
 
     const focusFrame = requestAnimationFrame(() =>
-      stopActionRef.current?.focus()
+      (isStopping ? stopDialogRef.current : stopActionRef.current)?.focus()
     );
 
     const onKeyDown = (event: KeyboardEvent) => {
+      if (isStopping) {
+        if (event.key === 'Tab') {
+          event.preventDefault();
+          stopDialogRef.current?.focus();
+        }
+
+        if (event.key === 'Escape') {
+          event.preventDefault();
+        }
+
+        return;
+      }
+
       if (event.key === 'Tab') {
         const first = stopActionRef.current;
         const last = keepNoActionRef.current;
@@ -241,7 +255,7 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
         return;
       }
 
-      if (event.key === 'Escape' && !isStopping) {
+      if (event.key === 'Escape') {
         event.preventDefault();
         setPendingYesKey(null);
         setStopError(null);
@@ -525,9 +539,11 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
       {pendingYesKey && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div
+            ref={stopDialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="stop-confirmation-title"
+            tabIndex={-1}
             className={
               isCalculator
                 ? 'w-full max-w-[560px] rounded-[22px] bg-white p-9 shadow-2xl'

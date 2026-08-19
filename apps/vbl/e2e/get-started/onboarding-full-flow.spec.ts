@@ -801,6 +801,63 @@ test.describe('Calculator identity fields', () => {
     ).toHaveCount(0);
   });
 
+  test('calculator stop keeps focus inside the dialog while the stop request is saving', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await reachCalculatorReview(page, baseURL);
+    await page
+      .getByRole('button', { name: 'Continue to declarations', exact: true })
+      .click();
+    await page
+      .getByRole('button', { name: 'Edit', exact: true })
+      .first()
+      .click();
+    await page
+      .getByRole('button', { name: 'Yes', exact: true })
+      .first()
+      .click();
+
+    let resolveStop: (() => void) | undefined;
+    const stopResponse = new Promise<void>((resolve) => {
+      resolveStop = resolve;
+    });
+    await page.route('**/api/claims/claim_mock/stop', async (route) => {
+      await stopResponse;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          claim: { id: 'claim_mock', status: 'rejected' },
+        }),
+      });
+    });
+
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Yes, change my answer' }).click();
+    await expect(
+      dialog.getByRole('button', { name: 'Saving...' })
+    ).toBeDisabled();
+
+    await page.keyboard.press('Tab');
+    await expect(dialog).toBeFocused();
+    await expect(
+      page.getByRole('button', { name: 'Back to review' })
+    ).not.toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(dialog).toBeFocused();
+
+    if (!resolveStop) throw new Error('The stop request did not begin.');
+    resolveStop();
+    await expect(
+      page.getByRole('heading', {
+        name: 'This refund cannot currently be claimed with CompanyPension',
+      })
+    ).toBeVisible({ timeout: 10_000 });
+  });
+
   test('calculator stopped retries after a stop API failure before entering terminal state', async ({
     page,
     baseURL,
