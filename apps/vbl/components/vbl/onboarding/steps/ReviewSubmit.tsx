@@ -20,6 +20,10 @@ import {
 } from '@/contexts/OnboardingContext';
 import { submitClaim, markStepComplete } from '@/lib/onboarding-api';
 import type { OnboardingVariant } from '../onboarding-variant';
+import {
+  getOnboardingSubStepGlyph,
+  type OnboardingSubStepIconName,
+} from '../OnboardingSubStepIcon';
 
 const GENDER_LABELS: Record<string, string> = {
   male: 'Male',
@@ -59,6 +63,7 @@ interface ReviewSection {
   title: string;
   subStep: SubmitDetailsSubStep;
   icon: React.ReactNode;
+  calculatorIcon: OnboardingSubStepIconName;
 }
 
 // Item 27: base accordion order. The "Employment Details" section is
@@ -72,24 +77,28 @@ const BASE_REVIEW_SECTIONS: ReviewSection[] = [
     title: 'Personal information',
     subStep: 'identity',
     icon: <User className="w-5 h-5" />,
+    calculatorIcon: 'user',
   },
   {
     id: 'address',
     title: 'Address',
     subStep: 'address',
     icon: <MapPin className="w-5 h-5" />,
+    calculatorIcon: 'location',
   },
   {
     id: 'membership',
     title: 'Pension details',
     subStep: 'membership',
     icon: <CardIcon className="w-5 h-5" />,
+    calculatorIcon: 'card',
   },
   {
     id: 'bank',
     title: 'Bank details',
     subStep: 'bank-details',
     icon: <Landmark className="w-5 h-5" />,
+    calculatorIcon: 'bank',
   },
 ];
 
@@ -98,6 +107,7 @@ const EMPLOYMENT_DETAILS_SECTION: ReviewSection = {
   title: 'Employment Details',
   subStep: 'membership',
   icon: <CardIcon className="w-5 h-5" />,
+  calculatorIcon: 'card',
 };
 
 // Task 15: Health insurance — bAV/private pension type claimants only. Per
@@ -108,6 +118,7 @@ const HEALTH_INSURANCE_SECTION: ReviewSection = {
   title: 'Health insurance',
   subStep: 'health-insurance',
   icon: <ShieldPlus className="w-5 h-5" />,
+  calculatorIcon: 'health',
 };
 
 const SIGNATURE_SECTION: ReviewSection = {
@@ -115,6 +126,7 @@ const SIGNATURE_SECTION: ReviewSection = {
   title: 'Signature',
   subStep: 'signature',
   icon: <PenTool className="w-5 h-5" />,
+  calculatorIcon: 'pen',
 };
 
 function getSubmitErrorMessage(error: unknown): string {
@@ -620,6 +632,9 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             section.id === 'health-insurance' && !isComplete;
           const isExpanded =
             expandedSections.has(section.id) || isIncompleteHealthInsurance;
+          const CalculatorIcon = isCalculator
+            ? getOnboardingSubStepGlyph(section.calculatorIcon)
+            : null;
 
           return (
             <div
@@ -649,7 +664,15 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
                           : 'bg-[#9FE870] text-[#163300]'
                     }`}
                   >
-                    {section.icon}
+                    {CalculatorIcon ? (
+                      <CalculatorIcon
+                        aria-hidden="true"
+                        className="h-5 w-5"
+                        data-testid={`calculator-review-icon-${section.id}-${section.calculatorIcon}`}
+                      />
+                    ) : (
+                      section.icon
+                    )}
                   </div>
                   <span
                     className={`font-semibold ${

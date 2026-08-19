@@ -361,6 +361,12 @@ test.describe('Onboarding Eligibility resource copy', () => {
         name: 'This answer will stop your refund application',
       })
     ).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveClass(
+      /max-w-md.*rounded-2xl.*p-6.*shadow-xl/
+    );
+    await expect(page.getByRole('dialog').getByRole('heading')).toHaveClass(
+      /text-lg.*font-bold.*text-gray-900/
+    );
 
     // Confirming fires the stop endpoint (with a non-empty reasons array) and
     // shows the terminal stop screen.
@@ -603,6 +609,16 @@ test.describe('Calculator identity fields', () => {
       'div.rounded-xl.overflow-hidden.border.border-gray-200.bg-white'
     );
     await expect(reviewSections).toHaveCount(4);
+    for (const [sectionId, glyph] of [
+      ['personal', 'user'],
+      ['address', 'location'],
+      ['membership', 'card'],
+      ['bank', 'bank'],
+    ]) {
+      await expect(
+        page.getByTestId(`calculator-review-icon-${sectionId}-${glyph}`)
+      ).toBeVisible();
+    }
     for (let index = 0; index < (await reviewSections.count()); index += 1) {
       const section = reviewSections.nth(index);
       await section.getByRole('button').first().click();
@@ -664,7 +680,9 @@ test.describe('Calculator identity fields', () => {
     await yesButton.click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await expect(dialog).toHaveClass(/max-w-\[560px\].*rounded-\[22px\].*p-9/);
+    await expect(dialog).toHaveClass(
+      /max-w-\[560px\].*rounded-\[22px\].*p-9.*shadow-2xl/
+    );
     await expect(
       dialog.getByRole('heading', {
         name: 'This answer will stop your refund application',
@@ -676,6 +694,18 @@ test.describe('Calculator identity fields', () => {
         { exact: true }
       )
     ).toBeVisible();
+    await expect(
+      dialog.getByText(
+        'CompanyPension cannot currently process this refund if your answer is Yes. Are you sure you want to change your answer?',
+        { exact: true }
+      )
+    ).toHaveClass(/text-\[18px\].*leading-8.*text-\[#50576A\]/);
+    await expect(
+      dialog.getByRole('button', { name: 'Yes, change my answer' })
+    ).toHaveClass(/h-\[72px\].*w-full/);
+    await expect(
+      dialog.getByRole('button', { name: 'Keep my answer as No' })
+    ).toHaveClass(/h-\[72px\].*w-full/);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(yesButton).toBeFocused();
@@ -714,7 +744,7 @@ test.describe('Calculator identity fields', () => {
     await expect(page.getByTestId('onboarding-substeps')).toHaveCount(0);
   });
 
-  test('calculator stopped does not enter terminal state when the stop API fails', async ({
+  test('calculator stopped retries after a stop API failure before entering terminal state', async ({
     page,
     baseURL,
   }) => {
@@ -754,9 +784,37 @@ test.describe('Calculator identity fields', () => {
     await expect(
       page.getByRole('heading', { name: 'Confirm your refund information' })
     ).toBeVisible();
+    await expect(page.getByText('No', { exact: true }).first()).toBeVisible();
     await expect(
       page.getByRole('button', { name: 'Yes, change my answer' })
     ).toBeEnabled();
+
+    await page.route('**/api/claims/claim_mock/stop', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          claim: { id: 'claim_mock', status: 'rejected' },
+        }),
+      })
+    );
+    const stopRequest = page.waitForRequest('**/api/claims/*/stop');
+    await page.getByRole('button', { name: 'Yes, change my answer' }).click();
+    await stopRequest;
+    await expect(
+      page.getByRole('heading', {
+        name: 'This refund cannot currently be claimed with CompanyPension',
+      })
+    ).toBeVisible({ timeout: 10_000 });
+    const returnButton = page.getByRole('button', { name: 'Return to start' });
+    await expect(returnButton.locator('svg[aria-hidden="true"]')).toBeVisible();
+    await expect(
+      page.getByText(
+        'Your deposit will be refunded to the same payment method.'
+      )
+    ).toHaveCount(0);
+    await expect(page.getByTestId('onboarding-substeps')).toHaveCount(0);
   });
 
   test('calculator progress keeps review confirm signature in order', async ({

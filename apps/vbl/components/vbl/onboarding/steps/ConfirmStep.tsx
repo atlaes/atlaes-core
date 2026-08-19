@@ -498,7 +498,11 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="stop-confirmation-title"
-            className="w-full max-w-[560px] rounded-[22px] bg-white p-9 shadow-xl"
+            className={
+              isCalculator
+                ? 'w-full max-w-[560px] rounded-[22px] bg-white p-9 shadow-2xl'
+                : 'w-full max-w-md rounded-2xl bg-white p-6 shadow-xl'
+            }
           >
             <div className="mb-4 flex items-start gap-3">
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#F5D4CF]">
@@ -506,12 +510,22 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
               </div>
               <h3
                 id="stop-confirmation-title"
-                className="text-[26px] font-bold leading-10 text-gray-900"
+                className={
+                  isCalculator
+                    ? 'text-[26px] font-bold leading-10 text-gray-900'
+                    : 'text-lg font-bold text-gray-900'
+                }
               >
                 This answer will stop your refund application
               </h3>
             </div>
-            <p className="mb-6 text-[18px] leading-8 text-gray-600">
+            <p
+              className={
+                isCalculator
+                  ? 'mb-6 text-[18px] leading-8 text-[#50576A]'
+                  : 'mb-6 text-sm leading-6 text-gray-600'
+              }
+            >
               CompanyPension cannot currently process this refund if your answer
               is Yes. Are you sure you want to change your answer?
             </p>
@@ -520,18 +534,30 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
                 {stopError}
               </p>
             )}
-            <div className="flex flex-col gap-3">
+            <div
+              className={
+                isCalculator ? 'flex flex-col gap-3' : 'flex flex-col gap-2'
+              }
+            >
               <button
                 onClick={handleConfirmYes}
                 disabled={isStopping}
-                className="h-[72px] w-full rounded-lg bg-[#B92513] px-6 font-semibold text-white transition-colors hover:bg-[#9E1F10] disabled:cursor-not-allowed disabled:opacity-60"
+                className={
+                  isCalculator
+                    ? 'h-[72px] w-full rounded-lg bg-[#B92513] px-6 font-semibold text-white transition-colors hover:bg-[#9E1F10] disabled:cursor-not-allowed disabled:opacity-60'
+                    : 'w-full rounded-lg bg-[#B92513] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#9E1F10] disabled:cursor-not-allowed disabled:opacity-60'
+                }
               >
                 {isStopping ? 'Saving...' : 'Yes, change my answer'}
               </button>
               <button
                 onClick={handleKeepAsNo}
                 disabled={isStopping}
-                className="h-[72px] w-full rounded-lg border border-gray-300 bg-white px-6 font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                className={
+                  isCalculator
+                    ? 'h-[72px] w-full rounded-lg border border-gray-300 bg-white px-6 font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60'
+                    : 'w-full rounded-lg border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60'
+                }
               >
                 Keep my answer as No
               </button>

@@ -22,7 +22,10 @@ export type OnboardingSubStepIconName =
   | 'pen'
   | 'health';
 
-const ICONS: Record<OnboardingSubStepIconName, LucideIcon> = {
+export const ONBOARDING_SUB_STEP_GLYPHS: Record<
+  OnboardingSubStepIconName,
+  LucideIcon
+> = {
   user: UserRound,
   card: IdCard,
   location: MapPin,
@@ -32,6 +35,14 @@ const ICONS: Record<OnboardingSubStepIconName, LucideIcon> = {
   pen: PenLine,
   health: ShieldPlus,
 };
+
+export function getOnboardingSubStepGlyph(
+  icon: OnboardingSubStepIconName | string
+): LucideIcon {
+  return (
+    ONBOARDING_SUB_STEP_GLYPHS[icon as OnboardingSubStepIconName] ?? FileText
+  );
+}
 
 interface OnboardingSubStepIconProps {
   subStepId: string;
@@ -46,7 +57,7 @@ export function OnboardingSubStepIcon({
   isActive,
   isCompleted,
 }: OnboardingSubStepIconProps) {
-  const Icon = ICONS[icon as OnboardingSubStepIconName] ?? FileText;
+  const Icon = getOnboardingSubStepGlyph(icon);
   const iconColor = isActive || isCompleted ? '#163300' : '#9CA3AF';
   const bgColor = isActive || isCompleted ? '#9FE870' : '#E5E7EB';
 

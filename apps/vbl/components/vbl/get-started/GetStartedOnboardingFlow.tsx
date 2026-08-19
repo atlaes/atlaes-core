@@ -69,7 +69,9 @@ export function GetStartedOnboardingFlow() {
     () => loadFlowIdentity()?.origin === 'calculator'
   );
   const variant: OnboardingVariant =
-    calculatorOrigin && data.pensionType !== 'private' ? 'calculator' : 'default';
+    calculatorOrigin && data.pensionType !== 'private'
+      ? 'calculator'
+      : 'default';
 
   // Receiving components gain typed variant props in Tasks 3–7. Evaluate the
   // local guard now so private/bAV claims remain on the default variant.

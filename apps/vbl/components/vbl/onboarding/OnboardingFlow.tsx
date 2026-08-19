@@ -80,14 +80,11 @@ export function OnboardingFlow({
       ? SUBMIT_DETAILS_SUBSTEPS
       : variant === 'calculator'
         ? getSubmitDetailsSubsteps(data.pensionType).map((subStep) =>
-            subStep.id === 'review'
-              ? { ...subStep, label: 'Review' }
-              : subStep
+            subStep.id === 'review' ? { ...subStep, label: 'Review' } : subStep
           )
         : SUBMIT_DETAILS_SUBSTEPS;
   const isSignatureTerminal =
-    submitDetailsSubsteps[submitDetailsSubsteps.length - 1]?.id ===
-    'signature';
+    submitDetailsSubsteps[submitDetailsSubsteps.length - 1]?.id === 'signature';
 
   useEffect(() => {
     if (!isCalculatorSource) return;
@@ -106,7 +103,8 @@ export function OnboardingFlow({
   // Figma VBL-30/31/32: the card subtitles show the actual providers
   // carried over from the calculator (e.g. private: BVV/Allianz/Swiss Life).
   const [detectedPrivateProvider, setDetectedPrivateProvider] = useState('');
-  const [detectedPublicStageProvider, setDetectedPublicStageProvider] = useState('');
+  const [detectedPublicStageProvider, setDetectedPublicStageProvider] =
+    useState('');
   const [showPensionTypeSelection, setShowPensionTypeSelection] = useState(
     () => {
       if (typeof window === 'undefined') return data.pensionType === '';
@@ -204,7 +202,10 @@ export function OnboardingFlow({
           // Cache the token in sessionStorage so CreateAccount can link the
           // email to it on submit without re-parsing the URL.
           if (typeof window !== 'undefined') {
-            sessionStorage.setItem('vbl-pending-calculator-session-token', sessionToken);
+            sessionStorage.setItem(
+              'vbl-pending-calculator-session-token',
+              sessionToken
+            );
           }
           return;
         }
@@ -361,7 +362,9 @@ export function OnboardingFlow({
       setShowSuccess(true);
     } catch (err) {
       console.error('Final submission error:', err);
-      setFlowError('We could not submit your refund request. Please try again.');
+      setFlowError(
+        'We could not submit your refund request. Please try again.'
+      );
     }
   };
 
@@ -441,7 +444,9 @@ export function OnboardingFlow({
   const handleStartOtherClaim = () => {
     // Flip the pensionType and re-enter the onboarding flow from step 1.
     // Most users will still be authenticated so they'll skip CreateAccount.
-    updateData({ pensionType: data.pensionType === 'public' ? 'private' : 'public' });
+    updateData({
+      pensionType: data.pensionType === 'public' ? 'private' : 'public',
+    });
     setShowSuccess(false);
     setCurrentStep(2);
     setCurrentSubStep('identity');
@@ -481,7 +486,9 @@ export function OnboardingFlow({
           isDRVEligibleNow={isDRVEligibleNow}
           otherClaimLabel={pendingOtherClaim?.label}
           otherClaimProvider={pendingOtherClaim?.provider}
-          onStartOtherClaim={pendingOtherClaim ? handleStartOtherClaim : undefined}
+          onStartOtherClaim={
+            pendingOtherClaim ? handleStartOtherClaim : undefined
+          }
         />
         <DRVUpsellModal
           isOpen={showDRVModal}
