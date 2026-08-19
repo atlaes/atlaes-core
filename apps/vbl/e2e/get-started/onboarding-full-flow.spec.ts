@@ -259,6 +259,16 @@ test.describe('Onboarding Eligibility resource copy', () => {
     await expect(
       page.getByRole('heading', { name: 'German State Pension Refund' })
     ).toBeVisible();
+    const defaultSuccessSubsteps = page.getByTestId('onboarding-substeps');
+    await expect(defaultSuccessSubsteps).toBeVisible();
+    await expect(defaultSuccessSubsteps.getByRole('button')).toHaveText([
+      'Identity',
+      'Pension Details',
+      'Address',
+      'Bank Details',
+      'Signature',
+      'Review & Submit',
+    ]);
 
     // Task 13 fix round 1 (CRITICAL 1): submission clears both persisted
     // blobs via clearAllFlowPersistence(), and the write-through effects
@@ -1153,6 +1163,17 @@ test.describe('Calculator identity fields', () => {
       )
     ).toBeVisible();
     await expect(
+      page.getByText('The pension provider reviews your refund request.', {
+        exact: true,
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'The refund is paid directly to the bank account you provided.',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(
       page.getByText(
         'Later, you may also be able to claim a German state pension refund',
         { exact: true }
@@ -1169,6 +1190,10 @@ test.describe('Calculator identity fields', () => {
     await expect(
       page.getByTestId('success-main-icon').locator('svg')
     ).toHaveClass(/w-12.*h-12.*text-\[#163300\]/);
+    const nextStepIcons = page.locator(
+      '[data-testid^="success-next-step-icon-"]'
+    );
+    await expect(nextStepIcons).toHaveCount(3);
     for (const index of [0, 1, 2]) {
       const nextStepIcon = page.getByTestId(`success-next-step-icon-${index}`);
       await expect(nextStepIcon).toHaveCount(1);

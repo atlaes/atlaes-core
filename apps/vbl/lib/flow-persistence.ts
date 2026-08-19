@@ -389,10 +389,15 @@ export function clearFlowIdentity(): void {
 
 // Clears all persisted flow blobs — used on successful final submission and
 // on explicit flow restart (e.g. "Return to start" from the eligibility
-// result screen). Single clear point per Task 13 discipline: any new
-// persisted key (e.g. flow identity, CRITICAL 2) is added here too.
-export function clearAllFlowPersistence(): void {
+// result screen). `clearFlowIdentity` is false only when a non-calculator
+// /get-started completion must preserve a different calculator-origin
+// route's identity while still clearing its own resumable session state.
+export function clearAllFlowPersistence(options?: {
+  clearFlowIdentity?: boolean;
+}): void {
   clearEligibilityState();
   clearOnboardingState();
-  clearFlowIdentity();
+  if (options?.clearFlowIdentity !== false) {
+    clearFlowIdentity();
+  }
 }

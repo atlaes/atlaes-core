@@ -319,8 +319,10 @@ export function OnboardingFlow({
       submittedAt: submission?.submittedAt || new Date().toISOString(),
       drvEligibilityDate: drvEligibilityDate,
     });
-    localStorage.removeItem('vbl_draft_claimId');
-    clearAllFlowPersistence();
+    if (isCalculatorSource) {
+      localStorage.removeItem('vbl_draft_claimId');
+      clearAllFlowPersistence();
+    }
     setShowSuccess(true);
   };
 
