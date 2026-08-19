@@ -18,6 +18,7 @@ import { SuccessScreen } from '@/components/vbl/onboarding/steps/SuccessScreen';
 import { DRVUpsellModal } from '@/components/vbl/onboarding/DRVUpsellModal';
 import {
   isCalculatorVariant,
+  type OnboardingSource,
   type OnboardingVariant,
 } from '@/components/vbl/onboarding/onboarding-variant';
 import { saveFlowIdentity } from '@/lib/flow-persistence';
@@ -25,9 +26,14 @@ import { saveFlowIdentity } from '@/lib/flow-persistence';
 interface OnboardingFlowProps {
   headerTitle?: string;
   headerIcon?: ReactNode;
+  source?: OnboardingSource;
 }
 
-export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps) {
+export function OnboardingFlow({
+  headerTitle,
+  headerIcon,
+  source = 'default',
+}: OnboardingFlowProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionToken = searchParams?.get('session') ?? null;
@@ -44,10 +50,14 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
     updateSuccessData,
   } = useOnboarding();
 
+  const isCalculatorSource = source === 'calculator';
+
   // The calculator may surface a private/bAV claim, but its calculator
   // variant must never be applied to that paygate.
   const variant: OnboardingVariant =
-    data.pensionType !== 'private' ? 'calculator' : 'default';
+    isCalculatorSource && data.pensionType !== 'private'
+      ? 'calculator'
+      : 'default';
 
   // Variant-specific UI begins in Tasks 3–7. Keep the guard evaluated here
   // so this flow cannot accidentally treat a private/bAV claim as calculator
@@ -55,12 +65,13 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
   void isCalculatorVariant(variant);
 
   useEffect(() => {
+    if (!isCalculatorSource) return;
     saveFlowIdentity({
       pensionType: data.pensionType,
       pensionProvider: data.membership.pensionProvider,
       origin: 'calculator',
     });
-  }, [data.pensionType, data.membership.pensionProvider]);
+  }, [data.pensionType, data.membership.pensionProvider, isCalculatorSource]);
 
   // Track if user has completed pension type selection (pre-step).
   // Client #8: only show it when the calculator detected multiple claim
@@ -74,6 +85,7 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
   const [showPensionTypeSelection, setShowPensionTypeSelection] = useState(
     () => {
       if (typeof window === 'undefined') return data.pensionType === '';
+      if (!isCalculatorSource) return data.pensionType === '';
       // If a session token is in the URL, defer the decision to the
       // hydration effect (it'll setShowPensionTypeSelection based on
       // detected claim types).
@@ -119,6 +131,7 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
   // present in the URL. Falls back to sessionStorage `calculator-selection`
   // if no token (soft-fail path from Results.tsx where the POST failed).
   useEffect(() => {
+    if (!isCalculatorSource) return;
     let cancelled = false;
 
     const applySelection = (parsed: {
@@ -134,9 +147,16 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
       if (parsed.claimTypes) {
         setDetectedClaimTypes(parsed.claimTypes);
         const hasPublicOrStage =
-          parsed.claimTypes.includes('public') || parsed.claimTypes.includes('stage');
+          parsed.claimTypes.includes('public') ||
+          parsed.claimTypes.includes('stage') ||
+          parsed.claimTypes.includes('orchestra');
         const hasPrivate = parsed.claimTypes.includes('private');
         setShowPensionTypeSelection(hasPublicOrStage && hasPrivate);
+        if (hasPrivate && !hasPublicOrStage) {
+          updateData({ pensionType: 'private' });
+        } else if (hasPublicOrStage && !hasPrivate) {
+          updateData({ pensionType: 'public' });
+        }
       }
       if (parsed.privateProvider) {
         setDetectedPrivateProvider(parsed.privateProvider);
@@ -192,7 +212,7 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
     return () => {
       cancelled = true;
     };
-  }, [sessionToken, updateMembership]);
+  }, [isCalculatorSource, sessionToken, updateData, updateMembership]);
 
   // Success screen and DRV modal state
   const [showSuccess, setShowSuccess] = useState(false);
@@ -362,7 +382,11 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
         return (
           <CreateAccount
             onNext={handleStep1Next}
-            redirectUrl="/get-started?fromAuth=1&origin=calculator"
+            redirectUrl={
+              isCalculatorSource
+                ? '/get-started?fromAuth=1&origin=calculator'
+                : undefined
+            }
           />
         );
       case 2:
