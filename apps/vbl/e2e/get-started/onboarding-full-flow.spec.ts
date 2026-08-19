@@ -1135,18 +1135,95 @@ test.describe('Calculator identity fields', () => {
     await expect(
       page.getByRole('button', { name: 'Undo' }).locator('..')
     ).toHaveClass(/justify-center/);
-    const box = await canvas.boundingBox();
-    if (box) {
-      await page.mouse.move(box.x + 30, box.y + 30);
-      await page.mouse.down();
-      await page.mouse.move(box.x + 130, box.y + 70);
-      await page.mouse.up();
-    }
-    await page.getByLabel('I confirm that this is my legal signature.').check();
     const continueButton = page.getByRole('button', { name: 'Continue' });
     await expect(continueButton).toHaveClass(
       /mt-10.*w-full.*rounded-lg.*px-6.*py-4.*text-\[18px\].*font-semibold/
     );
+    const legalConfirmation = page.getByLabel(
+      'I confirm that this is my legal signature.'
+    );
+    await legalConfirmation.check();
+
+    const draw = async () => {
+      const box = await canvas.boundingBox();
+      if (!box) throw new Error('Signature canvas was not rendered.');
+      await page.mouse.move(box.x + 30, box.y + 30);
+      await page.mouse.down();
+      await page.mouse.move(box.x + 130, box.y + 70);
+      await page.mouse.up();
+    };
+
+    await draw();
+    await expect(continueButton).toBeEnabled();
+
+    await page.getByRole('button', { name: 'Upload signature image' }).click();
+    await expect(page.locator('canvas')).toHaveCount(0);
+    await expect(continueButton).toBeDisabled();
+    const signatureFile = page.locator('input[type="file"]');
+    await signatureFile.setInputFiles({
+      name: 'signature.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL8NwAAAABJRU5ErkJggg==',
+        'base64'
+      ),
+    });
+    await expect(continueButton).toBeEnabled();
+    const removeUploadedSignature = page.getByRole('button', {
+      name: 'Remove uploaded signature',
+    });
+    await expect(removeUploadedSignature).toHaveAttribute('type', 'button');
+    await expect(removeUploadedSignature.locator('svg')).toHaveAttribute(
+      'aria-hidden',
+      'true'
+    );
+
+    await page.getByRole('button', { name: 'Draw signature' }).click();
+    await expect(canvas).toBeVisible();
+    await expect(continueButton).toBeDisabled();
+    await draw();
+    await expect(continueButton).toBeEnabled();
+    expect(
+      await canvas.evaluate((node) => {
+        const signatureCanvas = node as HTMLCanvasElement;
+        const context = signatureCanvas.getContext('2d');
+        if (!context) return false;
+        const pixels = context.getImageData(
+          0,
+          0,
+          signatureCanvas.width,
+          signatureCanvas.height
+        ).data;
+        return Array.from(pixels).some(
+          (value, index) => index % 4 === 3 && value > 0
+        );
+      })
+    ).toBe(true);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const resizedCanvasBox = await canvas.boundingBox();
+    expect(resizedCanvasBox).not.toBeNull();
+    expect(resizedCanvasBox!.x).toBeGreaterThanOrEqual(0);
+    expect(resizedCanvasBox!.x + resizedCanvasBox!.width).toBeLessThanOrEqual(
+      390
+    );
+    expect(
+      await canvas.evaluate((node) => {
+        const signatureCanvas = node as HTMLCanvasElement;
+        const context = signatureCanvas.getContext('2d');
+        if (!context) return false;
+        const pixels = context.getImageData(
+          0,
+          0,
+          signatureCanvas.width,
+          signatureCanvas.height
+        ).data;
+        return Array.from(pixels).some(
+          (value, index) => index % 4 === 3 && value > 0
+        );
+      })
+    ).toBe(true);
+    await expect(continueButton).toBeEnabled();
     await continueButton.click();
     const pendingButton = page.getByRole('button', { name: /Uploading/i });
     await expect(pendingButton).toBeDisabled();
@@ -1190,6 +1267,9 @@ test.describe('Calculator identity fields', () => {
     await expect(
       page.getByTestId('success-main-icon').locator('svg')
     ).toHaveClass(/w-12.*h-12.*text-\[#163300\]/);
+    await expect(
+      page.getByTestId('success-main-icon').locator('svg')
+    ).toHaveAttribute('aria-hidden', 'true');
     const nextStepIcons = page.locator(
       '[data-testid^="success-next-step-icon-"]'
     );
@@ -1203,10 +1283,14 @@ test.describe('Calculator identity fields', () => {
       await expect(nextStepIcon.locator('svg')).toHaveClass(
         /w-3.*h-3.*text-\[#163300\]/
       );
+      await expect(nextStepIcon.locator('svg')).toHaveAttribute(
+        'aria-hidden',
+        'true'
+      );
     }
     await expect(page.getByTestId('onboarding-substeps')).toHaveCount(0);
     await expect(
-      page.getByText('Sign & Submit', { exact: true }).first()
+      page.getByText('Sign & Submit', { exact: true }).last()
     ).toBeVisible();
     await expect
       .poll(() =>

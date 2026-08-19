@@ -66,7 +66,11 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
         data-testid="success-main-icon"
         className="w-24 h-24 bg-[#9FE870] rounded-full flex items-center justify-center mx-auto mb-6"
       >
-        <Check className="w-12 h-12 text-[#163300]" strokeWidth={3} />
+        <Check
+          aria-hidden="true"
+          className="w-12 h-12 text-[#163300]"
+          strokeWidth={3}
+        />
       </div>
 
       {/* Title */}
@@ -91,7 +95,11 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
                 data-testid={`success-next-step-icon-${index}`}
                 className="w-5 h-5 bg-[#9FE870] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
               >
-                <Check className="w-3 h-3 text-[#163300]" strokeWidth={3} />
+                <Check
+                  aria-hidden="true"
+                  className="w-3 h-3 text-[#163300]"
+                  strokeWidth={3}
+                />
               </div>
               <span className="text-sm text-gray-700">{item}</span>
             </li>

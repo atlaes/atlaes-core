@@ -40,39 +40,88 @@ export const Signature: React.FC<SignatureProps> = ({
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
+  const latestCanvasDataRef = useRef<string | undefined>(
+    data.signature.signatureType === 'draw'
+      ? data.signature.signatureData
+      : undefined
+  );
 
-  // Initialize canvas
+  // Draw mode mounts its canvas conditionally, so initialization must follow
+  // the mode as well as saved data. Resize only the backing store: Tailwind's
+  // `w-full` remains the CSS width at every viewport size.
   useEffect(() => {
+    if (mode !== 'draw') {
+      contextRef.current = null;
+      return;
+    }
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Set canvas size
-    canvas.width = canvas.offsetWidth * 2;
-    canvas.height = canvas.offsetHeight * 2;
-    canvas.style.width = `${canvas.offsetWidth}px`;
-    canvas.style.height = `${canvas.offsetHeight}px`;
-
-    const context = canvas.getContext('2d');
-    if (!context) return;
-
-    context.scale(2, 2);
-    context.lineCap = 'round';
-    context.strokeStyle = '#163300';
-    context.lineWidth = 2;
-    contextRef.current = context;
-
-    // Restore saved signature if exists
     if (
-      data.signature.signatureData &&
-      data.signature.signatureType === 'draw'
+      data.signature.signatureType === 'draw' &&
+      data.signature.signatureData
     ) {
+      latestCanvasDataRef.current = data.signature.signatureData;
+    }
+
+    let disposed = false;
+    const resizeCanvas = () => {
+      const cssWidth = canvas.clientWidth;
+      const cssHeight = canvas.clientHeight;
+      if (!cssWidth || !cssHeight) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.round(cssWidth * dpr);
+      const height = Math.round(cssHeight * dpr);
+      if (canvas.width === width && canvas.height === height) {
+        const context = canvas.getContext('2d');
+        if (!context) return;
+        context.setTransform(dpr, 0, 0, dpr, 0, 0);
+        context.lineCap = 'round';
+        context.strokeStyle = '#163300';
+        context.lineWidth = 2;
+        contextRef.current = context;
+        return;
+      }
+
+      const previousData =
+        latestCanvasDataRef.current ||
+        (canvas.width && canvas.height ? canvas.toDataURL() : undefined);
+      canvas.width = width;
+      canvas.height = height;
+
+      const context = canvas.getContext('2d');
+      if (!context) return;
+
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      context.lineCap = 'round';
+      context.strokeStyle = '#163300';
+      context.lineWidth = 2;
+      contextRef.current = context;
+
+      if (!previousData) return;
       const img = new Image();
       img.onload = () => {
-        context.drawImage(img, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
+        if (!disposed && contextRef.current === context) {
+          context.drawImage(img, 0, 0, cssWidth, cssHeight);
+        }
       };
-      img.src = data.signature.signatureData;
-    }
-  }, [data.signature.signatureData, data.signature.signatureType]);
+      img.src = previousData;
+    };
+
+    resizeCanvas();
+    const observer = new ResizeObserver(resizeCanvas);
+    observer.observe(canvas.parentElement || canvas);
+    window.addEventListener('resize', resizeCanvas);
+
+    return () => {
+      disposed = true;
+      observer.disconnect();
+      window.removeEventListener('resize', resizeCanvas);
+      if (contextRef.current) contextRef.current = null;
+    };
+  }, [mode, data.signature.signatureData, data.signature.signatureType]);
 
   const saveToHistory = useCallback(() => {
     const canvas = canvasRef.current;
@@ -150,8 +199,10 @@ export const Signature: React.FC<SignatureProps> = ({
       // attaching the stale (possibly invalidated) server-side ID.
       const canvas = canvasRef.current;
       if (canvas) {
+        const signatureData = canvas.toDataURL();
+        latestCanvasDataRef.current = signatureData;
         updateSignature({
-          signatureData: canvas.toDataURL(),
+          signatureData,
           signatureType: 'draw',
         });
         updateData({ signatureId: undefined });
@@ -182,6 +233,7 @@ export const Signature: React.FC<SignatureProps> = ({
       const context = contextRef.current;
       if (canvas && context) {
         context.clearRect(0, 0, canvas.width, canvas.height);
+        latestCanvasDataRef.current = undefined;
         updateSignature({ signatureData: undefined });
         updateData({ signatureId: undefined });
       }
@@ -197,7 +249,9 @@ export const Signature: React.FC<SignatureProps> = ({
     img.onload = () => {
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.drawImage(img, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
-      updateSignature({ signatureData: history[historyIndex - 1] });
+      const signatureData = history[historyIndex - 1];
+      latestCanvasDataRef.current = signatureData;
+      updateSignature({ signatureData });
       updateData({ signatureId: undefined });
     };
     img.src = history[historyIndex - 1];
@@ -215,7 +269,9 @@ export const Signature: React.FC<SignatureProps> = ({
     img.onload = () => {
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.drawImage(img, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
-      updateSignature({ signatureData: history[historyIndex + 1] });
+      const signatureData = history[historyIndex + 1];
+      latestCanvasDataRef.current = signatureData;
+      updateSignature({ signatureData });
       updateData({ signatureId: undefined });
     };
     img.src = history[historyIndex + 1];
@@ -230,6 +286,7 @@ export const Signature: React.FC<SignatureProps> = ({
     context.clearRect(0, 0, canvas.width, canvas.height);
     setHistory([]);
     setHistoryIndex(-1);
+    latestCanvasDataRef.current = undefined;
     updateSignature({ signatureData: undefined, signatureType: 'draw' });
     updateData({ signatureId: undefined });
   }, [updateSignature, updateData]);
@@ -261,8 +318,39 @@ export const Signature: React.FC<SignatureProps> = ({
     [updateSignature, updateData]
   );
 
+  const handleModeChange = useCallback(
+    (nextMode: SignatureMode) => {
+      if (nextMode === mode) return;
+
+      // A signature belongs to its active input method. Clearing it here
+      // avoids hidden Draw/Upload state enabling Continue or reusing a
+      // server-side ID after the user selects a different method.
+      setIsDrawing(false);
+      setHistory([]);
+      setHistoryIndex(-1);
+      latestCanvasDataRef.current = undefined;
+      contextRef.current = null;
+      updateSignature({
+        signatureFile: null,
+        signatureData: undefined,
+        signaturePreview: undefined,
+        signatureType: '',
+      });
+      updateData({ signatureId: undefined });
+      setMode(nextMode);
+    },
+    [mode, updateData, updateSignature]
+  );
+
   const handleContinue = useCallback(async () => {
-    const sigData = data.signature.signatureData;
+    const sigData =
+      mode === 'draw'
+        ? data.signature.signatureType === 'draw'
+          ? data.signature.signatureData
+          : undefined
+        : data.signature.signatureType === 'upload'
+          ? data.signature.signatureData
+          : undefined;
     if (!sigData) return;
 
     setIsUploading(true);
@@ -305,13 +393,19 @@ export const Signature: React.FC<SignatureProps> = ({
     data.claimId,
     data.signatureId,
     data.signature.signatureData,
+    data.signature.signatureType,
+    mode,
     updateData,
     onNext,
   ]);
 
-  const canProceed =
-    (!!data.signature.signatureData || !!data.signature.signatureFile) &&
-    data.signature.legalConfirmed;
+  const hasActiveSignature =
+    mode === 'draw'
+      ? data.signature.signatureType === 'draw' &&
+        !!data.signature.signatureData
+      : data.signature.signatureType === 'upload' &&
+        (!!data.signature.signatureData || !!data.signature.signatureFile);
+  const canProceed = hasActiveSignature && data.signature.legalConfirmed;
 
   return (
     <div
@@ -332,7 +426,7 @@ export const Signature: React.FC<SignatureProps> = ({
       {/* Mode Toggle */}
       <div className="flex gap-2 mb-6">
         <button
-          onClick={() => setMode('draw')}
+          onClick={() => handleModeChange('draw')}
           className={`${
             variant === 'calculator'
               ? 'flex-1 rounded-lg px-4 py-4 text-[18px] font-medium flex items-center justify-center gap-2 transition-colors'
@@ -347,7 +441,7 @@ export const Signature: React.FC<SignatureProps> = ({
           Draw signature
         </button>
         <button
-          onClick={() => setMode('upload')}
+          onClick={() => handleModeChange('upload')}
           className={`${
             variant === 'calculator'
               ? 'flex-1 rounded-lg px-4 py-4 text-[18px] font-medium flex items-center justify-center gap-2 transition-colors'
@@ -432,6 +526,8 @@ export const Signature: React.FC<SignatureProps> = ({
                 className="max-h-32 mx-auto"
               />
               <button
+                type="button"
+                aria-label="Remove uploaded signature"
                 onClick={() => {
                   updateSignature({
                     signatureFile: null,
@@ -445,7 +541,7 @@ export const Signature: React.FC<SignatureProps> = ({
                 }}
                 className="absolute -top-2 -right-2 p-1 bg-red-100 rounded-full hover:bg-red-200 transition-colors"
               >
-                <Trash2 className="w-4 h-4 text-red-600" />
+                <Trash2 aria-hidden="true" className="w-4 h-4 text-red-600" />
               </button>
             </div>
           ) : (
