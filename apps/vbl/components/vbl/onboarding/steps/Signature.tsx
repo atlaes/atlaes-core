@@ -17,7 +17,7 @@ import {
 } from '@/lib/onboarding-api';
 
 interface SignatureProps {
-  onNext: () => void;
+  onNext: () => void | Promise<void>;
 }
 
 type SignatureMode = 'draw' | 'upload';
@@ -286,7 +286,7 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       // property and stored the literal string "undefined" as the access
       // token, so every request after the first silent refresh — including
       // this one on a delete + re-enter retry — failed JWT verification).
-      onNext();
+      await onNext();
     } catch (err: any) {
       console.error('Signature upload error:', err);
       const detail = err?.response?.data?.error || err?.message || '';

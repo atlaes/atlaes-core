@@ -53,10 +53,7 @@ test.describe('Calculator identity helpers', () => {
   });
 });
 
-async function mockOnboardingApi(
-  page: import('@playwright/test').Page,
-  baseURL = 'http://localhost:3000'
-) {
+async function mockOnboardingApi(page: import('@playwright/test').Page) {
   const user = {
     id: 'user_mock',
     email: TEST_EMAIL,
@@ -135,7 +132,10 @@ async function mockOnboardingApi(
     route.fulfill(
       json({
         success: true,
-        url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+        url: new URL(
+          '/get-started?payment=success&session_id=cs_mock',
+          page.url()
+        ).toString(),
         sessionId: 'cs_mock',
       })
     )
@@ -224,10 +224,9 @@ test.describe('Onboarding Eligibility resource copy', () => {
 
   test('mocked public onboarding reaches review and submitted states', async ({
     page,
-    baseURL,
   }) => {
     test.setTimeout(120_000);
-    await mockOnboardingApi(page, baseURL);
+    await mockOnboardingApi(page);
 
     await navigatePublicSectorToEligible(page);
     await page
@@ -609,6 +608,21 @@ test.describe('Calculator identity fields', () => {
     ).toBeVisible({ timeout: 10_000 });
     await assertCalculatorSubsteps();
 
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth
+        )
+      )
+      .toBe(true);
+    const firstIcon = await page.getByTestId('substep-icon-identity').boundingBox();
+    const lastIcon = await page.getByTestId('substep-icon-signature').boundingBox();
+    expect(firstIcon).not.toBeNull();
+    expect(lastIcon).not.toBeNull();
+    expect(firstIcon!.x).toBeGreaterThanOrEqual(0);
+    expect(lastIcon!.x + lastIcon!.width).toBeLessThanOrEqual(390);
+
     await page
       .getByRole('button', { name: /Continue to confirmation/i })
       .click();
@@ -622,6 +636,48 @@ test.describe('Calculator identity fields', () => {
       page.getByRole('heading', { name: 'Add your signature' })
     ).toBeVisible();
     await assertCalculatorSubsteps();
+  });
+
+  test('calculator signature submits exactly once while terminal submission is pending', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, url: `${baseURL}/get-started?payment=success&session_id=cs_mock`, sessionId: 'cs_mock' }) })
+    );
+    let submitCount = 0;
+    await page.route('**/api/claims/claim_mock/submit', async (route) => {
+      submitCount += 1;
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, message: 'Claim submitted', claim: { id: 'claim_mock', submittedAt: new Date().toISOString() } }) });
+    });
+    await navigatePublicSectorToEligible(page);
+    await page.getByRole('button', { name: /Create your secure claim/i }).click();
+    await completeCreateAccount(page);
+    const declarations = page.getByRole('checkbox');
+    await declarations.nth(0).check();
+    await declarations.nth(1).check();
+    await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
+    await uploadIdentityDocument(page);
+    await page.getByLabel('Full Name').fill('Test User');
+    await page.getByLabel('Date of Birth').fill('1990-01-15');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await completeMembership(page); await completeAddress(page); await completeBankDetails(page);
+    await completeReview(page); await completeConfirmStep(page);
+    const canvas = page.locator('canvas');
+    const box = await canvas.boundingBox();
+    if (box) { await page.mouse.move(box.x + 30, box.y + 30); await page.mouse.down(); await page.mouse.move(box.x + 130, box.y + 70); await page.mouse.up(); }
+    await page.getByLabel('I confirm that this is my legal signature.').check();
+    const continueButton = page.getByRole('button', { name: 'Continue' });
+    await continueButton.click();
+    const pendingButton = page.getByRole('button', { name: /Uploading/i });
+    await expect(pendingButton).toBeDisabled();
+    await pendingButton.click({ force: true });
+    await expect(page.getByRole('heading', { name: 'Your refund request has been submitted' })).toBeVisible();
+    expect(submitCount).toBe(1);
   });
 
   test('calculator confirm uses full name and a single birth-date field', async ({
