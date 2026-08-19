@@ -651,6 +651,9 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             >
               {/* Section Header */}
               <button
+                id={`review-section-toggle-${section.id}`}
+                aria-controls={`review-section-${section.id}`}
+                aria-expanded={isExpanded}
                 onClick={() => toggleSection(section.id)}
                 className="w-full px-5 py-4 flex items-center justify-between"
               >
@@ -711,7 +714,14 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
 
               {/* Section Content */}
               {isExpanded && (
-                <div className="px-5 pb-4">{renderSectionContent(section)}</div>
+                <div
+                  id={`review-section-${section.id}`}
+                  role="region"
+                  aria-labelledby={`review-section-toggle-${section.id}`}
+                  className="px-5 pb-4"
+                >
+                  {renderSectionContent(section)}
+                </div>
               )}
             </div>
           );

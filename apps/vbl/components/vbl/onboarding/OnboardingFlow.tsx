@@ -245,6 +245,14 @@ export function OnboardingFlow({
   const [showDRVModal, setShowDRVModal] = useState(false);
   const [calculatorStopped, setCalculatorStopped] = useState(false);
   const [flowError, setFlowError] = useState<string | null>(null);
+  const hasPersistedCalculatorStopAnswer =
+    variant === 'calculator' && !areConfirmStopAnswersClear(data.confirm);
+
+  useEffect(() => {
+    if (hasPersistedCalculatorStopAnswer) {
+      setCalculatorStopped(true);
+    }
+  }, [hasPersistedCalculatorStopAnswer]);
 
   // Example: determine DRV eligibility (in real app, this would come from backend)
   const drvEligibilityDate = '15 Mar 2027';

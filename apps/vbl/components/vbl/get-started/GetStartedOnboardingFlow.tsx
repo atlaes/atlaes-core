@@ -294,6 +294,14 @@ export function GetStartedOnboardingFlow() {
   // the Confirm-step stop call (both happen outside a substep component that
   // owns its own error UI).
   const [flowError, setFlowError] = useState<string | null>(null);
+  const hasPersistedCalculatorStopAnswer =
+    variant === 'calculator' && !areConfirmStopAnswersClear(data.confirm);
+
+  useEffect(() => {
+    if (hasPersistedCalculatorStopAnswer) {
+      setCalculatorStopped(true);
+    }
+  }, [hasPersistedCalculatorStopAnswer]);
 
   // In the public/stage Confirm flow, Signature is the terminal substep and
   // performs the final submission. In the bAV/private flow it is not (Review

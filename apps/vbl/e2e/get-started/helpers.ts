@@ -549,11 +549,24 @@ export async function completeSignature(page: Page) {
 // review screen's primary button advances to the Confirm step via
 // ReviewSubmit's onContinue mode ("Continue to confirmation") instead of
 // submitting the claim here.
-export async function completeReview(page: Page) {
+export async function completeReview(
+  page: Page,
+  variant: 'default' | 'calculator' = 'default'
+) {
+  const isCalculator = variant === 'calculator';
   await expect(
-    page.getByRole('heading', { name: 'Review your refund request' })
+    page.getByRole('heading', {
+      name: isCalculator ? 'Review' : 'Review your refund request',
+      exact: isCalculator,
+    })
   ).toBeVisible({ timeout: 10_000 });
-  await page.getByRole('button', { name: /Continue to confirmation/i }).click();
+  await page
+    .getByRole('button', {
+      name: isCalculator
+        ? 'Continue to declarations'
+        : /Continue to confirmation/i,
+    })
+    .click();
 }
 
 // Public/stage Confirm step (between Review and Signature). Section 1's four

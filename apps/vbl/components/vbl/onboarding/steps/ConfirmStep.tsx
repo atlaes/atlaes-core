@@ -170,8 +170,12 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
   const [isStopping, setIsStopping] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
   const pendingYesTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const stopActionRef = useRef<HTMLButtonElement | null>(null);
+  const keepNoActionRef = useRef<HTMLButtonElement | null>(null);
   const stopInFlightRef = useRef(false);
   const isCalculator = variant === 'calculator';
+  const isCalculatorStopped =
+    isCalculator && !areConfirmStopAnswersClear(confirm);
 
   // Checkbox 2 adapts for stage (VddB/VddKO) claims: "public-sector pension
   // institution" → "pension institution".
@@ -217,15 +221,38 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
   useEffect(() => {
     if (!pendingYesKey) return;
 
+    const focusFrame = requestAnimationFrame(() =>
+      stopActionRef.current?.focus()
+    );
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || isStopping) return;
-      event.preventDefault();
-      setPendingYesKey(null);
-      setStopError(null);
-      requestAnimationFrame(() => pendingYesTriggerRef.current?.focus());
+      if (event.key === 'Tab') {
+        const first = stopActionRef.current;
+        const last = keepNoActionRef.current;
+        if (!first || !last) return;
+
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+        return;
+      }
+
+      if (event.key === 'Escape' && !isStopping) {
+        event.preventDefault();
+        setPendingYesKey(null);
+        setStopError(null);
+        requestAnimationFrame(() => pendingYesTriggerRef.current?.focus());
+      }
     };
     document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    return () => {
+      cancelAnimationFrame(focusFrame);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, [isStopping, pendingYesKey]);
 
   const handleSelectAnswer = (
@@ -260,13 +287,14 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
         throw new Error('Stop request was not confirmed.');
       }
       updateConfirm({ [key]: 'yes' } as Partial<OnboardingConfirm>);
+      localStorage.removeItem('vbl_draft_claimId');
       setPendingYesKey(null);
       setShowStopScreen(true);
       onStopStateChange?.(true);
     } catch (error) {
       console.error('Failed to stop claim:', error);
       setStopError(
-        'We could not record that your application was stopped. Your deposit will still be refunded — please contact support if you have any questions.'
+        'We could not stop your application. Your answer remains No. Please retry or contact support.'
       );
     } finally {
       stopInFlightRef.current = false;
@@ -292,7 +320,7 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
   // Full-screen stop state — matches the flow's rejection screens
   // (EligibilityResult not-eligible public/stage: red circle + X).
   // ------------------------------------------------------------------
-  if (showStopScreen) {
+  if (showStopScreen || isCalculatorStopped) {
     return (
       <div className="mx-auto flex min-h-[470px] max-w-[620px] flex-col items-center justify-center text-center">
         <div className="mb-9 flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#F5D4CF]">
@@ -545,6 +573,7 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
               }
             >
               <button
+                ref={stopActionRef}
                 onClick={handleConfirmYes}
                 disabled={isStopping}
                 className={
@@ -556,6 +585,7 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
                 {isStopping ? 'Saving...' : 'Yes, change my answer'}
               </button>
               <button
+                ref={keepNoActionRef}
                 onClick={handleKeepAsNo}
                 disabled={isStopping}
                 className={

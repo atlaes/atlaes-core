@@ -609,19 +609,34 @@ test.describe('Calculator identity fields', () => {
       'div.rounded-xl.overflow-hidden.border.border-gray-200.bg-white'
     );
     await expect(reviewSections).toHaveCount(4);
-    for (const [sectionId, glyph] of [
+    const calculatorReviewSections = [
       ['personal', 'user'],
       ['address', 'location'],
       ['membership', 'card'],
       ['bank', 'bank'],
-    ]) {
+    ] as const;
+    for (const [sectionId, glyph] of calculatorReviewSections) {
       await expect(
         page.getByTestId(`calculator-review-icon-${sectionId}-${glyph}`)
       ).toBeVisible();
     }
     for (let index = 0; index < (await reviewSections.count()); index += 1) {
       const section = reviewSections.nth(index);
-      await section.getByRole('button').first().click();
+      const [sectionId] = calculatorReviewSections[index];
+      const toggle = section.getByRole('button').first();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      await expect(toggle).toHaveAttribute(
+        'aria-controls',
+        `review-section-${sectionId}`
+      );
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      const panel = section.locator(`#review-section-${sectionId}`);
+      await expect(panel).toHaveAttribute('role', 'region');
+      await expect(panel).toHaveAttribute(
+        'aria-labelledby',
+        `review-section-toggle-${sectionId}`
+      );
       await expect(
         section.getByRole('button', { name: 'Edit information' })
       ).toHaveClass(/underline/);
@@ -680,6 +695,17 @@ test.describe('Calculator identity fields', () => {
     await yesButton.click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
+    const stopAction = dialog.getByRole('button', {
+      name: 'Yes, change my answer',
+    });
+    const keepNoAction = dialog.getByRole('button', {
+      name: 'Keep my answer as No',
+    });
+    await expect(stopAction).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(keepNoAction).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(stopAction).toBeFocused();
     await expect(dialog).toHaveClass(
       /max-w-\[560px\].*rounded-\[22px\].*p-9.*shadow-2xl/
     );
@@ -750,6 +776,29 @@ test.describe('Calculator identity fields', () => {
       )
     ).toHaveCount(0);
     await expect(page.getByTestId('onboarding-substeps')).toHaveCount(0);
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const raw = window.sessionStorage.getItem('vbl_onboarding_v1');
+          return raw ? JSON.parse(raw).data.confirm.publicSectorAfterEnd : null;
+        })
+      )
+      .toBe('yes');
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.localStorage.getItem('vbl_draft_claimId'))
+      )
+      .toBeNull();
+    await page.reload();
+    await expect(
+      page.getByRole('heading', {
+        name: 'This refund cannot currently be claimed with CompanyPension',
+      })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('onboarding-substeps')).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'Edit', exact: true })
+    ).toHaveCount(0);
   });
 
   test('calculator stopped retries after a stop API failure before entering terminal state', async ({
@@ -780,10 +829,13 @@ test.describe('Calculator identity fields', () => {
 
     await expect(
       page.getByText(
-        'We could not record that your application was stopped. Your deposit will still be refunded — please contact support if you have any questions.',
+        'We could not stop your application. Your answer remains No. Please retry or contact support.',
         { exact: true }
       )
     ).toBeVisible();
+    await expect(page.getByText(/deposit will still be refunded/i)).toHaveCount(
+      0
+    );
     await expect(
       page.getByRole('heading', {
         name: 'This refund cannot currently be claimed with CompanyPension',
@@ -893,7 +945,7 @@ test.describe('Calculator identity fields', () => {
     };
 
     await expect(
-      page.getByRole('heading', { name: 'Review your refund request' })
+      page.getByRole('heading', { name: 'Review', exact: true })
     ).toBeVisible({ timeout: 10_000 });
     await assertCalculatorSubsteps();
 
@@ -917,7 +969,7 @@ test.describe('Calculator identity fields', () => {
     expect(lastIcon!.x + lastIcon!.width).toBeLessThanOrEqual(390);
 
     await page
-      .getByRole('button', { name: /Continue to confirmation/i })
+      .getByRole('button', { name: 'Continue to declarations', exact: true })
       .click();
     await expect(
       page.getByRole('heading', { name: 'Confirm your refund information' })
@@ -979,7 +1031,7 @@ test.describe('Calculator identity fields', () => {
     await completeMembership(page);
     await completeAddress(page);
     await completeBankDetails(page);
-    await completeReview(page);
+    await completeReview(page, 'calculator');
     await completeConfirmStep(page);
     const canvas = page.locator('canvas');
     const box = await canvas.boundingBox();
@@ -1066,7 +1118,7 @@ test.describe('Calculator identity fields', () => {
     await completeAddress(page);
     await completeBankDetails(page);
     await expect(
-      page.getByRole('heading', { name: 'Review your refund request' })
+      page.getByRole('heading', { name: 'Review', exact: true })
     ).toBeVisible({ timeout: 10_000 });
     await page.getByRole('button', { name: 'Personal information' }).click();
     await expect(
