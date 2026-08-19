@@ -2474,8 +2474,12 @@ test.describe('Onboarding Full Flow', () => {
     allowFailure();
 
     await expect(
-      page.getByText(/Failed to save signature: Temporary submission failure/)
+      page.getByText(
+        'We could not submit your refund request. Please try again.',
+        { exact: true }
+      )
     ).toBeVisible();
+    await expect(page.getByText(/Failed to save signature/)).toHaveCount(0);
     await expect(continueButton).toBeEnabled();
     await expect
       .poll(

@@ -581,10 +581,9 @@ export function GetStartedOnboardingFlow() {
 
   // Terminal Signature step (public/stage flow): the signature has already
   // been uploaded + attached by Signature.tsx before it calls this, so here we
-  // just mark the step complete and submit the claim. Signature.tsx is
-  // unchanged — it always calls its onNext; we simply pass this instead of
-  // saveAndAdvance when Signature is the last substep.
-  const handleFinalizeFromSignature = async () => {
+  // just mark the step complete and submit the claim. We pass this terminal
+  // completion callback instead of saveAndAdvance when Signature is last.
+  const handleFinalizeFromSignature = async (): Promise<boolean> => {
     // Defense in depth: never submit unless the Confirm step's gate has
     // actually been satisfied (all four answers No + all eight boxes checked).
     // Any path that lands on the terminal Signature step without completing
@@ -600,12 +599,12 @@ export function GetStartedOnboardingFlow() {
         'Please confirm your answers before submitting your refund request.'
       );
       setCurrentSubStep('confirm');
-      return;
+      return false;
     }
     const claimId = data.claimId;
     if (!claimId) {
       setFlowError('No claim found. Please restart the onboarding process.');
-      return;
+      return false;
     }
     setFlowError(null);
     try {
@@ -616,11 +615,13 @@ export function GetStartedOnboardingFlow() {
         submittedAt:
           (result.claim.submittedAt as string) || new Date().toISOString(),
       });
+      return true;
     } catch (err) {
       console.error('Final submission error:', err);
       setFlowError(
         'We could not submit your refund request. Please try again.'
       );
+      return false;
     }
   };
 

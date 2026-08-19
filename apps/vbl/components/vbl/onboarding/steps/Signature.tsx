@@ -18,7 +18,7 @@ import {
 } from '@/lib/onboarding-api';
 
 interface SignatureProps {
-  onNext: () => void | Promise<void>;
+  onNext: () => void | boolean | Promise<void | boolean>;
   variant?: OnboardingVariant;
 }
 
@@ -556,8 +556,11 @@ export const Signature: React.FC<SignatureProps> = ({
       // property and stored the literal string "undefined" as the access
       // token, so every request after the first silent refresh — including
       // this one on a delete + re-enter retry — failed JWT verification).
-      await onNext();
-      completedSuccessfully = true;
+      // Void remains the legacy successful result for ordinary substep
+      // callers. Terminal coordinators return false when their submit path
+      // intentionally remains on Signature so this component can unlock.
+      const completionResult = await onNext();
+      completedSuccessfully = completionResult !== false;
     } catch (err: any) {
       console.error('Signature upload error:', err);
       const detail = err?.response?.data?.error || err?.message || '';

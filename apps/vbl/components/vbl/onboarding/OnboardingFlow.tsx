@@ -349,7 +349,7 @@ export function OnboardingFlow({
     setCurrentSubStep('signature');
   };
 
-  const handleFinalizeFromSignature = async () => {
+  const handleFinalizeFromSignature = async (): Promise<boolean> => {
     const canSubmit =
       variant === 'calculator'
         ? areConfirmStopAnswersClear(data.confirm)
@@ -360,12 +360,12 @@ export function OnboardingFlow({
         'Please confirm your answers before submitting your refund request.'
       );
       setCurrentSubStep('confirm');
-      return;
+      return false;
     }
     const claimId = data.claimId;
     if (!claimId) {
       setFlowError('No claim found. Please restart the onboarding process.');
-      return;
+      return false;
     }
     setFlowError(null);
     try {
@@ -376,11 +376,13 @@ export function OnboardingFlow({
         submittedAt:
           (result.claim.submittedAt as string) || new Date().toISOString(),
       });
+      return true;
     } catch (err) {
       console.error('Final submission error:', err);
       setFlowError(
         'We could not submit your refund request. Please try again.'
       );
+      return false;
     }
   };
 
