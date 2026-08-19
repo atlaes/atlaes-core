@@ -4,6 +4,7 @@ import React, { ReactNode, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useOnboarding, SUBMIT_DETAILS_SUBSTEPS, SubmitDetailsSubStep } from '@/contexts/OnboardingContext';
 import { getPendingCalculatorSession } from '@/lib/vbl-pending-calculator-sessions-api';
+import { saveFlowIdentity } from '@/lib/flow-persistence';
 import { OnboardingLayout } from '@/components/vbl/onboarding/OnboardingLayout';
 import { PensionTypeSelection } from '@/components/vbl/onboarding/steps/PensionTypeSelection';
 import { CreateAccount } from '@/components/vbl/onboarding/steps/CreateAccount';
@@ -105,14 +106,37 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
       publicStageProvider?: string;
     }) => {
       if (cancelled) return;
-      if (parsed.pensionProvider) {
-        updateMembership({ pensionProvider: parsed.pensionProvider });
+
+      const claimTypes = parsed.claimTypes ?? [];
+      const hasPublicOrStage =
+        claimTypes.includes('public') ||
+        claimTypes.includes('stage') ||
+        claimTypes.includes('orchestra');
+      const hasPrivate = claimTypes.includes('private');
+      const pensionType =
+        hasPrivate && !hasPublicOrStage
+          ? 'private'
+          : hasPublicOrStage && !hasPrivate
+            ? 'public'
+            : '';
+      const pensionProvider =
+        parsed.pensionProvider ||
+        (pensionType === 'private'
+          ? parsed.privateProvider
+          : pensionType === 'public'
+            ? parsed.publicStageProvider
+            : '') ||
+        '';
+
+      if (pensionProvider) {
+        updateMembership({ pensionProvider });
+      }
+      if (pensionType) {
+        updateData({ pensionType });
+        saveFlowIdentity({ pensionType, pensionProvider });
       }
       if (parsed.claimTypes) {
         setDetectedClaimTypes(parsed.claimTypes);
-        const hasPublicOrStage =
-          parsed.claimTypes.includes('public') || parsed.claimTypes.includes('stage');
-        const hasPrivate = parsed.claimTypes.includes('private');
         setShowPensionTypeSelection(hasPublicOrStage && hasPrivate);
       }
       if (parsed.privateProvider) {
@@ -169,7 +193,7 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
     return () => {
       cancelled = true;
     };
-  }, [sessionToken, updateMembership]);
+  }, [sessionToken, updateData, updateMembership]);
 
   // Success screen and DRV modal state
   const [showSuccess, setShowSuccess] = useState(false);
