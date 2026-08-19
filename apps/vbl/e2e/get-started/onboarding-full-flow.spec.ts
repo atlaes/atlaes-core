@@ -751,6 +751,127 @@ test.describe('Calculator identity fields', () => {
 
     await expect(nationality).toBeFocused();
   });
+
+  test('calculator keeps structured OCR identity when a full-name draft is invalid', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    const declarations = page.getByRole('checkbox');
+    await declarations.nth(0).check();
+    await declarations.nth(1).check();
+    await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
+    await uploadIdentityDocument(page);
+
+    const fullName = page.getByLabel('Full Name');
+    await fullName.fill('Cher');
+    await expect(fullName).toHaveValue('Cher');
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const persisted = window.sessionStorage.getItem('vbl_onboarding_v1');
+          return persisted ? JSON.parse(persisted).data.identity : null;
+        })
+      )
+      .toMatchObject({
+        firstName: 'Test',
+        middleName: '',
+        lastName: 'User',
+      });
+    await page.reload();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const persisted = window.sessionStorage.getItem('vbl_onboarding_v1');
+          return persisted ? JSON.parse(persisted).data.identity : null;
+        })
+      )
+      .toMatchObject({
+        firstName: 'Test',
+        middleName: '',
+        lastName: 'User',
+      });
+  });
+
+  test('calculator validates and focuses required fields in rendered order', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    const declarations = page.getByRole('checkbox');
+    await declarations.nth(0).check();
+    await declarations.nth(1).check();
+    await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
+    await uploadIdentityDocument(page);
+
+    const continueButton = page.getByRole('button', { name: 'Continue' });
+    const nationality = page.getByLabel('Nationality');
+    const placeOfBirth = page.getByLabel('Place of birth');
+    const dateOfBirth = page.getByLabel('Date of Birth');
+    const gender = page.getByLabel('Gender');
+    await expect(continueButton).toBeEnabled();
+    await expect(continueButton).not.toHaveClass(/cursor-not-allowed/);
+
+    await nationality.fill('');
+    await placeOfBirth.fill('');
+    await dateOfBirth.fill('');
+    await gender.selectOption('');
+    await expect(nationality).toHaveAttribute('aria-invalid', 'true');
+    await expect(nationality).toHaveAttribute(
+      'aria-describedby',
+      'calculator-nationality-error'
+    );
+
+    await continueButton.click();
+    await expect(nationality).toBeFocused();
+    await nationality.fill('Australian');
+    await continueButton.click();
+    await expect(placeOfBirth).toBeFocused();
+    await placeOfBirth.fill('Sydney');
+    await continueButton.click();
+    await expect(dateOfBirth).toBeFocused();
+    await dateOfBirth.fill('1990-01-15');
+    await continueButton.click();
+    await expect(gender).toBeFocused();
+  });
 });
 
 test.describe('Onboarding Full Flow', () => {

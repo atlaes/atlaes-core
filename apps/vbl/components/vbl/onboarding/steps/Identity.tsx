@@ -65,12 +65,15 @@ function isAtLeast18(dateOfBirth: string): boolean {
 function FieldLabel({
   label,
   showMissing,
+  htmlFor,
 }: {
   label: string;
   showMissing: boolean;
+  htmlFor?: string;
 }) {
   return (
     <label
+      htmlFor={htmlFor}
       className={`block text-sm font-medium mb-1 ${
         showMissing ? 'text-red-700' : 'text-gray-700'
       }`}
@@ -80,10 +83,14 @@ function FieldLabel({
   );
 }
 
-function MissingHint({ show }: { show: boolean }) {
+function MissingHint({ show, id }: { show: boolean; id?: string }) {
   if (!show) return null;
   return (
-    <p className="mt-1 flex items-center gap-1 text-sm font-medium text-red-700">
+    <p
+      id={id}
+      role={id ? 'alert' : undefined}
+      className="mt-1 flex items-center gap-1 text-sm font-medium text-red-700"
+    >
       <AlertCircle className="h-3.5 w-3.5" />
       Required
     </p>
@@ -315,6 +322,9 @@ export const Identity: React.FC<IdentityProps> = ({
   const calculatorDateOfBirthError =
     calculatorBirthDateError !== null &&
     (data.identity.dateOfBirth !== '' || calculatorSubmitAttempted);
+  const calculatorNationalityError = data.identity.nationality.trim() === '';
+  const calculatorPlaceOfBirthError = data.identity.placeOfBirth.trim() === '';
+  const calculatorGenderError = data.identity.gender === '';
   const calculatorIdentityValid =
     calculatorName !== null &&
     calculatorBirthDateError === null &&
@@ -339,14 +349,15 @@ export const Identity: React.FC<IdentityProps> = ({
   const handleCalculatorFullNameChange = (value: string) => {
     setCalculatorFullName(value);
     const parsedName = splitCalculatorFullName(value);
-    calculatorLocallyWrittenFullNameRef.current = parsedName
-      ? joinCalculatorFullName({ ...parsedName, middleName: '' })
-      : '';
-    updateIdentity(
-      parsedName
-        ? { ...parsedName, middleName: '' }
-        : { firstName: '', middleName: '', lastName: '' }
-    );
+    if (!parsedName) {
+      calculatorLocallyWrittenFullNameRef.current = calculatorContextFullName;
+      return;
+    }
+
+    const identityName = { ...parsedName, middleName: '' };
+    calculatorLocallyWrittenFullNameRef.current =
+      joinCalculatorFullName(identityName);
+    updateIdentity(identityName);
   };
 
   const handleContinue = () => {
@@ -356,16 +367,16 @@ export const Identity: React.FC<IdentityProps> = ({
         calculatorFullNameInputRef.current?.focus();
         return;
       }
-      if (calculatorBirthDateError !== null) {
-        calculatorBirthDateInputRef.current?.focus();
-        return;
-      }
       if (data.identity.nationality.trim() === '') {
         calculatorNationalityInputRef.current?.focus();
         return;
       }
       if (data.identity.placeOfBirth.trim() === '') {
         calculatorPlaceOfBirthInputRef.current?.focus();
+        return;
+      }
+      if (calculatorBirthDateError !== null) {
+        calculatorBirthDateInputRef.current?.focus();
         return;
       }
       if (data.identity.gender === '') {
@@ -671,13 +682,23 @@ export const Identity: React.FC<IdentityProps> = ({
             <FieldLabel
               label="Nationality"
               showMissing={showMissingHighlights && missingFields.nationality}
+              htmlFor={isCalculator ? 'calculator-nationality' : undefined}
             />
             <input
               ref={isCalculator ? calculatorNationalityInputRef : undefined}
+              id={isCalculator ? 'calculator-nationality' : undefined}
               type="text"
               value={data.identity.nationality}
               onChange={(e) => updateIdentity({ nationality: e.target.value })}
               placeholder="e.g. Australian"
+              aria-invalid={
+                isCalculator && calculatorNationalityError ? true : undefined
+              }
+              aria-describedby={
+                isCalculator && calculatorNationalityError
+                  ? 'calculator-nationality-error'
+                  : undefined
+              }
               className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none ${
                 showMissingHighlights && missingFields.nationality
                   ? 'border-red-400'
@@ -686,19 +707,30 @@ export const Identity: React.FC<IdentityProps> = ({
             />
             <MissingHint
               show={showMissingHighlights && missingFields.nationality}
+              id={isCalculator ? 'calculator-nationality-error' : undefined}
             />
           </div>
           <div>
             <FieldLabel
               label="Place of birth"
               showMissing={showMissingHighlights && missingFields.placeOfBirth}
+              htmlFor={isCalculator ? 'calculator-place-of-birth' : undefined}
             />
             <input
               ref={isCalculator ? calculatorPlaceOfBirthInputRef : undefined}
+              id={isCalculator ? 'calculator-place-of-birth' : undefined}
               type="text"
               value={data.identity.placeOfBirth}
               onChange={(e) => updateIdentity({ placeOfBirth: e.target.value })}
               placeholder="e.g. Sydney"
+              aria-invalid={
+                isCalculator && calculatorPlaceOfBirthError ? true : undefined
+              }
+              aria-describedby={
+                isCalculator && calculatorPlaceOfBirthError
+                  ? 'calculator-place-of-birth-error'
+                  : undefined
+              }
               className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none ${
                 showMissingHighlights && missingFields.placeOfBirth
                   ? 'border-red-400'
@@ -707,6 +739,7 @@ export const Identity: React.FC<IdentityProps> = ({
             />
             <MissingHint
               show={showMissingHighlights && missingFields.placeOfBirth}
+              id={isCalculator ? 'calculator-place-of-birth-error' : undefined}
             />
           </div>
         </div>
@@ -777,15 +810,25 @@ export const Identity: React.FC<IdentityProps> = ({
             <FieldLabel
               label="Gender"
               showMissing={showMissingHighlights && missingFields.gender}
+              htmlFor={isCalculator ? 'calculator-gender' : undefined}
             />
             <div className="relative">
               <select
                 ref={isCalculator ? calculatorGenderInputRef : undefined}
+                id={isCalculator ? 'calculator-gender' : undefined}
                 value={data.identity.gender}
                 onChange={(e) =>
                   updateIdentity({
                     gender: e.target.value as 'male' | 'female' | 'other' | '',
                   })
+                }
+                aria-invalid={
+                  isCalculator && calculatorGenderError ? true : undefined
+                }
+                aria-describedby={
+                  isCalculator && calculatorGenderError
+                    ? 'calculator-gender-error'
+                    : undefined
                 }
                 className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white ${
                   showMissingHighlights && missingFields.gender
@@ -800,7 +843,10 @@ export const Identity: React.FC<IdentityProps> = ({
               </select>
               <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
             </div>
-            <MissingHint show={showMissingHighlights && missingFields.gender} />
+            <MissingHint
+              show={showMissingHighlights && missingFields.gender}
+              id={isCalculator ? 'calculator-gender-error' : undefined}
+            />
           </div>
         </div>
       </div>
@@ -818,7 +864,7 @@ export const Identity: React.FC<IdentityProps> = ({
         onClick={handleContinue}
         disabled={!isCalculator && !canProceed}
         className={`w-full mt-6 py-4 px-6 font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors ${
-          canProceed
+          isCalculator || canProceed
             ? 'bg-[#9FE870] text-[#163300] hover:bg-[#8AD860]'
             : 'bg-gray-200 text-gray-500 cursor-not-allowed'
         }`}
