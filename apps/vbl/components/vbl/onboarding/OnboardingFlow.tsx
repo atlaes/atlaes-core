@@ -2,7 +2,14 @@
 
 import React, { ReactNode, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useOnboarding, SUBMIT_DETAILS_SUBSTEPS, SubmitDetailsSubStep } from '@/contexts/OnboardingContext';
+import {
+  areConfirmStopAnswersClear,
+  getSubmitDetailsSubsteps,
+  isConfirmComplete,
+  useOnboarding,
+  SUBMIT_DETAILS_SUBSTEPS,
+  SubmitDetailsSubStep,
+} from '@/contexts/OnboardingContext';
 import { getPendingCalculatorSession } from '@/lib/vbl-pending-calculator-sessions-api';
 import { OnboardingLayout } from '@/components/vbl/onboarding/OnboardingLayout';
 import { PensionTypeSelection } from '@/components/vbl/onboarding/steps/PensionTypeSelection';
@@ -14,6 +21,7 @@ import { Address } from '@/components/vbl/onboarding/steps/Address';
 import { BankDetails } from '@/components/vbl/onboarding/steps/BankDetails';
 import { Signature } from '@/components/vbl/onboarding/steps/Signature';
 import { ReviewSubmit } from '@/components/vbl/onboarding/steps/ReviewSubmit';
+import { ConfirmStep } from '@/components/vbl/onboarding/steps/ConfirmStep';
 import { SuccessScreen } from '@/components/vbl/onboarding/steps/SuccessScreen';
 import { DRVUpsellModal } from '@/components/vbl/onboarding/DRVUpsellModal';
 import {
@@ -22,6 +30,8 @@ import {
   type OnboardingVariant,
 } from '@/components/vbl/onboarding/onboarding-variant';
 import { saveFlowIdentity } from '@/lib/flow-persistence';
+import { clearAllFlowPersistence } from '@/lib/flow-persistence';
+import { markStepComplete, stopClaim, submitClaim } from '@/lib/onboarding-api';
 
 interface OnboardingFlowProps {
   headerTitle?: string;
@@ -48,6 +58,7 @@ export function OnboardingFlow({
     editingFromReview,
     setEditingFromReview,
     updateSuccessData,
+    resetOnboarding,
   } = useOnboarding();
 
   const isCalculatorSource = source === 'calculator';
@@ -63,6 +74,20 @@ export function OnboardingFlow({
   // so this flow cannot accidentally treat a private/bAV claim as calculator
   // variant while redirect persistence is added independently below.
   void isCalculatorVariant(variant);
+
+  const submitDetailsSubsteps =
+    data.pensionType === 'private'
+      ? SUBMIT_DETAILS_SUBSTEPS
+      : variant === 'calculator'
+        ? getSubmitDetailsSubsteps(data.pensionType).map((subStep) =>
+            subStep.id === 'review'
+              ? { ...subStep, label: 'Review' }
+              : subStep
+          )
+        : SUBMIT_DETAILS_SUBSTEPS;
+  const isSignatureTerminal =
+    submitDetailsSubsteps[submitDetailsSubsteps.length - 1]?.id ===
+    'signature';
 
   useEffect(() => {
     if (!isCalculatorSource) return;
@@ -217,6 +242,7 @@ export function OnboardingFlow({
   // Success screen and DRV modal state
   const [showSuccess, setShowSuccess] = useState(false);
   const [showDRVModal, setShowDRVModal] = useState(false);
+  const [flowError, setFlowError] = useState<string | null>(null);
 
   // Example: determine DRV eligibility (in real app, this would come from backend)
   const drvEligibilityDate = '15 Mar 2027';
@@ -237,7 +263,7 @@ export function OnboardingFlow({
     setCurrentSubStep('identity');
   };
 
-  const handleSubStepNext = () => {
+  const advanceSubStep = () => {
     // Client #16: if the user is editing a field they jumped to from the
     // review screen, Continue should return them to review, not walk through
     // every remaining step again.
@@ -246,9 +272,11 @@ export function OnboardingFlow({
       setCurrentSubStep('review');
       return;
     }
-    const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === currentSubStep);
-    if (currentIndex < SUBMIT_DETAILS_SUBSTEPS.length - 1) {
-      setCurrentSubStep(SUBMIT_DETAILS_SUBSTEPS[currentIndex + 1].id);
+    const currentIndex = submitDetailsSubsteps.findIndex(
+      (s) => s.id === currentSubStep
+    );
+    if (currentIndex < submitDetailsSubsteps.length - 1) {
+      setCurrentSubStep(submitDetailsSubsteps[currentIndex + 1].id);
     }
   };
 
@@ -258,9 +286,11 @@ export function OnboardingFlow({
     } else if (currentStep === 2) {
       setCurrentStep(1);
     } else if (currentStep === 3) {
-      const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === currentSubStep);
+      const currentIndex = submitDetailsSubsteps.findIndex(
+        (s) => s.id === currentSubStep
+      );
       if (currentIndex > 0) {
-        setCurrentSubStep(SUBMIT_DETAILS_SUBSTEPS[currentIndex - 1].id);
+        setCurrentSubStep(submitDetailsSubsteps[currentIndex - 1].id);
       } else {
         setCurrentStep(2);
       }
@@ -274,6 +304,83 @@ export function OnboardingFlow({
       drvEligibilityDate: drvEligibilityDate,
     });
     setShowSuccess(true);
+  };
+
+  const handleReviewContinue = async () => {
+    if (data.claimId) {
+      try {
+        await markStepComplete(data.claimId, 'reviewInformation');
+      } catch (err) {
+        console.error('Failed to mark review complete:', err);
+      }
+    }
+    setCurrentSubStep('confirm');
+  };
+
+  const handleConfirmContinue = async () => {
+    setFlowError(null);
+    if (data.claimId) {
+      try {
+        await markStepComplete(data.claimId, 'finalConfirmation');
+      } catch (err) {
+        console.error('Failed to mark confirmation complete:', err);
+      }
+    }
+    setCurrentSubStep('signature');
+  };
+
+  const handleFinalizeFromSignature = async () => {
+    const canSubmit =
+      variant === 'calculator'
+        ? areConfirmStopAnswersClear(data.confirm)
+        : isConfirmComplete(data.confirm);
+    if (!canSubmit) {
+      setEditingFromReview(false);
+      setFlowError(
+        'Please confirm your answers before submitting your refund request.'
+      );
+      setCurrentSubStep('confirm');
+      return;
+    }
+    const claimId = data.claimId;
+    if (!claimId) {
+      setFlowError('No claim found. Please restart the onboarding process.');
+      return;
+    }
+    setFlowError(null);
+    try {
+      await markStepComplete(claimId, 'signDocuments');
+      const result = await submitClaim(claimId);
+      localStorage.removeItem('vbl_draft_claimId');
+      updateSuccessData({
+        submissionId: result.claim.id,
+        submittedAt:
+          (result.claim.submittedAt as string) || new Date().toISOString(),
+      });
+      setShowSuccess(true);
+    } catch (err) {
+      console.error('Final submission error:', err);
+      setFlowError('We could not submit your refund request. Please try again.');
+    }
+  };
+
+  const handleConfirmStop = async (reasons: string[]) => {
+    const claimId = data.claimId;
+    if (!claimId) return;
+    try {
+      await stopClaim(claimId, reasons);
+    } catch (err) {
+      console.error('Failed to stop claim:', err);
+      setFlowError(
+        'We could not record that your application was stopped. Your deposit will still be refunded — please contact support if you have any questions.'
+      );
+    }
+  };
+
+  const handleReturnToStart = () => {
+    clearAllFlowPersistence();
+    resetOnboarding();
+    router.push('/calculator');
   };
 
   // Handle edit section from review. Flags the flow as "editing from review"
@@ -352,7 +459,13 @@ export function OnboardingFlow({
   // If submission was successful, show success screen
   if (showSuccess) {
     return (
-      <OnboardingLayout showBack={false} headerTitle={headerTitle} headerIcon={headerIcon}>
+      <OnboardingLayout
+        showBack={false}
+        headerTitle={headerTitle}
+        headerIcon={headerIcon}
+        variant={variant}
+        subSteps={submitDetailsSubsteps}
+      >
         <SuccessScreen
           onGoToDashboard={handleGoToDashboard}
           onStartDRVClaim={handleStartDRVClaim}
@@ -402,20 +515,41 @@ export function OnboardingFlow({
   const renderSubStep = () => {
     switch (currentSubStep) {
       case 'identity':
-        return <Identity onNext={handleSubStepNext} variant={variant} />;
+        return <Identity onNext={advanceSubStep} variant={variant} />;
       case 'membership':
-        return <Membership onNext={handleSubStepNext} />;
+        return <Membership onNext={advanceSubStep} />;
       case 'address':
-        return <Address onNext={handleSubStepNext} />;
+        return <Address onNext={advanceSubStep} />;
       case 'bank-details':
-        return <BankDetails onNext={handleSubStepNext} />;
+        return <BankDetails onNext={advanceSubStep} />;
       case 'signature':
-        return <Signature onNext={handleSubStepNext} />;
+        return (
+          <Signature
+            onNext={
+              isSignatureTerminal ? handleFinalizeFromSignature : advanceSubStep
+            }
+          />
+        );
       case 'review':
         return (
           <ReviewSubmit
             onSubmitSuccess={handleSubmitSuccess}
             onEditSection={handleEditSection}
+            onContinue={isSignatureTerminal ? handleReviewContinue : undefined}
+          />
+        );
+      case 'confirm':
+        return (
+          <ConfirmStep
+            onContinue={handleConfirmContinue}
+            onBackToReview={() => setCurrentSubStep('review')}
+            onStop={handleConfirmStop}
+            onReturnToStart={handleReturnToStart}
+            isContinueEnabled={
+              variant === 'calculator'
+                ? areConfirmStopAnswersClear(data.confirm)
+                : undefined
+            }
           />
         );
       default:
@@ -429,7 +563,14 @@ export function OnboardingFlow({
       onBack={handleBack}
       headerTitle={headerTitle}
       headerIcon={headerIcon}
+      variant={variant}
+      subSteps={submitDetailsSubsteps}
     >
+      {flowError && (
+        <div className="mx-auto mb-6 max-w-lg rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {flowError}
+        </div>
+      )}
       {renderStepContent()}
     </OnboardingLayout>
   );

@@ -231,7 +231,10 @@ test.describe('Onboarding Eligibility resource copy', () => {
       .click();
     await completeCreateAccount(page);
     await completePayment(page);
-    await completeIdentityUpload(page);
+    await uploadIdentityDocument(page);
+    await page.getByLabel('Full Name').fill('Test User');
+    await page.getByLabel('Date of Birth').fill('1990-01-15');
+    await page.getByRole('button', { name: 'Continue' }).click();
     await completeMembership(page);
     await completeAddress(page);
     await completeBankDetails(page);
@@ -540,6 +543,83 @@ test.describe('Calculator payment', () => {
 });
 
 test.describe('Calculator identity fields', () => {
+  test('calculator progress keeps review confirm signature in order', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    const declarations = page.getByRole('checkbox');
+    await declarations.nth(0).check();
+    await declarations.nth(1).check();
+    await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
+    await completeIdentityUpload(page);
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+
+    const substeps = page.getByTestId('onboarding-substeps');
+    const assertCalculatorSubsteps = async () => {
+      await expect(substeps.getByRole('button')).toHaveText([
+        'Identity',
+        'Pension Details',
+        'Address',
+        'Bank Details',
+        'Review',
+        'Confirm',
+        'Signature',
+      ]);
+      for (const subStepId of [
+        'identity',
+        'membership',
+        'address',
+        'bank-details',
+        'review',
+        'confirm',
+        'signature',
+      ]) {
+        await expect(page.getByTestId(`substep-icon-${subStepId}`)).toBeVisible();
+      }
+    };
+
+    await expect(
+      page.getByRole('heading', { name: 'Review your refund request' })
+    ).toBeVisible({ timeout: 10_000 });
+    await assertCalculatorSubsteps();
+
+    await page
+      .getByRole('button', { name: /Continue to confirmation/i })
+      .click();
+    await expect(
+      page.getByRole('heading', { name: 'Confirm your refund information' })
+    ).toBeVisible();
+    await assertCalculatorSubsteps();
+
+    await completeConfirmStep(page);
+    await expect(
+      page.getByRole('heading', { name: 'Add your signature' })
+    ).toBeVisible();
+    await assertCalculatorSubsteps();
+  });
+
   test('calculator confirm uses full name and a single birth-date field', async ({
     page,
     baseURL,

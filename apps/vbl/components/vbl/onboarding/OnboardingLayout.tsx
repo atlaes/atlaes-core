@@ -10,6 +10,8 @@ import {
   SubmitDetailsSubStep,
   SUBMIT_DETAILS_SUBSTEPS,
 } from '@/contexts/OnboardingContext';
+import { OnboardingSubStepIcon } from './OnboardingSubStepIcon';
+import type { OnboardingVariant } from './onboarding-variant';
 
 interface OnboardingLayoutProps {
   children: ReactNode;
@@ -17,12 +19,22 @@ interface OnboardingLayoutProps {
   onBack?: () => void;
   headerTitle?: string;
   headerIcon?: ReactNode;
+  variant?: OnboardingVariant;
+  subSteps?: typeof SUBMIT_DETAILS_SUBSTEPS;
+  showSubSteps?: boolean;
 }
 
-const MAIN_STEPS = [
+const DEFAULT_MAIN_STEPS = [
   { id: 1, label: 'Create account' },
   { id: 2, label: 'Start claim' },
   { id: 3, label: 'Submit Details' },
+] as const;
+
+const CALCULATOR_MAIN_STEPS = [
+  { id: 1, label: 'Check' },
+  { id: 2, label: 'Secure Claim' },
+  { id: 3, label: 'Complete Details' },
+  { id: 4, label: 'Sign & Submit' },
 ] as const;
 
 // Icon components for sub-steps
@@ -135,6 +147,9 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
   onBack,
   headerTitle,
   headerIcon,
+  variant = 'default',
+  subSteps = SUBMIT_DETAILS_SUBSTEPS,
+  showSubSteps = true,
 }) => {
   const router = useRouter();
   const {
@@ -153,8 +168,20 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
     }
   };
 
-  const isStepCompleted = (stepId: number) => stepId < currentStep;
-  const isStepActive = (stepId: number) => stepId === currentStep;
+  const mainSteps =
+    variant === 'calculator' ? CALCULATOR_MAIN_STEPS : DEFAULT_MAIN_STEPS;
+  const calculatorActiveStep =
+    currentStep < 3
+      ? 2
+      : ['identity', 'membership', 'address', 'bank-details'].includes(
+            currentSubStep
+          )
+        ? 3
+        : 4;
+  const activeStep =
+    variant === 'calculator' ? calculatorActiveStep : currentStep;
+  const isStepCompleted = (stepId: number) => stepId < activeStep;
+  const isStepActive = (stepId: number) => stepId === activeStep;
 
   // Client #16: a sub-step is "completed" when its data is actually valid,
   // not just when its index is below the current one. This way, moving
@@ -195,7 +222,7 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
 
           {/* Step Progress Indicator */}
           <div className="flex items-center justify-center">
-            {MAIN_STEPS.map((step, index) => (
+            {mainSteps.map((step, index) => (
               <React.Fragment key={step.id}>
                 {/* Step Circle, Label, and Triangle */}
                 <div className="flex flex-col items-center">
@@ -243,7 +270,7 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
                 </div>
 
                 {/* Connector Line */}
-                {index < MAIN_STEPS.length - 1 && (
+                {index < mainSteps.length - 1 && (
                   <div
                     className={`w-20 h-0.5 mx-4 mb-3 ${
                       isStepCompleted(step.id + 1) || isStepActive(step.id + 1)
@@ -273,12 +300,13 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
           {/* Sub-step Tabs (only for Step 3).
               Client #16: completed steps are clickable so the user can jump
               back to any section without unchecking later steps. */}
-          {currentStep === 3 && (
+          {showSubSteps && currentStep === 3 && (
             <div
+              data-testid="onboarding-substeps"
               className="flex items-stretch mb-8 rounded-[5px] overflow-hidden"
               style={{ border: '0.84px solid #E5E7EB' }}
             >
-              {SUBMIT_DETAILS_SUBSTEPS.map((subStep, index) => {
+              {subSteps.map((subStep, index) => {
                 const isActive = isSubStepActive(subStep.id);
                 const isCompleted = isSubStepCompleted(subStep.id);
                 const isClickable = isCompleted && !isActive;
@@ -294,11 +322,20 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
                         isActive ? 'bg-gray-50' : ''
                       } ${isClickable ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'}`}
                     >
-                      <SubStepIcon
-                        icon={subStep.icon}
-                        isActive={isActive}
-                        isCompleted={isCompleted}
-                      />
+                      {variant === 'calculator' ? (
+                        <OnboardingSubStepIcon
+                          subStepId={subStep.id}
+                          icon={subStep.icon}
+                          isActive={isActive}
+                          isCompleted={isCompleted}
+                        />
+                      ) : (
+                        <SubStepIcon
+                          icon={subStep.icon}
+                          isActive={isActive}
+                          isCompleted={isCompleted}
+                        />
+                      )}
                       <span
                         className={`text-sm font-medium whitespace-nowrap ${
                           isActive

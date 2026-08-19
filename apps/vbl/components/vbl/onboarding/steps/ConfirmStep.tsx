@@ -26,6 +26,10 @@ interface ConfirmStepProps {
   onStop: (reasons: string[]) => void;
   // Reset the whole flow back to the start (from the stop screen CTA).
   onReturnToStart: () => void;
+  // Calculator claims use their four stop answers as the submission gate.
+  // The default public/stage flow still supplies no override and therefore
+  // requires every declaration and authorization below.
+  isContinueEnabled?: boolean;
 }
 
 type StopAnswerKey =
@@ -142,6 +146,7 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
   onBackToReview,
   onStop,
   onReturnToStart,
+  isContinueEnabled,
 }) => {
   const { data, updateConfirm } = useOnboarding();
   const confirm = data.confirm;
@@ -218,7 +223,7 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
     updateConfirm({ [key]: !confirm[key] } as Partial<OnboardingConfirm>);
   };
 
-  const canContinue = isConfirmComplete(confirm);
+  const canContinue = isContinueEnabled ?? isConfirmComplete(confirm);
 
   // ------------------------------------------------------------------
   // Full-screen stop state — matches the flow's rejection screens

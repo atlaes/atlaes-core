@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   useOnboarding,
+  areConfirmStopAnswersClear,
   getSubmitDetailsSubsteps,
   isConfirmComplete,
   SubmitDetailsSubStep,
@@ -76,7 +77,12 @@ export function GetStartedOnboardingFlow() {
 
   // Task 15: Health Insurance only appears for bAV/private pension type
   // claimants — see getSubmitDetailsSubsteps in OnboardingContext.tsx.
-  const submitDetailsSubsteps = getSubmitDetailsSubsteps(data.pensionType);
+  const submitDetailsSubsteps = getSubmitDetailsSubsteps(data.pensionType).map(
+    (subStep) =>
+      variant === 'calculator' && subStep.id === 'review'
+        ? { ...subStep, label: 'Review' }
+        : subStep
+  );
 
   // Auto-advance past CreateAccount when user is already authenticated
   // (e.g. arriving via magic link redirect back to /get-started)
@@ -566,10 +572,14 @@ export function GetStartedOnboardingFlow() {
     // Any path that lands on the terminal Signature step without completing
     // Confirm (resume, stale persisted position, future navigation changes)
     // is routed to the Confirm step instead of submitting.
-    if (!isConfirmComplete(data.confirm)) {
+    const canSubmit =
+      variant === 'calculator'
+        ? areConfirmStopAnswersClear(data.confirm)
+        : isConfirmComplete(data.confirm);
+    if (!canSubmit) {
       setEditingFromReview(false);
       setFlowError(
-        'Please confirm your declarations before submitting your refund request.'
+        'Please confirm your answers before submitting your refund request.'
       );
       setCurrentSubStep('confirm');
       return;
@@ -619,6 +629,7 @@ export function GetStartedOnboardingFlow() {
     clearAllFlowPersistence();
     resetOnboarding();
     resetEligibility();
+    router.push('/calculator');
   };
 
   const handleRemindDRV = () => {
@@ -735,6 +746,11 @@ export function GetStartedOnboardingFlow() {
             onBackToReview={() => setCurrentSubStep('review')}
             onStop={handleConfirmStop}
             onReturnToStart={handleReturnToStart}
+            isContinueEnabled={
+              variant === 'calculator'
+                ? areConfirmStopAnswersClear(data.confirm)
+                : undefined
+            }
           />
         );
       default:
@@ -753,6 +769,7 @@ export function GetStartedOnboardingFlow() {
       currentSubStep={currentStep === 3 ? currentSubStep : undefined}
       onSubStepClick={handleSubStepTabClick}
       subSteps={submitDetailsSubsteps}
+      variant={variant}
     >
       {flowError && (
         <div className="mx-auto mb-6 max-w-lg rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">

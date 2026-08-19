@@ -8,6 +8,8 @@ import {
   SubmitDetailsSubStep,
   SUBMIT_DETAILS_SUBSTEPS,
 } from '@/contexts/OnboardingContext';
+import { OnboardingSubStepIcon } from '@/components/vbl/onboarding/OnboardingSubStepIcon';
+import type { OnboardingVariant } from '@/components/vbl/onboarding/onboarding-variant';
 
 interface GetStartedLayoutProps {
   children: ReactNode;
@@ -24,6 +26,8 @@ interface GetStartedLayoutProps {
   // Health Insurance for bAV/private claimants. Defaults to the unfiltered
   // base list for other callers (e.g. none currently — kept for safety).
   subSteps?: typeof SUBMIT_DETAILS_SUBSTEPS;
+  variant?: OnboardingVariant;
+  showSubSteps?: boolean;
 }
 
 const MAIN_STEPS = [
@@ -174,6 +178,8 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
   currentSubStep,
   onSubStepClick,
   subSteps = SUBMIT_DETAILS_SUBSTEPS,
+  variant = 'default',
+  showSubSteps = true,
 }) => {
   const isStepCompleted = (stepId: number) => stepId < activeStep;
   const isStepActive = (stepId: number) => stepId === activeStep;
@@ -288,8 +294,9 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
           )}
 
           {/* Sub-step Tabs for Complete Details / Sign and Submit */}
-          {activeStep >= 3 && currentSubStep && (
+          {showSubSteps && activeStep >= 3 && currentSubStep && (
             <div
+              data-testid="onboarding-substeps"
               className="flex items-stretch mb-8 rounded-[5px] overflow-hidden"
               style={{ border: '0.84px solid #E5E7EB' }}
             >
@@ -307,11 +314,20 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
                         isActive ? 'bg-gray-50' : ''
                       }`}
                     >
-                      <SubStepIcon
-                        icon={subStep.icon}
-                        isActive={isActive}
-                        isCompleted={isCompleted}
-                      />
+                      {variant === 'calculator' ? (
+                        <OnboardingSubStepIcon
+                          subStepId={subStep.id}
+                          icon={subStep.icon}
+                          isActive={isActive}
+                          isCompleted={isCompleted}
+                        />
+                      ) : (
+                        <SubStepIcon
+                          icon={subStep.icon}
+                          isActive={isActive}
+                          isCompleted={isCompleted}
+                        />
+                      )}
                       <span
                         className={`text-sm font-medium whitespace-nowrap hidden sm:inline ${
                           isActive
