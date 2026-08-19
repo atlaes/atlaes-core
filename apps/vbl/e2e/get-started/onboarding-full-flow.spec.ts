@@ -1261,6 +1261,127 @@ test.describe('Calculator identity fields', () => {
       })
     ).toBe(true);
 
+    await canvas.evaluate((node) => {
+      node.setAttribute('data-task7-signature-canvas', 'true');
+    });
+    await page.evaluate(() => {
+      const taskWindow = window as Window & {
+        __task7ImageSrcDescriptor?: PropertyDescriptor;
+        __task7PendingImages?: Array<{
+          image: HTMLImageElement;
+          value: string;
+        }>;
+        __task7OriginalDrawImage?: typeof CanvasRenderingContext2D.prototype.drawImage;
+        __task7DrawImageCalls?: Array<{
+          width: number | null;
+          canvasWidth: number;
+        }>;
+      };
+      const descriptor = Object.getOwnPropertyDescriptor(
+        HTMLImageElement.prototype,
+        'src'
+      );
+      if (!descriptor?.get || !descriptor.set) {
+        throw new Error('Could not delay competing canvas restorations.');
+      }
+      taskWindow.__task7ImageSrcDescriptor = descriptor;
+      taskWindow.__task7PendingImages = [];
+      taskWindow.__task7OriginalDrawImage =
+        CanvasRenderingContext2D.prototype.drawImage;
+      taskWindow.__task7DrawImageCalls = [];
+      CanvasRenderingContext2D.prototype.drawImage = function (...args: any[]) {
+        if (
+          this.canvas.matches('[data-task7-signature-canvas="true"]') &&
+          args.length >= 5
+        ) {
+          taskWindow.__task7DrawImageCalls?.push({
+            width: Number(args[3]),
+            canvasWidth: this.canvas.clientWidth,
+          });
+        }
+        return Reflect.apply(taskWindow.__task7OriginalDrawImage!, this, args);
+      };
+      Object.defineProperty(HTMLImageElement.prototype, 'src', {
+        configurable: true,
+        enumerable: descriptor.enumerable,
+        get: descriptor.get,
+        set(value: string) {
+          taskWindow.__task7PendingImages?.push({ image: this, value });
+        },
+      });
+    });
+    await page.setViewportSize({ width: 620, height: 844 });
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (
+              window as Window & {
+                __task7PendingImages?: unknown[];
+              }
+            ).__task7PendingImages?.length ?? 0
+        )
+      )
+      .toBeGreaterThanOrEqual(1);
+    await page.setViewportSize({ width: 500, height: 844 });
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (
+              window as Window & {
+                __task7PendingImages?: unknown[];
+              }
+            ).__task7PendingImages?.length ?? 0
+        )
+      )
+      .toBeGreaterThanOrEqual(2);
+    await page.evaluate(() => {
+      const taskWindow = window as Window & {
+        __task7ImageSrcDescriptor?: PropertyDescriptor;
+        __task7PendingImages?: Array<{
+          image: HTMLImageElement;
+          value: string;
+        }>;
+      };
+      const descriptor = taskWindow.__task7ImageSrcDescriptor;
+      if (descriptor?.set) {
+        for (const pending of [
+          ...(taskWindow.__task7PendingImages ?? []),
+        ].reverse()) {
+          descriptor.set.call(pending.image, pending.value);
+        }
+        Object.defineProperty(HTMLImageElement.prototype, 'src', descriptor);
+      }
+    });
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const taskWindow = window as Window & {
+            __task7DrawImageCalls?: Array<{
+              width: number | null;
+              canvasWidth: number;
+            }>;
+          };
+          const calls = taskWindow.__task7DrawImageCalls ?? [];
+          const latestCall = calls.at(-1);
+          return (
+            calls.length > 0 && latestCall?.width === latestCall?.canvasWidth
+          );
+        })
+      )
+      .toBe(true);
+    await page.evaluate(() => {
+      const taskWindow = window as Window & {
+        __task7OriginalDrawImage?: typeof CanvasRenderingContext2D.prototype.drawImage;
+      };
+      if (taskWindow.__task7OriginalDrawImage) {
+        CanvasRenderingContext2D.prototype.drawImage =
+          taskWindow.__task7OriginalDrawImage;
+      }
+    });
+    await expect(continueButton).toBeEnabled();
+
     await page.setViewportSize({ width: 390, height: 844 });
     const resizedCanvasBox = await canvas.boundingBox();
     expect(resizedCanvasBox).not.toBeNull();

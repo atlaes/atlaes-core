@@ -154,7 +154,9 @@ export const Signature: React.FC<SignatureProps> = ({
 
       if (!previousData) return;
       const img = new Image();
-      const generation = canvasMutationGenerationRef.current;
+      // Every restoration gets a new token. A later resize, Undo, or Redo
+      // invalidates this image before its async onload can redraw stale pixels.
+      const generation = invalidateCanvasMutations();
       const expectedMode = modeRef.current;
       img.onload = () => {
         if (
@@ -183,6 +185,7 @@ export const Signature: React.FC<SignatureProps> = ({
     data.signature.signatureData,
     data.signature.signatureType,
     canApplyCanvasMutation,
+    invalidateCanvasMutations,
   ]);
 
   const saveToHistory = useCallback(() => {
