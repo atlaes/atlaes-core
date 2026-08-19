@@ -390,7 +390,7 @@ export function OnboardingFlow({
           />
         );
       case 2:
-        return <Payment onNext={handleStep2Next} />;
+        return <Payment onNext={handleStep2Next} variant={variant} />;
       case 3:
         return renderSubStep();
       default:
@@ -424,7 +424,12 @@ export function OnboardingFlow({
   };
 
   return (
-    <OnboardingLayout showBack={true} onBack={handleBack} headerTitle={headerTitle} headerIcon={headerIcon}>
+    <OnboardingLayout
+      showBack={currentStep !== 2}
+      onBack={handleBack}
+      headerTitle={headerTitle}
+      headerIcon={headerIcon}
+    >
       {renderStepContent()}
     </OnboardingLayout>
   );

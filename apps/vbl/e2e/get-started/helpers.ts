@@ -29,7 +29,7 @@ async function clearFlowPersistence(page: Page): Promise<boolean> {
 }
 
 export async function seedCalculatorOrigin(page: Page) {
-  await page.evaluate(() => {
+  await page.addInitScript(() => {
     window.localStorage.setItem(
       'vbl_flow_identity_v1',
       JSON.stringify({

@@ -667,7 +667,7 @@ export function GetStartedOnboardingFlow() {
       case 1:
         return <CreateAccount onNext={handleStep1Next} />;
       case 2:
-        return <Payment onNext={handleStep2Next} />;
+        return <Payment onNext={handleStep2Next} variant={variant} />;
       case 3:
         return renderSubStep();
       default:

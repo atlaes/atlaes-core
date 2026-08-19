@@ -19,6 +19,7 @@ import {
   completeSignature,
   completeReview,
   completeConfirmStep,
+  seedCalculatorOrigin,
   TEST_EMAIL,
 } from './helpers';
 
@@ -403,6 +404,117 @@ test.describe('Onboarding Eligibility resource copy', () => {
   });
 });
 
+test.describe('Payment copy', () => {
+  test('Payment screen explains deposit, service fee, and guarantee copy', async ({
+    page,
+  }) => {
+    await mockOnboardingApi(page);
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
+      .click();
+
+    await completeCreateAccount(page);
+    await expect(
+      page.getByRole('heading', { name: /Start your refund claim/i })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByText(
+        'Pay the €199 deposit to start your company pension refund claim.'
+      )
+    ).toBeVisible();
+    await expect(
+      page.getByText('deposit — credited toward your service fee')
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        /Money-back guarantee:.*pension provider rejects your claim/i
+      )
+    ).toBeVisible();
+    await expect(page.locator('input[type="checkbox"]')).toHaveCount(0);
+  });
+});
+
+test.describe('Calculator payment', () => {
+  test('calculator payment requires declarations before checkout', async ({
+    page,
+    baseURL,
+  }) => {
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+
+    let checkoutCalls = 0;
+    await page.route('**/api/payments/create-checkout-session', (route) => {
+      checkoutCalls += 1;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      });
+    });
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+
+    const paymentButton = page.getByRole('button', {
+      name: 'Pay €199 deposit',
+    });
+    await expect(paymentButton).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Back', exact: true })).toHaveCount(
+      0
+    );
+    await expect(
+      page.getByText('Deposit — credited toward your service fee', {
+        exact: true,
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'The €199 deposit is refunded if the pension institution rejects your submitted refund application.',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(page.getByTestId('stripe-security-icon')).toBeVisible();
+    await expect(page.getByTestId('payment-button-icon')).toBeVisible();
+
+    const declarations = page.getByRole('checkbox');
+    await expect(declarations).toHaveCount(2);
+    await expect(declarations.nth(0)).toHaveAccessibleName(
+      /I have read and agree to the CompanyPension Terms and Conditions\./
+    );
+    await expect(declarations.nth(1)).toHaveAccessibleName(
+      'I expressly request that CompanyPension begin providing the service before the end of the 14-day withdrawal period. I understand that, if I withdraw after work has begun, I may have to pay for services already provided.'
+    );
+    await expect(
+      page.locator('a[href="/terms"]', { hasText: 'Terms and Conditions' })
+    ).toBeVisible();
+    await expect(
+      page.locator('a[href="/privacy"]', { hasText: 'Privacy Policy' })
+    ).toBeVisible();
+
+    await declarations.nth(0).check();
+    await expect(paymentButton).toBeDisabled();
+    expect(checkoutCalls).toBe(0);
+
+    await declarations.nth(1).check();
+    await expect(paymentButton).toBeEnabled();
+    await paymentButton.click();
+    await page.waitForURL(
+      `${baseURL}/get-started?payment=success&session_id=cs_mock`
+    );
+    expect(checkoutCalls).toBe(1);
+  });
+});
+
 test.describe('Onboarding Full Flow', () => {
   test.beforeEach(async () => {
     test.skip(
@@ -581,36 +693,6 @@ test.describe('Onboarding Full Flow', () => {
     await expect(
       page.getByText("No password needed — we'll send you a secure log in link")
     ).toBeVisible();
-  });
-
-  test('Payment screen explains deposit, service fee, and guarantee copy', async ({
-    page,
-  }) => {
-    await navigatePublicSectorToEligible(page);
-    await page
-      .getByRole('button', {
-        name: /Continue securely|Create your secure claim/i,
-      })
-      .click();
-
-    await completeCreateAccount(page);
-    await expect(
-      page.getByRole('heading', { name: /Start your refund claim/i })
-    ).toBeVisible({ timeout: 10_000 });
-    await expect(
-      page.getByText(
-        'Pay the €199 deposit to start your company pension refund claim.'
-      )
-    ).toBeVisible();
-    await expect(
-      page.getByText('deposit — credited toward your service fee')
-    ).toBeVisible();
-    await expect(
-      page.getByText(
-        /Money-back guarantee:.*pension provider rejects your claim/i
-      )
-    ).toBeVisible();
-    await expect(page.locator('input[type="checkbox"]')).toHaveCount(0);
   });
 
   test('Submit details tabs match Eligibility resource labels', async ({
