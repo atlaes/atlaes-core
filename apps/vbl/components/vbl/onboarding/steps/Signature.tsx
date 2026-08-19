@@ -45,6 +45,24 @@ export const Signature: React.FC<SignatureProps> = ({
       ? data.signature.signatureData
       : undefined
   );
+  const fileReaderRef = useRef<FileReader | null>(null);
+  const fileReadGenerationRef = useRef(0);
+
+  const invalidateFileReader = useCallback(() => {
+    fileReadGenerationRef.current += 1;
+    const reader = fileReaderRef.current;
+    fileReaderRef.current = null;
+    if (reader?.readyState === FileReader.LOADING) {
+      reader.abort();
+    }
+  }, []);
+
+  useEffect(
+    () => () => {
+      invalidateFileReader();
+    },
+    [invalidateFileReader]
+  );
 
   // Draw mode mounts its canvas conditionally, so initialization must follow
   // the mode as well as saved data. Resize only the backing store: Tailwind's
@@ -134,32 +152,37 @@ export const Signature: React.FC<SignatureProps> = ({
     setHistoryIndex(newHistory.length - 1);
   }, [history, historyIndex]);
 
-  const startDrawing = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    const context = contextRef.current;
-    if (!context) return;
+  const startDrawing = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      if (isUploading) return;
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+      const context = contextRef.current;
+      if (!context) return;
 
-    const rect = canvas.getBoundingClientRect();
-    let clientX: number, clientY: number;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    if ('touches' in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
+      const rect = canvas.getBoundingClientRect();
+      let clientX: number, clientY: number;
 
-    context.beginPath();
-    context.moveTo(clientX - rect.left, clientY - rect.top);
-    setIsDrawing(true);
-  }, []);
+      if ('touches' in e) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+
+      context.beginPath();
+      context.moveTo(clientX - rect.left, clientY - rect.top);
+      setIsDrawing(true);
+    },
+    [isUploading]
+  );
 
   const draw = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
-      if (!isDrawing) return;
+      if (isUploading || !isDrawing) return;
 
       const context = contextRef.current;
       if (!context) return;
@@ -182,11 +205,11 @@ export const Signature: React.FC<SignatureProps> = ({
       context.lineTo(clientX - rect.left, clientY - rect.top);
       context.stroke();
     },
-    [isDrawing]
+    [isDrawing, isUploading]
   );
 
   const stopDrawing = useCallback(() => {
-    if (isDrawing) {
+    if (!isUploading && isDrawing) {
       const context = contextRef.current;
       if (context) {
         context.closePath();
@@ -208,7 +231,7 @@ export const Signature: React.FC<SignatureProps> = ({
         updateData({ signatureId: undefined });
       }
     }
-  }, [isDrawing, saveToHistory, updateSignature, updateData]);
+  }, [isDrawing, isUploading, saveToHistory, updateSignature, updateData]);
 
   // Client #15: every mutation to the drawn signature must invalidate the
   // cached server-side signatureId. Otherwise, if the user uploaded once,
@@ -227,6 +250,8 @@ export const Signature: React.FC<SignatureProps> = ({
   // regardless of whether signatureId was stale or fresh. See lib/api.ts for
   // the fix.
   const handleUndo = useCallback(() => {
+    if (isUploading) return;
+
     if (historyIndex <= 0) {
       // Clear canvas
       const canvas = canvasRef.current;
@@ -256,9 +281,11 @@ export const Signature: React.FC<SignatureProps> = ({
     };
     img.src = history[historyIndex - 1];
     setHistoryIndex(historyIndex - 1);
-  }, [history, historyIndex, updateSignature, updateData]);
+  }, [history, historyIndex, isUploading, updateSignature, updateData]);
 
   const handleRedo = useCallback(() => {
+    if (isUploading) return;
+
     if (historyIndex >= history.length - 1) return;
 
     const canvas = canvasRef.current;
@@ -276,9 +303,11 @@ export const Signature: React.FC<SignatureProps> = ({
     };
     img.src = history[historyIndex + 1];
     setHistoryIndex(historyIndex + 1);
-  }, [history, historyIndex, updateSignature, updateData]);
+  }, [history, historyIndex, isUploading, updateSignature, updateData]);
 
   const handleClear = useCallback(() => {
+    if (isUploading) return;
+
     const canvas = canvasRef.current;
     const context = contextRef.current;
     if (!canvas || !context) return;
@@ -289,12 +318,16 @@ export const Signature: React.FC<SignatureProps> = ({
     latestCanvasDataRef.current = undefined;
     updateSignature({ signatureData: undefined, signatureType: 'draw' });
     updateData({ signatureId: undefined });
-  }, [updateSignature, updateData]);
+  }, [isUploading, updateSignature, updateData]);
 
   const handleFileUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (isUploading) return;
+
       const file = e.target.files?.[0];
       if (!file) return;
+
+      invalidateFileReader();
 
       if (!file.type.startsWith('image/')) {
         alert('Please upload an image file');
@@ -302,8 +335,13 @@ export const Signature: React.FC<SignatureProps> = ({
       }
 
       const reader = new FileReader();
+      const generation = fileReadGenerationRef.current;
+      fileReaderRef.current = reader;
       reader.onload = (event) => {
+        if (generation !== fileReadGenerationRef.current) return;
         const dataUrl = event.target?.result as string;
+        if (!dataUrl) return;
+        fileReaderRef.current = null;
         updateSignature({
           signatureFile: file,
           signatureData: dataUrl,
@@ -313,13 +351,19 @@ export const Signature: React.FC<SignatureProps> = ({
         // Client #15: new upload invalidates any previously issued signatureId.
         updateData({ signatureId: undefined });
       };
+      reader.onerror = () => {
+        if (generation !== fileReadGenerationRef.current) return;
+        fileReaderRef.current = null;
+        setUploadError('Failed to read signature image. Please try again.');
+      };
       reader.readAsDataURL(file);
     },
-    [updateSignature, updateData]
+    [invalidateFileReader, isUploading, updateSignature, updateData]
   );
 
   const handleModeChange = useCallback(
     (nextMode: SignatureMode) => {
+      if (isUploading) return;
       if (nextMode === mode) return;
 
       // A signature belongs to its active input method. Clearing it here
@@ -330,6 +374,7 @@ export const Signature: React.FC<SignatureProps> = ({
       setHistoryIndex(-1);
       latestCanvasDataRef.current = undefined;
       contextRef.current = null;
+      invalidateFileReader();
       updateSignature({
         signatureFile: null,
         signatureData: undefined,
@@ -339,10 +384,35 @@ export const Signature: React.FC<SignatureProps> = ({
       updateData({ signatureId: undefined });
       setMode(nextMode);
     },
-    [mode, updateData, updateSignature]
+    [invalidateFileReader, isUploading, mode, updateData, updateSignature]
+  );
+
+  const handleRemoveUploadedSignature = useCallback(() => {
+    if (isUploading) return;
+
+    invalidateFileReader();
+    updateSignature({
+      signatureFile: null,
+      signatureData: undefined,
+      signaturePreview: undefined,
+      signatureType: '',
+    });
+    // Client #15: deleting the uploaded signature also clears the stale
+    // server-side ID so it can't be reused.
+    updateData({ signatureId: undefined });
+  }, [invalidateFileReader, isUploading, updateData, updateSignature]);
+
+  const handleLegalConfirmation = useCallback(
+    (legalConfirmed: boolean) => {
+      if (isUploading) return;
+      updateSignature({ legalConfirmed });
+    },
+    [isUploading, updateSignature]
   );
 
   const handleContinue = useCallback(async () => {
+    if (isUploading) return;
+
     const sigData =
       mode === 'draw'
         ? data.signature.signatureType === 'draw'
@@ -395,6 +465,7 @@ export const Signature: React.FC<SignatureProps> = ({
     data.signature.signatureData,
     data.signature.signatureType,
     mode,
+    isUploading,
     updateData,
     onNext,
   ]);
@@ -426,6 +497,8 @@ export const Signature: React.FC<SignatureProps> = ({
       {/* Mode Toggle */}
       <div className="flex gap-2 mb-6">
         <button
+          type="button"
+          disabled={isUploading}
           onClick={() => handleModeChange('draw')}
           className={`${
             variant === 'calculator'
@@ -435,12 +508,14 @@ export const Signature: React.FC<SignatureProps> = ({
             mode === 'draw'
               ? 'bg-[#9FE870] text-[#163300]'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
+          } ${isUploading ? 'cursor-not-allowed opacity-50' : ''}`}
         >
           <Pencil className="w-4 h-4" />
           Draw signature
         </button>
         <button
+          type="button"
+          disabled={isUploading}
           onClick={() => handleModeChange('upload')}
           className={`${
             variant === 'calculator'
@@ -450,7 +525,7 @@ export const Signature: React.FC<SignatureProps> = ({
             mode === 'upload'
               ? 'bg-[#9FE870] text-[#163300]'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
+          } ${isUploading ? 'cursor-not-allowed opacity-50' : ''}`}
         >
           <Upload className="w-4 h-4" />
           Upload signature image
@@ -473,9 +548,10 @@ export const Signature: React.FC<SignatureProps> = ({
               onTouchStart={startDrawing}
               onTouchMove={draw}
               onTouchEnd={stopDrawing}
+              aria-disabled={isUploading}
               className={`w-full cursor-crosshair${
                 variant === 'calculator' ? ' h-[300px]' : ''
-              }`}
+              }${isUploading ? ' pointer-events-none opacity-50' : ''}`}
               style={variant === 'calculator' ? undefined : { height: '200px' }}
             />
             {!data.signature.signatureData && (
@@ -489,7 +565,7 @@ export const Signature: React.FC<SignatureProps> = ({
           <div className="flex justify-center gap-3 mt-4">
             <button
               onClick={handleUndo}
-              disabled={historyIndex < 0}
+              disabled={isUploading || historyIndex < 0}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Undo2 className="w-4 h-4" />
@@ -497,7 +573,7 @@ export const Signature: React.FC<SignatureProps> = ({
             </button>
             <button
               onClick={handleRedo}
-              disabled={historyIndex >= history.length - 1}
+              disabled={isUploading || historyIndex >= history.length - 1}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Redo2 className="w-4 h-4" />
@@ -505,7 +581,8 @@ export const Signature: React.FC<SignatureProps> = ({
             </button>
             <button
               onClick={handleClear}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              disabled={isUploading}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Trash2 className="w-4 h-4" />
               Clear
@@ -528,18 +605,9 @@ export const Signature: React.FC<SignatureProps> = ({
               <button
                 type="button"
                 aria-label="Remove uploaded signature"
-                onClick={() => {
-                  updateSignature({
-                    signatureFile: null,
-                    signatureData: undefined,
-                    signaturePreview: undefined,
-                    signatureType: '',
-                  });
-                  // Client #15: deleting the uploaded signature also clears
-                  // the stale server-side ID so it can't be reused.
-                  updateData({ signatureId: undefined });
-                }}
-                className="absolute -top-2 -right-2 p-1 bg-red-100 rounded-full hover:bg-red-200 transition-colors"
+                disabled={isUploading}
+                onClick={handleRemoveUploadedSignature}
+                className="absolute -top-2 -right-2 p-1 bg-red-100 rounded-full hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Trash2 aria-hidden="true" className="w-4 h-4 text-red-600" />
               </button>
@@ -548,11 +616,17 @@ export const Signature: React.FC<SignatureProps> = ({
             <>
               <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600 mb-2">Upload signature image</p>
-              <label className="inline-block px-4 py-2 bg-[#9FE870] text-[#163300] font-medium rounded-lg cursor-pointer hover:bg-[#8AD860] transition-colors">
+              <label
+                aria-disabled={isUploading}
+                className={`inline-block px-4 py-2 bg-[#9FE870] text-[#163300] font-medium rounded-lg cursor-pointer hover:bg-[#8AD860] transition-colors ${
+                  isUploading ? 'cursor-not-allowed opacity-50' : ''
+                }`}
+              >
                 Choose file
                 <input
                   type="file"
                   accept="image/*"
+                  disabled={isUploading}
                   onChange={handleFileUpload}
                   className="hidden"
                 />
@@ -569,13 +643,16 @@ export const Signature: React.FC<SignatureProps> = ({
         </div>
       )}
 
-      <label className="mt-6 flex cursor-pointer items-start gap-3">
+      <label
+        className={`mt-6 flex items-start gap-3 ${
+          isUploading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+        }`}
+      >
         <input
           type="checkbox"
           checked={data.signature.legalConfirmed}
-          onChange={(e) =>
-            updateSignature({ legalConfirmed: e.target.checked })
-          }
+          disabled={isUploading}
+          onChange={(e) => handleLegalConfirmation(e.target.checked)}
           className="mt-1 h-4 w-4 rounded border-gray-300 text-[#9FE870] focus:ring-[#9FE870]"
         />
         <span className="text-sm text-gray-700">

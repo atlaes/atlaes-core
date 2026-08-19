@@ -1081,9 +1081,18 @@ test.describe('Calculator identity fields', () => {
       })
     );
     let submitCount = 0;
+    let releaseSubmit: (() => void) | undefined;
+    const submitStarted = new Promise<void>((resolve) => {
+      releaseSubmit = resolve;
+    });
+    let allowSubmit: (() => void) | undefined;
+    const delayedSubmit = new Promise<void>((resolve) => {
+      allowSubmit = resolve;
+    });
     await page.route('**/api/claims/claim_mock/submit', async (route) => {
       submitCount += 1;
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      releaseSubmit?.();
+      await delayedSubmit;
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -1160,14 +1169,48 @@ test.describe('Calculator identity fields', () => {
     await expect(page.locator('canvas')).toHaveCount(0);
     await expect(continueButton).toBeDisabled();
     const signatureFile = page.locator('input[type="file"]');
-    await signatureFile.setInputFiles({
-      name: 'signature.png',
-      mimeType: 'image/png',
-      buffer: Buffer.from(
-        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL8NwAAAABJRU5ErkJggg==',
-        'base64'
-      ),
+    await page.evaluate(() => {
+      const taskWindow = window as Window & {
+        __task7OriginalReadAsDataUrl?: typeof FileReader.prototype.readAsDataURL;
+      };
+      const originalReadAsDataUrl = FileReader.prototype.readAsDataURL;
+      taskWindow.__task7OriginalReadAsDataUrl = originalReadAsDataUrl;
+      FileReader.prototype.readAsDataURL = function (blob: Blob) {
+        window.setTimeout(() => {
+          originalReadAsDataUrl.call(this, blob);
+        }, 150);
+      };
     });
+    await signatureFile.setInputFiles({
+      name: 'stale-signature.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('stale', 'utf8'),
+    });
+    await page.evaluate(() => {
+      const taskWindow = window as Window & {
+        __task7OriginalReadAsDataUrl?: typeof FileReader.prototype.readAsDataURL;
+      };
+      if (taskWindow.__task7OriginalReadAsDataUrl) {
+        FileReader.prototype.readAsDataURL =
+          taskWindow.__task7OriginalReadAsDataUrl;
+        delete taskWindow.__task7OriginalReadAsDataUrl;
+      }
+    });
+    await signatureFile.setInputFiles({
+      name: 'fresh-signature.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('fresh', 'utf8'),
+    });
+    const uploadedSignature = page.getByAltText('Uploaded signature');
+    await expect(uploadedSignature).toHaveAttribute(
+      'src',
+      'data:image/png;base64,ZnJlc2g='
+    );
+    await page.waitForTimeout(250);
+    await expect(uploadedSignature).toHaveAttribute(
+      'src',
+      'data:image/png;base64,ZnJlc2g='
+    );
     await expect(continueButton).toBeEnabled();
     const removeUploadedSignature = page.getByRole('button', {
       name: 'Remove uploaded signature',
@@ -1227,7 +1270,41 @@ test.describe('Calculator identity fields', () => {
     await continueButton.click();
     const pendingButton = page.getByRole('button', { name: /Uploading/i });
     await expect(pendingButton).toBeDisabled();
+    await submitStarted;
+    await expect(
+      page.getByRole('button', { name: 'Draw signature' })
+    ).toBeDisabled();
+    await expect(
+      page.getByRole('button', { name: 'Upload signature image' })
+    ).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Redo' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Clear' })).toBeDisabled();
+    await expect(legalConfirmation).toBeDisabled();
+    await expect(canvas).toHaveClass(/pointer-events-none/);
+    await expect(canvas).toBeVisible();
+    await expect(page.locator('input[type="file"]')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Clear' }).click({ force: true });
+    await legalConfirmation.click({ force: true });
+    await expect(legalConfirmation).toBeChecked();
+    expect(
+      await canvas.evaluate((node) => {
+        const signatureCanvas = node as HTMLCanvasElement;
+        const context = signatureCanvas.getContext('2d');
+        if (!context) return false;
+        return context
+          .getImageData(0, 0, signatureCanvas.width, signatureCanvas.height)
+          .data.some((value, index) => index % 4 !== 3 && value !== 0);
+      })
+    ).toBe(true);
+    await page
+      .getByRole('button', { name: 'Upload signature image' })
+      .click({ force: true });
+    await expect(canvas).toBeVisible();
+    expect(submitCount).toBe(1);
     await pendingButton.click({ force: true });
+    if (!allowSubmit) throw new Error('The terminal submission did not begin.');
+    allowSubmit();
     await expect(
       page.getByRole('heading', {
         name: 'Your refund request has been submitted',
