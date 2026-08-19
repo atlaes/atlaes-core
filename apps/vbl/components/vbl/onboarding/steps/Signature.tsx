@@ -50,6 +50,8 @@ export const Signature: React.FC<SignatureProps> = ({
   const isMountedRef = useRef(true);
   const isMutationLockedRef = useRef(false);
   const canvasMutationGenerationRef = useRef(0);
+  const pendingResizeRef = useRef(false);
+  const resizeCanvasRef = useRef<(() => void) | null>(null);
   const modeRef = useRef<SignatureMode>(mode);
   modeRef.current = mode;
 
@@ -92,6 +94,8 @@ export const Signature: React.FC<SignatureProps> = ({
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      pendingResizeRef.current = false;
+      resizeCanvasRef.current = null;
       invalidateCanvasMutations();
     };
   }, [invalidateCanvasMutations]);
@@ -117,7 +121,10 @@ export const Signature: React.FC<SignatureProps> = ({
 
     let disposed = false;
     const resizeCanvas = () => {
-      if (isMutationLockedRef.current) return;
+      if (isMutationLockedRef.current) {
+        pendingResizeRef.current = true;
+        return;
+      }
 
       const cssWidth = canvas.clientWidth;
       const cssHeight = canvas.clientHeight;
@@ -169,6 +176,7 @@ export const Signature: React.FC<SignatureProps> = ({
       img.src = previousData;
     };
 
+    resizeCanvasRef.current = resizeCanvas;
     resizeCanvas();
     const observer = new ResizeObserver(resizeCanvas);
     observer.observe(canvas.parentElement || canvas);
@@ -178,6 +186,9 @@ export const Signature: React.FC<SignatureProps> = ({
       disposed = true;
       observer.disconnect();
       window.removeEventListener('resize', resizeCanvas);
+      if (resizeCanvasRef.current === resizeCanvas) {
+        resizeCanvasRef.current = null;
+      }
       if (contextRef.current) contextRef.current = null;
     };
   }, [
@@ -456,6 +467,7 @@ export const Signature: React.FC<SignatureProps> = ({
       contextRef.current = null;
       invalidateFileReader();
       invalidateCanvasMutations();
+      pendingResizeRef.current = false;
       updateSignature({
         signatureFile: null,
         signatureData: undefined,
@@ -522,6 +534,7 @@ export const Signature: React.FC<SignatureProps> = ({
 
     // If signature was already uploaded (e.g., retry after attach failure), reuse the ID
     let signatureId = data.signatureId;
+    let completedSuccessfully = false;
 
     try {
       if (!signatureId) {
@@ -544,6 +557,7 @@ export const Signature: React.FC<SignatureProps> = ({
       // token, so every request after the first silent refresh — including
       // this one on a delete + re-enter retry — failed JWT verification).
       await onNext();
+      completedSuccessfully = true;
     } catch (err: any) {
       console.error('Signature upload error:', err);
       const detail = err?.response?.data?.error || err?.message || '';
@@ -553,6 +567,15 @@ export const Signature: React.FC<SignatureProps> = ({
     } finally {
       isMutationLockedRef.current = false;
       setIsUploading(false);
+      if (
+        !completedSuccessfully &&
+        isMountedRef.current &&
+        modeRef.current === 'draw' &&
+        pendingResizeRef.current
+      ) {
+        pendingResizeRef.current = false;
+        resizeCanvasRef.current?.();
+      }
     }
   }, [
     data.claimId,

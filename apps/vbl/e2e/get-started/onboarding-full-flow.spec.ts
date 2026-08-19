@@ -2417,6 +2417,127 @@ test.describe('Onboarding Full Flow', () => {
     await expect(page.locator('canvas')).toBeVisible();
   });
 
+  test('failed signature submit replays a resize queued while pending', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await mockOnboardingApi(page);
+
+    let releaseSubmit: (() => void) | undefined;
+    const submitStarted = new Promise<void>((resolve) => {
+      releaseSubmit = resolve;
+    });
+    let allowFailure: (() => void) | undefined;
+    const delayedFailure = new Promise<void>((resolve) => {
+      allowFailure = resolve;
+    });
+    await page.route('**/api/claims/claim_mock/submit', async (route) => {
+      releaseSubmit?.();
+      await delayedFailure;
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Temporary submission failure' }),
+      });
+    });
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    await completeIdentityUpload(page);
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+    await completeReview(page);
+    await completeConfirmStep(page);
+
+    const canvas = page.locator('canvas');
+    await expect(canvas).toBeVisible();
+    await page.getByLabel('I confirm that this is my legal signature.').check();
+    const firstBox = await canvas.boundingBox();
+    if (!firstBox) throw new Error('Signature canvas was not rendered.');
+    await page.mouse.move(firstBox.x + 30, firstBox.y + 30);
+    await page.mouse.down();
+    await page.mouse.move(firstBox.x + 140, firstBox.y + 70);
+    await page.mouse.up();
+
+    const continueButton = page.getByRole('button', { name: 'Continue' });
+    await expect(continueButton).toBeEnabled();
+    await continueButton.click();
+    await submitStarted;
+    await page.setViewportSize({ width: 390, height: 844 });
+    if (!allowFailure)
+      throw new Error('The terminal submission did not begin.');
+    allowFailure();
+
+    await expect(
+      page.getByText(/Failed to save signature: Temporary submission failure/)
+    ).toBeVisible();
+    await expect(continueButton).toBeEnabled();
+    await expect
+      .poll(
+        () =>
+          canvas.evaluate((node) => {
+            const signatureCanvas = node as HTMLCanvasElement;
+            const context = signatureCanvas.getContext('2d');
+            if (!context) return false;
+            const dpr = window.devicePixelRatio || 1;
+            return (
+              signatureCanvas.width ===
+                Math.round(signatureCanvas.clientWidth * dpr) &&
+              signatureCanvas.height ===
+                Math.round(signatureCanvas.clientHeight * dpr) &&
+              context
+                .getImageData(
+                  0,
+                  0,
+                  signatureCanvas.width,
+                  signatureCanvas.height
+                )
+                .data.some((value, index) => index % 4 === 3 && value > 0)
+            );
+          }),
+        { timeout: 5_000 }
+      )
+      .toBe(true);
+
+    const retryBox = await canvas.boundingBox();
+    if (!retryBox) throw new Error('Signature canvas was not rendered.');
+    const retryX = retryBox.width - 30;
+    const retryY = retryBox.height - 30;
+    await page.mouse.move(retryBox.x + retryX - 25, retryBox.y + retryY - 25);
+    await page.mouse.down();
+    await page.mouse.move(retryBox.x + retryX, retryBox.y + retryY);
+    await page.mouse.up();
+    await expect
+      .poll(() =>
+        canvas.evaluate(
+          (node, point) => {
+            const signatureCanvas = node as HTMLCanvasElement;
+            const context = signatureCanvas.getContext('2d');
+            if (!context) return false;
+            const dpr = window.devicePixelRatio || 1;
+            const x = Math.round(point.x * dpr);
+            const y = Math.round(point.y * dpr);
+            const radius = Math.max(3, Math.round(4 * dpr));
+            const left = Math.max(0, x - radius);
+            const top = Math.max(0, y - radius);
+            const right = Math.min(signatureCanvas.width, x + radius);
+            const bottom = Math.min(signatureCanvas.height, y + radius);
+            return context
+              .getImageData(left, top, right - left, bottom - top)
+              .data.some((value, index) => index % 4 === 3 && value > 0);
+          },
+          { x: retryX, y: retryY }
+        )
+      )
+      .toBe(true);
+    await expect(continueButton).toBeEnabled();
+  });
+
   // ============================================================
   // Item 21: delete + re-enter signature must not double-attach
   // ============================================================
