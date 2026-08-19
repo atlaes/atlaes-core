@@ -543,6 +543,222 @@ test.describe('Calculator payment', () => {
 });
 
 test.describe('Calculator identity fields', () => {
+  async function reachCalculatorReview(
+    page: import('@playwright/test').Page,
+    baseURL?: string
+  ) {
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: new URL(
+            '/get-started?payment=success&session_id=cs_mock',
+            baseURL ?? page.url()
+          ).toString(),
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    const declarations = page.getByRole('checkbox');
+    await declarations.nth(0).check();
+    await declarations.nth(1).check();
+    await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
+    await uploadIdentityDocument(page);
+    await page.getByLabel('Full Name').fill('Test User');
+    await page.getByLabel('Date of Birth').fill('1990-01-15');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+    await expect(
+      page.getByRole('heading', { name: 'Review', exact: true })
+    ).toBeVisible({ timeout: 10_000 });
+  }
+
+  test('calculator review and calculator confirmation use the streamlined declarations flow', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await reachCalculatorReview(page, baseURL);
+
+    await expect(
+      page.getByRole('button', {
+        name: 'Continue to declarations',
+        exact: true,
+      })
+    ).toBeVisible();
+
+    const reviewSections = page.locator(
+      'div.rounded-xl.overflow-hidden.border.border-gray-200.bg-white'
+    );
+    await expect(reviewSections).toHaveCount(4);
+    for (let index = 0; index < (await reviewSections.count()); index += 1) {
+      const section = reviewSections.nth(index);
+      await section.getByRole('button').first().click();
+      await expect(
+        section.getByRole('button', { name: 'Edit information' })
+      ).toHaveClass(/underline/);
+    }
+
+    const bankSection = reviewSections.filter({
+      has: page.getByRole('button', { name: 'Bank details', exact: true }),
+    });
+    await expect(bankSection).toContainText('Scheme: VBL');
+    await expect(bankSection).toContainText('Account holder name:');
+
+    await page
+      .getByRole('button', { name: 'Continue to declarations', exact: true })
+      .click();
+    await expect(
+      page.getByRole('heading', { name: 'Confirm your refund information' })
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'Please review your answers before continuing to your signature.',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(
+      page.getByText('Important declarations', { exact: true })
+    ).toHaveCount(0);
+    await expect(
+      page.getByText('CompanyPension authorization', { exact: true })
+    ).toHaveCount(0);
+    await expect(page.getByRole('checkbox')).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'View the original German wording' })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'Continue to signature' })
+    ).toBeEnabled();
+  });
+
+  test('calculator stopped confirmation keeps No until confirmed and hides onboarding substeps', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await reachCalculatorReview(page, baseURL);
+    await page
+      .getByRole('button', { name: 'Continue to declarations', exact: true })
+      .click();
+
+    await page
+      .getByRole('button', { name: 'Edit', exact: true })
+      .first()
+      .click();
+    const yesButton = page
+      .getByRole('button', { name: 'Yes', exact: true })
+      .first();
+    await yesButton.click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveClass(/max-w-\[560px\].*rounded-\[22px\].*p-9/);
+    await expect(
+      dialog.getByRole('heading', {
+        name: 'This answer will stop your refund application',
+      })
+    ).toBeVisible();
+    await expect(
+      dialog.getByText(
+        'CompanyPension cannot currently process this refund if your answer is Yes. Are you sure you want to change your answer?',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(yesButton).toBeFocused();
+
+    await yesButton.click();
+    await page.getByRole('button', { name: 'Keep my answer as No' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByText('No', { exact: true }).first()).toBeVisible();
+
+    await page.route('**/api/claims/claim_mock/stop', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          claim: { id: 'claim_mock', status: 'rejected' },
+        }),
+      })
+    );
+    await yesButton.click();
+    const stopRequest = page.waitForRequest('**/api/claims/*/stop');
+    await page.getByRole('button', { name: 'Yes, change my answer' }).click();
+    await stopRequest;
+    await expect(
+      page.getByRole('heading', {
+        name: 'This refund cannot currently be claimed with CompanyPension',
+      })
+    ).toBeVisible({ timeout: 10_000 });
+    const returnButton = page.getByRole('button', { name: 'Return to start' });
+    await expect(returnButton.locator('svg[aria-hidden="true"]')).toBeVisible();
+    await expect(
+      page.getByText(
+        'Your deposit will be refunded to the same payment method.'
+      )
+    ).toHaveCount(0);
+    await expect(page.getByTestId('onboarding-substeps')).toHaveCount(0);
+  });
+
+  test('calculator stopped does not enter terminal state when the stop API fails', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await reachCalculatorReview(page, baseURL);
+    await page
+      .getByRole('button', { name: 'Continue to declarations', exact: true })
+      .click();
+    await page
+      .getByRole('button', { name: 'Edit', exact: true })
+      .first()
+      .click();
+    await page
+      .getByRole('button', { name: 'Yes', exact: true })
+      .first()
+      .click();
+    await page.route('**/api/claims/claim_mock/stop', (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Stop failed' }),
+      })
+    );
+    await page.getByRole('button', { name: 'Yes, change my answer' }).click();
+
+    await expect(
+      page.getByText(
+        'We could not record that your application was stopped. Your deposit will still be refunded — please contact support if you have any questions.',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', {
+        name: 'This refund cannot currently be claimed with CompanyPension',
+      })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('heading', { name: 'Confirm your refund information' })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Yes, change my answer' })
+    ).toBeEnabled();
+  });
+
   test('calculator progress keeps review confirm signature in order', async ({
     page,
     baseURL,

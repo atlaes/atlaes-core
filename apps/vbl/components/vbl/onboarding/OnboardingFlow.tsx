@@ -242,6 +242,7 @@ export function OnboardingFlow({
   // Success screen and DRV modal state
   const [showSuccess, setShowSuccess] = useState(false);
   const [showDRVModal, setShowDRVModal] = useState(false);
+  const [calculatorStopped, setCalculatorStopped] = useState(false);
   const [flowError, setFlowError] = useState<string | null>(null);
 
   // Example: determine DRV eligibility (in real app, this would come from backend)
@@ -366,18 +367,24 @@ export function OnboardingFlow({
 
   const handleConfirmStop = async (reasons: string[]) => {
     const claimId = data.claimId;
-    if (!claimId) return;
+    if (!claimId) {
+      setFlowError('No claim found. Please restart the onboarding process.');
+      return false;
+    }
     try {
-      await stopClaim(claimId, reasons);
+      const result = await stopClaim(claimId, reasons);
+      if (!result.success) {
+        throw new Error('Stop request was not confirmed.');
+      }
+      return true;
     } catch (err) {
       console.error('Failed to stop claim:', err);
-      setFlowError(
-        'We could not record that your application was stopped. Your deposit will still be refunded — please contact support if you have any questions.'
-      );
+      return false;
     }
   };
 
   const handleReturnToStart = () => {
+    setCalculatorStopped(false);
     clearAllFlowPersistence();
     resetOnboarding();
     router.push('/calculator');
@@ -533,6 +540,7 @@ export function OnboardingFlow({
       case 'review':
         return (
           <ReviewSubmit
+            variant={variant}
             onSubmitSuccess={handleSubmitSuccess}
             onEditSection={handleEditSection}
             onContinue={isSignatureTerminal ? handleReviewContinue : undefined}
@@ -541,10 +549,12 @@ export function OnboardingFlow({
       case 'confirm':
         return (
           <ConfirmStep
+            variant={variant}
             onContinue={handleConfirmContinue}
             onBackToReview={() => setCurrentSubStep('review')}
             onStop={handleConfirmStop}
             onReturnToStart={handleReturnToStart}
+            onStopStateChange={setCalculatorStopped}
             isContinueEnabled={
               variant === 'calculator'
                 ? areConfirmStopAnswersClear(data.confirm)
@@ -565,6 +575,7 @@ export function OnboardingFlow({
       headerIcon={headerIcon}
       variant={variant}
       subSteps={submitDetailsSubsteps}
+      showSubSteps={variant !== 'calculator' || !calculatorStopped}
     >
       {flowError && (
         <div className="mx-auto mb-6 max-w-lg rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">

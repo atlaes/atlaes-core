@@ -19,6 +19,7 @@ import {
   SubmitDetailsSubStep,
 } from '@/contexts/OnboardingContext';
 import { submitClaim, markStepComplete } from '@/lib/onboarding-api';
+import type { OnboardingVariant } from '../onboarding-variant';
 
 const GENDER_LABELS: Record<string, string> = {
   male: 'Male',
@@ -147,6 +148,7 @@ function getSubmitErrorMessage(error: unknown): string {
 }
 
 interface ReviewSubmitProps {
+  variant?: OnboardingVariant;
   onSubmitSuccess?: () => void;
   onEditSection?: (subStep: SubmitDetailsSubStep) => void;
   // When provided (public/stage get-started flow, where a Confirm step and a
@@ -157,6 +159,7 @@ interface ReviewSubmitProps {
 }
 
 export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
+  variant = 'default',
   onSubmitSuccess,
   onEditSection,
   onContinue,
@@ -168,6 +171,10 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set()
   );
+  const isCalculator = variant === 'calculator';
+  const editInformationClassName = isCalculator
+    ? 'text-[#163300] font-medium underline hover:no-underline mt-2'
+    : 'text-[#163300] font-medium hover:underline mt-2';
 
   // Item 27: stage/orchestra (VddB, VddKO) claimants get an additional
   // "Employment Details" accordion row, between Bank details and Signature.
@@ -302,7 +309,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             </p>
             <button
               onClick={() => handleEditSection(section.subStep)}
-              className="text-[#163300] font-medium hover:underline mt-2"
+              className={editInformationClassName}
             >
               Edit information
             </button>
@@ -331,7 +338,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             </p>
             <button
               onClick={() => handleEditSection(section.subStep)}
-              className="text-[#163300] font-medium hover:underline mt-2"
+              className={editInformationClassName}
             >
               Edit information
             </button>
@@ -350,7 +357,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             </p>
             <button
               onClick={() => handleEditSection(section.subStep)}
-              className="text-[#163300] font-medium hover:underline mt-2"
+              className={editInformationClassName}
             >
               Edit information
             </button>
@@ -421,7 +428,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             </p>
             <button
               onClick={() => handleEditSection(section.subStep)}
-              className="text-[#163300] font-medium hover:underline mt-2"
+              className={editInformationClassName}
             >
               Edit information
             </button>
@@ -431,6 +438,12 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
       case 'bank':
         return (
           <div className="space-y-2 text-sm pt-4 pb-2">
+            {isCalculator && (
+              <p className="text-gray-700">
+                <span className="text-gray-500">Scheme:</span>{' '}
+                {data.membership.pensionProvider || 'Not provided'}
+              </p>
+            )}
             {data.bankDetails.accountHolder && (
               <p className="text-gray-700">
                 <span className="text-gray-500">Account holder name:</span>{' '}
@@ -452,7 +465,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             )}
             <button
               onClick={() => handleEditSection(section.subStep)}
-              className="text-[#163300] font-medium hover:underline mt-2"
+              className={editInformationClassName}
             >
               Edit information
             </button>
@@ -514,7 +527,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             </p>
             <button
               onClick={() => handleEditSection(section.subStep)}
-              className="text-[#163300] font-medium hover:underline mt-2"
+              className={editInformationClassName}
             >
               Edit information
             </button>
@@ -548,7 +561,11 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             )}
             <button
               onClick={() => handleEditSection(section.subStep)}
-              className="text-[#163300] font-medium hover:underline text-sm"
+              className={
+                isCalculator
+                  ? 'text-[#163300] font-medium underline hover:no-underline text-sm'
+                  : 'text-[#163300] font-medium hover:underline text-sm'
+              }
             >
               Edit information
             </button>
@@ -569,9 +586,11 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
   // cash-out request →". Per the final-review triage note, VBL-24's
   // enabled-state wording is used for both states here (documented once,
   // rather than swapping copy when the button becomes enabled/disabled).
-  const reviewHeading = isPrivatePensionType
-    ? 'Review your bAV cash-out request'
-    : 'Review your refund request';
+  const reviewHeading = isCalculator
+    ? 'Review'
+    : isPrivatePensionType
+      ? 'Review your bAV cash-out request'
+      : 'Review your refund request';
   const reviewIntro = isPrivatePensionType
     ? 'Please review your information carefully before submitting your bAV cash-out request.'
     : 'Please review your information before submitting your refund request.';
@@ -605,11 +624,15 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
           return (
             <div
               key={section.id}
-              className={`rounded-xl overflow-hidden border ${
-                isIncompleteHealthInsurance
-                  ? 'border-red-300 bg-red-50'
-                  : 'border-[#9FE870] bg-[#F0FDE4]'
-              }`}
+              className={
+                isCalculator
+                  ? 'rounded-xl overflow-hidden border border-gray-200 bg-white'
+                  : `rounded-xl overflow-hidden border ${
+                      isIncompleteHealthInsurance
+                        ? 'border-red-300 bg-red-50'
+                        : 'border-[#9FE870] bg-[#F0FDE4]'
+                    }`
+              }
             >
               {/* Section Header */}
               <button
@@ -619,18 +642,22 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
                 <div className="flex items-center gap-3">
                   <div
                     className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                      isIncompleteHealthInsurance
-                        ? 'bg-red-200 text-red-700'
-                        : 'bg-[#9FE870] text-[#163300]'
+                      isCalculator
+                        ? 'bg-[#9FE870] text-[#163300]'
+                        : isIncompleteHealthInsurance
+                          ? 'bg-red-200 text-red-700'
+                          : 'bg-[#9FE870] text-[#163300]'
                     }`}
                   >
                     {section.icon}
                   </div>
                   <span
                     className={`font-semibold ${
-                      isIncompleteHealthInsurance
-                        ? 'text-red-700'
-                        : 'text-[#163300]'
+                      isCalculator
+                        ? 'text-[#163300]'
+                        : isIncompleteHealthInsurance
+                          ? 'text-red-700'
+                          : 'text-[#163300]'
                     }`}
                   >
                     {section.title}
@@ -644,9 +671,11 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
                 </div>
                 <div
                   className={
-                    isIncompleteHealthInsurance
-                      ? 'text-red-600'
-                      : 'text-[#9FE870]'
+                    isCalculator
+                      ? 'text-[#163300]'
+                      : isIncompleteHealthInsurance
+                        ? 'text-red-600'
+                        : 'text-[#9FE870]'
                   }
                 >
                   {isExpanded ? (
@@ -693,7 +722,9 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
           onClick={onContinue}
           className="w-full py-4 px-6 bg-[#9FE870] text-[#163300] font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-[#8AD860] transition-colors"
         >
-          Continue to confirmation
+          {isCalculator
+            ? 'Continue to declarations'
+            : 'Continue to confirmation'}
           <ArrowRight className="w-4 h-4" />
         </button>
       ) : (
