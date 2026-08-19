@@ -205,12 +205,30 @@ test.describe('Manual VBL calculator', () => {
     await expect(
       page.getByText('Estimate your possible VBL, ZVK, VddB or VddKO refund.')
     ).toHaveCSS('color', 'rgb(62, 63, 60)');
-    await expect(
-      page.locator('img[src="/marketing/icons/pension-vbl.svg"]')
-    ).toBeVisible();
-    await expect(
-      page.locator('img[src="/marketing/icons/pension-vddb.svg"]')
-    ).toBeVisible();
+    const vblPensionIcon = page.locator(
+      'img[src="/marketing/icons/pension-vbl.svg"]'
+    );
+    await expect(vblPensionIcon).toBeVisible();
+    await expect
+      .poll(() =>
+        vblPensionIcon.evaluate((image) => {
+          const loadedImage = image as HTMLImageElement;
+          return loadedImage.complete && loadedImage.naturalWidth > 0;
+        })
+      )
+      .toBe(true);
+    const vddbPensionIcon = page.locator(
+      'img[src="/marketing/icons/pension-vddb.svg"]'
+    );
+    await expect(vddbPensionIcon).toBeVisible();
+    await expect
+      .poll(() =>
+        vddbPensionIcon.evaluate((image) => {
+          const loadedImage = image as HTMLImageElement;
+          return loadedImage.complete && loadedImage.naturalWidth > 0;
+        })
+      )
+      .toBe(true);
     await expect(
       page.getByRole('button', {
         name: 'VBL / ZVK refund Estimate your possible public-sector company pension refund.',
@@ -229,6 +247,7 @@ test.describe('Manual VBL calculator', () => {
   test('orders upload first and shows the approved sidebar descriptions', async ({
     page,
   }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto('/calculator');
     await page.getByRole('button', { name: 'VBL / ZVK refund' }).click();
     await continueButton(page).click();
@@ -241,17 +260,16 @@ test.describe('Manual VBL calculator', () => {
     );
 
     const sidebar = page.getByTestId('calculator-sidebar');
-    if (await sidebar.isVisible()) {
-      await expect(
-        sidebar.getByText('Pick what you want to check.', { exact: true })
-      ).toBeVisible();
-      await expect(
-        sidebar.getByText('A few quick questions.', { exact: true })
-      ).toBeVisible();
-      await expect(
-        sidebar.getByText('See your estimated refund', { exact: true })
-      ).toBeVisible();
-    }
+    await expect(sidebar).toBeVisible();
+    await expect(
+      sidebar.getByText('Pick what you want to check.', { exact: true })
+    ).toBeVisible();
+    await expect(
+      sidebar.getByText('A few quick questions.', { exact: true })
+    ).toBeVisible();
+    await expect(
+      sidebar.getByText('See your estimated refund', { exact: true })
+    ).toBeVisible();
   });
 
   test('keeps the calculator heading visible without horizontal overflow', async ({
