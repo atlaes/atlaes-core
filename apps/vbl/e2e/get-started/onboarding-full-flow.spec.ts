@@ -1103,6 +1103,24 @@ test.describe('Calculator identity fields', () => {
         }),
       });
     });
+    let signatureUploadCount = 0;
+    let submittedSignatureData: string | undefined;
+    await page.route('**/api/signatures/upload', async (route) => {
+      signatureUploadCount += 1;
+      submittedSignatureData = route.request().postDataJSON().signatureData;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          signature: {
+            id: 'signature_mock',
+            s3Key: 'mock-signature.png',
+            createdAt: new Date().toISOString(),
+          },
+        }),
+      });
+    });
     await navigatePublicSectorToEligible(page);
     await page
       .getByRole('button', { name: /Create your secure claim/i })
@@ -1267,10 +1285,53 @@ test.describe('Calculator identity fields', () => {
       })
     ).toBe(true);
     await expect(continueButton).toBeEnabled();
+
+    await draw();
+    const capturedSignature = await canvas.evaluate((node) =>
+      (node as HTMLCanvasElement).toDataURL()
+    );
+    await page.waitForTimeout(100);
+    await page.evaluate(() => {
+      const taskWindow = window as Window & {
+        __task7ImageSrcDescriptor?: PropertyDescriptor;
+      };
+      const descriptor = Object.getOwnPropertyDescriptor(
+        HTMLImageElement.prototype,
+        'src'
+      );
+      if (!descriptor?.get || !descriptor.set) {
+        throw new Error('Could not delay signature history image loading.');
+      }
+      taskWindow.__task7ImageSrcDescriptor = descriptor;
+      Object.defineProperty(HTMLImageElement.prototype, 'src', {
+        configurable: true,
+        enumerable: descriptor.enumerable,
+        get: descriptor.get,
+        set(value: string) {
+          window.setTimeout(() => descriptor.set?.call(this, value), 150);
+        },
+      });
+    });
+    await page.getByRole('button', { name: 'Undo' }).click();
     await continueButton.click();
+    await page.evaluate(() => {
+      const taskWindow = window as Window & {
+        __task7ImageSrcDescriptor?: PropertyDescriptor;
+      };
+      if (taskWindow.__task7ImageSrcDescriptor) {
+        Object.defineProperty(
+          HTMLImageElement.prototype,
+          'src',
+          taskWindow.__task7ImageSrcDescriptor
+        );
+        delete taskWindow.__task7ImageSrcDescriptor;
+      }
+    });
     const pendingButton = page.getByRole('button', { name: /Uploading/i });
     await expect(pendingButton).toBeDisabled();
     await submitStarted;
+    expect(signatureUploadCount).toBe(1);
+    expect(submittedSignatureData).toBe(capturedSignature);
     await expect(
       page.getByRole('button', { name: 'Draw signature' })
     ).toBeDisabled();
@@ -1301,6 +1362,13 @@ test.describe('Calculator identity fields', () => {
       .getByRole('button', { name: 'Upload signature image' })
       .click({ force: true });
     await expect(canvas).toBeVisible();
+    await page.setViewportSize({ width: 360, height: 844 });
+    await page.waitForTimeout(250);
+    await expect
+      .poll(() =>
+        canvas.evaluate((node) => (node as HTMLCanvasElement).toDataURL())
+      )
+      .toBe(capturedSignature);
     expect(submitCount).toBe(1);
     await pendingButton.click({ force: true });
     if (!allowSubmit) throw new Error('The terminal submission did not begin.');

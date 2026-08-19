@@ -47,6 +47,30 @@ export const Signature: React.FC<SignatureProps> = ({
   );
   const fileReaderRef = useRef<FileReader | null>(null);
   const fileReadGenerationRef = useRef(0);
+  const isMountedRef = useRef(true);
+  const isMutationLockedRef = useRef(false);
+  const canvasMutationGenerationRef = useRef(0);
+  const modeRef = useRef<SignatureMode>(mode);
+  modeRef.current = mode;
+
+  const invalidateCanvasMutations = useCallback(() => {
+    canvasMutationGenerationRef.current += 1;
+    return canvasMutationGenerationRef.current;
+  }, []);
+
+  const canApplyCanvasMutation = useCallback(
+    (
+      generation: number,
+      expectedMode: SignatureMode,
+      context: CanvasRenderingContext2D
+    ) =>
+      isMountedRef.current &&
+      !isMutationLockedRef.current &&
+      canvasMutationGenerationRef.current === generation &&
+      modeRef.current === expectedMode &&
+      contextRef.current === context,
+    []
+  );
 
   const invalidateFileReader = useCallback(() => {
     fileReadGenerationRef.current += 1;
@@ -63,6 +87,14 @@ export const Signature: React.FC<SignatureProps> = ({
     },
     [invalidateFileReader]
   );
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      invalidateCanvasMutations();
+    };
+  }, [invalidateCanvasMutations]);
 
   // Draw mode mounts its canvas conditionally, so initialization must follow
   // the mode as well as saved data. Resize only the backing store: Tailwind's
@@ -85,6 +117,8 @@ export const Signature: React.FC<SignatureProps> = ({
 
     let disposed = false;
     const resizeCanvas = () => {
+      if (isMutationLockedRef.current) return;
+
       const cssWidth = canvas.clientWidth;
       const cssHeight = canvas.clientHeight;
       if (!cssWidth || !cssHeight) return;
@@ -120,10 +154,15 @@ export const Signature: React.FC<SignatureProps> = ({
 
       if (!previousData) return;
       const img = new Image();
+      const generation = canvasMutationGenerationRef.current;
+      const expectedMode = modeRef.current;
       img.onload = () => {
-        if (!disposed && contextRef.current === context) {
-          context.drawImage(img, 0, 0, cssWidth, cssHeight);
-        }
+        if (
+          disposed ||
+          !canApplyCanvasMutation(generation, expectedMode, context)
+        )
+          return;
+        context.drawImage(img, 0, 0, cssWidth, cssHeight);
       };
       img.src = previousData;
     };
@@ -139,7 +178,12 @@ export const Signature: React.FC<SignatureProps> = ({
       window.removeEventListener('resize', resizeCanvas);
       if (contextRef.current) contextRef.current = null;
     };
-  }, [mode, data.signature.signatureData, data.signature.signatureType]);
+  }, [
+    mode,
+    data.signature.signatureData,
+    data.signature.signatureType,
+    canApplyCanvasMutation,
+  ]);
 
   const saveToHistory = useCallback(() => {
     const canvas = canvasRef.current;
@@ -154,7 +198,7 @@ export const Signature: React.FC<SignatureProps> = ({
 
   const startDrawing = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
-      if (isUploading) return;
+      if (isUploading || isMutationLockedRef.current) return;
 
       const context = contextRef.current;
       if (!context) return;
@@ -182,7 +226,7 @@ export const Signature: React.FC<SignatureProps> = ({
 
   const draw = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
-      if (isUploading || !isDrawing) return;
+      if (isUploading || isMutationLockedRef.current || !isDrawing) return;
 
       const context = contextRef.current;
       if (!context) return;
@@ -209,7 +253,7 @@ export const Signature: React.FC<SignatureProps> = ({
   );
 
   const stopDrawing = useCallback(() => {
-    if (!isUploading && isDrawing) {
+    if (!isUploading && !isMutationLockedRef.current && isDrawing) {
       const context = contextRef.current;
       if (context) {
         context.closePath();
@@ -250,7 +294,7 @@ export const Signature: React.FC<SignatureProps> = ({
   // regardless of whether signatureId was stale or fresh. See lib/api.ts for
   // the fix.
   const handleUndo = useCallback(() => {
-    if (isUploading) return;
+    if (isUploading || isMutationLockedRef.current) return;
 
     if (historyIndex <= 0) {
       // Clear canvas
@@ -271,7 +315,10 @@ export const Signature: React.FC<SignatureProps> = ({
     if (!canvas || !context) return;
 
     const img = new Image();
+    const generation = invalidateCanvasMutations();
+    const expectedMode = modeRef.current;
     img.onload = () => {
+      if (!canApplyCanvasMutation(generation, expectedMode, context)) return;
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.drawImage(img, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
       const signatureData = history[historyIndex - 1];
@@ -281,10 +328,18 @@ export const Signature: React.FC<SignatureProps> = ({
     };
     img.src = history[historyIndex - 1];
     setHistoryIndex(historyIndex - 1);
-  }, [history, historyIndex, isUploading, updateSignature, updateData]);
+  }, [
+    canApplyCanvasMutation,
+    history,
+    historyIndex,
+    invalidateCanvasMutations,
+    isUploading,
+    updateSignature,
+    updateData,
+  ]);
 
   const handleRedo = useCallback(() => {
-    if (isUploading) return;
+    if (isUploading || isMutationLockedRef.current) return;
 
     if (historyIndex >= history.length - 1) return;
 
@@ -293,7 +348,10 @@ export const Signature: React.FC<SignatureProps> = ({
     if (!canvas || !context) return;
 
     const img = new Image();
+    const generation = invalidateCanvasMutations();
+    const expectedMode = modeRef.current;
     img.onload = () => {
+      if (!canApplyCanvasMutation(generation, expectedMode, context)) return;
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.drawImage(img, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
       const signatureData = history[historyIndex + 1];
@@ -303,26 +361,35 @@ export const Signature: React.FC<SignatureProps> = ({
     };
     img.src = history[historyIndex + 1];
     setHistoryIndex(historyIndex + 1);
-  }, [history, historyIndex, isUploading, updateSignature, updateData]);
+  }, [
+    canApplyCanvasMutation,
+    history,
+    historyIndex,
+    invalidateCanvasMutations,
+    isUploading,
+    updateSignature,
+    updateData,
+  ]);
 
   const handleClear = useCallback(() => {
-    if (isUploading) return;
+    if (isUploading || isMutationLockedRef.current) return;
 
     const canvas = canvasRef.current;
     const context = contextRef.current;
     if (!canvas || !context) return;
 
+    invalidateCanvasMutations();
     context.clearRect(0, 0, canvas.width, canvas.height);
     setHistory([]);
     setHistoryIndex(-1);
     latestCanvasDataRef.current = undefined;
     updateSignature({ signatureData: undefined, signatureType: 'draw' });
     updateData({ signatureId: undefined });
-  }, [isUploading, updateSignature, updateData]);
+  }, [invalidateCanvasMutations, isUploading, updateSignature, updateData]);
 
   const handleFileUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (isUploading) return;
+      if (isUploading || isMutationLockedRef.current) return;
 
       const file = e.target.files?.[0];
       if (!file) return;
@@ -338,7 +405,12 @@ export const Signature: React.FC<SignatureProps> = ({
       const generation = fileReadGenerationRef.current;
       fileReaderRef.current = reader;
       reader.onload = (event) => {
-        if (generation !== fileReadGenerationRef.current) return;
+        if (
+          generation !== fileReadGenerationRef.current ||
+          isMutationLockedRef.current ||
+          !isMountedRef.current
+        )
+          return;
         const dataUrl = event.target?.result as string;
         if (!dataUrl) return;
         fileReaderRef.current = null;
@@ -352,7 +424,12 @@ export const Signature: React.FC<SignatureProps> = ({
         updateData({ signatureId: undefined });
       };
       reader.onerror = () => {
-        if (generation !== fileReadGenerationRef.current) return;
+        if (
+          generation !== fileReadGenerationRef.current ||
+          isMutationLockedRef.current ||
+          !isMountedRef.current
+        )
+          return;
         fileReaderRef.current = null;
         setUploadError('Failed to read signature image. Please try again.');
       };
@@ -363,7 +440,7 @@ export const Signature: React.FC<SignatureProps> = ({
 
   const handleModeChange = useCallback(
     (nextMode: SignatureMode) => {
-      if (isUploading) return;
+      if (isUploading || isMutationLockedRef.current) return;
       if (nextMode === mode) return;
 
       // A signature belongs to its active input method. Clearing it here
@@ -375,6 +452,7 @@ export const Signature: React.FC<SignatureProps> = ({
       latestCanvasDataRef.current = undefined;
       contextRef.current = null;
       invalidateFileReader();
+      invalidateCanvasMutations();
       updateSignature({
         signatureFile: null,
         signatureData: undefined,
@@ -382,13 +460,21 @@ export const Signature: React.FC<SignatureProps> = ({
         signatureType: '',
       });
       updateData({ signatureId: undefined });
+      modeRef.current = nextMode;
       setMode(nextMode);
     },
-    [invalidateFileReader, isUploading, mode, updateData, updateSignature]
+    [
+      invalidateCanvasMutations,
+      invalidateFileReader,
+      isUploading,
+      mode,
+      updateData,
+      updateSignature,
+    ]
   );
 
   const handleRemoveUploadedSignature = useCallback(() => {
-    if (isUploading) return;
+    if (isUploading || isMutationLockedRef.current) return;
 
     invalidateFileReader();
     updateSignature({
@@ -404,14 +490,14 @@ export const Signature: React.FC<SignatureProps> = ({
 
   const handleLegalConfirmation = useCallback(
     (legalConfirmed: boolean) => {
-      if (isUploading) return;
+      if (isUploading || isMutationLockedRef.current) return;
       updateSignature({ legalConfirmed });
     },
     [isUploading, updateSignature]
   );
 
   const handleContinue = useCallback(async () => {
-    if (isUploading) return;
+    if (isUploading || isMutationLockedRef.current) return;
 
     const sigData =
       mode === 'draw'
@@ -423,6 +509,11 @@ export const Signature: React.FC<SignatureProps> = ({
           : undefined;
     if (!sigData) return;
 
+    // React state updates are asynchronous. Lock and invalidate callback
+    // generations synchronously so an Image.onload already in flight cannot
+    // redraw or replace this exact payload while it is attaching/submitting.
+    isMutationLockedRef.current = true;
+    invalidateCanvasMutations();
     setIsUploading(true);
     setUploadError(null);
 
@@ -457,6 +548,7 @@ export const Signature: React.FC<SignatureProps> = ({
         `Failed to save signature${detail ? `: ${detail}` : ''}. Please try again.`
       );
     } finally {
+      isMutationLockedRef.current = false;
       setIsUploading(false);
     }
   }, [
@@ -466,6 +558,7 @@ export const Signature: React.FC<SignatureProps> = ({
     data.signature.signatureType,
     mode,
     isUploading,
+    invalidateCanvasMutations,
     updateData,
     onNext,
   ]);
