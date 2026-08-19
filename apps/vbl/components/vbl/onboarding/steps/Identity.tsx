@@ -105,6 +105,10 @@ export const Identity: React.FC<IdentityProps> = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const calculatorFullNameInputRef = useRef<HTMLInputElement | null>(null);
   const calculatorBirthDateInputRef = useRef<HTMLInputElement | null>(null);
+  const calculatorNationalityInputRef = useRef<HTMLInputElement | null>(null);
+  const calculatorPlaceOfBirthInputRef = useRef<HTMLInputElement | null>(null);
+  const calculatorGenderInputRef = useRef<HTMLSelectElement | null>(null);
+  const calculatorLocallyWrittenFullNameRef = useRef<string | null>(null);
   // Figma VBL-16: inline error state on the upload dropzone when the user
   // picks an unsupported file type. Persists until the next file is chosen.
   const [fileTypeError, setFileTypeError] = useState<string | null>(null);
@@ -113,6 +117,7 @@ export const Identity: React.FC<IdentityProps> = ({
   );
   const [calculatorSubmitAttempted, setCalculatorSubmitAttempted] =
     useState(false);
+  const calculatorContextFullName = joinCalculatorFullName(data.identity);
 
   const handleFileSelect = useCallback(
     async (file: File) => {
@@ -274,16 +279,14 @@ export const Identity: React.FC<IdentityProps> = ({
 
   useEffect(() => {
     if (!isCalculator || phase !== 'confirm') return;
-    setCalculatorFullName((currentName) =>
-      currentName === '' ? joinCalculatorFullName(data.identity) : currentName
-    );
-  }, [
-    data.identity.firstName,
-    data.identity.middleName,
-    data.identity.lastName,
-    isCalculator,
-    phase,
-  ]);
+    if (
+      calculatorLocallyWrittenFullNameRef.current === calculatorContextFullName
+    ) {
+      return;
+    }
+    setCalculatorFullName(calculatorContextFullName);
+    calculatorLocallyWrittenFullNameRef.current = calculatorContextFullName;
+  }, [calculatorContextFullName, isCalculator, phase]);
 
   const missingFields = {
     firstName: data.identity.firstName.trim() === '',
@@ -336,6 +339,9 @@ export const Identity: React.FC<IdentityProps> = ({
   const handleCalculatorFullNameChange = (value: string) => {
     setCalculatorFullName(value);
     const parsedName = splitCalculatorFullName(value);
+    calculatorLocallyWrittenFullNameRef.current = parsedName
+      ? joinCalculatorFullName({ ...parsedName, middleName: '' })
+      : '';
     updateIdentity(
       parsedName
         ? { ...parsedName, middleName: '' }
@@ -352,6 +358,18 @@ export const Identity: React.FC<IdentityProps> = ({
       }
       if (calculatorBirthDateError !== null) {
         calculatorBirthDateInputRef.current?.focus();
+        return;
+      }
+      if (data.identity.nationality.trim() === '') {
+        calculatorNationalityInputRef.current?.focus();
+        return;
+      }
+      if (data.identity.placeOfBirth.trim() === '') {
+        calculatorPlaceOfBirthInputRef.current?.focus();
+        return;
+      }
+      if (data.identity.gender === '') {
+        calculatorGenderInputRef.current?.focus();
         return;
       }
       if (!calculatorIdentityValid) return;
@@ -540,6 +558,7 @@ export const Identity: React.FC<IdentityProps> = ({
           </div>
           <button
             onClick={handleRemoveDocument}
+            aria-label="Remove uploaded identity document"
             className="p-2 hover:bg-gray-200 rounded-full transition-colors"
           >
             <X className="w-4 h-4 text-gray-500" />
@@ -654,6 +673,7 @@ export const Identity: React.FC<IdentityProps> = ({
               showMissing={showMissingHighlights && missingFields.nationality}
             />
             <input
+              ref={isCalculator ? calculatorNationalityInputRef : undefined}
               type="text"
               value={data.identity.nationality}
               onChange={(e) => updateIdentity({ nationality: e.target.value })}
@@ -674,6 +694,7 @@ export const Identity: React.FC<IdentityProps> = ({
               showMissing={showMissingHighlights && missingFields.placeOfBirth}
             />
             <input
+              ref={isCalculator ? calculatorPlaceOfBirthInputRef : undefined}
               type="text"
               value={data.identity.placeOfBirth}
               onChange={(e) => updateIdentity({ placeOfBirth: e.target.value })}
@@ -759,6 +780,7 @@ export const Identity: React.FC<IdentityProps> = ({
             />
             <div className="relative">
               <select
+                ref={isCalculator ? calculatorGenderInputRef : undefined}
                 value={data.identity.gender}
                 onChange={(e) =>
                   updateIdentity({

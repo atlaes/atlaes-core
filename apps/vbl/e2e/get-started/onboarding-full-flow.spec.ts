@@ -644,6 +644,113 @@ test.describe('Calculator identity fields', () => {
     await expect(page.getByPlaceholder('Day')).toHaveCount(1);
     await expect(page.getByPlaceholder('Year')).toHaveCount(1);
   });
+
+  test('calculator full name follows an external OCR identity update', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    const declarations = page.getByRole('checkbox');
+    await declarations.nth(0).check();
+    await declarations.nth(1).check();
+    await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
+    await uploadIdentityDocument(page);
+
+    const fullName = page.getByLabel('Full Name');
+    await fullName.fill('Local Person');
+    await page.route('**/api/documents/upload', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          document: {
+            id: 'document_updated',
+            fileName: 'passport.jpg',
+            fileType: 'application/pdf',
+            fileSize: 1000,
+            documentType: 'passport',
+            status: 'processed',
+            createdAt: new Date().toISOString(),
+          },
+          ocr: {
+            firstName: 'Updated',
+            lastName: 'Person',
+            dateOfBirth: '1990-01-15',
+            gender: 'male',
+            placeOfBirth: 'Sydney',
+            nationality: 'Australian',
+            passportNumber: 'P1234567',
+            passportIssueDate: '',
+            passportExpiryDate: '',
+            issuingCountry: 'AU',
+          },
+        }),
+      })
+    );
+    await page
+      .getByRole('button', { name: 'Remove uploaded identity document' })
+      .click();
+    await uploadIdentityDocument(page);
+
+    await expect(fullName).toHaveValue('Updated Person');
+  });
+
+  test('calculator Continue focuses the first missing non-name identity field', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    const declarations = page.getByRole('checkbox');
+    await declarations.nth(0).check();
+    await declarations.nth(1).check();
+    await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
+    await uploadIdentityDocument(page);
+
+    const nationality = page.getByPlaceholder('e.g. Australian');
+    await nationality.fill('');
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(nationality).toBeFocused();
+  });
 });
 
 test.describe('Onboarding Full Flow', () => {
