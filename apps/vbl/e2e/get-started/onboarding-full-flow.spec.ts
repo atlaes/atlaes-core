@@ -496,9 +496,9 @@ test.describe('Calculator payment', () => {
       name: 'Pay €199 deposit',
     });
     await expect(paymentButton).toBeDisabled();
-    await expect(page.getByRole('button', { name: 'Back', exact: true })).toHaveCount(
-      0
-    );
+    await expect(
+      page.getByRole('button', { name: 'Back', exact: true })
+    ).toHaveCount(0);
     await expect(
       page.getByText('Deposit — credited toward your service fee', {
         exact: true,
@@ -599,7 +599,9 @@ test.describe('Calculator identity fields', () => {
         'confirm',
         'signature',
       ]) {
-        await expect(page.getByTestId(`substep-icon-${subStepId}`)).toBeVisible();
+        await expect(
+          page.getByTestId(`substep-icon-${subStepId}`)
+        ).toBeVisible();
       }
     };
 
@@ -616,8 +618,12 @@ test.describe('Calculator identity fields', () => {
         )
       )
       .toBe(true);
-    const firstIcon = await page.getByTestId('substep-icon-identity').boundingBox();
-    const lastIcon = await page.getByTestId('substep-icon-signature').boundingBox();
+    const firstIcon = await page
+      .getByTestId('substep-icon-identity')
+      .boundingBox();
+    const lastIcon = await page
+      .getByTestId('substep-icon-signature')
+      .boundingBox();
     expect(firstIcon).not.toBeNull();
     expect(lastIcon).not.toBeNull();
     expect(firstIcon!.x).toBeGreaterThanOrEqual(0);
@@ -646,16 +652,34 @@ test.describe('Calculator identity fields', () => {
     await seedCalculatorOrigin(page);
     await mockOnboardingApi(page);
     await page.route('**/api/payments/create-checkout-session', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, url: `${baseURL}/get-started?payment=success&session_id=cs_mock`, sessionId: 'cs_mock' }) })
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
     );
     let submitCount = 0;
     await page.route('**/api/claims/claim_mock/submit', async (route) => {
       submitCount += 1;
       await new Promise((resolve) => setTimeout(resolve, 600));
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, message: 'Claim submitted', claim: { id: 'claim_mock', submittedAt: new Date().toISOString() } }) });
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          message: 'Claim submitted',
+          claim: { id: 'claim_mock', submittedAt: new Date().toISOString() },
+        }),
+      });
     });
     await navigatePublicSectorToEligible(page);
-    await page.getByRole('button', { name: /Create your secure claim/i }).click();
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
     await completeCreateAccount(page);
     const declarations = page.getByRole('checkbox');
     await declarations.nth(0).check();
@@ -665,18 +689,30 @@ test.describe('Calculator identity fields', () => {
     await page.getByLabel('Full Name').fill('Test User');
     await page.getByLabel('Date of Birth').fill('1990-01-15');
     await page.getByRole('button', { name: 'Continue' }).click();
-    await completeMembership(page); await completeAddress(page); await completeBankDetails(page);
-    await completeReview(page); await completeConfirmStep(page);
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+    await completeReview(page);
+    await completeConfirmStep(page);
     const canvas = page.locator('canvas');
     const box = await canvas.boundingBox();
-    if (box) { await page.mouse.move(box.x + 30, box.y + 30); await page.mouse.down(); await page.mouse.move(box.x + 130, box.y + 70); await page.mouse.up(); }
+    if (box) {
+      await page.mouse.move(box.x + 30, box.y + 30);
+      await page.mouse.down();
+      await page.mouse.move(box.x + 130, box.y + 70);
+      await page.mouse.up();
+    }
     await page.getByLabel('I confirm that this is my legal signature.').check();
     const continueButton = page.getByRole('button', { name: 'Continue' });
     await continueButton.click();
     const pendingButton = page.getByRole('button', { name: /Uploading/i });
     await expect(pendingButton).toBeDisabled();
     await pendingButton.click({ force: true });
-    await expect(page.getByRole('heading', { name: 'Your refund request has been submitted' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', {
+        name: 'Your refund request has been submitted',
+      })
+    ).toBeVisible();
     expect(submitCount).toBe(1);
   });
 
