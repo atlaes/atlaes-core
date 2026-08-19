@@ -699,13 +699,16 @@ test.describe('Calculator identity fields', () => {
         'CompanyPension cannot currently process this refund if your answer is Yes. Are you sure you want to change your answer?',
         { exact: true }
       )
-    ).toHaveClass(/text-\[18px\].*leading-8.*text-\[#50576A\]/);
+    ).toHaveClass(/mt-6.*text-\[18px\].*leading-8.*text-\[#50576A\]/);
     await expect(
       dialog.getByRole('button', { name: 'Yes, change my answer' })
     ).toHaveClass(/h-\[72px\].*w-full/);
     await expect(
       dialog.getByRole('button', { name: 'Keep my answer as No' })
     ).toHaveClass(/h-\[72px\].*w-full/);
+    await expect(dialog.getByTestId('calculator-stop-actions')).toHaveClass(
+      /mt-6.*gap-3/
+    );
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(yesButton).toBeFocused();
@@ -713,7 +716,12 @@ test.describe('Calculator identity fields', () => {
     await yesButton.click();
     await page.getByRole('button', { name: 'Keep my answer as No' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(page.getByText('No', { exact: true }).first()).toBeVisible();
+    await expect(
+      page.getByTestId('confirm-answer-publicSectorAfterEnd-no')
+    ).toHaveAttribute('aria-pressed', 'true');
+    await expect(
+      page.getByTestId('confirm-answer-publicSectorAfterEnd-yes')
+    ).toHaveAttribute('aria-pressed', 'false');
 
     await page.route('**/api/claims/claim_mock/stop', (route) =>
       route.fulfill({
@@ -784,7 +792,12 @@ test.describe('Calculator identity fields', () => {
     await expect(
       page.getByRole('heading', { name: 'Confirm your refund information' })
     ).toBeVisible();
-    await expect(page.getByText('No', { exact: true }).first()).toBeVisible();
+    await expect(
+      page.getByTestId('confirm-answer-publicSectorAfterEnd-no')
+    ).toHaveAttribute('aria-pressed', 'true');
+    await expect(
+      page.getByTestId('confirm-answer-publicSectorAfterEnd-yes')
+    ).toHaveAttribute('aria-pressed', 'false');
     await expect(
       page.getByRole('button', { name: 'Yes, change my answer' })
     ).toBeEnabled();

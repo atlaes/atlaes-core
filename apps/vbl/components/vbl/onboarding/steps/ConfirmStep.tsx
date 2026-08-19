@@ -373,6 +373,8 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
                       <button
                         key={option}
                         type="button"
+                        aria-pressed={value === option}
+                        data-testid={`confirm-answer-${key}-${option}`}
                         onClick={(event) =>
                           handleSelectAnswer(key, option, event.currentTarget)
                         }
@@ -522,7 +524,7 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
             <p
               className={
                 isCalculator
-                  ? 'mb-6 text-[18px] leading-8 text-[#50576A]'
+                  ? 'mt-6 text-[18px] leading-8 text-[#50576A]'
                   : 'mb-6 text-sm leading-6 text-gray-600'
               }
             >
@@ -535,8 +537,11 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
               </p>
             )}
             <div
+              data-testid={isCalculator ? 'calculator-stop-actions' : undefined}
               className={
-                isCalculator ? 'flex flex-col gap-3' : 'flex flex-col gap-2'
+                isCalculator
+                  ? 'mt-6 flex flex-col gap-3'
+                  : 'flex flex-col gap-2'
               }
             >
               <button
