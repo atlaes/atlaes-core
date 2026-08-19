@@ -11,6 +11,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import type { OnboardingVariant } from '@/components/vbl/onboarding/onboarding-variant';
 import {
   uploadSignature as uploadSignatureApi,
   attachSignatureToClaim,
@@ -18,11 +19,15 @@ import {
 
 interface SignatureProps {
   onNext: () => void | Promise<void>;
+  variant?: OnboardingVariant;
 }
 
 type SignatureMode = 'draw' | 'upload';
 
-export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
+export const Signature: React.FC<SignatureProps> = ({
+  onNext,
+  variant = 'default',
+}) => {
   const { data, updateData, updateSignature } = useOnboarding();
   const [mode, setMode] = useState<SignatureMode>(
     data.signature.signatureType === 'upload' ? 'upload' : 'draw'
@@ -309,7 +314,11 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
     data.signature.legalConfirmed;
 
   return (
-    <div className="max-w-lg mx-auto">
+    <div
+      className={
+        variant === 'calculator' ? 'mx-auto max-w-[760px]' : 'max-w-lg mx-auto'
+      }
+    >
       <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
         Add your signature
       </h2>
@@ -324,7 +333,11 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setMode('draw')}
-          className={`flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-medium transition-colors ${
+          className={`${
+            variant === 'calculator'
+              ? 'flex-1 rounded-lg px-4 py-4 text-[18px] font-medium flex items-center justify-center gap-2 transition-colors'
+              : 'flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-medium transition-colors'
+          } ${
             mode === 'draw'
               ? 'bg-[#9FE870] text-[#163300]'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -335,7 +348,11 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
         </button>
         <button
           onClick={() => setMode('upload')}
-          className={`flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-medium transition-colors ${
+          className={`${
+            variant === 'calculator'
+              ? 'flex-1 rounded-lg px-4 py-4 text-[18px] font-medium flex items-center justify-center gap-2 transition-colors'
+              : 'flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-medium transition-colors'
+          } ${
             mode === 'upload'
               ? 'bg-[#9FE870] text-[#163300]'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -362,8 +379,10 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
               onTouchStart={startDrawing}
               onTouchMove={draw}
               onTouchEnd={stopDrawing}
-              className="w-full cursor-crosshair"
-              style={{ height: '200px' }}
+              className={`w-full cursor-crosshair${
+                variant === 'calculator' ? ' h-[300px]' : ''
+              }`}
+              style={variant === 'calculator' ? undefined : { height: '200px' }}
             />
             {!data.signature.signatureData && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -472,7 +491,11 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       <button
         onClick={handleContinue}
         disabled={!canProceed || isUploading}
-        className={`w-full mt-8 py-4 px-6 font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors ${
+        className={`${
+          variant === 'calculator'
+            ? 'mt-10 w-full rounded-lg px-6 py-4 text-[18px] font-semibold flex items-center justify-center gap-2 transition-colors'
+            : 'w-full mt-8 py-4 px-6 font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors'
+        } ${
           canProceed && !isUploading
             ? 'bg-[#9FE870] text-[#163300] hover:bg-[#8AD860]'
             : 'bg-gray-200 text-gray-500 cursor-not-allowed'

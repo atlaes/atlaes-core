@@ -527,14 +527,21 @@ export function GetStartedOnboardingFlow() {
     }
   };
 
-  const handleSubmitSuccess = () => {
+  const handleSubmitSuccess = (submission?: {
+    submissionId?: string;
+    submittedAt?: string;
+  }) => {
     updateSuccessData({
-      submittedAt: new Date().toISOString(),
+      ...(submission?.submissionId
+        ? { submissionId: submission.submissionId }
+        : {}),
+      submittedAt: submission?.submittedAt || new Date().toISOString(),
       drvEligibilityDate: drvEligibilityDate,
     });
     // Claim is submitted — nothing left to resume. Clear both persisted
     // blobs so a refresh on the success screen (or a later visit) doesn't
     // try to resurrect a completed run.
+    localStorage.removeItem('vbl_draft_claimId');
     clearAllFlowPersistence();
     setShowSuccess(true);
   };
@@ -604,13 +611,11 @@ export function GetStartedOnboardingFlow() {
     try {
       await markStepComplete(claimId, 'signDocuments');
       const result = await submitClaim(claimId);
-      localStorage.removeItem('vbl_draft_claimId');
-      updateSuccessData({
+      handleSubmitSuccess({
         submissionId: result.claim.id,
         submittedAt:
           (result.claim.submittedAt as string) || new Date().toISOString(),
       });
-      handleSubmitSuccess();
     } catch (err) {
       console.error('Final submission error:', err);
       setFlowError(
@@ -669,8 +674,12 @@ export function GetStartedOnboardingFlow() {
         showBack={false}
         activeStep={4}
         currentSubStep={currentSubStep}
+        subSteps={submitDetailsSubsteps}
+        variant={variant}
+        showSubSteps={variant !== 'calculator'}
       >
         <SuccessScreen
+          variant={variant}
           onGoToDashboard={handleGoToDashboard}
           onStartDRVClaim={handleStartDRVClaim}
           onRemindDRV={handleRemindDRV}
@@ -740,6 +749,7 @@ export function GetStartedOnboardingFlow() {
       case 'signature':
         return (
           <Signature
+            variant={variant}
             onNext={
               isSignatureTerminal ? handleFinalizeFromSignature : saveAndAdvance
             }

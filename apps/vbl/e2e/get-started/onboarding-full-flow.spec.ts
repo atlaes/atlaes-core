@@ -1040,12 +1040,24 @@ test.describe('Calculator identity fields', () => {
     await assertCalculatorSubsteps();
   });
 
-  test('calculator signature submits exactly once while terminal submission is pending', async ({
+  test('calculator signature uses calculator sizing and calculator submitted completion clears its origin', async ({
     page,
     baseURL,
   }) => {
     test.setTimeout(120_000);
-    await seedCalculatorOrigin(page);
+    await page.addInitScript(() => {
+      if (!window.sessionStorage.getItem('task7_disable_calculator_seed')) {
+        window.localStorage.setItem(
+          'vbl_flow_identity_v1',
+          JSON.stringify({
+            version: 1,
+            pensionType: 'public',
+            pensionProvider: 'VBLklassik',
+            origin: 'calculator',
+          })
+        );
+      }
+    });
     await mockOnboardingApi(page);
     await page.route('**/api/payments/create-checkout-session', (route) =>
       route.fulfill({
@@ -1090,7 +1102,29 @@ test.describe('Calculator identity fields', () => {
     await completeBankDetails(page);
     await completeReview(page, 'calculator');
     await completeConfirmStep(page);
+    const signatureHeading = page.getByRole('heading', {
+      name: 'Add your signature',
+      exact: true,
+    });
+    await expect(signatureHeading).toBeVisible();
+    await expect(signatureHeading.locator('..')).toHaveClass(
+      /mx-auto.*max-w-\[760px\]/
+    );
+    await expect(
+      page.getByRole('button', { name: 'Draw signature' })
+    ).toHaveClass(/flex-1.*rounded-lg.*px-4.*py-4.*text-\[18px\].*font-medium/);
+    await expect(
+      page.getByRole('button', { name: 'Upload signature image' })
+    ).toHaveClass(/flex-1.*rounded-lg.*px-4.*py-4.*text-\[18px\].*font-medium/);
     const canvas = page.locator('canvas');
+    await expect(canvas).toHaveClass(/w-full.*h-\[300px\]/);
+    await expect(canvas.locator('..')).toHaveClass(/border-2.*border-dashed/);
+    await expect(page.getByRole('button', { name: 'Undo' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Redo' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Clear' })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Undo' }).locator('..')
+    ).toHaveClass(/justify-center/);
     const box = await canvas.boundingBox();
     if (box) {
       await page.mouse.move(box.x + 30, box.y + 30);
@@ -1100,6 +1134,9 @@ test.describe('Calculator identity fields', () => {
     }
     await page.getByLabel('I confirm that this is my legal signature.').check();
     const continueButton = page.getByRole('button', { name: 'Continue' });
+    await expect(continueButton).toHaveClass(
+      /mt-10.*w-full.*rounded-lg.*px-6.*py-4.*text-\[18px\].*font-semibold/
+    );
     await continueButton.click();
     const pendingButton = page.getByRole('button', { name: /Uploading/i });
     await expect(pendingButton).toBeDisabled();
@@ -1109,6 +1146,69 @@ test.describe('Calculator identity fields', () => {
         name: 'Your refund request has been submitted',
       })
     ).toBeVisible();
+    await expect(
+      page.getByText(
+        'Once your refund is approved, we’ll notify you so you can download the official refund statement and settle any remaining service fee.',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'Later, you may also be able to claim a German state pension refund',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'No thanks' })).toHaveCSS(
+      'color',
+      'rgb(0, 0, 0)'
+    );
+    await expect(page.getByTestId('success-main-icon')).toHaveCount(1);
+    await expect(page.getByTestId('success-main-icon')).toHaveClass(
+      /w-24.*h-24.*bg-\[#9FE870\].*rounded-full/
+    );
+    await expect(
+      page.getByTestId('success-main-icon').locator('svg')
+    ).toHaveClass(/w-12.*h-12.*text-\[#163300\]/);
+    for (const index of [0, 1, 2]) {
+      const nextStepIcon = page.getByTestId(`success-next-step-icon-${index}`);
+      await expect(nextStepIcon).toHaveCount(1);
+      await expect(nextStepIcon).toHaveClass(
+        /w-5.*h-5.*bg-\[#9FE870\].*rounded-full/
+      );
+      await expect(nextStepIcon.locator('svg')).toHaveClass(
+        /w-3.*h-3.*text-\[#163300\]/
+      );
+    }
+    await expect(page.getByTestId('onboarding-substeps')).toHaveCount(0);
+    await expect(
+      page.getByText('Sign & Submit', { exact: true }).first()
+    ).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(() => ({
+          identity: window.localStorage.getItem('vbl_flow_identity_v1'),
+          draft: window.localStorage.getItem('vbl_draft_claimId'),
+        }))
+      )
+      .toEqual({ identity: null, draft: null });
+
+    await page.evaluate(() => {
+      window.sessionStorage.setItem('task7_disable_calculator_seed', '1');
+    });
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await expect(
+      page.getByRole('heading', { name: 'Start your refund claim' })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('checkbox')).toHaveCount(0);
+    await expect(
+      page.getByText(
+        'I expressly request that CompanyPension begin providing the service before the end of the 14-day withdrawal period. I understand that, if I withdraw after work has begun, I may have to pay for services already provided.',
+        { exact: true }
+      )
+    ).toHaveCount(0);
     expect(submitCount).toBe(1);
   });
 

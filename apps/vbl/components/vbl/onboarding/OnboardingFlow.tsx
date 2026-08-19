@@ -308,11 +308,19 @@ export function OnboardingFlow({
   };
 
   // Handle successful submission
-  const handleSubmitSuccess = () => {
+  const handleSubmitSuccess = (submission?: {
+    submissionId?: string;
+    submittedAt?: string;
+  }) => {
     updateSuccessData({
-      submittedAt: new Date().toISOString(),
+      ...(submission?.submissionId
+        ? { submissionId: submission.submissionId }
+        : {}),
+      submittedAt: submission?.submittedAt || new Date().toISOString(),
       drvEligibilityDate: drvEligibilityDate,
     });
+    localStorage.removeItem('vbl_draft_claimId');
+    clearAllFlowPersistence();
     setShowSuccess(true);
   };
 
@@ -361,13 +369,11 @@ export function OnboardingFlow({
     try {
       await markStepComplete(claimId, 'signDocuments');
       const result = await submitClaim(claimId);
-      localStorage.removeItem('vbl_draft_claimId');
-      updateSuccessData({
+      handleSubmitSuccess({
         submissionId: result.claim.id,
         submittedAt:
           (result.claim.submittedAt as string) || new Date().toISOString(),
       });
-      setShowSuccess(true);
     } catch (err) {
       console.error('Final submission error:', err);
       setFlowError(
@@ -485,8 +491,10 @@ export function OnboardingFlow({
         headerIcon={headerIcon}
         variant={variant}
         subSteps={submitDetailsSubsteps}
+        showSubSteps={variant !== 'calculator'}
       >
         <SuccessScreen
+          variant={variant}
           onGoToDashboard={handleGoToDashboard}
           onStartDRVClaim={handleStartDRVClaim}
           onRemindDRV={handleRemindDRV}
@@ -547,6 +555,7 @@ export function OnboardingFlow({
       case 'signature':
         return (
           <Signature
+            variant={variant}
             onNext={
               isSignatureTerminal ? handleFinalizeFromSignature : advanceSubStep
             }
