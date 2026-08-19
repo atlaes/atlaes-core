@@ -109,6 +109,7 @@ export type DrawOp =
       x: number;
       yTop: number;
       height: number;
+      maxWidth: number;
       page: number;
     }
   | {
@@ -178,10 +179,7 @@ export function buildPoaLetterPlan(
 
   // Wraps `text` to `width`, choosing font metrics per line so mixed
   // bold/regular content (bullets) wraps against the correct widths.
-  const emitSegmentedLine = (
-    segments: TextSegment[],
-    indent: number
-  ): void => {
+  const emitSegmentedLine = (segments: TextSegment[], indent: number): void => {
     ops.push({
       kind: 'text',
       text: segments.map((s) => s.text).join(''),
@@ -205,9 +203,7 @@ export function buildPoaLetterPlan(
   emitLine('Vollmachtgeber:', fontSize, true);
   emitLine(`Vorname: ${data.firstName}`);
   emitLine(`Nachname: ${data.lastName}`);
-  emitLine(
-    `Anschrift: ${data.streetAddress}, ${data.postalCode} ${data.city}`
-  );
+  emitLine(`Anschrift: ${data.streetAddress}, ${data.postalCode} ${data.city}`);
   emitLine(`Geburtsdatum: ${data.dateOfBirth}`);
   emitLine(`Geburtsort: ${data.placeOfBirth}`);
   emitLine(`VBL-Versicherungsnummer / Aktenzeichen: ${data.vblReference}`);
@@ -252,8 +248,13 @@ export function buildPoaLetterPlan(
   }
 
   // Date row: "{city}, {dateToday}" on the left, signature image on the
-  // right of the same row.
+  // right of the date within the left half of the same row.
   const dateLineText = `${data.city}, ${data.dateToday}`;
+  const signatureWidth = getPoaSignatureReservedWidth();
+  const dateWidth = font.widthOfTextAtSize(dateLineText, fontSize);
+  const desiredSignatureX = marginLeft + dateWidth + 16;
+  const leftHalfMaxX = A4.width / 2 - signatureWidth;
+  const signatureX = Math.min(desiredSignatureX, leftHalfMaxX);
   ops.push({
     kind: 'text',
     text: dateLineText,
@@ -264,9 +265,10 @@ export function buildPoaLetterPlan(
   });
   ops.push({
     kind: 'signature',
-    x: A4.width - marginRight - signatureImageWidthEstimate(),
+    x: signatureX,
     yTop: cursor - (signatureImageHeight - lineHeight) / 2,
     height: signatureImageHeight,
+    maxWidth: A4.width / 2 - signatureX,
     page,
   });
   cursor += signatureImageHeight - lineHeight / 2;
@@ -289,11 +291,10 @@ export function buildPoaLetterPlan(
 }
 
 /**
- * Rough width reservation for the signature image so the right-aligned
- * placement leaves room. The exact width depends on the PNG aspect ratio
- * (resolved at render time); this reserves a typical signature footprint.
+ * Width reservation for the signature image. The exact rendered width
+ * depends on the PNG aspect ratio and is capped by the draw operation.
  */
-function signatureImageWidthEstimate(): number {
+export function getPoaSignatureReservedWidth(): number {
   return signatureImageHeight * 3;
 }
 
@@ -421,15 +422,21 @@ export async function renderPoaLetter(
       }
     } else if (op.kind === 'signature') {
       const scale = op.height / signatureImage.height;
-      const width = signatureImage.width * scale;
+      let width = signatureImage.width * scale;
+      let height = op.height;
+      if (width > op.maxWidth) {
+        const maxWidthScale = op.maxWidth / width;
+        width *= maxWidthScale;
+        height *= maxWidthScale;
+      }
       // Keep the signature within the right margin: if the scaled image is
       // wider than the reserved slot, nudge it left so it doesn't clip.
       const maxX = A4.width - marginRight - width;
       page.drawImage(signatureImage, {
         x: Math.min(op.x, maxX),
-        y: A4.height - op.yTop - op.height,
+        y: A4.height - op.yTop - height,
         width,
-        height: op.height,
+        height,
       });
     } else {
       // Horizontal rule.

@@ -3,6 +3,7 @@ import { PDFDocument, StandardFonts } from 'pdf-lib';
 import {
   buildPoaText,
   buildPoaLetterPlan,
+  getPoaSignatureReservedWidth,
   renderPoaLetter,
 } from './poa-letter';
 import { A4, COVER_LAYOUT } from './constants';
@@ -80,9 +81,7 @@ describe('poa letter', () => {
     const contentRight = A4.width - COVER_LAYOUT.marginRight;
     const titleOps = plan.filter(
       (op) =>
-        op.kind === 'text' &&
-        op.bold &&
-        op.text.includes('Empfangsvollmacht')
+        op.kind === 'text' && op.bold && op.text.includes('Empfangsvollmacht')
     );
     // The title should be present and every title line must fit within the
     // right margin (measured with the bold font at its rendered size).
@@ -147,6 +146,35 @@ describe('poa letter', () => {
     expect(dateOp && rule && nameOp).toBeTruthy();
     expect(dateOp!.page).toBe(rule!.page);
     expect(rule!.page).toBe(nameOp!.page);
+  });
+
+  it('places the signature beside the date in the left half of the page', async () => {
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
+    const plan = buildPoaLetterPlan(data, font, boldFont);
+    const date = plan.find(
+      (op) => op.kind === 'text' && op.text === 'Berlin, 06.07.2026'
+    );
+    const signature = plan.find((op) => op.kind === 'signature');
+
+    expect(date).toBeDefined();
+    expect(signature).toBeDefined();
+    if (
+      !date ||
+      date.kind !== 'text' ||
+      !signature ||
+      signature.kind !== 'signature'
+    ) {
+      throw new Error('missing date or signature operation');
+    }
+
+    expect(signature.x).toBeGreaterThan(date.x);
+    expect(signature.x + getPoaSignatureReservedWidth()).toBeLessThanOrEqual(
+      A4.width / 2
+    );
+    expect(signature.maxWidth).toBeCloseTo(A4.width / 2 - signature.x, 3);
+    expect(signature.page).toBe(date.page);
   });
 
   it('renders at least one A4 page without throwing', async () => {
