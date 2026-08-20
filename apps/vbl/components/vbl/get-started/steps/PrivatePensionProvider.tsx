@@ -39,19 +39,20 @@ export const PrivatePensionProvider: React.FC = () => {
 
   return (
     <div className="max-w-lg mx-auto">
+      {/* Figma 1451-2591 / 1156-3132 (tester feedback 2026-08-04) */}
       <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-        Who is your bAV provider?
+        Which company pension did you contribute to?
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
       <p className="text-gray-600 text-center mb-8">
-        Select the pension provider that managed your company pension scheme.
+        Select the pension scheme you paid into during your employment.
       </p>
 
-      <p className="text-sm font-medium text-gray-700 mb-2">bAV provider</p>
+      <p className="text-sm font-medium text-gray-700 mb-2">Pension provider</p>
 
       <div className="relative mb-4">
         <select
-          aria-label="bAV provider"
+          aria-label="Pension provider"
           value={selected}
           onChange={(e) => {
             setSelected(e.target.value as PrivatePensionProviderType);
@@ -59,7 +60,7 @@ export const PrivatePensionProvider: React.FC = () => {
           }}
           className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg appearance-none cursor-pointer focus:outline-none focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/20 transition-all text-gray-700"
         >
-          <option value="">Select pension provider</option>
+          <option value="">Select provider</option>
           {PROVIDERS.map((provider) => (
             <option key={provider.id} value={provider.id}>
               {provider.label}
@@ -74,7 +75,7 @@ export const PrivatePensionProvider: React.FC = () => {
           type="text"
           value={otherName}
           onChange={(e) => setOtherName(e.target.value)}
-          placeholder="Pension provider name"
+          placeholder="Enter pension provider name"
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#9FE870] focus:ring-2 focus:ring-[#9FE870]/20 transition-all text-gray-700 mb-4"
         />
       )}

@@ -12,6 +12,7 @@ export const EligibilityResult: React.FC = () => {
     waitingInfo,
     reviewInfo,
     reset,
+    backFromResult,
     data,
     confirmEligibility,
   } = useEligibility();
@@ -59,6 +60,53 @@ export const EligibilityResult: React.FC = () => {
       );
     }
 
+    if (isPrivate) {
+      // Figma 1156-3840 (tester feedback 2026-08-04): the bAV eligible
+      // screen is a light-green panel with a Back control returning to the
+      // last question, a small check icon, the info note and one button.
+      return (
+        <div className="-mx-7 -my-8 min-h-[690px] bg-[#EDF5E6] px-7 py-8 sm:-mx-8 sm:px-8">
+          <button
+            type="button"
+            onClick={backFromResult}
+            className="flex items-center gap-2 text-[15px] font-semibold text-[#163300] transition hover:text-[#2A5A00]"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
+
+          <div className="mx-auto flex min-h-[380px] max-w-lg flex-col items-center justify-center py-6 text-center">
+            <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#9FE870]">
+              <Check className="h-10 w-10 text-[#163300]" strokeWidth={3} />
+            </div>
+
+            <h2 className="mb-3 text-2xl font-bold text-gray-900">
+              Your bAV cash-out can be started through CompanyPension
+            </h2>
+            <p className="mb-6 text-gray-600">
+              Based on your answers, your case appears to fit the bAV cash-out
+              process currently supported by CompanyPension.
+            </p>
+
+            <div className="mb-8 w-full rounded-lg bg-[#CBE7B4] p-4">
+              <p className="text-sm font-semibold text-[#163300]">
+                Final approval depends on the pension provider and, where
+                required, employer confirmation.
+              </p>
+            </div>
+
+            <button
+              onClick={handleContinueSecurely}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#9FE870] px-6 py-3 font-semibold text-[#163300] transition-colors hover:bg-[#8AD860]"
+            >
+              Start bAV cash-out
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="max-w-lg mx-auto text-center py-8">
         <div className="w-20 h-20 rounded-full bg-[#9FE870] flex items-center justify-center mx-auto mb-6">
@@ -66,32 +114,20 @@ export const EligibilityResult: React.FC = () => {
         </div>
 
         <h2 className="text-2xl font-bold text-gray-900 mb-3">
-          {isPrivate
-            ? 'Your bAV cash-out can be started through CompanyPension'
-            : "You're eligible to continue"}
+          You&apos;re eligible to continue
         </h2>
         <p className="text-gray-600 mb-4">
-          {isPrivate
-            ? 'Based on your answers, your case appears to fit the bAV cash-out process currently supported by CompanyPension.'
-            : 'Based on your answers, you can proceed with preparing and submitting your supplementary pension refund claim.'}
+          Based on your answers, you can proceed with preparing and submitting
+          your supplementary pension refund claim.
         </p>
 
-        {isPrivate && (
-          <div className="bg-[#EEF6EA] border border-[#9FE870] rounded-lg p-4 mb-6 text-left">
-            <p className="text-sm text-gray-600">
-              Final approval depends on the pension provider and, where
-              required, employer confirmation.
-            </p>
-          </div>
-        )}
-
-        {!isPrivate && <div className="mb-4" />}
+        <div className="mb-4" />
 
         <button
           onClick={handleContinueSecurely}
           className="w-full py-3 px-6 bg-[#9FE870] text-[#163300] font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-[#8AD860] transition-colors"
         >
-          {isPrivate ? 'Start bAV cash-out' : 'Continue securely'}
+          Continue securely
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
@@ -311,13 +347,25 @@ export const EligibilityResult: React.FC = () => {
             </p>
           )}
 
-          <button
-            onClick={reset}
-            className="flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-[6px] bg-[#9FE870] px-6 text-[16px] font-bold text-[#163300] shadow-sm transition hover:bg-[#8AD860]"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            Return to start
-          </button>
+          {ineligibilityInfo.returnTo === 'homepage' ? (
+            // Figma 455-15644: the ZVK rejection returns to the homepage.
+            <Link
+              href="/"
+              onClick={reset}
+              className="flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-[6px] bg-[#9FE870] px-6 text-[16px] font-bold text-[#163300] shadow-sm transition hover:bg-[#8AD860]"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              Return to homepage
+            </Link>
+          ) : (
+            <button
+              onClick={reset}
+              className="flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-[6px] bg-[#9FE870] px-6 text-[16px] font-bold text-[#163300] shadow-sm transition hover:bg-[#8AD860]"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              Return to start
+            </button>
+          )}
         </div>
       );
     }

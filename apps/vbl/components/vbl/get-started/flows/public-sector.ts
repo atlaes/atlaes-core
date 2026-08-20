@@ -9,6 +9,21 @@ const INELIGIBLE_STATES = [
   'Thuringia',
 ];
 
+// Tester feedback 2026-08-04 (Figma 1572-609 / 1573-717 / 455-15644): every
+// public-sector rejection is the plain screen — this title, no body copy.
+const CANNOT_BE_CLAIMED =
+  'This refund cannot currently be claimed with CompanyPension';
+// The post-questionnaire rejection (Figma 1858-1192) says "started".
+const CANNOT_BE_STARTED =
+  'This refund cannot currently be started with CompanyPension';
+
+const PUBLIC_FINAL_QUESTION_FIELDS = [
+  'publicWorkedPublicAfter',
+  'publicOtherInstitution',
+  'publicPriorRefund',
+  'publicCivilServant',
+] as const;
+
 function endedInOrAfter2018(data: EligibilityData): boolean {
   const endYear = Number(data.employmentEndYear);
   return Number.isFinite(endYear) && endYear >= 2018;
@@ -42,41 +57,19 @@ function hasConfirmedUploadCheckData(data: EligibilityData): boolean {
 
 function checkPublicEligibility(data: EligibilityData) {
   if (INELIGIBLE_STATES.includes(data.federalState)) {
-    return {
-      title: 'Not eligible for a supplementary pension refund',
-      message:
-        'Public-sector pension schemes in certain federal states operate under different regulations and do not allow a refund.',
-    };
+    return { title: CANNOT_BE_CLAIMED, message: '' };
   }
 
   if (data.pensionProvider === 'VBL' && data.vblPlan === 'VBLextra') {
-    return {
-      title: 'Not eligible for a supplementary pension refund',
-      message:
-        'Based on your information, your supplementary pension is vested. Because you have contributions to VBLextra, any earlier VBLklassik contributions are preserved as a future pension entitlement and cannot be paid out as a lump sum.',
-      secondaryMessage:
-        'Your pension remains credited to you and may be paid later as a regular pension benefit when you reach the German retirement age.',
-    };
+    return { title: CANNOT_BE_CLAIMED, message: '' };
   }
 
   if (data.contributionDuration === '60_plus') {
-    return {
-      title: 'Not eligible for a supplementary pension refund',
-      message:
-        'Based on the information you provided, a payout of your supplementary pension contributions is not possible.',
-      secondaryMessage:
-        'Your pension is vested under the applicable scheme rules and must remain with the pension provider. You may claim a regular pension benefit once you reach the German retirement age.',
-    };
+    return { title: CANNOT_BE_CLAIMED, message: '' };
   }
 
   if (data.consecutiveContribution === 'yes' && endedInOrAfter2018(data)) {
-    return {
-      title: 'Not eligible for a supplementary pension refund',
-      message:
-        'Based on your information, your supplementary pension is vested under the rules that apply from 2018 onward and cannot be paid out as a lump sum.',
-      secondaryMessage:
-        'Periods that ended before 2018 may still be reviewed because earlier contributions can be counted differently.',
-    };
+    return { title: CANNOT_BE_CLAIMED, message: '' };
   }
 
   return null;
@@ -92,6 +85,7 @@ export const publicSectorFlow: FlowConfig = {
     'employment_end_date',
     'contribution_period',
     'contribution_duration',
+    'public_final_questions',
   ],
 
   shouldSkipStep(stepId: StepId, data: EligibilityData): boolean {
@@ -139,23 +133,27 @@ export const publicSectorFlow: FlowConfig = {
 
       case 'federal_state':
         if (INELIGIBLE_STATES.includes(data.federalState)) {
+          return { title: CANNOT_BE_CLAIMED, message: '' };
+        }
+        return null;
+
+      // Figma 454-10444 / 455-15644: the manual dropdown offers VBL and ZVK,
+      // and selecting ZVK ends on the rejection screen whose button returns
+      // to the homepage. Upload-path extractions (state-specific ZVK names,
+      // e.g. 'ZVK (KVBW)') are unaffected — they never pass through this step.
+      case 'pension_provider':
+        if (data.pensionProvider === 'ZVK') {
           return {
-            title: 'Not eligible for a supplementary pension refund',
-            message:
-              'Public-sector pension schemes in certain federal states operate under different regulations and do not allow a refund.',
+            title: CANNOT_BE_CLAIMED,
+            message: '',
+            returnTo: 'homepage' as const,
           };
         }
         return null;
 
       case 'pension_scheme':
         if (data.vblPlan === 'VBLextra') {
-          return {
-            title: 'Not eligible for a supplementary pension refund',
-            message:
-              'Based on your information, your supplementary pension is vested. Because you have contributions to VBLextra, any earlier VBLklassik contributions are preserved as a future pension entitlement and cannot be paid out as a lump sum.',
-            secondaryMessage:
-              'Your pension remains credited to you and may be paid later as a regular pension benefit when you reach the German retirement age.',
-          };
+          return { title: CANNOT_BE_CLAIMED, message: '' };
         }
         return null;
 
@@ -164,25 +162,24 @@ export const publicSectorFlow: FlowConfig = {
           data.consecutiveContribution === 'yes' &&
           endedInOrAfter2018(data)
         ) {
-          return {
-            title: 'Not eligible for a supplementary pension refund',
-            message:
-              'Based on your information, your supplementary pension is vested under the rules that apply from 2018 onward and cannot be paid out as a lump sum.',
-            secondaryMessage:
-              'Periods that ended before 2018 may still be reviewed because earlier contributions can be counted differently.',
-          };
+          return { title: CANNOT_BE_CLAIMED, message: '' };
         }
         return null;
 
       case 'contribution_duration':
         if (data.contributionDuration === '60_plus') {
-          return {
-            title: 'Not eligible for a supplementary pension refund',
-            message:
-              'Based on the information you provided, a payout of your supplementary pension contributions is not possible.',
-            secondaryMessage:
-              'Your pension is vested under the applicable scheme rules and must remain with the pension provider. You may claim a regular pension benefit once you reach the German retirement age.',
-          };
+          return { title: CANNOT_BE_CLAIMED, message: '' };
+        }
+        return null;
+
+      // Figma 1858-711 → 1858-1192: any 'yes' on the final questionnaire
+      // blocks the refund. Runs for the upload path too — it is the final
+      // gate for every public-sector path.
+      case 'public_final_questions':
+        if (
+          PUBLIC_FINAL_QUESTION_FIELDS.some((field) => data[field] === 'yes')
+        ) {
+          return { title: CANNOT_BE_STARTED, message: '' };
         }
         return null;
 

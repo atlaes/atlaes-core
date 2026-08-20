@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { config } from 'dotenv';
+import { Resource } from 'sst';
 
 // Only load .env file in non-test environments
 // Tests set their own environment variables before importing modules
@@ -7,18 +8,30 @@ if (process.env.NODE_ENV !== 'test') {
   config({ path: '../../.env' });
 }
 
-// Build DATABASE_URL from SST Resource if available, otherwise use env var
+// Name of the Postgres resource linked in resources/database/index.ts.
+const DATABASE_LINK_NAME = 'AtlaesDatabase';
+
+/**
+ * Build DATABASE_URL from the linked SST Postgres resource, falling back to a
+ * plain env var for local development.
+ *
+ * SST delivers links differently depending on the compute type:
+ *   - `sst.aws.Service` (the Fargate backend) receives `SST_RESOURCE_*` env vars.
+ *   - `sst.aws.Function` (Lambda, e.g. the Stripe webhook) receives an
+ *     AES-encrypted `resource.enc` bundle, referenced by `SST_KEY_FILE`/`SST_KEY`,
+ *     and gets no `SST_RESOURCE_<name>` variable at all.
+ *
+ * `Resource` from the `sst` package reads both, so never hand-parse
+ * `SST_RESOURCE_AtlaesDatabase`: that path works on Fargate but silently
+ * degrades to the localhost fallback on Lambda, which cannot reach RDS.
+ */
 function getDatabaseUrl(): string {
-  // Check if we're running in SST environment
-  if (process.env.SST_RESOURCE_AtlaesDatabase) {
-    try {
-      const dbResource = JSON.parse(process.env.SST_RESOURCE_AtlaesDatabase);
-      const url = `postgresql://${dbResource.username}:${dbResource.password}@${dbResource.host}:${dbResource.port}/${dbResource.database}`;
-      console.log('Using SST database resource for connection');
-      return url;
-    } catch (error) {
-      console.error('Failed to parse SST database resource:', error);
-    }
+  // `Resource` is a Proxy that throws for names that aren't linked, so probe
+  // with `in` instead of a truthiness check.
+  if (DATABASE_LINK_NAME in Resource) {
+    const dbResource = Resource[DATABASE_LINK_NAME];
+    console.log('Using SST database resource for connection');
+    return `postgresql://${dbResource.username}:${dbResource.password}@${dbResource.host}:${dbResource.port}/${dbResource.database}`;
   }
 
   // Fallback to DATABASE_URL env var or default
@@ -87,18 +100,30 @@ const envSchema = z.object({
 
 export const env = envSchema.parse(process.env);
 
-// Hard guard: refuse to boot in production with the dev default token.
-// Prevents an accidental staging/prod deploy from shipping a publicly-known
-// migration token.
-if (
-  env.NODE_ENV === 'production' &&
-  env.ADMIN_MIGRATION_TOKEN ===
-    'dev-migration-token-not-for-production-use-only'
-) {
-  throw new Error(
-    'ADMIN_MIGRATION_TOKEN must be set to a real secret in production (>=32 chars). ' +
-      'Set it via: AWS_PROFILE=atlaes npx sst secret set AdminMigrationToken <value> --stage <stage>'
-  );
+/**
+ * Hard guard: refuse to boot the backend in production with the dev default
+ * token. Prevents an accidental staging/prod deploy from shipping a
+ * publicly-known migration token.
+ *
+ * Deliberately a function called from the Hono entrypoint rather than a
+ * module-scope side effect. `env.ts` is imported transitively by Lambda
+ * entrypoints (stripe-webhook -> PaymentService -> utils/db -> utils/env)
+ * which run with NODE_ENV=production but are never linked to the
+ * AdminMigrationToken secret — only the backend serves /api/migrations/run.
+ * Throwing at import time killed those functions during init, before their
+ * handler ever ran.
+ */
+export function assertMigrationTokenConfigured(): void {
+  if (
+    env.NODE_ENV === 'production' &&
+    env.ADMIN_MIGRATION_TOKEN ===
+      'dev-migration-token-not-for-production-use-only'
+  ) {
+    throw new Error(
+      'ADMIN_MIGRATION_TOKEN must be set to a real secret in production (>=32 chars). ' +
+        'Set it via: AWS_PROFILE=atlaes npx sst secret set AdminMigrationToken <value> --stage <stage>'
+    );
+  }
 }
 
 export type Env = z.infer<typeof envSchema>;

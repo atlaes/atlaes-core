@@ -9,6 +9,7 @@ import {
   selectEmploymentEndDate,
   selectContributionPeriod,
   selectContributionDuration,
+  completePublicFinalQuestions,
   expectEligibleResult,
   expectNotEligibleResult,
 } from './helpers';
@@ -144,6 +145,9 @@ test.describe('Public Sector Eligibility', () => {
     ).toHaveValue('Bavaria');
 
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    // Figma 1858-711: the final questionnaire is the last gate for every
+    // public path, upload included.
+    await completePublicFinalQuestions(page);
     await expectEligibleResult(page);
   });
 
@@ -193,6 +197,7 @@ test.describe('Public Sector Eligibility', () => {
     await page.getByLabel('End year', { exact: true }).selectOption('2017');
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
+    await completePublicFinalQuestions(page);
     await expectEligibleResult(page);
   });
 
@@ -229,6 +234,7 @@ test.describe('Public Sector Eligibility', () => {
     // Pre-2018 end date skips the consecutive-contribution question.
     await selectEmploymentEndDate(page, 'January', '2017');
     await selectContributionDuration(page, 'Less than 36 months');
+    await completePublicFinalQuestions(page);
     await expectEligibleResult(page);
   });
 
@@ -241,7 +247,26 @@ test.describe('Public Sector Eligibility', () => {
     // Pre-2018 end date skips the consecutive-contribution question.
     await selectEmploymentEndDate(page, 'December', '2017');
     await selectContributionDuration(page, '36 to 59 months');
+    await completePublicFinalQuestions(page);
     await expectEligibleResult(page);
+  });
+
+  test('any Yes on the final questionnaire → not eligible', async ({
+    page,
+  }) => {
+    await selectFederalState(page, 'Bavaria');
+    await selectPensionProvider(page, 'VBL');
+    await selectPensionScheme(page, 'VBLklassik');
+    await selectEmploymentEndDate(page, 'December', '2017');
+    await selectContributionDuration(page, 'Less than 36 months');
+    await completePublicFinalQuestions(page, ['No', 'Yes', 'No', 'No']);
+    await expectNotEligibleResult(page);
+    // Figma 1858-1192: the post-questionnaire rejection says "started".
+    await expect(
+      page.getByRole('heading', {
+        name: 'This refund cannot currently be started with CompanyPension',
+      })
+    ).toBeVisible();
   });
 
   test('Recent employment end date does not trigger a waiting result (item 9: no 24-month rule for VBL/ZVK)', async ({
@@ -262,22 +287,25 @@ test.describe('Public Sector Eligibility', () => {
     );
     await selectContributionPeriod(page, 'No');
     await selectContributionDuration(page, 'Less than 36 months');
+    await completePublicFinalQuestions(page);
     await expectEligibleResult(page);
     await expect(
       page.getByRole('heading', { name: 'Your refund cannot be started yet' })
     ).toHaveCount(0);
   });
 
-  test('Non-VBL state provider skips pension scheme → eligible', async ({
+  // Figma 454-10444 / 455-15644 (tester feedback 2026-08-04): the manual
+  // dropdown always offers VBL and ZVK; selecting ZVK ends on the rejection
+  // screen whose button returns to the homepage.
+  test('ZVK provider → cannot currently be claimed, return to homepage', async ({
     page,
   }) => {
     await selectFederalState(page, 'Hesse');
-    await selectPensionProvider(page, 'ZVK Darmstadt');
-    // Pension scheme step should be skipped for non-VBL providers.
-    // Pre-2018 end date also skips the consecutive-contribution question.
-    await selectEmploymentEndDate(page, 'January', '2016');
-    await selectContributionDuration(page, 'Less than 36 months');
-    await expectEligibleResult(page);
+    await selectPensionProvider(page, 'ZVK');
+    await expectNotEligibleResult(page);
+    await expect(
+      page.getByRole('link', { name: /Return to homepage/i })
+    ).toBeVisible();
   });
 
   test('Hamburg is not offered in the public-sector federal-state dropdown', async ({
@@ -329,33 +357,40 @@ test.describe('Public Sector Eligibility', () => {
     await selectPensionProvider(page, 'VBL');
     await selectPensionScheme(page, 'VBLextra');
     await expectNotEligibleResult(page);
-    // The flow-specific copy must render (not the generic fallback heading):
-    // VBLextra means the supplementary pension is vested.
+    // Figma 1572-609 (tester feedback 2026-08-04): the rejection is the
+    // plain title with no explanatory body copy.
     await expect(
       page.getByRole('heading', {
-        name: 'Not eligible for a supplementary pension refund',
+        name: 'This refund cannot currently be claimed with CompanyPension',
       })
     ).toBeVisible();
     await expect(
       page.getByText(/supplementary pension is vested/i)
-    ).toBeVisible();
+    ).toHaveCount(0);
   });
 
   test('Consecutive contribution yes with 2018+ end date → not eligible', async ({
     page,
   }) => {
     await selectFederalState(page, 'Hesse');
-    await selectPensionProvider(page, 'ZVK Darmstadt');
+    await selectPensionProvider(page, 'VBL');
+    await selectPensionScheme(page, 'VBLklassik');
     await selectEmploymentEndDate(page, 'January', '2018');
     await selectContributionPeriod(page, 'Yes');
     await expectNotEligibleResult(page);
+    await expect(
+      page.getByRole('heading', {
+        name: 'This refund cannot currently be claimed with CompanyPension',
+      })
+    ).toBeVisible();
   });
 
   test('Pre-2018 end date skips the consecutive-contribution question', async ({
     page,
   }) => {
     await selectFederalState(page, 'Hesse');
-    await selectPensionProvider(page, 'ZVK Darmstadt');
+    await selectPensionProvider(page, 'VBL');
+    await selectPensionScheme(page, 'VBLklassik');
     await selectEmploymentEndDate(page, 'December', '2017');
     // The consecutive-contribution question is skipped for pre-2018 periods
     // (its 'yes' answer only blocks eligibility from 2018 onward), so the flow
@@ -366,6 +401,7 @@ test.describe('Public Sector Eligibility', () => {
       })
     ).toHaveCount(0);
     await selectContributionDuration(page, 'Less than 36 months');
+    await completePublicFinalQuestions(page);
     await expectEligibleResult(page);
   });
 

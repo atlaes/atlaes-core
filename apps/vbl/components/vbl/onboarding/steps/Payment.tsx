@@ -84,15 +84,16 @@ const PAYMENT_COPY: Record<'public' | 'private', PaymentCopy> = {
     ],
     feeFootnote:
       'Any remaining balance is payable only after the payout is received.',
-    calloutHeading: 'If the cash-out cannot be submitted after review:',
+    // Figma 1156-4761 (tester feedback 2026-08-04)
+    calloutHeading: 'If no cash-out request can be submitted after review:',
     calloutBullets: [
-      '€79 is retained for the digital claim setup and document check',
+      '€79 is retained for the digital cash-out setup, document check and case review',
       '€120 is refunded to you',
     ],
     bankNote:
-      'CompanyPension provides a digital claim platform. We do not provide legal, pension, tax or financial advice. You remain the claimant and approved funds are paid directly to your own account.',
+      'CompanyPension provides a digital platform for company pension cash-outs. We do not provide individual legal, pension, tax, insurance or financial advice. You remain the claimant. If approved, the cash-out will be paid directly to the bank account you provide.',
     secureLabel: '✓ Secure payment via Stripe',
-    buttonLabel: 'Pay €199 and complete your claim',
+    buttonLabel: 'Pay €199 deposit and continue',
     processingLabel: 'Redirecting to payment...',
   },
 };
@@ -105,13 +106,21 @@ export const Payment: React.FC<PaymentProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [earlyPerformanceAccepted, setEarlyPerformanceAccepted] = useState(false);
+  const [earlyPerformanceAccepted, setEarlyPerformanceAccepted] =
+    useState(false);
+  // Figma 1156-4761: the bAV paygate gates payment behind two consents
+  // (T&C/privacy + early-service before the 14-day withdrawal period).
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [agreedToEarlyService, setAgreedToEarlyService] = useState(false);
 
   const isPrivate = data.pensionType === 'private';
   const isCalculator = variant === 'calculator';
   const calculatorReady = termsAccepted && earlyPerformanceAccepted;
-  const paymentDisabled = isProcessing || (isCalculator && !calculatorReady);
   const copy = PAYMENT_COPY[isPrivate ? 'private' : 'public'];
+  const consentsGiven = !isPrivate || (agreedToTerms && agreedToEarlyService);
+  const paymentDisabled =
+    isProcessing ||
+    (isCalculator ? !calculatorReady : isPrivate && !consentsGiven);
 
   // Auto-skip if payment is already completed
   React.useEffect(() => {
@@ -122,6 +131,7 @@ export const Payment: React.FC<PaymentProps> = ({
 
   const handlePayment = async () => {
     if (isCalculator && !calculatorReady) return;
+    if (isPrivate && !consentsGiven) return;
 
     setIsProcessing(true);
     setError(null);
@@ -200,28 +210,9 @@ export const Payment: React.FC<PaymentProps> = ({
           </div>
         )}
 
-        {/* bAV "What happens next" checklist (Item 6 / VBL-26) */}
-        {copy.checklistHeading && (
-          <div className="mb-6">
-            <p className="text-sm font-semibold text-gray-900 mb-3">
-              {copy.checklistHeading}
-            </p>
-            <div className="space-y-3">
-              {copy.checklist.map((item) => (
-                <div key={item} className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-[#163300] flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Check className="w-3 h-3 text-white" />
-                  </div>
-                  <p className="text-sm text-gray-700">{item}</p>
-                </div>
-              ))}
-            </div>
-            <div className="border-t border-gray-200 mt-6" />
-          </div>
-        )}
-
-        {/* Fee Breakdown List */}
-        <div className={isPrivate ? 'mb-2' : 'space-y-3 mb-6'}>
+        {/* Fee Breakdown List — for bAV this comes directly under the
+            deposit row (Figma 1156-4761) */}
+        <div className={isPrivate ? 'mb-6' : 'space-y-3 mb-6'}>
           {isPrivate && (
             <p className="text-sm font-semibold text-gray-900 mb-3">
               Service fee:
@@ -241,7 +232,8 @@ export const Payment: React.FC<PaymentProps> = ({
                   </div>
                   <p className="text-sm text-gray-700">
                     <strong>{bullet.label}</strong>{' '}
-                    {isCalculator && bullet.label === 'Money-back guarantee:' ? (
+                    {isCalculator &&
+                    bullet.label === 'Money-back guarantee:' ? (
                       <span>
                         The €199 deposit is refunded if the pension institution
                         rejects your submitted refund application.
@@ -255,13 +247,32 @@ export const Payment: React.FC<PaymentProps> = ({
             )}
           </div>
           {copy.feeFootnote && (
-            <p className="text-xs text-gray-500 mb-6">{copy.feeFootnote}</p>
+            <p className="text-xs text-gray-500">{copy.feeFootnote}</p>
           )}
         </div>
 
-        {/* bAV "cannot be submitted after review" callout (Item 6 / VBL-26) */}
+        {/* bAV "What happens next" checklist (Figma 1156-4761) */}
+        {copy.checklistHeading && (
+          <div className="mb-6">
+            <p className="text-sm font-semibold text-gray-900 mb-3">
+              {copy.checklistHeading}
+            </p>
+            <div className="space-y-3">
+              {copy.checklist.map((item) => (
+                <div key={item} className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-[#163300] flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="w-3 h-3 text-white" />
+                  </div>
+                  <p className="text-sm text-gray-700">{item}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* bAV "cannot be submitted after review" callout (Figma 1156-4761) */}
         {copy.calloutHeading && (
-          <div className="bg-[#F0FDE4] rounded-lg p-4 mb-6">
+          <div className="bg-[#F0FDE4] rounded-lg p-4 mb-6 border border-[#CBE7B4]">
             <p className="text-sm font-semibold text-gray-900 mb-2">
               {copy.calloutHeading}
             </p>
@@ -276,10 +287,13 @@ export const Payment: React.FC<PaymentProps> = ({
           </div>
         )}
 
-        {/* Bank account / disclaimer note */}
-        <p className="text-xs text-gray-500 text-center mb-6">
-          {copy.bankNote}
-        </p>
+        {/* Public: bank note above the secure label; bAV moves its
+            disclaimer below the button (Figma 1156-4761) */}
+        {!isPrivate && (
+          <p className="text-xs text-gray-500 text-center mb-6">
+            {copy.bankNote}
+          </p>
+        )}
         <p className="text-xs text-gray-500 text-center mb-6 flex items-center justify-center gap-1">
           {isCalculator && (
             <ShieldCheck
@@ -331,6 +345,57 @@ export const Payment: React.FC<PaymentProps> = ({
           </div>
         )}
 
+        {/* bAV consent checkboxes (Figma 1156-4761) — both gate the button */}
+        {isPrivate && (
+          <div className="space-y-4 mb-6 text-left">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(event) => setAgreedToTerms(event.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[#163300]"
+              />
+              <span className="text-xs text-gray-700 leading-5">
+                I have read and agree to the CompanyPension{' '}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline font-medium"
+                >
+                  Terms and Conditions
+                </a>
+                . We process your personal data as described in our{' '}
+                <a
+                  href="/privacy-policy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline font-medium"
+                >
+                  Privacy Policy
+                </a>
+                .
+              </span>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={agreedToEarlyService}
+                onChange={(event) =>
+                  setAgreedToEarlyService(event.target.checked)
+                }
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[#163300]"
+              />
+              <span className="text-xs text-gray-700 leading-5">
+                I expressly request that CompanyPension begin providing the
+                service before the end of the 14-day withdrawal period. I
+                understand that, if I withdraw after work has begun, I may have
+                to pay for services already provided.
+              </span>
+            </label>
+          </div>
+        )}
+
         {/* Error Message */}
         {error && (
           <div className="flex items-center gap-2 text-red-600 text-sm mb-4 p-3 bg-red-50 rounded-lg">
@@ -365,6 +430,13 @@ export const Payment: React.FC<PaymentProps> = ({
             </>
           )}
         </button>
+
+        {/* bAV disclaimer below the button (Figma 1156-4761) */}
+        {isPrivate && (
+          <p className="text-xs text-gray-500 text-center mt-4">
+            {copy.bankNote}
+          </p>
+        )}
       </div>
     </div>
   );

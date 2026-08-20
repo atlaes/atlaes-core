@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { label: 'Pricing', href: '/pricing' },
   { label: 'FAQ', href: '/faq' },
   { label: 'About', href: '/about' },
+  { label: 'Cash-outs & Refunds', href: '/cash-outs-and-refunds' },
 ];
 
 export function MarketingNav() {

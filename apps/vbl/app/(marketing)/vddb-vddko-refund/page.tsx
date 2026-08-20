@@ -2,12 +2,17 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Check, Info } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
-import { SectionHeading } from '@/components/marketing/SectionHeading';
+import {
+  SectionHeading,
+  FAQ_EYEBROW_WIDTH,
+} from '@/components/marketing/SectionHeading';
 import { StepCard } from '@/components/marketing/StepCard';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import { ImportantCallout } from '@/components/marketing/ImportantCallout';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
 import { GlossaryCard } from '@/components/marketing/GlossaryCard';
+import { FaqAccordion } from '@/components/marketing/FaqAccordion';
+import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -33,9 +38,11 @@ function CheckList({ items }: { items: ReactNode[] }) {
     <ul className="space-y-3">
       {items.map((item, index) => (
         <li key={index} className="flex items-start gap-3 text-gray-700">
-          <Check
-            className="mt-0.5 h-5 w-5 shrink-0 text-brand"
+          <img
+            src="/marketing/icons/check-bullet.svg"
+            alt=""
             aria-hidden="true"
+            className="mt-0.5 h-5 w-5 shrink-0"
           />
           <span className="text-base leading-relaxed">{item}</span>
         </li>
@@ -217,7 +224,7 @@ export default function VddbVddkoRefundPage() {
       </section>
 
       {/* ---- QUICK ANSWER (Figma 1080:5821) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div className="text-brand">
@@ -310,7 +317,7 @@ export default function VddbVddkoRefundPage() {
       </section>
 
       {/* ---- WHO THIS PAGE IS FOR (Figma 1080:10775) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -394,7 +401,7 @@ export default function VddbVddkoRefundPage() {
       </section>
 
       {/* ---- ELIGIBILITY BASICS (Figma 1080:10931) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div className="text-brand">
@@ -466,7 +473,7 @@ export default function VddbVddkoRefundPage() {
       </section>
 
       {/* ---- DRV VS VddB / VddKO (Figma 1087:101) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div className="text-brand">
@@ -545,7 +552,7 @@ export default function VddbVddkoRefundPage() {
       </section>
 
       {/* ---- CROSS-BORDER WORK (Figma 1089:2120) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div className="text-brand">
@@ -638,7 +645,7 @@ export default function VddbVddkoRefundPage() {
       </section>
 
       {/* ---- DOCUMENTS (Figma 1089:2250) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div className="text-brand">
@@ -710,7 +717,7 @@ export default function VddbVddkoRefundPage() {
       </section>
 
       {/* ---- COMPARISON TABLE (Figma 1098:95 / table 1098:114) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -821,27 +828,26 @@ export default function VddbVddkoRefundPage() {
         </div>
       </section>
 
-      {/* ---- FAQ (Figma 1099:1185) ----
-          FAQ_ANSWER_PENDING: every FAQ item in this frame is a component
-          instance carrying lorem defaults ("How do I pay for the…", "You can
-          pay with a c…", "We need to add new u…", "My team wants to can…").
-          Only the section heading and eyebrow are non-instance verbatim copy.
-          Questions and answers are UNVERIFIABLE from the XML and must not be
-          invented — backfilled once Figma access is restored. */}
-      <section className="bg-neutral-50">
+      {/* ---- FAQ (Figma 1099:1185) — answers from the shared FAQ master copy via faqItems.tsx (FAQ CompanyPension 22062026.pdf) ---- */}
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="FAQ"
+              eyebrowWidth={FAQ_EYEBROW_WIDTH}
               title="VddB and VddKO refunds: common questions"
             />
           </div>
-          <div className="mx-auto mt-12 max-w-3xl">
-            <InfoNote>
-              FAQ content for this page is pending. The questions and answers in
-              the source design are placeholder component instances and will be
-              added once the final copy is available.
-            </InfoNote>
+          <div className="mx-auto mt-12 max-w-4xl">
+            <FaqAccordion
+              items={[
+                FAQ.vddbRefund,
+                FAQ.vddkoRefund,
+                FAQ.vddbVddkoInDrv,
+                FAQ.returnToStageWork,
+              ]}
+              defaultOpenIndex={0}
+            />
           </div>
           <div className="mt-10 flex justify-center">
             <Link
@@ -920,7 +926,7 @@ export default function VddbVddkoRefundPage() {
           PUBLICATION_PENDING: "LAST REVIEWED" and "REVIEWED BY" carry
           bracketed placeholders in the design; rendered verbatim and flagged
           for the client to complete before publication. */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-16 sm:py-20`}>
           <div className="mx-auto max-w-3xl">
             <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-white px-4 py-2 text-sm font-medium text-brand">
