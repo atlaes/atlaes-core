@@ -10,23 +10,37 @@ test.describe('Onboarding Edge Cases', () => {
   // ============================================================
 
   test.describe('Pension Type Selection', () => {
-    test('private sector opens external link', async ({ page, context }) => {
-      // Listen for new page (popup/tab)
-      const pagePromise = context.waitForEvent('page');
-
-      await page.getByText('Private Sector Pension').click();
-
-      const newPage = await pagePromise;
-      expect(newPage.url()).toContain('bvv.de');
-      await newPage.close();
+    test('shows the approved public then private claim choices', async ({ page }) => {
+      await expect(
+        page.getByRole('heading', {
+          name: 'Which claim would you like to start first?',
+        })
+      ).toBeVisible();
+      const choices = page.locator('button').filter({ has: page.locator('p') });
+      await expect(
+        choices.filter({ hasText: 'Public sector refund claim' })
+      ).toHaveCount(1);
+      await expect(
+        choices.filter({ hasText: 'Private-sector settlement claim' })
+      ).toHaveCount(1);
+      expect(
+        (await choices.allTextContents()).map((text) =>
+          text.replace(/\s+/g, ' ').trim()
+        )
+      ).toEqual([
+        'Public sector refund claim',
+        'Private-sector settlement claimBVV',
+      ]);
     });
 
-    test('only public sector advances to next step', async ({ page }) => {
-      await page.getByText('Public Sector/Stage Pension').click();
+    test('public sector claim advances to the account step', async ({ page }) => {
+      await page
+        .getByRole('button', { name: 'Public sector refund claim' })
+        .click();
 
       // Should navigate to create account
       await expect(
-        page.getByRole('heading', { name: 'Create your account' })
+        page.getByRole('heading', { name: 'Create your secure claim' })
       ).toBeVisible({ timeout: 10_000 });
     });
   });
@@ -37,9 +51,11 @@ test.describe('Onboarding Edge Cases', () => {
 
   test.describe('Create Account', () => {
     test.beforeEach(async ({ page }) => {
-      await page.getByText('Public Sector/Stage Pension').click();
+      await page
+        .getByRole('button', { name: 'Public sector refund claim' })
+        .click();
       await expect(
-        page.getByRole('heading', { name: 'Create your account' })
+        page.getByRole('heading', { name: 'Create your secure claim' })
       ).toBeVisible({ timeout: 10_000 });
     });
 
@@ -49,7 +65,7 @@ test.describe('Onboarding Edge Cases', () => {
     });
 
     test('submit button enabled with valid email', async ({ page }) => {
-      await page.getByPlaceholder('your.email@example.com').fill('valid@example.com');
+      await page.getByPlaceholder('Email...').fill('valid@example.com');
       const button = page.getByRole('button', { name: /Continue with email/i });
       await expect(button).toBeEnabled();
     });
@@ -60,7 +76,7 @@ test.describe('Onboarding Edge Cases', () => {
     });
 
     test('shows "or" divider between email and social login', async ({ page }) => {
-      await expect(page.getByText('or')).toBeVisible();
+      await expect(page.getByText('or', { exact: true })).toBeVisible();
     });
   });
 
@@ -71,11 +87,13 @@ test.describe('Onboarding Edge Cases', () => {
   test.describe('Payment', () => {
     test.beforeEach(async ({ page }) => {
       // Navigate to payment step
-      await page.getByText('Public Sector/Stage Pension').click();
+      await page
+        .getByRole('button', { name: 'Public sector refund claim' })
+        .click();
       await expect(
-        page.getByRole('heading', { name: 'Create your account' })
+        page.getByRole('heading', { name: 'Create your secure claim' })
       ).toBeVisible({ timeout: 10_000 });
-      await page.getByPlaceholder('your.email@example.com').fill('e2e-payment@example.com');
+      await page.getByPlaceholder('Email...').fill('e2e-payment@example.com');
       await page.getByRole('button', { name: /Continue with email/i }).click();
       await expect(
         page.getByRole('heading', { name: /Start your refund claim/i })
@@ -105,11 +123,13 @@ test.describe('Onboarding Edge Cases', () => {
   test.describe('Identity', () => {
     test.beforeEach(async ({ page }) => {
       // Navigate through to identity step
-      await page.getByText('Public Sector/Stage Pension').click();
+      await page
+        .getByRole('button', { name: 'Public sector refund claim' })
+        .click();
       await expect(
-        page.getByRole('heading', { name: 'Create your account' })
+        page.getByRole('heading', { name: 'Create your secure claim' })
       ).toBeVisible({ timeout: 10_000 });
-      await page.getByPlaceholder('your.email@example.com').fill('e2e-identity@example.com');
+      await page.getByPlaceholder('Email...').fill('e2e-identity@example.com');
       await page.getByRole('button', { name: /Continue with email/i }).click();
       await expect(
         page.getByRole('heading', { name: /Start your refund claim/i })
@@ -170,11 +190,13 @@ test.describe('Onboarding Edge Cases', () => {
   test.describe('Bank Details', () => {
     // Helper to navigate to bank details step
     async function navigateToBankDetails(page: any) {
-      await page.getByText('Public Sector/Stage Pension').click();
+      await page
+        .getByRole('button', { name: 'Public sector refund claim' })
+        .click();
       await expect(
-        page.getByRole('heading', { name: 'Create your account' })
+        page.getByRole('heading', { name: 'Create your secure claim' })
       ).toBeVisible({ timeout: 10_000 });
-      await page.getByPlaceholder('your.email@example.com').fill('e2e-bank@example.com');
+      await page.getByPlaceholder('Email...').fill('e2e-bank@example.com');
       await page.getByRole('button', { name: /Continue with email/i }).click();
       await expect(
         page.getByRole('heading', { name: /Start your refund claim/i })
@@ -288,11 +310,13 @@ test.describe('Onboarding Edge Cases', () => {
       // Navigate to signature step — using a shortcut approach:
       // We test the UI elements exist rather than navigating the full flow again
       await page.goto('/calculator/onboarding');
-      await page.getByText('Public Sector/Stage Pension').click();
+      await page
+        .getByRole('button', { name: 'Public sector refund claim' })
+        .click();
       await expect(
-        page.getByRole('heading', { name: 'Create your account' })
+        page.getByRole('heading', { name: 'Create your secure claim' })
       ).toBeVisible({ timeout: 10_000 });
-      await page.getByPlaceholder('your.email@example.com').fill('e2e-sig@example.com');
+      await page.getByPlaceholder('Email...').fill('e2e-sig@example.com');
       await page.getByRole('button', { name: /Continue with email/i }).click();
       await expect(
         page.getByRole('heading', { name: /Start your refund claim/i })
@@ -388,9 +412,11 @@ test.describe('Onboarding Edge Cases', () => {
 
   test.describe('Navigation', () => {
     test('back button from create account returns to pension type', async ({ page }) => {
-      await page.getByText('Public Sector/Stage Pension').click();
+      await page
+        .getByRole('button', { name: 'Public sector refund claim' })
+        .click();
       await expect(
-        page.getByRole('heading', { name: 'Create your account' })
+        page.getByRole('heading', { name: 'Create your secure claim' })
       ).toBeVisible({ timeout: 10_000 });
 
       // Click back
@@ -398,16 +424,20 @@ test.describe('Onboarding Edge Cases', () => {
       if (await backButton.isVisible()) {
         await backButton.click();
         // Should show pension type selection again
-        await expect(page.getByText('Public Sector/Stage Pension')).toBeVisible();
+        await expect(
+          page.getByRole('button', { name: 'Public sector refund claim' })
+        ).toBeVisible();
       }
     });
 
     test('back button from payment returns to create account', async ({ page }) => {
-      await page.getByText('Public Sector/Stage Pension').click();
+      await page
+        .getByRole('button', { name: 'Public sector refund claim' })
+        .click();
       await expect(
-        page.getByRole('heading', { name: 'Create your account' })
+        page.getByRole('heading', { name: 'Create your secure claim' })
       ).toBeVisible({ timeout: 10_000 });
-      await page.getByPlaceholder('your.email@example.com').fill('e2e-nav@example.com');
+      await page.getByPlaceholder('Email...').fill('e2e-nav@example.com');
       await page.getByRole('button', { name: /Continue with email/i }).click();
       await expect(
         page.getByRole('heading', { name: /Start your refund claim/i })
@@ -418,7 +448,7 @@ test.describe('Onboarding Edge Cases', () => {
       if (await backButton.isVisible()) {
         await backButton.click();
         await expect(
-          page.getByRole('heading', { name: 'Create your account' })
+          page.getByRole('heading', { name: 'Create your secure claim' })
         ).toBeVisible({ timeout: 5_000 });
       }
     });
