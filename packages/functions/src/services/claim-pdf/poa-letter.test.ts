@@ -27,6 +27,14 @@ const WIDE_SIGNATURE_PNG = Uint8Array.from(
   ),
   (c) => c.charCodeAt(0)
 );
+const OPAQUE_SIGNATURE_PNG = Uint8Array.from(
+  atob(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPg5+f/DwABiwEtiDsVSQAAAABJRU5ErkJggg=='
+  ),
+  (c) => c.charCodeAt(0)
+);
+const FALLBACK_CITY =
+  'Eine außerordentlich lange Ortsbezeichnung für die gezwungene zweite Signaturzeile';
 
 describe('poa letter', () => {
   it('substitutes placeholders and leaves no template tags behind', () => {
@@ -191,7 +199,7 @@ describe('poa letter', () => {
       { city: 'Metro Manila', separateRow: false },
       { city: 'Frankfurt am Main', separateRow: false },
       {
-        city: 'Eine außerordentlich lange Ortsbezeichnung für die gezwungene zweite Signaturzeile',
+        city: FALLBACK_CITY,
         separateRow: true,
       },
     ];
@@ -235,11 +243,77 @@ describe('poa letter', () => {
       expect(plan.reduce((max, op) => Math.max(max, op.page), 0)).toBe(0);
 
       if (separateRow) {
-        expect(signature.yTop).toBeGreaterThan(date.yTop);
+        expect(signature.yTop).toBeGreaterThanOrEqual(
+          date.yTop + COVER_LAYOUT.lineHeight + 4
+        );
       } else {
         expect(signature.x).toBeGreaterThanOrEqual(date.x + dateWidth + 16);
         expect(signature.yTop).toBeLessThan(date.yTop);
       }
+    }
+  });
+
+  it('renders an opaque fallback signature below the date line and above the rule', async () => {
+    const planDoc = await PDFDocument.create();
+    const font = await planDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await planDoc.embedFont(StandardFonts.HelveticaBold);
+    const plan = buildPoaLetterPlan(
+      { ...data, city: FALLBACK_CITY },
+      font,
+      boldFont
+    );
+    const date = plan.find(
+      (op) => op.kind === 'text' && op.text === `${FALLBACK_CITY}, 06.07.2026`
+    );
+    const signature = plan.find((op) => op.kind === 'signature');
+    const rule = plan.find((op) => op.kind === 'rule');
+    const name = plan.find(
+      (op) =>
+        op.kind === 'text' &&
+        op.text.startsWith('Unterschrift des Vollmachtgebers')
+    );
+    expect(date && signature && rule && name).toBeTruthy();
+    if (
+      !date ||
+      date.kind !== 'text' ||
+      !signature ||
+      signature.kind !== 'signature' ||
+      !rule ||
+      rule.kind !== 'rule' ||
+      !name ||
+      name.kind !== 'text'
+    ) {
+      throw new Error('missing fallback signature block operations');
+    }
+
+    expect(signature.yTop).toBeGreaterThanOrEqual(
+      date.yTop + COVER_LAYOUT.lineHeight + 4
+    );
+    expect(signature.x + signature.maxWidth).toBeLessThanOrEqual(A4.width / 2);
+    expect(rule.yTop).toBeGreaterThan(signature.yTop + signature.height);
+    expect(name.yTop).toBeGreaterThan(rule.yTop);
+    expect(signature.page).toBe(date.page);
+    expect(rule.page).toBe(signature.page);
+    expect(name.page).toBe(signature.page);
+
+    const renderDoc = await PDFDocument.create();
+    const drawImage = vi.spyOn(PDFPage.prototype, 'drawImage');
+    try {
+      await renderPoaLetter(renderDoc, {
+        ...data,
+        city: FALLBACK_CITY,
+        signaturePng: OPAQUE_SIGNATURE_PNG,
+      });
+      const options = drawImage.mock.calls[0]?.[1];
+      expect(options).toBeDefined();
+      if (!options) throw new Error('opaque fallback signature was not drawn');
+
+      const renderedTop = A4.height - options.y - options.height;
+      expect(renderedTop).toBeCloseTo(signature.yTop, 3);
+      expect(options.x + options.width).toBeLessThanOrEqual(A4.width / 2);
+      expect(renderDoc.getPageCount()).toBe(1);
+    } finally {
+      drawImage.mockRestore();
     }
   });
 

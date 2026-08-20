@@ -130,8 +130,9 @@ const TITLE_SIZE = 11;
 const START_TOP = 80;
 const BULLET_PREFIX = '• ';
 const BULLET_INDENT = 12;
-const PAGE_BREAK_GUARD = A4.height - 120;
+const PAGE_BREAK_GUARD = A4.height - marginRight;
 const SIGNATURE_GAP = 16;
+const SIGNATURE_ROW_GAP = 4;
 // A 60pt-wide signature remains visually legible at the 40pt preferred
 // height. Narrower shared-row space moves the signature to its own row.
 const MIN_SIGNATURE_WIDTH = signatureImageHeight * 1.5;
@@ -257,9 +258,14 @@ export function buildPoaLetterPlan(
     ? leftHalfRight - marginLeft
     : sharedRowMaxWidth;
 
-  // Page-break guard: keep the whole signature block (date, signature,
-  // rule, and name) together. A second-row signature needs two more lines.
-  const signatureBlockHeight = lineHeight * (signatureOnSecondRow ? 5 : 3);
+  const signatureTopOffset = signatureOnSecondRow
+    ? lineHeight + SIGNATURE_ROW_GAP
+    : -(signatureImageHeight - lineHeight) / 2;
+  const signatureBlockHeight =
+    signatureTopOffset + signatureImageHeight + lineHeight / 2 + lineHeight * 2;
+  // Keep the whole signature block (date, signature, rule, and name)
+  // together. The second-row signature begins after the full date line plus
+  // an explicit visual gap, and all following elements derive from its box.
   if (cursor + signatureBlockHeight > PAGE_BREAK_GUARD) {
     page += 1;
     cursor = START_TOP;
@@ -276,18 +282,12 @@ export function buildPoaLetterPlan(
   ops.push({
     kind: 'signature',
     x: signatureX,
-    yTop:
-      cursor -
-      (signatureImageHeight - lineHeight) / 2 +
-      (signatureOnSecondRow ? lineHeight : 0),
+    yTop: cursor + signatureTopOffset,
     height: signatureImageHeight,
     maxWidth: signatureMaxWidth,
     page,
   });
-  cursor +=
-    signatureImageHeight -
-    lineHeight / 2 +
-    (signatureOnSecondRow ? lineHeight : 0);
+  cursor += signatureTopOffset + signatureImageHeight + lineHeight / 2;
 
   // Horizontal rule spanning the content width.
   ops.push({
