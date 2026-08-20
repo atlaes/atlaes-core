@@ -22,6 +22,7 @@ import {
 } from '@/lib/onboarding-api';
 import {
   clearAllFlowPersistence,
+  clearCompletedDirectFlowPersistence,
   loadFlowIdentity,
   saveFlowIdentity,
 } from '@/lib/flow-persistence';
@@ -542,7 +543,11 @@ export function GetStartedOnboardingFlow() {
     // blobs so a refresh on the success screen (or a later visit) doesn't
     // try to resurrect a completed run.
     localStorage.removeItem('vbl_draft_claimId');
-    clearAllFlowPersistence();
+    if (calculatorOrigin) {
+      clearAllFlowPersistence();
+    } else {
+      clearCompletedDirectFlowPersistence();
+    }
     setShowSuccess(true);
   };
 

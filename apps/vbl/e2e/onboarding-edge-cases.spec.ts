@@ -567,9 +567,7 @@ test.describe('Onboarding Edge Cases', () => {
       }
     });
 
-    test('back button from payment returns to create account', async ({
-      page,
-    }) => {
+    test('calculator payment has no Back button', async ({ page }) => {
       await page
         .getByRole('button', { name: 'Public sector refund claim' })
         .click();
@@ -582,14 +580,9 @@ test.describe('Onboarding Edge Cases', () => {
         page.getByRole('heading', { name: /Start your refund claim/i })
       ).toBeVisible({ timeout: 10_000 });
 
-      // Click back
-      const backButton = page.getByRole('button', { name: /Back/i });
-      if (await backButton.isVisible()) {
-        await backButton.click();
-        await expect(
-          page.getByRole('heading', { name: 'Create your secure claim' })
-        ).toBeVisible({ timeout: 5_000 });
-      }
+      await expect(
+        page.getByRole('button', { name: 'Back', exact: true })
+      ).toHaveCount(0);
     });
   });
 });

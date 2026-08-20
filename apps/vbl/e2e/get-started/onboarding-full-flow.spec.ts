@@ -299,6 +299,63 @@ test.describe('Onboarding Eligibility resource copy', () => {
     expect(persistedAfterSubmit.identity).toBeNull();
   });
 
+  test('direct completion preserves a calculator identity written by another tab', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await mockOnboardingApi(page);
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    // Payment return remounts /get-started. Write the simulated other-tab
+    // identity only after that remount so this remains a mounted direct flow.
+    await page.evaluate(() => {
+      window.localStorage.setItem(
+        'vbl_flow_identity_v1',
+        JSON.stringify({
+          version: 1,
+          pensionType: 'public',
+          pensionProvider: 'VBLklassik',
+          origin: 'calculator',
+        })
+      );
+    });
+    await completeIdentityUpload(page);
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+    await page
+      .getByRole('button', { name: /Continue to confirmation/i })
+      .click();
+    await completeConfirmStep(page);
+    await completeSignature(page);
+    await expect(
+      page.getByRole('heading', {
+        name: 'Your refund request has been submitted',
+      })
+    ).toBeVisible({ timeout: 20_000 });
+
+    const persistedAfterSubmit = await page.evaluate(() => ({
+      onboarding: window.sessionStorage.getItem('vbl_onboarding_v1'),
+      eligibility: window.sessionStorage.getItem('vbl_eligibility_v1'),
+      identity: window.localStorage.getItem('vbl_flow_identity_v1'),
+    }));
+    expect(persistedAfterSubmit.onboarding).toBeNull();
+    expect(persistedAfterSubmit.eligibility).toBeNull();
+    expect(persistedAfterSubmit.identity).toEqual(
+      JSON.stringify({
+        version: 1,
+        pensionType: 'public',
+        pensionProvider: 'VBLklassik',
+        origin: 'calculator',
+      })
+    );
+  });
+
   // ============================================================
   // Confirm step (public/stage flow, between Review and Signature)
   // ============================================================
