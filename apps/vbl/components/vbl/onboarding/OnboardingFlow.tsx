@@ -2,7 +2,14 @@
 
 import React, { ReactNode, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useOnboarding, SUBMIT_DETAILS_SUBSTEPS, SubmitDetailsSubStep } from '@/contexts/OnboardingContext';
+import {
+  areConfirmStopAnswersClear,
+  getSubmitDetailsSubsteps,
+  isConfirmComplete,
+  useOnboarding,
+  SUBMIT_DETAILS_SUBSTEPS,
+  SubmitDetailsSubStep,
+} from '@/contexts/OnboardingContext';
 import { getPendingCalculatorSession } from '@/lib/vbl-pending-calculator-sessions-api';
 import { saveFlowIdentity } from '@/lib/flow-persistence';
 import { OnboardingLayout } from '@/components/vbl/onboarding/OnboardingLayout';
@@ -15,15 +22,28 @@ import { Address } from '@/components/vbl/onboarding/steps/Address';
 import { BankDetails } from '@/components/vbl/onboarding/steps/BankDetails';
 import { Signature } from '@/components/vbl/onboarding/steps/Signature';
 import { ReviewSubmit } from '@/components/vbl/onboarding/steps/ReviewSubmit';
+import { ConfirmStep } from '@/components/vbl/onboarding/steps/ConfirmStep';
 import { SuccessScreen } from '@/components/vbl/onboarding/steps/SuccessScreen';
 import { DRVUpsellModal } from '@/components/vbl/onboarding/DRVUpsellModal';
+import {
+  isCalculatorVariant,
+  type OnboardingSource,
+  type OnboardingVariant,
+} from '@/components/vbl/onboarding/onboarding-variant';
+import { clearAllFlowPersistence } from '@/lib/flow-persistence';
+import { markStepComplete, stopClaim, submitClaim } from '@/lib/onboarding-api';
 
 interface OnboardingFlowProps {
   headerTitle?: string;
   headerIcon?: ReactNode;
+  source?: OnboardingSource;
 }
 
-export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps) {
+export function OnboardingFlow({
+  headerTitle,
+  headerIcon,
+  source = 'default',
+}: OnboardingFlowProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionToken = searchParams?.get('session') ?? null;
@@ -38,7 +58,42 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
     editingFromReview,
     setEditingFromReview,
     updateSuccessData,
+    resetOnboarding,
   } = useOnboarding();
+
+  const isCalculatorSource = source === 'calculator';
+
+  // The calculator may surface a private/bAV claim, but its calculator
+  // variant must never be applied to that paygate.
+  const variant: OnboardingVariant =
+    isCalculatorSource && data.pensionType !== 'private'
+      ? 'calculator'
+      : 'default';
+
+  // Variant-specific UI begins in Tasks 3–7. Keep the guard evaluated here
+  // so this flow cannot accidentally treat a private/bAV claim as calculator
+  // variant while redirect persistence is added independently below.
+  void isCalculatorVariant(variant);
+
+  const submitDetailsSubsteps =
+    data.pensionType === 'private'
+      ? SUBMIT_DETAILS_SUBSTEPS
+      : variant === 'calculator'
+        ? getSubmitDetailsSubsteps(data.pensionType).map((subStep) =>
+            subStep.id === 'review' ? { ...subStep, label: 'Review' } : subStep
+          )
+        : SUBMIT_DETAILS_SUBSTEPS;
+  const isSignatureTerminal =
+    submitDetailsSubsteps[submitDetailsSubsteps.length - 1]?.id === 'signature';
+
+  useEffect(() => {
+    if (!isCalculatorSource) return;
+    saveFlowIdentity({
+      pensionType: data.pensionType,
+      pensionProvider: data.membership.pensionProvider,
+      origin: 'calculator',
+    });
+  }, [data.pensionType, data.membership.pensionProvider, isCalculatorSource]);
 
   // Track if user has completed pension type selection (pre-step).
   // Client #8: only show it when the calculator detected multiple claim
@@ -48,10 +103,12 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
   // Figma VBL-30/31/32: the card subtitles show the actual providers
   // carried over from the calculator (e.g. private: BVV/Allianz/Swiss Life).
   const [detectedPrivateProvider, setDetectedPrivateProvider] = useState('');
-  const [detectedPublicStageProvider, setDetectedPublicStageProvider] = useState('');
+  const [detectedPublicStageProvider, setDetectedPublicStageProvider] =
+    useState('');
   const [showPensionTypeSelection, setShowPensionTypeSelection] = useState(
     () => {
       if (typeof window === 'undefined') return data.pensionType === '';
+      if (!isCalculatorSource) return data.pensionType === '';
       // If a session token is in the URL, defer the decision to the
       // hydration effect (it'll setShowPensionTypeSelection based on
       // detected claim types).
@@ -97,6 +154,7 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
   // present in the URL. Falls back to sessionStorage `calculator-selection`
   // if no token (soft-fail path from Results.tsx where the POST failed).
   useEffect(() => {
+    if (!isCalculatorSource) return;
     let cancelled = false;
 
     const applySelection = (parsed: {
@@ -138,6 +196,11 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
       if (parsed.claimTypes) {
         setDetectedClaimTypes(parsed.claimTypes);
         setShowPensionTypeSelection(hasPublicOrStage && hasPrivate);
+        if (hasPrivate && !hasPublicOrStage) {
+          updateData({ pensionType: 'private' });
+        } else if (hasPublicOrStage && !hasPrivate) {
+          updateData({ pensionType: 'public' });
+        }
       }
       if (parsed.privateProvider) {
         setDetectedPrivateProvider(parsed.privateProvider);
@@ -160,7 +223,10 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
           // Cache the token in sessionStorage so CreateAccount can link the
           // email to it on submit without re-parsing the URL.
           if (typeof window !== 'undefined') {
-            sessionStorage.setItem('vbl-pending-calculator-session-token', sessionToken);
+            sessionStorage.setItem(
+              'vbl-pending-calculator-session-token',
+              sessionToken
+            );
           }
           return;
         }
@@ -193,11 +259,21 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
     return () => {
       cancelled = true;
     };
-  }, [sessionToken, updateData, updateMembership]);
+  }, [isCalculatorSource, sessionToken, updateData, updateMembership]);
 
   // Success screen and DRV modal state
   const [showSuccess, setShowSuccess] = useState(false);
   const [showDRVModal, setShowDRVModal] = useState(false);
+  const [calculatorStopped, setCalculatorStopped] = useState(false);
+  const [flowError, setFlowError] = useState<string | null>(null);
+  const hasPersistedCalculatorStopAnswer =
+    variant === 'calculator' && !areConfirmStopAnswersClear(data.confirm);
+
+  useEffect(() => {
+    if (hasPersistedCalculatorStopAnswer) {
+      setCalculatorStopped(true);
+    }
+  }, [hasPersistedCalculatorStopAnswer]);
 
   // Example: determine DRV eligibility (in real app, this would come from backend)
   const drvEligibilityDate = '15 Mar 2027';
@@ -218,7 +294,7 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
     setCurrentSubStep('identity');
   };
 
-  const handleSubStepNext = () => {
+  const advanceSubStep = () => {
     // Client #16: if the user is editing a field they jumped to from the
     // review screen, Continue should return them to review, not walk through
     // every remaining step again.
@@ -227,9 +303,11 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
       setCurrentSubStep('review');
       return;
     }
-    const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === currentSubStep);
-    if (currentIndex < SUBMIT_DETAILS_SUBSTEPS.length - 1) {
-      setCurrentSubStep(SUBMIT_DETAILS_SUBSTEPS[currentIndex + 1].id);
+    const currentIndex = submitDetailsSubsteps.findIndex(
+      (s) => s.id === currentSubStep
+    );
+    if (currentIndex < submitDetailsSubsteps.length - 1) {
+      setCurrentSubStep(submitDetailsSubsteps[currentIndex + 1].id);
     }
   };
 
@@ -239,9 +317,11 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
     } else if (currentStep === 2) {
       setCurrentStep(1);
     } else if (currentStep === 3) {
-      const currentIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex((s) => s.id === currentSubStep);
+      const currentIndex = submitDetailsSubsteps.findIndex(
+        (s) => s.id === currentSubStep
+      );
       if (currentIndex > 0) {
-        setCurrentSubStep(SUBMIT_DETAILS_SUBSTEPS[currentIndex - 1].id);
+        setCurrentSubStep(submitDetailsSubsteps[currentIndex - 1].id);
       } else {
         setCurrentStep(2);
       }
@@ -249,12 +329,107 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
   };
 
   // Handle successful submission
-  const handleSubmitSuccess = () => {
+  const handleSubmitSuccess = (submission?: {
+    submissionId?: string;
+    submittedAt?: string;
+  }) => {
     updateSuccessData({
-      submittedAt: new Date().toISOString(),
+      ...(submission?.submissionId
+        ? { submissionId: submission.submissionId }
+        : {}),
+      submittedAt: submission?.submittedAt || new Date().toISOString(),
       drvEligibilityDate: drvEligibilityDate,
     });
+    if (isCalculatorSource) {
+      localStorage.removeItem('vbl_draft_claimId');
+      clearAllFlowPersistence();
+    }
     setShowSuccess(true);
+  };
+
+  const handleReviewContinue = async () => {
+    if (data.claimId) {
+      try {
+        await markStepComplete(data.claimId, 'reviewInformation');
+      } catch (err) {
+        console.error('Failed to mark review complete:', err);
+      }
+    }
+    setCurrentSubStep('confirm');
+  };
+
+  const handleConfirmContinue = async () => {
+    setFlowError(null);
+    if (data.claimId) {
+      try {
+        await markStepComplete(data.claimId, 'finalConfirmation');
+      } catch (err) {
+        console.error('Failed to mark confirmation complete:', err);
+      }
+    }
+    setCurrentSubStep('signature');
+  };
+
+  const handleFinalizeFromSignature = async (): Promise<boolean> => {
+    const canSubmit =
+      variant === 'calculator'
+        ? areConfirmStopAnswersClear(data.confirm)
+        : isConfirmComplete(data.confirm);
+    if (!canSubmit) {
+      setEditingFromReview(false);
+      setFlowError(
+        'Please confirm your answers before submitting your refund request.'
+      );
+      setCurrentSubStep('confirm');
+      return false;
+    }
+    const claimId = data.claimId;
+    if (!claimId) {
+      setFlowError('No claim found. Please restart the onboarding process.');
+      return false;
+    }
+    setFlowError(null);
+    try {
+      await markStepComplete(claimId, 'signDocuments');
+      const result = await submitClaim(claimId);
+      handleSubmitSuccess({
+        submissionId: result.claim.id,
+        submittedAt:
+          (result.claim.submittedAt as string) || new Date().toISOString(),
+      });
+      return true;
+    } catch (err) {
+      console.error('Final submission error:', err);
+      setFlowError(
+        'We could not submit your refund request. Please try again.'
+      );
+      return false;
+    }
+  };
+
+  const handleConfirmStop = async (reasons: string[]) => {
+    const claimId = data.claimId;
+    if (!claimId) {
+      setFlowError('No claim found. Please restart the onboarding process.');
+      return false;
+    }
+    try {
+      const result = await stopClaim(claimId, reasons);
+      if (!result.success) {
+        throw new Error('Stop request was not confirmed.');
+      }
+      return true;
+    } catch (err) {
+      console.error('Failed to stop claim:', err);
+      return false;
+    }
+  };
+
+  const handleReturnToStart = () => {
+    setCalculatorStopped(false);
+    clearAllFlowPersistence();
+    resetOnboarding();
+    router.push('/calculator');
   };
 
   // Handle edit section from review. Flags the flow as "editing from review"
@@ -308,7 +483,9 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
   const handleStartOtherClaim = () => {
     // Flip the pensionType and re-enter the onboarding flow from step 1.
     // Most users will still be authenticated so they'll skip CreateAccount.
-    updateData({ pensionType: data.pensionType === 'public' ? 'private' : 'public' });
+    updateData({
+      pensionType: data.pensionType === 'public' ? 'private' : 'public',
+    });
     setShowSuccess(false);
     setCurrentStep(2);
     setCurrentSubStep('identity');
@@ -333,8 +510,16 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
   // If submission was successful, show success screen
   if (showSuccess) {
     return (
-      <OnboardingLayout showBack={false} headerTitle={headerTitle} headerIcon={headerIcon}>
+      <OnboardingLayout
+        showBack={false}
+        headerTitle={headerTitle}
+        headerIcon={headerIcon}
+        variant={variant}
+        subSteps={submitDetailsSubsteps}
+        showSubSteps={variant !== 'calculator'}
+      >
         <SuccessScreen
+          variant={variant}
           onGoToDashboard={handleGoToDashboard}
           onStartDRVClaim={handleStartDRVClaim}
           onRemindDRV={handleRemindDRV}
@@ -342,7 +527,9 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
           isDRVEligibleNow={isDRVEligibleNow}
           otherClaimLabel={pendingOtherClaim?.label}
           otherClaimProvider={pendingOtherClaim?.provider}
-          onStartOtherClaim={pendingOtherClaim ? handleStartOtherClaim : undefined}
+          onStartOtherClaim={
+            pendingOtherClaim ? handleStartOtherClaim : undefined
+          }
         />
         <DRVUpsellModal
           isOpen={showDRVModal}
@@ -360,9 +547,18 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
-        return <CreateAccount onNext={handleStep1Next} />;
+        return (
+          <CreateAccount
+            onNext={handleStep1Next}
+            redirectUrl={
+              isCalculatorSource
+                ? '/get-started?fromAuth=1&origin=calculator'
+                : undefined
+            }
+          />
+        );
       case 2:
-        return <Payment onNext={handleStep2Next} />;
+        return <Payment onNext={handleStep2Next} variant={variant} />;
       case 3:
         return renderSubStep();
       default:
@@ -374,20 +570,45 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
   const renderSubStep = () => {
     switch (currentSubStep) {
       case 'identity':
-        return <Identity onNext={handleSubStepNext} />;
+        return <Identity onNext={advanceSubStep} variant={variant} />;
       case 'membership':
-        return <Membership onNext={handleSubStepNext} />;
+        return <Membership onNext={advanceSubStep} />;
       case 'address':
-        return <Address onNext={handleSubStepNext} />;
+        return <Address onNext={advanceSubStep} />;
       case 'bank-details':
-        return <BankDetails onNext={handleSubStepNext} />;
+        return <BankDetails onNext={advanceSubStep} />;
       case 'signature':
-        return <Signature onNext={handleSubStepNext} />;
+        return (
+          <Signature
+            variant={variant}
+            onNext={
+              isSignatureTerminal ? handleFinalizeFromSignature : advanceSubStep
+            }
+          />
+        );
       case 'review':
         return (
           <ReviewSubmit
+            variant={variant}
             onSubmitSuccess={handleSubmitSuccess}
             onEditSection={handleEditSection}
+            onContinue={isSignatureTerminal ? handleReviewContinue : undefined}
+          />
+        );
+      case 'confirm':
+        return (
+          <ConfirmStep
+            variant={variant}
+            onContinue={handleConfirmContinue}
+            onBackToReview={() => setCurrentSubStep('review')}
+            onStop={handleConfirmStop}
+            onReturnToStart={handleReturnToStart}
+            onStopStateChange={setCalculatorStopped}
+            isContinueEnabled={
+              variant === 'calculator'
+                ? areConfirmStopAnswersClear(data.confirm)
+                : undefined
+            }
           />
         );
       default:
@@ -396,7 +617,20 @@ export function OnboardingFlow({ headerTitle, headerIcon }: OnboardingFlowProps)
   };
 
   return (
-    <OnboardingLayout showBack={true} onBack={handleBack} headerTitle={headerTitle} headerIcon={headerIcon}>
+    <OnboardingLayout
+      showBack={currentStep !== 2}
+      onBack={handleBack}
+      headerTitle={headerTitle}
+      headerIcon={headerIcon}
+      variant={variant}
+      subSteps={submitDetailsSubsteps}
+      showSubSteps={variant !== 'calculator' || !calculatorStopped}
+    >
+      {flowError && (
+        <div className="mx-auto mb-6 max-w-lg rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {flowError}
+        </div>
+      )}
       {renderStepContent()}
     </OnboardingLayout>
   );

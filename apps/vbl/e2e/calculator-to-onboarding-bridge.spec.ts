@@ -3,35 +3,43 @@ import { test, expect } from '@playwright/test';
 // E2E for the Results.tsx → OnboardingFlow.tsx bridge that uses
 // /api/vbl/pending-calculator-sessions to carry calculator state across
 // the magic-link / OAuth roundtrip.
-//
-// Two paths are tested:
-//   1. Happy path: ?session=<token> in the URL triggers a GET to the
-//      backend and hydrates the onboarding state from the response.
-//   2. Soft-fail path: no ?session= param falls back to the legacy
-//      sessionStorage['calculator-selection'] payload — and crucially
-//      does NOT fire a GET against the pending-sessions endpoint.
 
 const FIXTURE_TOKEN = '11111111-1111-1111-1111-111111111111';
+const fixtureDates = {
+  expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  createdAt: new Date().toISOString(),
+};
 
-const FIXTURE_SESSION = {
-  id: 'fixture-id',
+const PRIVATE_FIXTURE_SESSION = {
+  id: 'private-fixture-id',
+  token: FIXTURE_TOKEN,
+  email: null,
+  jobs: [],
+  calculationResult: null,
+  scenario: 'private_may_be_possible',
+  pensionProvider: 'BVV',
+  claimTypes: ['private'],
+  privateProvider: 'BVV',
+  publicStageProvider: '',
+  ...fixtureDates,
+};
+
+const PUBLIC_FIXTURE_SESSION = {
+  id: 'public-fixture-id',
   token: FIXTURE_TOKEN,
   email: null,
   jobs: [],
   calculationResult: null,
   scenario: 'public_eligible',
-  // Single claim type → no PensionTypeSelection screen, goes
-  // straight to the secure-claim account screen.
   pensionProvider: 'VBLklassik',
   claimTypes: ['public'],
   privateProvider: '',
   publicStageProvider: 'VBLklassik',
-  expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-  createdAt: new Date().toISOString(),
+  ...fixtureDates,
 };
 
 test.describe('Calculator → Onboarding bridge', () => {
-  test('hydrates onboarding from ?session=<token> via GET /api/vbl/pending-calculator-sessions/:token', async ({
+  test('hydrates a private calculator origin and restores the default private paygate after auth', async ({
     page,
     context,
   }) => {
@@ -40,13 +48,16 @@ test.describe('Calculator → Onboarding bridge', () => {
     await context.route(
       '**/api/vbl/pending-calculator-sessions/**',
       async (route) => {
-        const req = route.request();
-        if (req.method() === 'GET') {
-          getRequestUrls.push(req.url());
+        const request = route.request();
+        if (request.method() === 'GET') {
+          getRequestUrls.push(request.url());
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify({ success: true, session: FIXTURE_SESSION }),
+            body: JSON.stringify({
+              success: true,
+              session: PRIVATE_FIXTURE_SESSION,
+            }),
           });
           return;
         }
@@ -56,32 +67,105 @@ test.describe('Calculator → Onboarding bridge', () => {
 
     await page.goto(`/calculator/onboarding?session=${FIXTURE_TOKEN}`);
 
-    // Wait for the GET to fire with the right token in the URL.
     await expect
-      .poll(() => getRequestUrls.find((u) => u.includes(FIXTURE_TOKEN)) ?? null)
-      .not.toBeNull();
+      .poll(() => getRequestUrls.find((url) => url.includes(FIXTURE_TOKEN)))
+      .not.toBeUndefined();
+    await expect(
+      page.getByRole('heading', { name: 'Create your secure claim' })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const raw = window.localStorage.getItem('vbl_flow_identity_v1');
+          if (!raw) return null;
+          const identity = JSON.parse(raw);
+          return {
+            origin: identity.origin,
+            pensionType: identity.pensionType,
+          };
+        })
+      )
+      .toEqual({ origin: 'calculator', pensionType: 'private' });
 
-    // Single claim type → PensionTypeSelection is skipped and we land
-    // straight on the secure-claim account screen.
+    await context.route('**/api/auth/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          user: {
+            id: 'private-user',
+            email: 'private@example.com',
+            emailVerified: true,
+          },
+        }),
+      });
+    });
+    await page.evaluate(() => {
+      window.localStorage.setItem('accessToken', 'private-auth-token');
+    });
+    await page.goto('/get-started?fromAuth=1&origin=calculator');
+
+    await expect(
+      page.getByRole('heading', { name: 'Start your bAV cash-out request' })
+    ).toBeVisible({ timeout: 10_000 });
+
+    const privatePaymentButton = page.getByRole('button', {
+      name: 'Pay €199 deposit and continue',
+    });
+    const privateDeclarations = page.getByRole('checkbox');
+    await expect(privateDeclarations).toHaveCount(2);
+    await expect(privatePaymentButton).toBeDisabled();
+    await privateDeclarations.nth(0).check();
+    await expect(privatePaymentButton).toBeDisabled();
+    await privateDeclarations.nth(1).check();
+    await expect(privatePaymentButton).toBeEnabled();
+  });
+
+  test('restores a public calculator provider in a new auth tab', async ({
+    page,
+    context,
+  }) => {
+    const getRequestUrls: string[] = [];
+
+    await context.route(
+      '**/api/vbl/pending-calculator-sessions/**',
+      async (route) => {
+        const request = route.request();
+        if (request.method() === 'GET') {
+          getRequestUrls.push(request.url());
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              success: true,
+              session: PUBLIC_FIXTURE_SESSION,
+            }),
+          });
+          return;
+        }
+        await route.continue();
+      }
+    );
+
+    await page.goto(`/calculator/onboarding?session=${FIXTURE_TOKEN}`);
+    await expect
+      .poll(() => getRequestUrls.find((url) => url.includes(FIXTURE_TOKEN)))
+      .not.toBeUndefined();
     await expect(
       page.getByRole('heading', { name: 'Create your secure claim' })
     ).toBeVisible({ timeout: 10_000 });
 
-    // Production email verification opens /get-started in a new tab. Keep
-    // the single-claim pension identity in localStorage so that tab can
-    // restore the locked provider field instead of rendering it empty and
-    // leaving Continue permanently disabled.
     await expect
       .poll(() =>
         page.evaluate(() => localStorage.getItem('vbl_flow_identity_v1'))
       )
       .not.toBeNull();
-
     const persistedIdentity = await page.evaluate(() =>
       JSON.parse(localStorage.getItem('vbl_flow_identity_v1') ?? 'null')
     );
     expect(persistedIdentity).toMatchObject({
       version: 1,
+      origin: 'calculator',
       pensionType: 'public',
       pensionProvider: 'VBLklassik',
     });
@@ -92,7 +176,7 @@ test.describe('Calculator → Onboarding bridge', () => {
         contentType: 'application/json',
         body: JSON.stringify({
           user: {
-            id: 'user_mock',
+            id: 'public-user',
             email: 'calculator@example.com',
             emailVerified: true,
           },
@@ -103,15 +187,10 @@ test.describe('Calculator → Onboarding bridge', () => {
       localStorage.setItem('accessToken', 'mock-access-token')
     );
 
-    // A new page has its own empty sessionStorage, matching the production
-    // magic-link tab. The persisted identity must still restore the
-    // calculator-selected VBL claim rather than an empty public default.
     const resumedPage = await context.newPage();
     await resumedPage.goto('/get-started?fromAuth=1');
     await expect(
-      resumedPage.getByRole('heading', {
-        name: 'Start your refund claim',
-      })
+      resumedPage.getByRole('heading', { name: 'Start your refund claim' })
     ).toBeVisible({ timeout: 10_000 });
     await expect
       .poll(() =>
@@ -123,6 +202,39 @@ test.describe('Calculator → Onboarding bridge', () => {
       )
       .toBe('VBLklassik');
     await resumedPage.close();
+  });
+
+  test('calculator-entry-a keeps the default origin and magic-link target', async ({
+    page,
+  }) => {
+    const redirectUrls: (string | undefined)[] = [];
+    await page.route('**/api/auth/magic-link/request', async (route) => {
+      const requestBody = route.request().postDataJSON() as {
+        redirectUrl?: string;
+      };
+      redirectUrls.push(requestBody.redirectUrl);
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Magic link sent' }),
+      });
+    });
+
+    await page.goto('/calculator-entry-a');
+    await page
+      .getByRole('button', { name: /Public sector refund claim/i })
+      .click();
+    await page.getByLabel('Email address').fill('default@example.com');
+    await page.getByRole('button', { name: /Continue with email/i }).click();
+
+    await expect
+      .poll(() => redirectUrls[redirectUrls.length - 1])
+      .toBe('/get-started?fromAuth=1');
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.localStorage.getItem('vbl_flow_identity_v1'))
+      )
+      .toBeNull();
   });
 
   test('soft-fail: no ?session= and legacy sessionStorage drives the UI without a GET', async ({
@@ -141,8 +253,6 @@ test.describe('Calculator → Onboarding bridge', () => {
       }
     );
 
-    // Seed the legacy payload before the page loads. Single claim type
-    // again so we end up on Create Account directly.
     await page.addInitScript(() => {
       sessionStorage.setItem(
         'calculator-selection',
@@ -160,8 +270,6 @@ test.describe('Calculator → Onboarding bridge', () => {
     await expect(
       page.getByRole('heading', { name: 'Create your secure claim' })
     ).toBeVisible({ timeout: 10_000 });
-
-    // No token in the URL → the bridge GET should never have fired.
     expect(getFired).toBe(false);
   });
 });

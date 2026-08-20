@@ -390,13 +390,14 @@ export const CONFIRM_STOP_ANSWER_KEYS = [
   'laterCivilServant',
 ] as const;
 
+export function areConfirmStopAnswersClear(confirm: OnboardingConfirm): boolean {
+  return CONFIRM_STOP_ANSWER_KEYS.every((key) => confirm[key] === 'no');
+}
+
 // Confirm step is complete (Continue to signature enabled) only when all four
 // Section-1 answers are 'no' AND all eight declaration/authorization
 // checkboxes are checked. Shared by canProceedFromSubStep and ConfirmStep.
 export function isConfirmComplete(confirm: OnboardingConfirm): boolean {
-  const allAnswersNo = CONFIRM_STOP_ANSWER_KEYS.every(
-    (key) => confirm[key] === 'no'
-  );
   const allChecked =
     confirm.declarationAccurate &&
     confirm.declarationRequestRefund &&
@@ -406,7 +407,7 @@ export function isConfirmComplete(confirm: OnboardingConfirm): boolean {
     confirm.authorizeComplete &&
     confirm.authorizeSignature &&
     confirm.authorizeCorrespondence;
-  return allAnswersNo && allChecked;
+  return areConfirmStopAnswersClear(confirm) && allChecked;
 }
 
 const OnboardingContext = createContext<OnboardingContextType | null>(null);

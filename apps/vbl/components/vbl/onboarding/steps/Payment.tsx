@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CreditCard, Check, AlertCircle } from 'lucide-react';
+import { CreditCard, Check, AlertCircle, ShieldCheck } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { createClaim, createCheckoutSession } from '@/lib/onboarding-api';
+import type { OnboardingVariant } from '@/components/vbl/onboarding/onboarding-variant';
 
 interface PaymentProps {
   onNext: () => void;
+  variant?: OnboardingVariant;
 }
 
 interface PaymentCopy {
@@ -96,18 +98,29 @@ const PAYMENT_COPY: Record<'public' | 'private', PaymentCopy> = {
   },
 };
 
-export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
+export const Payment: React.FC<PaymentProps> = ({
+  onNext,
+  variant = 'default',
+}) => {
   const { data, updateData } = useOnboarding();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [earlyPerformanceAccepted, setEarlyPerformanceAccepted] =
+    useState(false);
   // Figma 1156-4761: the bAV paygate gates payment behind two consents
   // (T&C/privacy + early-service before the 14-day withdrawal period).
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToEarlyService, setAgreedToEarlyService] = useState(false);
 
   const isPrivate = data.pensionType === 'private';
+  const isCalculator = variant === 'calculator';
+  const calculatorReady = termsAccepted && earlyPerformanceAccepted;
   const copy = PAYMENT_COPY[isPrivate ? 'private' : 'public'];
   const consentsGiven = !isPrivate || (agreedToTerms && agreedToEarlyService);
+  const paymentDisabled =
+    isProcessing ||
+    (isCalculator ? !calculatorReady : isPrivate && !consentsGiven);
 
   // Auto-skip if payment is already completed
   React.useEffect(() => {
@@ -117,6 +130,9 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
   }, [data.paymentCompleted, onNext]);
 
   const handlePayment = async () => {
+    if (isCalculator && !calculatorReady) return;
+    if (isPrivate && !consentsGiven) return;
+
     setIsProcessing(true);
     setError(null);
     try {
@@ -182,7 +198,15 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
             <p className="text-3xl font-bold text-[#163300] leading-none">
               €199
             </p>
-            <p className="text-sm text-gray-600 mt-1">{copy.depositLabel}</p>
+            <p className="text-sm text-gray-600 mt-1">
+              {isCalculator ? (
+                <>
+                  <strong>Deposit</strong> — credited toward your service fee
+                </>
+              ) : (
+                copy.depositLabel
+              )}
+            </p>
           </div>
         )}
 
@@ -207,7 +231,16 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
                     <Check className="w-3 h-3 text-white" />
                   </div>
                   <p className="text-sm text-gray-700">
-                    <strong>{bullet.label}</strong> {bullet.text}
+                    <strong>{bullet.label}</strong>{' '}
+                    {isCalculator &&
+                    bullet.label === 'Money-back guarantee:' ? (
+                      <span>
+                        The €199 deposit is refunded if the pension institution
+                        rejects your submitted refund application.
+                      </span>
+                    ) : (
+                      bullet.text
+                    )}
                   </p>
                 </div>
               )
@@ -261,9 +294,56 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
             {copy.bankNote}
           </p>
         )}
-        <p className="text-xs text-gray-500 text-center mb-6">
+        <p className="text-xs text-gray-500 text-center mb-6 flex items-center justify-center gap-1">
+          {isCalculator && (
+            <ShieldCheck
+              aria-hidden="true"
+              data-testid="stripe-security-icon"
+              className="w-4 h-4 fill-[#163300] text-white"
+            />
+          )}
           {copy.secureLabel}
         </p>
+
+        {isCalculator && (
+          <div className="space-y-4 mb-6">
+            <label className="flex items-start gap-3 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(event) => setTermsAccepted(event.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-[#163300]"
+              />
+              <span>
+                I have read and agree to the CompanyPension{' '}
+                <a href="/terms" className="underline">
+                  Terms and Conditions
+                </a>
+                . Read our{' '}
+                <a href="/privacy" className="underline">
+                  Privacy Policy
+                </a>
+                .
+              </span>
+            </label>
+            <label className="flex items-start gap-3 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={earlyPerformanceAccepted}
+                onChange={(event) =>
+                  setEarlyPerformanceAccepted(event.target.checked)
+                }
+                className="mt-0.5 h-4 w-4 accent-[#163300]"
+              />
+              <span>
+                I expressly request that CompanyPension begin providing the
+                service before the end of the 14-day withdrawal period. I
+                understand that, if I withdraw after work has begun, I may have
+                to pay for services already provided.
+              </span>
+            </label>
+          </div>
+        )}
 
         {/* bAV consent checkboxes (Figma 1156-4761) — both gate the button */}
         {isPrivate && (
@@ -272,7 +352,7 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
               <input
                 type="checkbox"
                 checked={agreedToTerms}
-                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                onChange={(event) => setAgreedToTerms(event.target.checked)}
                 className="mt-0.5 h-4 w-4 shrink-0 accent-[#163300]"
               />
               <span className="text-xs text-gray-700 leading-5">
@@ -301,7 +381,9 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
               <input
                 type="checkbox"
                 checked={agreedToEarlyService}
-                onChange={(e) => setAgreedToEarlyService(e.target.checked)}
+                onChange={(event) =>
+                  setAgreedToEarlyService(event.target.checked)
+                }
                 className="mt-0.5 h-4 w-4 shrink-0 accent-[#163300]"
               />
               <span className="text-xs text-gray-700 leading-5">
@@ -325,7 +407,7 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
         {/* Payment Button */}
         <button
           onClick={handlePayment}
-          disabled={isProcessing || !consentsGiven}
+          disabled={paymentDisabled}
           className="w-full py-4 px-6 bg-[#9FE870] text-[#163300] font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-[#8AD860] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isProcessing ? (
@@ -335,7 +417,15 @@ export const Payment: React.FC<PaymentProps> = ({ onNext }) => {
             </>
           ) : (
             <>
-              <CreditCard className="w-5 h-5" />
+              <CreditCard
+                aria-hidden={isCalculator ? true : undefined}
+                data-testid={isCalculator ? 'payment-button-icon' : undefined}
+                className={
+                  isCalculator
+                    ? 'w-5 h-5 fill-[#163300] text-[#9FE870]'
+                    : 'w-5 h-5'
+                }
+              />
               {copy.buttonLabel}
             </>
           )}

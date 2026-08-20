@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { describe, it, expect, vi } from 'vitest';
+import { PDFDocument, PDFPage, StandardFonts } from 'pdf-lib';
 import {
   buildPoaText,
   buildPoaLetterPlan,
+  getPoaSignatureReservedWidth,
   renderPoaLetter,
 } from './poa-letter';
 import { A4, COVER_LAYOUT } from './constants';
@@ -19,6 +20,21 @@ const data = {
   dateToday: '06.07.2026',
   signaturePng: new Uint8Array(), // not used by the text builder
 };
+
+const WIDE_SIGNATURE_PNG = Uint8Array.from(
+  atob(
+    'iVBORw0KGgoAAAANSUhEUgAAAAoAAAABCAYAAADn9T9+AAAAD0lEQVR4nGPg5+f/TwwGAOJVC7n30JYcAAAAAElFTkSuQmCC'
+  ),
+  (c) => c.charCodeAt(0)
+);
+const OPAQUE_SIGNATURE_PNG = Uint8Array.from(
+  atob(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPg5+f/DwABiwEtiDsVSQAAAABJRU5ErkJggg=='
+  ),
+  (c) => c.charCodeAt(0)
+);
+const FALLBACK_CITY =
+  'Eine außerordentlich lange Ortsbezeichnung für die gezwungene zweite Signaturzeile';
 
 describe('poa letter', () => {
   it('substitutes placeholders and leaves no template tags behind', () => {
@@ -80,9 +96,7 @@ describe('poa letter', () => {
     const contentRight = A4.width - COVER_LAYOUT.marginRight;
     const titleOps = plan.filter(
       (op) =>
-        op.kind === 'text' &&
-        op.bold &&
-        op.text.includes('Empfangsvollmacht')
+        op.kind === 'text' && op.bold && op.text.includes('Empfangsvollmacht')
     );
     // The title should be present and every title line must fit within the
     // right margin (measured with the bold font at its rendered size).
@@ -147,6 +161,190 @@ describe('poa letter', () => {
     expect(dateOp && rule && nameOp).toBeTruthy();
     expect(dateOp!.page).toBe(rule!.page);
     expect(rule!.page).toBe(nameOp!.page);
+  });
+
+  it('places the signature beside the date in the left half of the page', async () => {
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
+    const plan = buildPoaLetterPlan(data, font, boldFont);
+    const date = plan.find(
+      (op) => op.kind === 'text' && op.text === 'Berlin, 06.07.2026'
+    );
+    const signature = plan.find((op) => op.kind === 'signature');
+
+    expect(date).toBeDefined();
+    expect(signature).toBeDefined();
+    if (
+      !date ||
+      date.kind !== 'text' ||
+      !signature ||
+      signature.kind !== 'signature'
+    ) {
+      throw new Error('missing date or signature operation');
+    }
+
+    const dateWidth = font.widthOfTextAtSize(date.text, date.size);
+    expect(signature.x).toBeGreaterThanOrEqual(date.x + dateWidth + 16);
+    expect(signature.maxWidth).toBeCloseTo(A4.width / 2 - signature.x, 3);
+    expect(getPoaSignatureReservedWidth()).toBe(signature.height * 3);
+    expect(signature.page).toBe(date.page);
+  });
+
+  it('keeps long city dates clear of the signature and uses a second row when needed', async () => {
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
+    const cases = [
+      { city: 'Metro Manila', separateRow: false },
+      { city: 'Frankfurt am Main', separateRow: false },
+      {
+        city: FALLBACK_CITY,
+        separateRow: true,
+      },
+    ];
+
+    for (const { city, separateRow } of cases) {
+      const plan = buildPoaLetterPlan({ ...data, city }, font, boldFont);
+      const date = plan.find(
+        (op) => op.kind === 'text' && op.text === `${city}, 06.07.2026`
+      );
+      const signature = plan.find((op) => op.kind === 'signature');
+      const rule = plan.find((op) => op.kind === 'rule');
+      const name = plan.find(
+        (op) =>
+          op.kind === 'text' &&
+          op.text.startsWith('Unterschrift des Vollmachtgebers')
+      );
+
+      expect(date && signature && rule && name).toBeTruthy();
+      if (
+        !date ||
+        date.kind !== 'text' ||
+        !signature ||
+        signature.kind !== 'signature' ||
+        !rule ||
+        rule.kind !== 'rule' ||
+        !name ||
+        name.kind !== 'text'
+      ) {
+        throw new Error('missing signature block operations');
+      }
+
+      const dateWidth = font.widthOfTextAtSize(date.text, date.size);
+      expect(signature.page).toBe(date.page);
+      expect(rule.page).toBe(signature.page);
+      expect(name.page).toBe(signature.page);
+      expect(signature.x + signature.maxWidth).toBeLessThanOrEqual(
+        A4.width / 2
+      );
+      expect(rule.yTop).toBeGreaterThan(signature.yTop + signature.height);
+      expect(name.yTop).toBeGreaterThan(rule.yTop);
+      expect(plan.reduce((max, op) => Math.max(max, op.page), 0)).toBe(0);
+
+      if (separateRow) {
+        expect(signature.yTop).toBeGreaterThanOrEqual(
+          date.yTop + COVER_LAYOUT.lineHeight + 4
+        );
+      } else {
+        expect(signature.x).toBeGreaterThanOrEqual(date.x + dateWidth + 16);
+        expect(signature.yTop).toBeLessThan(date.yTop);
+      }
+    }
+  });
+
+  it('renders an opaque fallback signature below the date line and above the rule', async () => {
+    const planDoc = await PDFDocument.create();
+    const font = await planDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await planDoc.embedFont(StandardFonts.HelveticaBold);
+    const plan = buildPoaLetterPlan(
+      { ...data, city: FALLBACK_CITY },
+      font,
+      boldFont
+    );
+    const date = plan.find(
+      (op) => op.kind === 'text' && op.text === `${FALLBACK_CITY}, 06.07.2026`
+    );
+    const signature = plan.find((op) => op.kind === 'signature');
+    const rule = plan.find((op) => op.kind === 'rule');
+    const name = plan.find(
+      (op) =>
+        op.kind === 'text' &&
+        op.text.startsWith('Unterschrift des Vollmachtgebers')
+    );
+    expect(date && signature && rule && name).toBeTruthy();
+    if (
+      !date ||
+      date.kind !== 'text' ||
+      !signature ||
+      signature.kind !== 'signature' ||
+      !rule ||
+      rule.kind !== 'rule' ||
+      !name ||
+      name.kind !== 'text'
+    ) {
+      throw new Error('missing fallback signature block operations');
+    }
+
+    expect(signature.yTop).toBeGreaterThanOrEqual(
+      date.yTop + COVER_LAYOUT.lineHeight + 4
+    );
+    expect(signature.x + signature.maxWidth).toBeLessThanOrEqual(A4.width / 2);
+    expect(rule.yTop).toBeGreaterThan(signature.yTop + signature.height);
+    expect(name.yTop).toBeGreaterThan(rule.yTop);
+    expect(signature.page).toBe(date.page);
+    expect(rule.page).toBe(signature.page);
+    expect(name.page).toBe(signature.page);
+
+    const renderDoc = await PDFDocument.create();
+    const drawImage = vi.spyOn(PDFPage.prototype, 'drawImage');
+    try {
+      await renderPoaLetter(renderDoc, {
+        ...data,
+        city: FALLBACK_CITY,
+        signaturePng: OPAQUE_SIGNATURE_PNG,
+      });
+      const options = drawImage.mock.calls[0]?.[1];
+      expect(options).toBeDefined();
+      if (!options) throw new Error('opaque fallback signature was not drawn');
+
+      const renderedTop = A4.height - options.y - options.height;
+      expect(renderedTop).toBeCloseTo(signature.yTop, 3);
+      expect(options.x + options.width).toBeLessThanOrEqual(A4.width / 2);
+      expect(renderDoc.getPageCount()).toBe(1);
+    } finally {
+      drawImage.mockRestore();
+    }
+  });
+
+  it('scales a wide signature inside its box while keeping it vertically centered', async () => {
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
+    const plan = buildPoaLetterPlan(data, font, boldFont);
+    const signature = plan.find((op) => op.kind === 'signature');
+    expect(signature).toBeDefined();
+    if (!signature || signature.kind !== 'signature') {
+      throw new Error('missing signature operation');
+    }
+
+    const drawImage = vi.spyOn(PDFPage.prototype, 'drawImage');
+    try {
+      await renderPoaLetter(doc, { ...data, signaturePng: WIDE_SIGNATURE_PNG });
+      const options = drawImage.mock.calls[0]?.[1];
+      expect(options).toBeDefined();
+      if (!options) throw new Error('signature image was not drawn');
+
+      expect(options.width / options.height).toBeCloseTo(10, 3);
+      expect(options.x + options.width).toBeLessThanOrEqual(A4.width / 2);
+      const renderedTop = A4.height - options.y - options.height;
+      expect(renderedTop + options.height / 2).toBeCloseTo(
+        signature.yTop + signature.height / 2,
+        3
+      );
+    } finally {
+      drawImage.mockRestore();
+    }
   });
 
   it('renders at least one A4 page without throwing', async () => {

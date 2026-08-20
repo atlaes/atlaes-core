@@ -1,5 +1,4 @@
-import { existsSync, readFileSync } from 'fs';
-import SftpClient from 'ssh2-sftp-client';
+import { createHash } from 'crypto';
 import { eq } from 'drizzle-orm';
 import { db } from '../utils/db';
 import { env } from '../utils/env';
@@ -7,73 +6,77 @@ import { logger } from '../utils/logger';
 import { auditLogs } from '../drizzle/schema/shared';
 import { claimsTable } from '../drizzle/schema/claims';
 
-const UPLOAD_DIR = '/upload/api';
+// Print specification per "API-Schnittstelle Dokumentation" (01.04.2025).
+// Mirrors the old SFTP filecode 1001000000000: colour, single-sided,
+// national shipping. No registered mail, no payment slip.
+//
+// `c4: 0` means "do not force a C4 envelope". The doc describes the flag
+// only as "for C4 envelope under 9 sheets", so 1 buys a C4 envelope for a
+// letter that would otherwise go DIN lang. What the vendor does at 9+
+// sheets with c4: 0 is NOT stated anywhere in the doc — a full claim packet
+// (cover letter + L203 + PoA + attachments) can cross that, so treat the
+// envelope upgrade as unconfirmed until support says otherwise.
+const LETTER_SPECIFICATION = {
+  color: '4', // 1 = black/white, 4 = colour
+  mode: 'simplex', // simplex | duplex — NOT auth.mode, which is test|live
+  shipping: 'national', // national | international | auto
+  c4: 0,
+} as const;
 
-// Live parameter code per "SFTP Schnittstelle Dokumentation 5.0" (26.02.2025):
-// position 1 print=1 (color), 2 mode=0 (simplex), 3 envelope=0 (DIN lang
-// auto), 4 zone=1 (national DE), 5 registered mail=0 (none), 6 payment
-// slip=0 (none), 7-13 reserve=0. Matches the vendor doc's own example code.
-const LIVE_PARAMETER_CODE = '1001000000000';
+// Doc §1: "Maximale Dateigröße darf 50 MB je PDF / Request nicht
+// überschreiten" — the ceiling is on the request, so it has to be measured
+// on the base64 payload we actually send, not the raw PDF. Base64 inflates
+// by ~4/3, so a 40 MB PDF is already a ~54 MB request.
+const MAX_REQUEST_BYTES = 50 * 1024 * 1024;
+
+const REQUEST_TIMEOUT_MS = 60_000;
+
+// Doc §4 (GET /v1/printjobs filters): a job parked in the Warenkorb reads
+// as 'draft', one heading for production as 'queue'. Which one comes back
+// is the only positive evidence that auth.mode did what we asked.
+const EXPECTED_JOB_STATUS = {
+  test: 'draft',
+  live: 'queue',
+} as const;
+
+interface PrintjobResponse {
+  status?: number;
+  message?: string;
+  data?: { id?: number; status?: string };
+}
 
 export class LettershopService {
   /**
-   * Builds the vendor filecode filename:
-   * `{13-digit parameter code}-vbl-claim-{claimId}-{Date.now()}.pdf`
+   * Filename reported to the vendor as `filename_original`. Purely for
+   * traceability: it is echoed back by GET /v1/printjobs and shown in the
+   * Kundencenter, which is how a support query gets tied to a claim.
    *
-   * Always carries the 13-digit prefix — the vendor rejects anything else.
-   * An earlier version used a `TESTMODE-` prefix for test mode, following
-   * the SFTP doc's own "Testmöglichkeiten" section (deliberately malformed
-   * names fail validation, so nothing is produced or billed). Vendor
-   * support asked us to stop: those files generate error reports on their
-   * side. Test mode no longer uploads at all — see sendClaimPdf.
+   * Unlike the retired SFTP filecode, this carries no print parameters —
+   * those live in `specification` now — so it needs no 13-digit prefix.
    */
-  static buildFilename(claimId: string): string {
-    return `${LIVE_PARAMETER_CODE}-vbl-claim-${claimId}-${Date.now()}.pdf`;
+  static buildOriginalFilename(claimId: string): string {
+    return `vbl-claim-${claimId}-${Date.now()}.pdf`;
   }
 
-  /**
-   * True when there's a usable private key file on disk at
-   * `LETTERSHOP_SFTP_PRIVATE_KEY_PATH`. Shared by the "are we configured at
-   * all" check and the actual connect auth-method selection so the two
-   * can't drift apart.
-   */
-  private static hasReadablePrivateKey(): boolean {
-    return (
-      !!env.LETTERSHOP_SFTP_PRIVATE_KEY_PATH &&
-      existsSync(env.LETTERSHOP_SFTP_PRIVATE_KEY_PATH)
-    );
-  }
-
-  /**
-   * True when we have at least one usable auth method: a non-empty
-   * password, or a private key file that actually exists on disk.
-   */
+  /** True when both halves of the API credential pair are present. */
   private static hasCredentials(): boolean {
-    return !!env.LETTERSHOP_SFTP_PASSWORD || this.hasReadablePrivateKey();
+    return !!(env.LETTERSHOP_API_KEY && env.LETTERSHOP_API_SECRET);
   }
 
   /**
    * Sends the combined claim PDF to the lettershop provider
-   * (onlinebrief24.de) over SFTP.
+   * (onlinebrief24.de) via POST /v1/printjobs.
    *
-   * Behaviour by `LETTERSHOP_MODE`:
-   * - `off` — no connection at all, returns null.
-   * - `test` — connects and verifies the upload directory is reachable,
-   *   then disconnects WITHOUT uploading, and returns null. The SFTP
-   *   interface has no server-side test flag (that exists only on the
-   *   vendor's REST API, as `auth.mode`), so the only safe test over SFTP
-   *   is one that transmits nothing: any well-formed file we upload is
-   *   produced and billed ~15 minutes later unless a human deletes it in
-   *   the Kundencenter first.
-   * - `live` — connects, uploads the PDF, and records the submission
-   *   (claim row + audit log) atomically.
+   * `LETTERSHOP_MODE` is passed straight through as the vendor's
+   * `auth.mode`: `test` parks the order in their shopping cart — visible,
+   * deletable, auto-purged after 7 days, never printed or billed — while
+   * `live` sends it into processing. `off` skips the call entirely.
    *
-   * Returns null when delivery is off, unconfigured (missing host/user, or
-   * missing both a password and a readable private-key file), or in test
-   * mode — mirroring the s3 util's local-dev no-op guard style, which lets
-   * local dev and most test runs proceed without any lettershop
-   * credentials and avoids a doomed SFTP handshake with no auth material.
-   * Errors are logged and rethrown; the caller
+   * Returns null when delivery is off or unconfigured (either credential
+   * missing), mirroring the s3 util's local-dev no-op guard style so local
+   * dev and most test runs proceed without lettershop credentials.
+   * Otherwise posts the PDF and records the submission (claim row + audit
+   * log) atomically. Errors are logged and rethrown; the caller
    * (ClaimsApplicationService.submitClaim) treats lettershop failures as
    * non-fatal, same as PDF generation failures.
    */
@@ -83,74 +86,78 @@ export class LettershopService {
     userId: string
   ): Promise<{ submissionId: string } | null> {
     const mode = env.LETTERSHOP_MODE;
-    const hasHostAndUser = !!(
-      env.LETTERSHOP_SFTP_HOST && env.LETTERSHOP_SFTP_USER
-    );
     const hasCredentials = this.hasCredentials();
-    const isConfigured = hasHostAndUser && hasCredentials;
 
-    if (mode === 'off' || !isConfigured) {
+    if (mode === 'off' || !hasCredentials) {
       logger.warn('Lettershop delivery skipped (off or unconfigured)', {
         claimId,
         mode,
-        missingHostOrUser: !hasHostAndUser,
         missingCredentials: !hasCredentials,
       });
       return null;
     }
 
-    const filename = this.buildFilename(claimId);
-    const remotePath = `${UPLOAD_DIR}/${filename}`;
+    const base64File = Buffer.from(pdfBytes).toString('base64');
 
-    const sftp = new SftpClient();
+    // Measured after encoding: the vendor's ceiling is on the request, and
+    // base64 is what the request carries.
+    if (base64File.length > MAX_REQUEST_BYTES) {
+      throw new Error(
+        `Claim PDF is ${pdfBytes.byteLength} bytes, which encodes to ` +
+          `${base64File.length} base64 bytes — over the vendor's ` +
+          `${MAX_REQUEST_BYTES}-byte request limit`
+      );
+    }
+
+    // Checksum is over the base64 STRING, not the decoded PDF bytes.
+    const checksum = createHash('md5').update(base64File).digest('hex');
+    const filenameOriginal = this.buildOriginalFilename(claimId);
+
+    const url = `${env.LETTERSHOP_API_BASE_URL}/printjobs`;
+
     try {
-      const usePrivateKey = this.hasReadablePrivateKey();
-
-      await sftp.connect({
-        host: env.LETTERSHOP_SFTP_HOST,
-        port: env.LETTERSHOP_SFTP_PORT,
-        username: env.LETTERSHOP_SFTP_USER,
-        // ssh2's ConnectConfig.privateKey wants the key CONTENTS, not a
-        // filesystem path — hasReadablePrivateKey() already confirmed the
-        // file exists, so read it here.
-        ...(usePrivateKey
-          ? { privateKey: readFileSync(env.LETTERSHOP_SFTP_PRIVATE_KEY_PATH!) }
-          : { password: env.LETTERSHOP_SFTP_PASSWORD }),
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        body: JSON.stringify({
+          auth: {
+            apiKey: env.LETTERSHOP_API_KEY,
+            apiSecret: env.LETTERSHOP_API_SECRET,
+            mode,
+          },
+          letter: {
+            base64_file: base64File,
+            base64_file_checksum: checksum,
+            specification: LETTER_SPECIFICATION,
+            filename_original: filenameOriginal,
+          },
+        }),
       });
 
-      if (mode === 'test') {
-        // Exercise auth + directory permissions, transmit nothing. exists()
-        // returns false or a type char ('d' for a directory).
-        const uploadDirType = await sftp.exists(UPLOAD_DIR);
+      // The vendor answers auth failures with a bare {"message": "..."} and
+      // no status field, so treat a missing/!=200 status as a failure too
+      // rather than trusting the HTTP code alone.
+      const body = (await response
+        .json()
+        .catch(() => null)) as PrintjobResponse | null;
 
-        // Throw rather than warn: an unreachable upload directory means a
-        // live flip would silently fail to deliver, and a test mode that
-        // reports success on a broken config is worse than no test mode.
-        // The caller treats lettershop errors as non-fatal, so this
-        // surfaces as an ERROR log without failing claim submission.
-        if (uploadDirType !== 'd') {
-          throw new Error(
-            `Lettershop upload directory ${UPLOAD_DIR} is not reachable ` +
-              `(sftp.exists returned ${JSON.stringify(uploadDirType)})`
-          );
-        }
-
-        logger.info('Lettershop connection verified (test mode, no upload)', {
-          claimId,
-          mode,
-          uploadDir: UPLOAD_DIR,
-          wouldUploadAs: filename,
-        });
-
-        return null;
+      const printjobId = body?.data?.id;
+      if (!response.ok || body?.status !== 200 || printjobId === undefined) {
+        throw new Error(
+          `Lettershop API rejected the job (HTTP ${response.status}): ` +
+            `${body?.message ?? 'no message'}`
+        );
       }
 
-      await sftp.put(Buffer.from(pdfBytes), remotePath);
+      const submissionId = String(printjobId);
+      const jobStatus = body?.data?.status;
+      const expectedStatus = EXPECTED_JOB_STATUS[mode];
 
       await db.transaction(async (tx: any) => {
         await tx
           .update(claimsTable)
-          .set({ lettershopSubmissionId: filename, updatedAt: new Date() })
+          .set({ lettershopSubmissionId: submissionId, updatedAt: new Date() })
           .where(eq(claimsTable.id, claimId));
 
         await tx.insert(auditLogs).values({
@@ -158,37 +165,58 @@ export class LettershopService {
           action: 'lettershop_submitted',
           resource: 'claim',
           resourceId: claimId,
-          details: { filename, mode },
+          details: {
+            submissionId,
+            filenameOriginal,
+            mode,
+            jobStatus,
+          },
         });
       });
 
+      // Checked AFTER the row is written, deliberately. The job exists on
+      // the vendor's side either way, and the printjob id is the only way
+      // to delete it inside the 15-minute window — losing that to a throw
+      // would be strictly worse than recording a job we're unhappy about.
+      // Logged rather than thrown for the same reason: the send succeeded,
+      // and reporting it as a failure invites a resend, i.e. two letters.
+      if (jobStatus !== expectedStatus) {
+        logger.error('Lettershop job landed in an unexpected state', {
+          claimId,
+          submissionId,
+          mode,
+          jobStatus,
+          expectedStatus,
+          // The case that matters: mode 'test' answering 'queue' means the
+          // order is heading for production, not the Warenkorb.
+          headedForProduction: mode === 'test' && jobStatus === 'queue',
+          remedy:
+            `DELETE ${env.LETTERSHOP_API_BASE_URL}/printjobs/${submissionId} ` +
+            `within 15 minutes of submission, or delete it in the Kundencenter`,
+        });
+      }
+
       logger.info('Claim PDF delivered to lettershop', {
         claimId,
-        filename,
+        submissionId,
+        filenameOriginal,
         mode,
+        jobStatus,
+        // Read off the vendor's answer, not the mode we asked for: a job
+        // in the cart is deleted after 7 days unless someone releases it
+        // by hand, and that only holds if they actually parked it.
+        parkedInCart: jobStatus === 'draft',
       });
 
-      return { submissionId: filename };
+      return { submissionId };
     } catch (error) {
       logger.error('Failed to deliver claim PDF to lettershop', {
         claimId,
-        filename,
+        filenameOriginal,
         mode,
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;
-    } finally {
-      // A failure here must never mask an error from the try block above —
-      // log it at most, never throw.
-      try {
-        await sftp.end();
-      } catch (endError) {
-        logger.warn('Failed to close lettershop SFTP connection', {
-          claimId,
-          error:
-            endError instanceof Error ? endError.message : String(endError),
-        });
-      }
     }
   }
 }

@@ -9,9 +9,13 @@ import { linkEmailToPendingCalculatorSession } from '@/lib/vbl-pending-calculato
 
 interface CreateAccountProps {
   onNext: () => void;
+  redirectUrl?: string;
 }
 
-export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
+export const CreateAccount: React.FC<CreateAccountProps> = ({
+  onNext,
+  redirectUrl = '/get-started?fromAuth=1',
+}) => {
   const { data, updateData } = useOnboarding();
   const [email, setEmail] = useState(data.email);
   // Figma 1156-4891 (tester feedback 2026-08-04): the bAV flow has its own
@@ -28,7 +32,7 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({ onNext }) => {
     setIsSubmitting(true);
     setError(null);
     try {
-      const result = await requestMagicLink(email, '/get-started?fromAuth=1');
+      const result = await requestMagicLink(email, redirectUrl);
 
       // Link the email to the calculator's pending session so a future visit
       // by this email could resume the draft. Fire-and-forget — failure here
