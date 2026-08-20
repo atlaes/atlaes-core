@@ -131,6 +131,10 @@ const START_TOP = 80;
 const BULLET_PREFIX = '• ';
 const BULLET_INDENT = 12;
 const PAGE_BREAK_GUARD = A4.height - 120;
+const SIGNATURE_GAP = 16;
+// A 60pt-wide signature remains visually legible at the 40pt preferred
+// height. Narrower shared-row space moves the signature to its own row.
+const MIN_SIGNATURE_WIDTH = signatureImageHeight * 1.5;
 
 /**
  * Builds the Postempfangsvollmacht draw plan as a pure function of the
@@ -239,22 +243,28 @@ export function buildPoaLetterPlan(
   );
   emitBlank();
 
-  // Page-break guard: keep the whole signature block (date row + rule +
-  // name) together. Its total height is ~3 line heights.
-  const signatureBlockHeight = lineHeight * 3;
+  // Date row: "{city}, {dateToday}" on the left. Prefer a signature beside
+  // it, but move the signature to the next row if less than 60pt remains in
+  // the left half; never move it back over the date.
+  const dateLineText = `${data.city}, ${data.dateToday}`;
+  const dateWidth = font.widthOfTextAtSize(dateLineText, fontSize);
+  const desiredSignatureX = marginLeft + dateWidth + SIGNATURE_GAP;
+  const leftHalfRight = A4.width / 2;
+  const sharedRowMaxWidth = leftHalfRight - desiredSignatureX;
+  const signatureOnSecondRow = sharedRowMaxWidth < MIN_SIGNATURE_WIDTH;
+  const signatureX = signatureOnSecondRow ? marginLeft : desiredSignatureX;
+  const signatureMaxWidth = signatureOnSecondRow
+    ? leftHalfRight - marginLeft
+    : sharedRowMaxWidth;
+
+  // Page-break guard: keep the whole signature block (date, signature,
+  // rule, and name) together. A second-row signature needs two more lines.
+  const signatureBlockHeight = lineHeight * (signatureOnSecondRow ? 5 : 3);
   if (cursor + signatureBlockHeight > PAGE_BREAK_GUARD) {
     page += 1;
     cursor = START_TOP;
   }
 
-  // Date row: "{city}, {dateToday}" on the left, signature image on the
-  // right of the date within the left half of the same row.
-  const dateLineText = `${data.city}, ${data.dateToday}`;
-  const signatureWidth = getPoaSignatureReservedWidth();
-  const dateWidth = font.widthOfTextAtSize(dateLineText, fontSize);
-  const desiredSignatureX = marginLeft + dateWidth + 16;
-  const leftHalfMaxX = A4.width / 2 - signatureWidth;
-  const signatureX = Math.min(desiredSignatureX, leftHalfMaxX);
   ops.push({
     kind: 'text',
     text: dateLineText,
@@ -266,12 +276,18 @@ export function buildPoaLetterPlan(
   ops.push({
     kind: 'signature',
     x: signatureX,
-    yTop: cursor - (signatureImageHeight - lineHeight) / 2,
+    yTop:
+      cursor -
+      (signatureImageHeight - lineHeight) / 2 +
+      (signatureOnSecondRow ? lineHeight : 0),
     height: signatureImageHeight,
-    maxWidth: A4.width / 2 - signatureX,
+    maxWidth: signatureMaxWidth,
     page,
   });
-  cursor += signatureImageHeight - lineHeight / 2;
+  cursor +=
+    signatureImageHeight -
+    lineHeight / 2 +
+    (signatureOnSecondRow ? lineHeight : 0);
 
   // Horizontal rule spanning the content width.
   ops.push({
@@ -432,9 +448,10 @@ export async function renderPoaLetter(
       // Keep the signature within the right margin: if the scaled image is
       // wider than the reserved slot, nudge it left so it doesn't clip.
       const maxX = A4.width - marginRight - width;
+      const adjustedTop = op.yTop + (op.height - height) / 2;
       page.drawImage(signatureImage, {
         x: Math.min(op.x, maxX),
-        y: A4.height - op.yTop - height,
+        y: A4.height - adjustedTop - height,
         width,
         height,
       });
