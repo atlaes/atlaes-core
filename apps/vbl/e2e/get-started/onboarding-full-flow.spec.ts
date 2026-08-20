@@ -233,6 +233,20 @@ test.describe('Onboarding Eligibility resource copy', () => {
       .getByRole('button', { name: /Create your secure claim/i })
       .click();
     await completeCreateAccount(page);
+    // A direct /get-started completion must clear an existing flow identity
+    // too. It may have been carried over from an earlier calculator journey,
+    // but once this claim is submitted there is no flow left to resume.
+    await page.evaluate(() => {
+      window.localStorage.setItem(
+        'vbl_flow_identity_v1',
+        JSON.stringify({
+          version: 1,
+          pensionType: 'public',
+          pensionProvider: 'VBLklassik',
+          origin: 'get-started',
+        })
+      );
+    });
     await completePayment(page);
     await completeIdentityUpload(page);
     await completeMembership(page);
@@ -278,9 +292,11 @@ test.describe('Onboarding Eligibility resource copy', () => {
     const persistedAfterSubmit = await page.evaluate(() => ({
       onboarding: window.sessionStorage.getItem('vbl_onboarding_v1'),
       eligibility: window.sessionStorage.getItem('vbl_eligibility_v1'),
+      identity: window.localStorage.getItem('vbl_flow_identity_v1'),
     }));
     expect(persistedAfterSubmit.onboarding).toBeNull();
     expect(persistedAfterSubmit.eligibility).toBeNull();
+    expect(persistedAfterSubmit.identity).toBeNull();
   });
 
   // ============================================================

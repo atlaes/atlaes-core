@@ -1,7 +1,131 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+async function mockCalculatorOnboardingApi(page: Page) {
+  const user = {
+    id: 'user_mock',
+    email: 'calculator-edge@example.com',
+    emailVerified: true,
+  };
+  const claim = {
+    id: 'claim_mock',
+    userId: user.id,
+    status: 'draft',
+    workflowState: 'draft',
+    completedSteps: {},
+    paymentStatus: 'paid',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  const json = (body: unknown) => ({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify(body),
+  });
+
+  await page.route('**/api/auth/magic-link/request', (route) =>
+    route.fulfill(
+      json({
+        message: 'Magic link sent',
+        magicLink: 'http://localhost:3000/auth/magic-link?token=mock-token',
+      })
+    )
+  );
+  await page.route('**/api/auth/magic-link/verify', (route) =>
+    route.fulfill(
+      json({
+        message: 'Verified',
+        user,
+        tokens: {
+          accessToken: 'mock-access-token',
+          refreshToken: 'mock-refresh-token',
+        },
+        isNewUser: false,
+      })
+    )
+  );
+  await page.route('**/api/auth/me', (route) => route.fulfill(json({ user })));
+  await page.route('**/api/claims', (route) =>
+    route.fulfill(
+      json(
+        route.request().method() === 'POST'
+          ? { success: true, claim }
+          : { success: true, claims: [claim] }
+      )
+    )
+  );
+  await page.route('**/api/claims/claim_mock', (route) =>
+    route.fulfill(json({ success: true, claim }))
+  );
+  await page.route('**/api/claims/claim_mock/documents', (route) =>
+    route.fulfill(json({ success: true }))
+  );
+  await page.route('**/api/claims/claim_mock/steps/**', (route) =>
+    route.fulfill(json({ success: true, claim }))
+  );
+  await page.route('**/api/claims/claim_mock/signature', (route) =>
+    route.fulfill(json({ success: true, claim }))
+  );
+  await page.route('**/api/payments/create-checkout-session', (route) =>
+    route.fulfill(
+      json({
+        success: true,
+        url: new URL(
+          '/get-started?payment=success&session_id=cs_mock',
+          page.url()
+        ).toString(),
+        sessionId: 'cs_mock',
+      })
+    )
+  );
+  await page.route('**/api/payments/verify-session', (route) =>
+    route.fulfill(
+      json({ success: true, claimId: claim.id, paymentStatus: 'paid' })
+    )
+  );
+  await page.route('**/api/documents/upload', (route) =>
+    route.fulfill(
+      json({
+        success: true,
+        document: {
+          id: 'document_mock',
+          fileName: 'passport.jpg',
+          fileType: 'application/pdf',
+          fileSize: 1000,
+          documentType: 'passport',
+          status: 'processed',
+          createdAt: new Date().toISOString(),
+        },
+        ocr: {
+          firstName: 'Test',
+          lastName: 'User',
+          dateOfBirth: '1990-01-15',
+          gender: 'male',
+          placeOfBirth: 'Sydney',
+          nationality: 'Australian',
+          passportNumber: 'P1234567',
+          passportIssueDate: '',
+          passportExpiryDate: '',
+          issuingCountry: 'AU',
+        },
+      })
+    )
+  );
+}
 
 test.describe('Onboarding Edge Cases', () => {
   test.beforeEach(async ({ page }) => {
+    await mockCalculatorOnboardingApi(page);
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        'vbl_flow_identity_v1',
+        JSON.stringify({
+          version: 1,
+          pensionType: 'public',
+          pensionProvider: 'VBLklassik',
+          origin: 'calculator',
+        })
+      );
+    });
     await page.goto('/calculator/onboarding');
   });
 
@@ -10,7 +134,9 @@ test.describe('Onboarding Edge Cases', () => {
   // ============================================================
 
   test.describe('Pension Type Selection', () => {
-    test('shows the approved public then private claim choices', async ({ page }) => {
+    test('shows the approved public then private claim choices', async ({
+      page,
+    }) => {
       await expect(
         page.getByRole('heading', {
           name: 'Which claim would you like to start first?',
@@ -33,7 +159,9 @@ test.describe('Onboarding Edge Cases', () => {
       ]);
     });
 
-    test('public sector claim advances to the account step', async ({ page }) => {
+    test('public sector claim advances to the account step', async ({
+      page,
+    }) => {
       await page
         .getByRole('button', { name: 'Public sector refund claim' })
         .click();
@@ -75,7 +203,9 @@ test.describe('Onboarding Edge Cases', () => {
       await expect(page.getByText('Continue with Apple')).toBeVisible();
     });
 
-    test('shows "or" divider between email and social login', async ({ page }) => {
+    test('shows "or" divider between email and social login', async ({
+      page,
+    }) => {
       await expect(page.getByText('or', { exact: true })).toBeVisible();
     });
   });
@@ -101,7 +231,7 @@ test.describe('Onboarding Edge Cases', () => {
     });
 
     test('displays correct deposit amount', async ({ page }) => {
-      await expect(page.getByText('€199')).toBeVisible();
+      await expect(page.getByText('€199', { exact: true })).toBeVisible();
     });
 
     test('displays fee breakdown', async ({ page }) => {
@@ -109,10 +239,20 @@ test.describe('Onboarding Edge Cases', () => {
       await expect(page.getByText(/Money-back guarantee/)).toBeVisible();
     });
 
-    test('button shows processing state', async ({ page }) => {
-      await page.getByRole('button', { name: /Pay.*deposit/i }).click();
-      // Should show processing state
-      await expect(page.getByText('Processing...')).toBeVisible({ timeout: 3_000 });
+    test('requires calculator declarations before checkout', async ({
+      page,
+    }) => {
+      const payButton = page.getByRole('button', {
+        name: 'Pay €199 deposit',
+      });
+      const declarations = page.getByRole('checkbox');
+
+      await expect(payButton).toBeDisabled();
+      await expect(declarations).toHaveCount(2);
+      await declarations.nth(0).check();
+      await expect(payButton).toBeDisabled();
+      await declarations.nth(1).check();
+      await expect(payButton).toBeEnabled();
     });
   });
 
@@ -134,6 +274,9 @@ test.describe('Onboarding Edge Cases', () => {
       await expect(
         page.getByRole('heading', { name: /Start your refund claim/i })
       ).toBeVisible({ timeout: 10_000 });
+      const declarations = page.getByRole('checkbox');
+      await declarations.nth(0).check();
+      await declarations.nth(1).check();
       await page.getByRole('button', { name: /Pay.*deposit/i }).click();
       await expect(
         page.getByRole('heading', { name: /passport|Upload/i })
@@ -145,7 +288,7 @@ test.describe('Onboarding Edge Cases', () => {
       await expect(fileInput).toBeAttached();
     });
 
-    test('confirm phase requires first and last name', async ({ page }) => {
+    test('confirm phase uses Full Name and Date of Birth', async ({ page }) => {
       // Upload a fake passport to trigger confirm phase
       const fileInput = page.locator('input[type="file"]');
       await fileInput.setInputFiles({
@@ -156,14 +299,13 @@ test.describe('Onboarding Edge Cases', () => {
 
       // Wait for confirm phase
       await expect(
-        page.getByRole('heading', { name: /Confirm your details/i })
+        page.getByRole('heading', { name: /Confirm your identity details/i })
       ).toBeVisible({ timeout: 30_000 });
 
-      // First and last name inputs should be visible
-      const firstNameInput = page.getByPlaceholder('John');
-      await expect(firstNameInput).toBeVisible();
-      const lastNameInput = page.getByPlaceholder('Smith');
-      await expect(lastNameInput).toBeVisible();
+      await expect(page.getByLabel('Full Name')).toHaveValue('Test User');
+      await expect(page.getByLabel('Date of Birth')).toHaveValue('1990-01-15');
+      await expect(page.getByPlaceholder('John')).toHaveCount(0);
+      await expect(page.getByPlaceholder('Day')).toHaveCount(0);
     });
 
     test('confirm phase has gender select', async ({ page }) => {
@@ -175,10 +317,10 @@ test.describe('Onboarding Edge Cases', () => {
       });
 
       await expect(
-        page.getByRole('heading', { name: /Confirm your details/i })
+        page.getByRole('heading', { name: /Confirm your identity details/i })
       ).toBeVisible({ timeout: 30_000 });
 
-      const genderSelect = page.locator('select').first();
+      const genderSelect = page.locator('#calculator-gender');
       await expect(genderSelect).toBeVisible();
     });
   });
@@ -201,6 +343,9 @@ test.describe('Onboarding Edge Cases', () => {
       await expect(
         page.getByRole('heading', { name: /Start your refund claim/i })
       ).toBeVisible({ timeout: 10_000 });
+      const declarations = page.getByRole('checkbox');
+      await declarations.nth(0).check();
+      await declarations.nth(1).check();
       await page.getByRole('button', { name: /Pay.*deposit/i }).click();
       await expect(
         page.getByRole('heading', { name: /passport|Upload/i })
@@ -214,54 +359,29 @@ test.describe('Onboarding Edge Cases', () => {
       });
 
       await expect(
-        page.getByRole('heading', { name: /Confirm your details/i })
+        page.getByRole('heading', { name: /Confirm your identity details/i })
       ).toBeVisible({ timeout: 30_000 });
 
-      // Fill identity
-      const firstNameInput = page.getByPlaceholder('John');
-      if (await firstNameInput.inputValue() === '') {
-        await firstNameInput.fill('Test');
-      }
-      const lastNameInput = page.getByPlaceholder('Smith');
-      if (await lastNameInput.inputValue() === '') {
-        await lastNameInput.fill('User');
-      }
-      const dayInput = page.getByPlaceholder('Day');
-      if (await dayInput.inputValue() === '') {
-        await dayInput.fill('15');
-      }
-      const yearInput = page.getByPlaceholder('Year');
-      if (await yearInput.inputValue() === '') {
-        await yearInput.fill('1990');
-      }
-      const selects = page.locator('select');
-      const birthMonthSelect = selects.first();
-      if (await birthMonthSelect.inputValue() === '') {
-        await birthMonthSelect.selectOption('January');
-      }
-      const genderSelect = selects.nth(1);
-      if (await genderSelect.inputValue() === '') {
-        await genderSelect.selectOption('male');
-      }
-      await page.getByPlaceholder('Enter document number').fill('P1234567');
-      await page.getByPlaceholder('e.g. Australian').fill('Australian');
-      await page.getByPlaceholder('e.g. Sydney').fill('Sydney');
+      await page.getByLabel('Full Name').fill('Test User');
+      await page.getByLabel('Date of Birth').fill('1990-01-15');
       await page.getByRole('button', { name: /Continue/i }).click();
 
       // Membership
       await expect(
-        page.getByRole('heading', { name: 'Pension membership details' })
+        page.getByRole('heading', { name: 'VBL pension details' })
       ).toBeVisible({ timeout: 5_000 });
       const providerSelect = page.locator('select').first();
-      if (await providerSelect.count() > 0) {
+      if ((await providerSelect.count()) > 0) {
         await providerSelect.selectOption('VBL');
       }
-      await page.getByPlaceholder(/membership number/i).fill('VBL123456');
+      await page
+        .getByPlaceholder('Enter your VBL insurance number')
+        .fill('VBL123456');
       await page.getByRole('button', { name: /Continue/i }).click();
 
       // Address
       await expect(
-        page.getByRole('heading', { name: 'Your current address' })
+        page.getByRole('heading', { name: 'Your current residential address' })
       ).toBeVisible({ timeout: 5_000 });
       await page.getByPlaceholder('Street and house number').fill('Test St 1');
       await page.getByPlaceholder('Postal code').fill('50667');
@@ -269,9 +389,16 @@ test.describe('Onboarding Edge Cases', () => {
       await page.locator('select').first().selectOption('DE');
       await page.getByRole('button', { name: /Continue/i }).click();
 
-      // Should be at bank details
+      // Enter the current own-account branch.
       await expect(
-        page.getByRole('heading', { name: /bank account|refund be paid/i })
+        page.getByRole('heading', { name: 'Where should the refund be paid?' })
+      ).toBeVisible({ timeout: 5_000 });
+      await page
+        .getByRole('button', { name: /My own EUR \/ SEPA account/i })
+        .click();
+      await page.getByRole('button', { name: 'Continue', exact: true }).click();
+      await expect(
+        page.getByRole('heading', { name: 'Enter your bank details' })
       ).toBeVisible({ timeout: 5_000 });
     }
 
@@ -282,15 +409,15 @@ test.describe('Onboarding Edge Cases', () => {
 
     test('shows expandable alternative options', async ({ page }) => {
       await navigateToBankDetails(page);
-      // Click the expandable toggle
-      const toggle = page.getByText(/Don't have a EUR\/SEPA account/i);
-      await expect(toggle).toBeVisible();
-      await toggle.click();
-
-      // Should show 3 alternative options
-      await expect(page.getByText('Open a EUR account')).toBeVisible();
-      await expect(page.getByText(/trusted third-party/i)).toBeVisible();
-      await expect(page.getByText(/add my IBAN/i)).toBeVisible();
+      // The current flow presents the own-account, trusted-person, and
+      // SummitFX options before the IBAN entry branch.
+      await page.getByRole('button', { name: /Back/i }).click();
+      await expect(
+        page.getByRole('button', { name: /trusted person/i })
+      ).toBeVisible();
+      await expect(
+        page.getByRole('button', { name: /open a EUR account/i })
+      ).toBeVisible();
     });
 
     test('can proceed with IBAN entered', async ({ page }) => {
@@ -321,6 +448,9 @@ test.describe('Onboarding Edge Cases', () => {
       await expect(
         page.getByRole('heading', { name: /Start your refund claim/i })
       ).toBeVisible({ timeout: 10_000 });
+      const declarations = page.getByRole('checkbox');
+      await declarations.nth(0).check();
+      await declarations.nth(1).check();
       await page.getByRole('button', { name: /Pay.*deposit/i }).click();
 
       // Fast-forward through identity
@@ -333,42 +463,28 @@ test.describe('Onboarding Edge Cases', () => {
         buffer: Buffer.from('fake-image-data'),
       });
       await expect(
-        page.getByRole('heading', { name: /Confirm your details/i })
+        page.getByRole('heading', { name: /Confirm your identity details/i })
       ).toBeVisible({ timeout: 30_000 });
-      const firstNameInput = page.getByPlaceholder('John');
-      if (await firstNameInput.inputValue() === '') await firstNameInput.fill('Test');
-      const lastNameInput = page.getByPlaceholder('Smith');
-      if (await lastNameInput.inputValue() === '') await lastNameInput.fill('User');
-      const dayInput = page.getByPlaceholder('Day');
-      if (await dayInput.inputValue() === '') await dayInput.fill('15');
-      const yearInput = page.getByPlaceholder('Year');
-      if (await yearInput.inputValue() === '') await yearInput.fill('1990');
-      const selects = page.locator('select');
-      const birthMonthSelect = selects.first();
-      if (await birthMonthSelect.inputValue() === '') {
-        await birthMonthSelect.selectOption('January');
-      }
-      const genderSelect = selects.nth(1);
-      if (await genderSelect.inputValue() === '') await genderSelect.selectOption('male');
-      await page.getByPlaceholder('Enter document number').fill('P1234567');
-      await page.getByPlaceholder('e.g. Australian').fill('Australian');
-      await page.getByPlaceholder('e.g. Sydney').fill('Sydney');
+      await page.getByLabel('Full Name').fill('Test User');
+      await page.getByLabel('Date of Birth').fill('1990-01-15');
       await page.getByRole('button', { name: /Continue/i }).click();
 
       // Membership
       await expect(
-        page.getByRole('heading', { name: 'Pension membership details' })
+        page.getByRole('heading', { name: 'VBL pension details' })
       ).toBeVisible({ timeout: 5_000 });
       const providerSelect = page.locator('select').first();
-      if (await providerSelect.count() > 0) {
+      if ((await providerSelect.count()) > 0) {
         await providerSelect.selectOption('VBL');
       }
-      await page.getByPlaceholder(/membership number/i).fill('VBL123456');
+      await page
+        .getByPlaceholder('Enter your VBL insurance number')
+        .fill('VBL123456');
       await page.getByRole('button', { name: /Continue/i }).click();
 
       // Address
       await expect(
-        page.getByRole('heading', { name: 'Your current address' })
+        page.getByRole('heading', { name: 'Your current residential address' })
       ).toBeVisible({ timeout: 5_000 });
       await page.getByPlaceholder('Street and house number').fill('Test St 1');
       await page.getByPlaceholder('Postal code').fill('50667');
@@ -378,10 +494,29 @@ test.describe('Onboarding Edge Cases', () => {
 
       // Bank Details
       await expect(
-        page.getByRole('heading', { name: /bank account|refund be paid/i })
+        page.getByRole('heading', { name: 'Where should the refund be paid?' })
+      ).toBeVisible({ timeout: 5_000 });
+      await page
+        .getByRole('button', { name: /My own EUR \/ SEPA account/i })
+        .click();
+      await page.getByRole('button', { name: 'Continue', exact: true }).click();
+      await expect(
+        page.getByRole('heading', { name: 'Enter your bank details' })
       ).toBeVisible({ timeout: 5_000 });
       await page.getByPlaceholder(/IBAN/i).fill('DE89370400440532013000');
       await page.getByRole('button', { name: /Continue/i }).click();
+
+      // The calculator flow now reaches Signature through Review → Confirm.
+      await expect(
+        page.getByRole('heading', { name: 'Review', exact: true })
+      ).toBeVisible({ timeout: 5_000 });
+      await page
+        .getByRole('button', { name: 'Continue to declarations' })
+        .click();
+      await expect(
+        page.getByRole('heading', { name: 'Confirm your refund information' })
+      ).toBeVisible({ timeout: 5_000 });
+      await page.getByRole('button', { name: 'Continue to signature' }).click();
 
       // Signature step
       await expect(
@@ -389,19 +524,19 @@ test.describe('Onboarding Edge Cases', () => {
       ).toBeVisible({ timeout: 5_000 });
 
       // Verify both mode buttons exist
-      await expect(page.getByText('Draw Signature')).toBeVisible();
-      await expect(page.getByText('Upload Image')).toBeVisible();
+      await expect(page.getByText('Draw signature')).toBeVisible();
+      await expect(page.getByText('Upload signature image')).toBeVisible();
 
       // Verify canvas exists in draw mode (default)
       await expect(page.locator('canvas')).toBeVisible();
 
       // Switch to upload mode
-      await page.getByText('Upload Image').click();
+      await page.getByText('Upload signature image').click();
       // File input should be available
       await expect(page.locator('input[type="file"]')).toBeAttached();
 
       // Switch back to draw mode
-      await page.getByText('Draw Signature').click();
+      await page.getByText('Draw signature').click();
       await expect(page.locator('canvas')).toBeVisible();
     });
   });
@@ -411,7 +546,9 @@ test.describe('Onboarding Edge Cases', () => {
   // ============================================================
 
   test.describe('Navigation', () => {
-    test('back button from create account returns to pension type', async ({ page }) => {
+    test('back button from create account returns to pension type', async ({
+      page,
+    }) => {
       await page
         .getByRole('button', { name: 'Public sector refund claim' })
         .click();
@@ -430,7 +567,9 @@ test.describe('Onboarding Edge Cases', () => {
       }
     });
 
-    test('back button from payment returns to create account', async ({ page }) => {
+    test('back button from payment returns to create account', async ({
+      page,
+    }) => {
       await page
         .getByRole('button', { name: 'Public sector refund claim' })
         .click();

@@ -389,15 +389,10 @@ export function clearFlowIdentity(): void {
 
 // Clears all persisted flow blobs — used on successful final submission and
 // on explicit flow restart (e.g. "Return to start" from the eligibility
-// result screen). `clearFlowIdentity` is false only when a non-calculator
-// /get-started completion must preserve a different calculator-origin
-// route's identity while still clearing its own resumable session state.
-export function clearAllFlowPersistence(options?: {
-  clearFlowIdentity?: boolean;
-}): void {
+// result screen). A completed claim must never leave an identity behind that
+// could be mistaken for resumable calculator state.
+export function clearAllFlowPersistence(): void {
   clearEligibilityState();
   clearOnboardingState();
-  if (options?.clearFlowIdentity !== false) {
-    clearFlowIdentity();
-  }
+  clearFlowIdentity();
 }
