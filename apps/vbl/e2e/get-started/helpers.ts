@@ -18,11 +18,27 @@ async function clearFlowPersistence(page: Page): Promise<boolean> {
   return page.evaluate(() => {
     const hadState = !!(
       window.sessionStorage.getItem('vbl_eligibility_v1') ||
-      window.sessionStorage.getItem('vbl_onboarding_v1')
+      window.sessionStorage.getItem('vbl_onboarding_v1') ||
+      window.localStorage.getItem('vbl_flow_identity_v1')
     );
     window.sessionStorage.removeItem('vbl_eligibility_v1');
     window.sessionStorage.removeItem('vbl_onboarding_v1');
+    window.localStorage.removeItem('vbl_flow_identity_v1');
     return hadState;
+  });
+}
+
+export async function seedCalculatorOrigin(page: Page) {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      'vbl_flow_identity_v1',
+      JSON.stringify({
+        version: 1,
+        pensionType: 'public',
+        pensionProvider: 'VBLklassik',
+        origin: 'calculator',
+      })
+    );
   });
 }
 
@@ -406,25 +422,7 @@ export async function completePayment(page: Page) {
 }
 
 export async function completeIdentityUpload(page: Page) {
-  await expect(
-    page.getByRole('heading', { name: /passport|Upload/i })
-  ).toBeVisible({ timeout: 10_000 });
-
-  const fileInput = page.locator('input[type="file"]');
-  if (existsSync(TEST_PASSPORT_PATH)) {
-    await fileInput.setInputFiles(TEST_PASSPORT_PATH);
-  } else {
-    await fileInput.setInputFiles({
-      name: 'passport.pdf',
-      mimeType: 'application/pdf',
-      buffer: Buffer.from('%PDF-1.4\n%EOF'),
-    });
-  }
-
-  // Wait for OCR processing and confirm phase
-  await expect(
-    page.getByRole('heading', { name: /Confirm your identity details/i })
-  ).toBeVisible({ timeout: 30_000 });
+  await uploadIdentityDocument(page);
 
   // Fill identity fields if empty
   const firstNameInput = page.getByPlaceholder('John');
@@ -461,6 +459,28 @@ export async function completeIdentityUpload(page: Page) {
     await placeOfBirthInput.fill('Sydney');
   }
   await page.getByRole('button', { name: /Continue/i }).click();
+}
+
+export async function uploadIdentityDocument(page: Page) {
+  await expect(
+    page.getByRole('heading', { name: /passport|Upload/i })
+  ).toBeVisible({ timeout: 10_000 });
+
+  const fileInput = page.locator('input[type="file"]');
+  if (existsSync(TEST_PASSPORT_PATH)) {
+    await fileInput.setInputFiles(TEST_PASSPORT_PATH);
+  } else {
+    await fileInput.setInputFiles({
+      name: 'passport.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4\n%EOF'),
+    });
+  }
+
+  // Wait for OCR processing and confirm phase
+  await expect(
+    page.getByRole('heading', { name: /Confirm your identity details/i })
+  ).toBeVisible({ timeout: 30_000 });
 }
 
 export async function completeMembership(page: Page) {
@@ -529,11 +549,24 @@ export async function completeSignature(page: Page) {
 // review screen's primary button advances to the Confirm step via
 // ReviewSubmit's onContinue mode ("Continue to confirmation") instead of
 // submitting the claim here.
-export async function completeReview(page: Page) {
+export async function completeReview(
+  page: Page,
+  variant: 'default' | 'calculator' = 'default'
+) {
+  const isCalculator = variant === 'calculator';
   await expect(
-    page.getByRole('heading', { name: 'Review your refund request' })
+    page.getByRole('heading', {
+      name: isCalculator ? 'Review' : 'Review your refund request',
+      exact: isCalculator,
+    })
   ).toBeVisible({ timeout: 10_000 });
-  await page.getByRole('button', { name: /Continue to confirmation/i }).click();
+  await page
+    .getByRole('button', {
+      name: isCalculator
+        ? 'Continue to declarations'
+        : /Continue to confirmation/i,
+    })
+    .click();
 }
 
 // Public/stage Confirm step (between Review and Signature). Section 1's four

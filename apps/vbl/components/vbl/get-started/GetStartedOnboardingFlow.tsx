@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   useOnboarding,
+  areConfirmStopAnswersClear,
   getSubmitDetailsSubsteps,
   isConfirmComplete,
   SubmitDetailsSubStep,
@@ -21,6 +22,7 @@ import {
 } from '@/lib/onboarding-api';
 import {
   clearAllFlowPersistence,
+  clearCompletedDirectFlowPersistence,
   loadFlowIdentity,
   saveFlowIdentity,
 } from '@/lib/flow-persistence';
@@ -37,6 +39,10 @@ import { ReviewSubmit } from '@/components/vbl/onboarding/steps/ReviewSubmit';
 import { ConfirmStep } from '@/components/vbl/onboarding/steps/ConfirmStep';
 import { SuccessScreen } from '@/components/vbl/onboarding/steps/SuccessScreen';
 import { DRVUpsellModal } from '@/components/vbl/onboarding/DRVUpsellModal';
+import {
+  isCalculatorVariant,
+  type OnboardingVariant,
+} from '@/components/vbl/onboarding/onboarding-variant';
 
 export function GetStartedOnboardingFlow() {
   const router = useRouter();
@@ -57,9 +63,29 @@ export function GetStartedOnboardingFlow() {
     resetOnboarding,
   } = useOnboarding();
 
+  // Keep the source decision stable for the life of this mounted flow. A
+  // calculator return can restore public eligibility asynchronously, but a
+  // direct flow must never become calculator-origin later in the session.
+  const [calculatorOrigin] = useState(
+    () => loadFlowIdentity()?.origin === 'calculator'
+  );
+  const variant: OnboardingVariant =
+    calculatorOrigin && data.pensionType !== 'private'
+      ? 'calculator'
+      : 'default';
+
+  // Receiving components gain typed variant props in Tasks 3–7. Evaluate the
+  // local guard now so private/bAV claims remain on the default variant.
+  void isCalculatorVariant(variant);
+
   // Task 15: Health Insurance only appears for bAV/private pension type
   // claimants — see getSubmitDetailsSubsteps in OnboardingContext.tsx.
-  const submitDetailsSubsteps = getSubmitDetailsSubsteps(data.pensionType);
+  const submitDetailsSubsteps = getSubmitDetailsSubsteps(data.pensionType).map(
+    (subStep) =>
+      variant === 'calculator' && subStep.id === 'review'
+        ? { ...subStep, label: 'Review' }
+        : subStep
+  );
 
   // Auto-advance past CreateAccount when user is already authenticated
   // (e.g. arriving via magic link redirect back to /get-started)
@@ -173,6 +199,7 @@ export function GetStartedOnboardingFlow() {
     saveFlowIdentity({
       pensionType: resolvedPensionType,
       pensionProvider: mappedProvider,
+      origin: loadFlowIdentity()?.origin ?? 'get-started',
     });
   }, [
     eligibilityData.pensionProvider,
@@ -263,10 +290,19 @@ export function GetStartedOnboardingFlow() {
   // Success screen and DRV modal state
   const [showSuccess, setShowSuccess] = useState(false);
   const [showDRVModal, setShowDRVModal] = useState(false);
+  const [calculatorStopped, setCalculatorStopped] = useState(false);
   // Top-of-content error banner for the terminal Signature-step submission and
   // the Confirm-step stop call (both happen outside a substep component that
   // owns its own error UI).
   const [flowError, setFlowError] = useState<string | null>(null);
+  const hasPersistedCalculatorStopAnswer =
+    variant === 'calculator' && !areConfirmStopAnswersClear(data.confirm);
+
+  useEffect(() => {
+    if (hasPersistedCalculatorStopAnswer) {
+      setCalculatorStopped(true);
+    }
+  }, [hasPersistedCalculatorStopAnswer]);
 
   // In the public/stage Confirm flow, Signature is the terminal substep and
   // performs the final submission. In the bAV/private flow it is not (Review
@@ -492,15 +528,26 @@ export function GetStartedOnboardingFlow() {
     }
   };
 
-  const handleSubmitSuccess = () => {
+  const handleSubmitSuccess = (submission?: {
+    submissionId?: string;
+    submittedAt?: string;
+  }) => {
     updateSuccessData({
-      submittedAt: new Date().toISOString(),
+      ...(submission?.submissionId
+        ? { submissionId: submission.submissionId }
+        : {}),
+      submittedAt: submission?.submittedAt || new Date().toISOString(),
       drvEligibilityDate: drvEligibilityDate,
     });
     // Claim is submitted — nothing left to resume. Clear both persisted
     // blobs so a refresh on the success screen (or a later visit) doesn't
     // try to resurrect a completed run.
-    clearAllFlowPersistence();
+    localStorage.removeItem('vbl_draft_claimId');
+    if (calculatorOrigin) {
+      clearAllFlowPersistence();
+    } else {
+      clearCompletedDirectFlowPersistence();
+    }
     setShowSuccess(true);
   };
 
@@ -539,44 +586,47 @@ export function GetStartedOnboardingFlow() {
 
   // Terminal Signature step (public/stage flow): the signature has already
   // been uploaded + attached by Signature.tsx before it calls this, so here we
-  // just mark the step complete and submit the claim. Signature.tsx is
-  // unchanged — it always calls its onNext; we simply pass this instead of
-  // saveAndAdvance when Signature is the last substep.
-  const handleFinalizeFromSignature = async () => {
+  // just mark the step complete and submit the claim. We pass this terminal
+  // completion callback instead of saveAndAdvance when Signature is last.
+  const handleFinalizeFromSignature = async (): Promise<boolean> => {
     // Defense in depth: never submit unless the Confirm step's gate has
     // actually been satisfied (all four answers No + all eight boxes checked).
     // Any path that lands on the terminal Signature step without completing
     // Confirm (resume, stale persisted position, future navigation changes)
     // is routed to the Confirm step instead of submitting.
-    if (!isConfirmComplete(data.confirm)) {
+    const canSubmit =
+      variant === 'calculator'
+        ? areConfirmStopAnswersClear(data.confirm)
+        : isConfirmComplete(data.confirm);
+    if (!canSubmit) {
       setEditingFromReview(false);
       setFlowError(
-        'Please confirm your declarations before submitting your refund request.'
+        'Please confirm your answers before submitting your refund request.'
       );
       setCurrentSubStep('confirm');
-      return;
+      return false;
     }
     const claimId = data.claimId;
     if (!claimId) {
       setFlowError('No claim found. Please restart the onboarding process.');
-      return;
+      return false;
     }
     setFlowError(null);
     try {
       await markStepComplete(claimId, 'signDocuments');
       const result = await submitClaim(claimId);
-      localStorage.removeItem('vbl_draft_claimId');
-      updateSuccessData({
+      handleSubmitSuccess({
         submissionId: result.claim.id,
         submittedAt:
           (result.claim.submittedAt as string) || new Date().toISOString(),
       });
-      handleSubmitSuccess();
+      return true;
     } catch (err) {
       console.error('Final submission error:', err);
       setFlowError(
         'We could not submit your refund request. Please try again.'
       );
+      return false;
     }
   };
 
@@ -585,22 +635,29 @@ export function GetStartedOnboardingFlow() {
   // banner on failure (per existing error-handling idioms).
   const handleConfirmStop = async (reasons: string[]) => {
     const claimId = data.claimId;
-    if (!claimId) return;
+    if (!claimId) {
+      setFlowError('No claim found. Please restart the onboarding process.');
+      return false;
+    }
     try {
-      await stopClaim(claimId, reasons);
+      const result = await stopClaim(claimId, reasons);
+      if (!result.success) {
+        throw new Error('Stop request was not confirmed.');
+      }
+      return true;
     } catch (err) {
       console.error('Failed to stop claim:', err);
-      setFlowError(
-        'We could not record that your application was stopped. Your deposit will still be refunded — please contact support if you have any questions.'
-      );
+      return false;
     }
   };
 
   // "Return to start" from the Confirm stop screen — fully reset the flow.
   const handleReturnToStart = () => {
+    setCalculatorStopped(false);
     clearAllFlowPersistence();
     resetOnboarding();
     resetEligibility();
+    router.push('/calculator');
   };
 
   const handleRemindDRV = () => {
@@ -623,8 +680,16 @@ export function GetStartedOnboardingFlow() {
         showBack={false}
         activeStep={4}
         currentSubStep={currentSubStep}
+        {...(variant === 'calculator'
+          ? {
+              subSteps: submitDetailsSubsteps,
+              variant,
+              showSubSteps: false,
+            }
+          : {})}
       >
         <SuccessScreen
+          variant={variant}
           onGoToDashboard={handleGoToDashboard}
           onStartDRVClaim={handleStartDRVClaim}
           onRemindDRV={handleRemindDRV}
@@ -649,7 +714,7 @@ export function GetStartedOnboardingFlow() {
       case 1:
         return <CreateAccount onNext={handleStep1Next} />;
       case 2:
-        return <Payment onNext={handleStep2Next} />;
+        return <Payment onNext={handleStep2Next} variant={variant} />;
       case 3:
         return renderSubStep();
       default:
@@ -661,7 +726,11 @@ export function GetStartedOnboardingFlow() {
     switch (currentSubStep) {
       case 'identity':
         return (
-          <Identity onNext={saveAndAdvance} setBackOverride={setBackOverride} />
+          <Identity
+            onNext={saveAndAdvance}
+            setBackOverride={setBackOverride}
+            variant={variant}
+          />
         );
       case 'membership':
         return (
@@ -690,6 +759,7 @@ export function GetStartedOnboardingFlow() {
       case 'signature':
         return (
           <Signature
+            variant={variant}
             onNext={
               isSignatureTerminal ? handleFinalizeFromSignature : saveAndAdvance
             }
@@ -698,6 +768,7 @@ export function GetStartedOnboardingFlow() {
       case 'review':
         return (
           <ReviewSubmit
+            variant={variant}
             onSubmitSuccess={handleSubmitSuccess}
             onEditSection={handleEditSection}
             // Public/stage flow: Review advances to Confirm instead of
@@ -709,10 +780,17 @@ export function GetStartedOnboardingFlow() {
       case 'confirm':
         return (
           <ConfirmStep
+            variant={variant}
             onContinue={handleConfirmContinue}
             onBackToReview={() => setCurrentSubStep('review')}
             onStop={handleConfirmStop}
             onReturnToStart={handleReturnToStart}
+            onStopStateChange={setCalculatorStopped}
+            isContinueEnabled={
+              variant === 'calculator'
+                ? areConfirmStopAnswersClear(data.confirm)
+                : undefined
+            }
           />
         );
       default:
@@ -731,6 +809,8 @@ export function GetStartedOnboardingFlow() {
       currentSubStep={currentStep === 3 ? currentSubStep : undefined}
       onSubStepClick={handleSubStepTabClick}
       subSteps={submitDetailsSubsteps}
+      variant={variant}
+      showSubSteps={variant !== 'calculator' || !calculatorStopped}
     >
       {flowError && (
         <div className="mx-auto mb-6 max-w-lg rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">

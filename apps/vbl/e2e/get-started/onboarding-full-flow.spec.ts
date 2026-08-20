@@ -13,20 +13,45 @@ import {
   completeCreateAccount,
   completePayment,
   completeIdentityUpload,
+  uploadIdentityDocument,
   completeMembership,
   completeAddress,
   completeBankDetails,
   completeSignature,
   completeReview,
   completeConfirmStep,
+  seedCalculatorOrigin,
   TEST_EMAIL,
 } from './helpers';
+import {
+  splitCalculatorFullName,
+  validateCalculatorBirthDate,
+} from '../../lib/calculator-onboarding-identity';
 
 // ============================================================
 // Backend Health Check — skip all onboarding tests if unavailable
 // ============================================================
 
 let backendAvailable = false;
+
+test.describe('Calculator identity helpers', () => {
+  test('calculator full names preserve all given-name tokens', () => {
+    expect(splitCalculatorFullName('  Anna Maria   Dela Cruz  ')).toEqual({
+      firstName: 'Anna Maria Dela',
+      lastName: 'Cruz',
+    });
+    expect(splitCalculatorFullName('Cher')).toBeNull();
+  });
+
+  test('calculator birth dates reject future, invalid, and underage values', () => {
+    const today = new Date(Date.UTC(2026, 7, 19));
+
+    expect(validateCalculatorBirthDate('1990-02-28', today)).toBeNull();
+    expect(validateCalculatorBirthDate('2027-01-01', today)).toBe('future');
+    expect(validateCalculatorBirthDate('2012-02-30', today)).toBe('invalid');
+    expect(validateCalculatorBirthDate('2010-08-20', today)).toBe('underage');
+  });
+});
 
 async function mockOnboardingApi(page: import('@playwright/test').Page) {
   const user = {
@@ -107,7 +132,10 @@ async function mockOnboardingApi(page: import('@playwright/test').Page) {
     route.fulfill(
       json({
         success: true,
-        url: 'http://localhost:3000/get-started?payment=success&session_id=cs_mock',
+        url: new URL(
+          '/get-started?payment=success&session_id=cs_mock',
+          page.url()
+        ).toString(),
         sessionId: 'cs_mock',
       })
     )
@@ -205,6 +233,20 @@ test.describe('Onboarding Eligibility resource copy', () => {
       .getByRole('button', { name: /Create your secure claim/i })
       .click();
     await completeCreateAccount(page);
+    // A direct /get-started completion must clear an existing flow identity
+    // too. It may have been carried over from an earlier calculator journey,
+    // but once this claim is submitted there is no flow left to resume.
+    await page.evaluate(() => {
+      window.localStorage.setItem(
+        'vbl_flow_identity_v1',
+        JSON.stringify({
+          version: 1,
+          pensionType: 'public',
+          pensionProvider: 'VBLklassik',
+          origin: 'get-started',
+        })
+      );
+    });
     await completePayment(page);
     await completeIdentityUpload(page);
     await completeMembership(page);
@@ -216,7 +258,7 @@ test.describe('Onboarding Eligibility resource copy', () => {
       page.getByRole('heading', { name: 'Review your refund request' })
     ).toBeVisible({ timeout: 10_000 });
     await expect(
-      page.getByRole('button', { name: 'Pension details' })
+      page.getByRole('button', { name: 'Pension details', exact: true })
     ).toBeVisible();
     await page
       .getByRole('button', { name: /Continue to confirmation/i })
@@ -231,6 +273,16 @@ test.describe('Onboarding Eligibility resource copy', () => {
     await expect(
       page.getByRole('heading', { name: 'German State Pension Refund' })
     ).toBeVisible();
+    const defaultSuccessSubsteps = page.getByTestId('onboarding-substeps');
+    await expect(defaultSuccessSubsteps).toBeVisible();
+    await expect(defaultSuccessSubsteps.getByRole('button')).toHaveText([
+      'Identity',
+      'Pension Details',
+      'Address',
+      'Bank Details',
+      'Signature',
+      'Review & Submit',
+    ]);
 
     // Task 13 fix round 1 (CRITICAL 1): submission clears both persisted
     // blobs via clearAllFlowPersistence(), and the write-through effects
@@ -240,9 +292,68 @@ test.describe('Onboarding Eligibility resource copy', () => {
     const persistedAfterSubmit = await page.evaluate(() => ({
       onboarding: window.sessionStorage.getItem('vbl_onboarding_v1'),
       eligibility: window.sessionStorage.getItem('vbl_eligibility_v1'),
+      identity: window.localStorage.getItem('vbl_flow_identity_v1'),
     }));
     expect(persistedAfterSubmit.onboarding).toBeNull();
     expect(persistedAfterSubmit.eligibility).toBeNull();
+    expect(persistedAfterSubmit.identity).toBeNull();
+  });
+
+  test('direct completion preserves a calculator identity written by another tab', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await mockOnboardingApi(page);
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    // Payment return remounts /get-started. Write the simulated other-tab
+    // identity only after that remount so this remains a mounted direct flow.
+    await page.evaluate(() => {
+      window.localStorage.setItem(
+        'vbl_flow_identity_v1',
+        JSON.stringify({
+          version: 1,
+          pensionType: 'public',
+          pensionProvider: 'VBLklassik',
+          origin: 'calculator',
+        })
+      );
+    });
+    await completeIdentityUpload(page);
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+    await page
+      .getByRole('button', { name: /Continue to confirmation/i })
+      .click();
+    await completeConfirmStep(page);
+    await completeSignature(page);
+    await expect(
+      page.getByRole('heading', {
+        name: 'Your refund request has been submitted',
+      })
+    ).toBeVisible({ timeout: 20_000 });
+
+    const persistedAfterSubmit = await page.evaluate(() => ({
+      onboarding: window.sessionStorage.getItem('vbl_onboarding_v1'),
+      eligibility: window.sessionStorage.getItem('vbl_eligibility_v1'),
+      identity: window.localStorage.getItem('vbl_flow_identity_v1'),
+    }));
+    expect(persistedAfterSubmit.onboarding).toBeNull();
+    expect(persistedAfterSubmit.eligibility).toBeNull();
+    expect(persistedAfterSubmit.identity).toEqual(
+      JSON.stringify({
+        version: 1,
+        pensionType: 'public',
+        pensionProvider: 'VBLklassik',
+        origin: 'calculator',
+      })
+    );
   });
 
   // ============================================================
@@ -333,6 +444,12 @@ test.describe('Onboarding Eligibility resource copy', () => {
         name: 'This answer will stop your refund application',
       })
     ).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveClass(
+      /max-w-md.*rounded-2xl.*p-6.*shadow-xl/
+    );
+    await expect(page.getByRole('dialog').getByRole('heading')).toHaveClass(
+      /text-lg.*font-bold.*text-gray-900/
+    );
 
     // Confirming fires the stop endpoint (with a non-empty reasons array) and
     // shows the terminal stop screen.
@@ -400,6 +517,1502 @@ test.describe('Onboarding Eligibility resource copy', () => {
       page.getByRole('heading', { name: 'VBL pension details' })
     ).toBeVisible({ timeout: 10_000 });
     await expect(membershipInput).toHaveValue('VBL999888');
+  });
+});
+
+test.describe('Payment copy', () => {
+  test('Payment screen explains deposit, service fee, and guarantee copy', async ({
+    page,
+  }) => {
+    await mockOnboardingApi(page);
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', {
+        name: /Continue securely|Create your secure claim/i,
+      })
+      .click();
+
+    await completeCreateAccount(page);
+    await expect(
+      page.getByRole('heading', { name: /Start your refund claim/i })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByText(
+        'Pay the €199 deposit to start your company pension refund claim.'
+      )
+    ).toBeVisible();
+    await expect(
+      page.getByText('deposit — credited toward your service fee')
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        /Money-back guarantee:.*pension provider rejects your claim/i
+      )
+    ).toBeVisible();
+    await expect(page.locator('input[type="checkbox"]')).toHaveCount(0);
+  });
+});
+
+test.describe('Calculator payment', () => {
+  test('calculator payment requires declarations before checkout', async ({
+    page,
+    baseURL,
+  }) => {
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+
+    let checkoutCalls = 0;
+    await page.route('**/api/payments/create-checkout-session', (route) => {
+      checkoutCalls += 1;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      });
+    });
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+
+    const paymentButton = page.getByRole('button', {
+      name: 'Pay €199 deposit',
+    });
+    await expect(paymentButton).toBeDisabled();
+    await expect(
+      page.getByRole('button', { name: 'Back', exact: true })
+    ).toHaveCount(0);
+    await expect(
+      page.getByText('Deposit — credited toward your service fee', {
+        exact: true,
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'The €199 deposit is refunded if the pension institution rejects your submitted refund application.',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(page.getByTestId('stripe-security-icon')).toBeVisible();
+    await expect(page.getByTestId('payment-button-icon')).toBeVisible();
+
+    const declarations = page.getByRole('checkbox');
+    await expect(declarations).toHaveCount(2);
+    await expect(declarations.nth(0)).toHaveAccessibleName(
+      /I have read and agree to the CompanyPension Terms and Conditions\./
+    );
+    await expect(declarations.nth(1)).toHaveAccessibleName(
+      'I expressly request that CompanyPension begin providing the service before the end of the 14-day withdrawal period. I understand that, if I withdraw after work has begun, I may have to pay for services already provided.'
+    );
+    await expect(
+      page.locator('a[href="/terms"]', { hasText: 'Terms and Conditions' })
+    ).toBeVisible();
+    await expect(
+      page.locator('a[href="/privacy"]', { hasText: 'Privacy Policy' })
+    ).toBeVisible();
+
+    await declarations.nth(0).check();
+    await expect(paymentButton).toBeDisabled();
+    expect(checkoutCalls).toBe(0);
+
+    await declarations.nth(1).check();
+    await expect(paymentButton).toBeEnabled();
+    await paymentButton.click();
+    await page.waitForURL(
+      `${baseURL}/get-started?payment=success&session_id=cs_mock`
+    );
+    expect(checkoutCalls).toBe(1);
+  });
+});
+
+test.describe('Calculator identity fields', () => {
+  async function reachCalculatorReview(
+    page: import('@playwright/test').Page,
+    baseURL?: string
+  ) {
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: new URL(
+            '/get-started?payment=success&session_id=cs_mock',
+            baseURL ?? page.url()
+          ).toString(),
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    const declarations = page.getByRole('checkbox');
+    await declarations.nth(0).check();
+    await declarations.nth(1).check();
+    await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
+    await uploadIdentityDocument(page);
+    await page.getByLabel('Full Name').fill('Test User');
+    await page.getByLabel('Date of Birth').fill('1990-01-15');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+    await expect(
+      page.getByRole('heading', { name: 'Review', exact: true })
+    ).toBeVisible({ timeout: 10_000 });
+  }
+
+  test('calculator review and calculator confirmation use the streamlined declarations flow', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await reachCalculatorReview(page, baseURL);
+
+    await expect(
+      page.getByRole('button', {
+        name: 'Continue to declarations',
+        exact: true,
+      })
+    ).toBeVisible();
+
+    const reviewSections = page.locator(
+      'div.rounded-xl.overflow-hidden.border.border-gray-200.bg-white'
+    );
+    await expect(reviewSections).toHaveCount(4);
+    const calculatorReviewSections = [
+      ['personal', 'user'],
+      ['address', 'location'],
+      ['membership', 'card'],
+      ['bank', 'bank'],
+    ] as const;
+    for (const [sectionId, glyph] of calculatorReviewSections) {
+      await expect(
+        page.getByTestId(`calculator-review-icon-${sectionId}-${glyph}`)
+      ).toBeVisible();
+    }
+    for (let index = 0; index < (await reviewSections.count()); index += 1) {
+      const section = reviewSections.nth(index);
+      const [sectionId] = calculatorReviewSections[index];
+      const toggle = section.getByRole('button').first();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      await expect(toggle).toHaveAttribute(
+        'aria-controls',
+        `review-section-${sectionId}`
+      );
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      const panel = section.locator(`#review-section-${sectionId}`);
+      await expect(panel).toHaveAttribute('role', 'region');
+      await expect(panel).toHaveAttribute(
+        'aria-labelledby',
+        `review-section-toggle-${sectionId}`
+      );
+      await expect(
+        section.getByRole('button', { name: 'Edit information' })
+      ).toHaveClass(/underline/);
+    }
+
+    const bankSection = reviewSections.filter({
+      has: page.getByRole('button', { name: 'Bank details', exact: true }),
+    });
+    await expect(bankSection).toContainText('Scheme: VBL');
+    await expect(bankSection).toContainText('Account holder name:');
+
+    await page
+      .getByRole('button', { name: 'Continue to declarations', exact: true })
+      .click();
+    await expect(
+      page.getByRole('heading', { name: 'Confirm your refund information' })
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'Please review your answers before continuing to your signature.',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(
+      page.getByText('Important declarations', { exact: true })
+    ).toHaveCount(0);
+    await expect(
+      page.getByText('CompanyPension authorization', { exact: true })
+    ).toHaveCount(0);
+    await expect(page.getByRole('checkbox')).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'View the original German wording' })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'Continue to signature' })
+    ).toBeEnabled();
+  });
+
+  test('calculator stopped confirmation keeps No until confirmed and hides onboarding substeps', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await reachCalculatorReview(page, baseURL);
+    await page
+      .getByRole('button', { name: 'Continue to declarations', exact: true })
+      .click();
+
+    await page
+      .getByRole('button', { name: 'Edit', exact: true })
+      .first()
+      .click();
+    const yesButton = page
+      .getByRole('button', { name: 'Yes', exact: true })
+      .first();
+    await yesButton.click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    const stopAction = dialog.getByRole('button', {
+      name: 'Yes, change my answer',
+    });
+    const keepNoAction = dialog.getByRole('button', {
+      name: 'Keep my answer as No',
+    });
+    await expect(stopAction).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(keepNoAction).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(stopAction).toBeFocused();
+    await expect(dialog).toHaveClass(
+      /max-w-\[560px\].*rounded-\[22px\].*p-9.*shadow-2xl/
+    );
+    await expect(
+      dialog.getByRole('heading', {
+        name: 'This answer will stop your refund application',
+      })
+    ).toBeVisible();
+    await expect(
+      dialog.getByText(
+        'CompanyPension cannot currently process this refund if your answer is Yes. Are you sure you want to change your answer?',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(
+      dialog.getByText(
+        'CompanyPension cannot currently process this refund if your answer is Yes. Are you sure you want to change your answer?',
+        { exact: true }
+      )
+    ).toHaveClass(/mt-6.*text-\[18px\].*leading-8.*text-\[#50576A\]/);
+    await expect(
+      dialog.getByRole('button', { name: 'Yes, change my answer' })
+    ).toHaveClass(/h-\[72px\].*w-full/);
+    await expect(
+      dialog.getByRole('button', { name: 'Keep my answer as No' })
+    ).toHaveClass(/h-\[72px\].*w-full/);
+    await expect(dialog.getByTestId('calculator-stop-actions')).toHaveClass(
+      /mt-6.*gap-3/
+    );
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(yesButton).toBeFocused();
+
+    await yesButton.click();
+    await page.getByRole('button', { name: 'Keep my answer as No' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(
+      page.getByTestId('confirm-answer-publicSectorAfterEnd-no')
+    ).toHaveAttribute('aria-pressed', 'true');
+    await expect(
+      page.getByTestId('confirm-answer-publicSectorAfterEnd-yes')
+    ).toHaveAttribute('aria-pressed', 'false');
+
+    await page.route('**/api/claims/claim_mock/stop', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          claim: { id: 'claim_mock', status: 'rejected' },
+        }),
+      })
+    );
+    await yesButton.click();
+    const stopRequest = page.waitForRequest('**/api/claims/*/stop');
+    await page.getByRole('button', { name: 'Yes, change my answer' }).click();
+    await stopRequest;
+    await expect(
+      page.getByRole('heading', {
+        name: 'This refund cannot currently be claimed with CompanyPension',
+      })
+    ).toBeVisible({ timeout: 10_000 });
+    const returnButton = page.getByRole('button', { name: 'Return to start' });
+    await expect(returnButton.locator('svg[aria-hidden="true"]')).toBeVisible();
+    await expect(
+      page.getByText(
+        'Your deposit will be refunded to the same payment method.'
+      )
+    ).toHaveCount(0);
+    await expect(page.getByTestId('onboarding-substeps')).toHaveCount(0);
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const raw = window.sessionStorage.getItem('vbl_onboarding_v1');
+          return raw ? JSON.parse(raw).data.confirm.publicSectorAfterEnd : null;
+        })
+      )
+      .toBe('yes');
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.localStorage.getItem('vbl_draft_claimId'))
+      )
+      .toBeNull();
+    await page.reload();
+    await expect(
+      page.getByRole('heading', {
+        name: 'This refund cannot currently be claimed with CompanyPension',
+      })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('onboarding-substeps')).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'Edit', exact: true })
+    ).toHaveCount(0);
+  });
+
+  test('calculator stop keeps focus inside the dialog while the stop request is saving', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await reachCalculatorReview(page, baseURL);
+    await page
+      .getByRole('button', { name: 'Continue to declarations', exact: true })
+      .click();
+    await page
+      .getByRole('button', { name: 'Edit', exact: true })
+      .first()
+      .click();
+    await page
+      .getByRole('button', { name: 'Yes', exact: true })
+      .first()
+      .click();
+
+    let resolveStop: (() => void) | undefined;
+    const stopResponse = new Promise<void>((resolve) => {
+      resolveStop = resolve;
+    });
+    await page.route('**/api/claims/claim_mock/stop', async (route) => {
+      await stopResponse;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          claim: { id: 'claim_mock', status: 'rejected' },
+        }),
+      });
+    });
+
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Yes, change my answer' }).click();
+    await expect(
+      dialog.getByRole('button', { name: 'Saving...' })
+    ).toBeDisabled();
+
+    await page.keyboard.press('Tab');
+    await expect(dialog).toBeFocused();
+    await expect(
+      page.getByRole('button', { name: 'Back to review' })
+    ).not.toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(dialog).toBeFocused();
+
+    if (!resolveStop) throw new Error('The stop request did not begin.');
+    resolveStop();
+    await expect(
+      page.getByRole('heading', {
+        name: 'This refund cannot currently be claimed with CompanyPension',
+      })
+    ).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('calculator stopped retries after a stop API failure before entering terminal state', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await reachCalculatorReview(page, baseURL);
+    await page
+      .getByRole('button', { name: 'Continue to declarations', exact: true })
+      .click();
+    await page
+      .getByRole('button', { name: 'Edit', exact: true })
+      .first()
+      .click();
+    await page
+      .getByRole('button', { name: 'Yes', exact: true })
+      .first()
+      .click();
+    await page.route('**/api/claims/claim_mock/stop', (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Stop failed' }),
+      })
+    );
+    await page.getByRole('button', { name: 'Yes, change my answer' }).click();
+
+    await expect(
+      page.getByText(
+        'We could not stop your application. Your answer remains No. Please retry or contact support.',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(page.getByText(/deposit will still be refunded/i)).toHaveCount(
+      0
+    );
+    await expect(
+      page.getByRole('heading', {
+        name: 'This refund cannot currently be claimed with CompanyPension',
+      })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('heading', { name: 'Confirm your refund information' })
+    ).toBeVisible();
+    await expect(
+      page.getByTestId('confirm-answer-publicSectorAfterEnd-no')
+    ).toHaveAttribute('aria-pressed', 'true');
+    await expect(
+      page.getByTestId('confirm-answer-publicSectorAfterEnd-yes')
+    ).toHaveAttribute('aria-pressed', 'false');
+    await expect(
+      page.getByRole('button', { name: 'Yes, change my answer' })
+    ).toBeEnabled();
+
+    await page.route('**/api/claims/claim_mock/stop', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          claim: { id: 'claim_mock', status: 'rejected' },
+        }),
+      })
+    );
+    const stopRequest = page.waitForRequest('**/api/claims/*/stop');
+    await page.getByRole('button', { name: 'Yes, change my answer' }).click();
+    await stopRequest;
+    await expect(
+      page.getByRole('heading', {
+        name: 'This refund cannot currently be claimed with CompanyPension',
+      })
+    ).toBeVisible({ timeout: 10_000 });
+    const returnButton = page.getByRole('button', { name: 'Return to start' });
+    await expect(returnButton.locator('svg[aria-hidden="true"]')).toBeVisible();
+    await expect(
+      page.getByText(
+        'Your deposit will be refunded to the same payment method.'
+      )
+    ).toHaveCount(0);
+    await expect(page.getByTestId('onboarding-substeps')).toHaveCount(0);
+  });
+
+  test('calculator progress keeps review confirm signature in order', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    const declarations = page.getByRole('checkbox');
+    await declarations.nth(0).check();
+    await declarations.nth(1).check();
+    await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
+    await uploadIdentityDocument(page);
+    await page.getByLabel('Full Name').fill('Test User');
+    await page.getByLabel('Date of Birth').fill('1990-01-15');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+
+    const substeps = page.getByTestId('onboarding-substeps');
+    const assertCalculatorSubsteps = async () => {
+      await expect(substeps.getByRole('button')).toHaveText([
+        'Identity',
+        'Pension Details',
+        'Address',
+        'Bank Details',
+        'Review',
+        'Confirm',
+        'Signature',
+      ]);
+      for (const subStepId of [
+        'identity',
+        'membership',
+        'address',
+        'bank-details',
+        'review',
+        'confirm',
+        'signature',
+      ]) {
+        await expect(
+          page.getByTestId(`substep-icon-${subStepId}`)
+        ).toBeVisible();
+      }
+    };
+
+    await expect(
+      page.getByRole('heading', { name: 'Review', exact: true })
+    ).toBeVisible({ timeout: 10_000 });
+    await assertCalculatorSubsteps();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth
+        )
+      )
+      .toBe(true);
+    const firstIcon = await page
+      .getByTestId('substep-icon-identity')
+      .boundingBox();
+    const lastIcon = await page
+      .getByTestId('substep-icon-signature')
+      .boundingBox();
+    expect(firstIcon).not.toBeNull();
+    expect(lastIcon).not.toBeNull();
+    expect(firstIcon!.x).toBeGreaterThanOrEqual(0);
+    expect(lastIcon!.x + lastIcon!.width).toBeLessThanOrEqual(390);
+
+    await page
+      .getByRole('button', { name: 'Continue to declarations', exact: true })
+      .click();
+    await expect(
+      page.getByRole('heading', { name: 'Confirm your refund information' })
+    ).toBeVisible();
+    await assertCalculatorSubsteps();
+
+    await completeConfirmStep(page);
+    await expect(
+      page.getByRole('heading', { name: 'Add your signature' })
+    ).toBeVisible();
+    await assertCalculatorSubsteps();
+  });
+
+  test('calculator signature uses calculator sizing and calculator submitted completion clears its origin', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await page.addInitScript(() => {
+      if (!window.sessionStorage.getItem('task7_disable_calculator_seed')) {
+        window.localStorage.setItem(
+          'vbl_flow_identity_v1',
+          JSON.stringify({
+            version: 1,
+            pensionType: 'public',
+            pensionProvider: 'VBLklassik',
+            origin: 'calculator',
+          })
+        );
+      }
+    });
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+    let submitCount = 0;
+    let releaseSubmit: (() => void) | undefined;
+    const submitStarted = new Promise<void>((resolve) => {
+      releaseSubmit = resolve;
+    });
+    let allowSubmit: (() => void) | undefined;
+    const delayedSubmit = new Promise<void>((resolve) => {
+      allowSubmit = resolve;
+    });
+    await page.route('**/api/claims/claim_mock/submit', async (route) => {
+      submitCount += 1;
+      releaseSubmit?.();
+      await delayedSubmit;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          message: 'Claim submitted',
+          claim: { id: 'claim_mock', submittedAt: new Date().toISOString() },
+        }),
+      });
+    });
+    let signatureUploadCount = 0;
+    let submittedSignatureData: string | undefined;
+    await page.route('**/api/signatures/upload', async (route) => {
+      signatureUploadCount += 1;
+      submittedSignatureData = route.request().postDataJSON().signatureData;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          signature: {
+            id: 'signature_mock',
+            s3Key: 'mock-signature.png',
+            createdAt: new Date().toISOString(),
+          },
+        }),
+      });
+    });
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    const declarations = page.getByRole('checkbox');
+    await declarations.nth(0).check();
+    await declarations.nth(1).check();
+    await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
+    await uploadIdentityDocument(page);
+    await page.getByLabel('Full Name').fill('Test User');
+    await page.getByLabel('Date of Birth').fill('1990-01-15');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+    await completeReview(page, 'calculator');
+    await completeConfirmStep(page);
+    const signatureHeading = page.getByRole('heading', {
+      name: 'Add your signature',
+      exact: true,
+    });
+    await expect(signatureHeading).toBeVisible();
+    await expect(signatureHeading.locator('..')).toHaveClass(
+      /mx-auto.*max-w-\[760px\]/
+    );
+    await expect(
+      page.getByRole('button', { name: 'Draw signature' })
+    ).toHaveClass(/flex-1.*rounded-lg.*px-4.*py-4.*text-\[18px\].*font-medium/);
+    await expect(
+      page.getByRole('button', { name: 'Upload signature image' })
+    ).toHaveClass(/flex-1.*rounded-lg.*px-4.*py-4.*text-\[18px\].*font-medium/);
+    const canvas = page.locator('canvas');
+    await expect(canvas).toHaveClass(/w-full.*h-\[300px\]/);
+    await expect(canvas.locator('..')).toHaveClass(/border-2.*border-dashed/);
+    await expect(page.getByRole('button', { name: 'Undo' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Redo' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Clear' })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Undo' }).locator('..')
+    ).toHaveClass(/justify-center/);
+    const continueButton = page.getByRole('button', { name: 'Continue' });
+    await expect(continueButton).toHaveClass(
+      /mt-10.*w-full.*rounded-lg.*px-6.*py-4.*text-\[18px\].*font-semibold/
+    );
+    const legalConfirmation = page.getByLabel(
+      'I confirm that this is my legal signature.'
+    );
+    await legalConfirmation.check();
+
+    const draw = async () => {
+      const box = await canvas.boundingBox();
+      if (!box) throw new Error('Signature canvas was not rendered.');
+      await page.mouse.move(box.x + 30, box.y + 30);
+      await page.mouse.down();
+      await page.mouse.move(box.x + 130, box.y + 70);
+      await page.mouse.up();
+    };
+
+    await draw();
+    await expect(continueButton).toBeEnabled();
+
+    await page.getByRole('button', { name: 'Upload signature image' }).click();
+    await expect(page.locator('canvas')).toHaveCount(0);
+    await expect(continueButton).toBeDisabled();
+    const signatureFile = page.locator('input[type="file"]');
+    await page.evaluate(() => {
+      const taskWindow = window as Window & {
+        __task7OriginalReadAsDataUrl?: typeof FileReader.prototype.readAsDataURL;
+      };
+      const originalReadAsDataUrl = FileReader.prototype.readAsDataURL;
+      taskWindow.__task7OriginalReadAsDataUrl = originalReadAsDataUrl;
+      FileReader.prototype.readAsDataURL = function (blob: Blob) {
+        window.setTimeout(() => {
+          originalReadAsDataUrl.call(this, blob);
+        }, 150);
+      };
+    });
+    await signatureFile.setInputFiles({
+      name: 'stale-signature.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('stale', 'utf8'),
+    });
+    await page.evaluate(() => {
+      const taskWindow = window as Window & {
+        __task7OriginalReadAsDataUrl?: typeof FileReader.prototype.readAsDataURL;
+      };
+      if (taskWindow.__task7OriginalReadAsDataUrl) {
+        FileReader.prototype.readAsDataURL =
+          taskWindow.__task7OriginalReadAsDataUrl;
+        delete taskWindow.__task7OriginalReadAsDataUrl;
+      }
+    });
+    await signatureFile.setInputFiles({
+      name: 'fresh-signature.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('fresh', 'utf8'),
+    });
+    const uploadedSignature = page.getByAltText('Uploaded signature');
+    await expect(uploadedSignature).toHaveAttribute(
+      'src',
+      'data:image/png;base64,ZnJlc2g='
+    );
+    await page.waitForTimeout(250);
+    await expect(uploadedSignature).toHaveAttribute(
+      'src',
+      'data:image/png;base64,ZnJlc2g='
+    );
+    await expect(continueButton).toBeEnabled();
+    const removeUploadedSignature = page.getByRole('button', {
+      name: 'Remove uploaded signature',
+    });
+    await expect(removeUploadedSignature).toHaveAttribute('type', 'button');
+    await expect(removeUploadedSignature.locator('svg')).toHaveAttribute(
+      'aria-hidden',
+      'true'
+    );
+
+    await page.getByRole('button', { name: 'Draw signature' }).click();
+    await expect(canvas).toBeVisible();
+    await expect(continueButton).toBeDisabled();
+    await draw();
+    await expect(continueButton).toBeEnabled();
+    expect(
+      await canvas.evaluate((node) => {
+        const signatureCanvas = node as HTMLCanvasElement;
+        const context = signatureCanvas.getContext('2d');
+        if (!context) return false;
+        const pixels = context.getImageData(
+          0,
+          0,
+          signatureCanvas.width,
+          signatureCanvas.height
+        ).data;
+        return Array.from(pixels).some(
+          (value, index) => index % 4 === 3 && value > 0
+        );
+      })
+    ).toBe(true);
+
+    await canvas.evaluate((node) => {
+      node.setAttribute('data-task7-signature-canvas', 'true');
+    });
+    await page.evaluate(() => {
+      const taskWindow = window as Window & {
+        __task7ImageSrcDescriptor?: PropertyDescriptor;
+        __task7PendingImages?: Array<{
+          image: HTMLImageElement;
+          value: string;
+        }>;
+        __task7OriginalDrawImage?: typeof CanvasRenderingContext2D.prototype.drawImage;
+        __task7DrawImageCalls?: Array<{
+          width: number | null;
+          canvasWidth: number;
+        }>;
+      };
+      const descriptor = Object.getOwnPropertyDescriptor(
+        HTMLImageElement.prototype,
+        'src'
+      );
+      if (!descriptor?.get || !descriptor.set) {
+        throw new Error('Could not delay competing canvas restorations.');
+      }
+      taskWindow.__task7ImageSrcDescriptor = descriptor;
+      taskWindow.__task7PendingImages = [];
+      taskWindow.__task7OriginalDrawImage =
+        CanvasRenderingContext2D.prototype.drawImage;
+      taskWindow.__task7DrawImageCalls = [];
+      CanvasRenderingContext2D.prototype.drawImage = function (...args: any[]) {
+        if (
+          this.canvas.matches('[data-task7-signature-canvas="true"]') &&
+          args.length >= 5
+        ) {
+          taskWindow.__task7DrawImageCalls?.push({
+            width: Number(args[3]),
+            canvasWidth: this.canvas.clientWidth,
+          });
+        }
+        return Reflect.apply(taskWindow.__task7OriginalDrawImage!, this, args);
+      };
+      Object.defineProperty(HTMLImageElement.prototype, 'src', {
+        configurable: true,
+        enumerable: descriptor.enumerable,
+        get: descriptor.get,
+        set(value: string) {
+          taskWindow.__task7PendingImages?.push({ image: this, value });
+        },
+      });
+    });
+    await page.setViewportSize({ width: 620, height: 844 });
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (
+              window as Window & {
+                __task7PendingImages?: unknown[];
+              }
+            ).__task7PendingImages?.length ?? 0
+        )
+      )
+      .toBeGreaterThanOrEqual(1);
+    await page.setViewportSize({ width: 500, height: 844 });
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (
+              window as Window & {
+                __task7PendingImages?: unknown[];
+              }
+            ).__task7PendingImages?.length ?? 0
+        )
+      )
+      .toBeGreaterThanOrEqual(2);
+    await page.evaluate(() => {
+      const taskWindow = window as Window & {
+        __task7ImageSrcDescriptor?: PropertyDescriptor;
+        __task7PendingImages?: Array<{
+          image: HTMLImageElement;
+          value: string;
+        }>;
+      };
+      const descriptor = taskWindow.__task7ImageSrcDescriptor;
+      if (descriptor?.set) {
+        for (const pending of [
+          ...(taskWindow.__task7PendingImages ?? []),
+        ].reverse()) {
+          descriptor.set.call(pending.image, pending.value);
+        }
+        Object.defineProperty(HTMLImageElement.prototype, 'src', descriptor);
+      }
+    });
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const taskWindow = window as Window & {
+              __task7DrawImageCalls?: Array<{
+                width: number | null;
+                canvasWidth: number;
+              }>;
+            };
+            const calls = taskWindow.__task7DrawImageCalls ?? [];
+            const latestCall = calls.at(-1);
+            const signatureCanvas = document.querySelector('canvas');
+            const context = signatureCanvas?.getContext('2d');
+            if (!signatureCanvas || !context) return false;
+            const hasPreservedPixels = context
+              .getImageData(0, 0, signatureCanvas.width, signatureCanvas.height)
+              .data.some((value, index) => index % 4 === 3 && value > 0);
+            const dpr = window.devicePixelRatio || 1;
+            return (
+              calls.length > 0 &&
+              latestCall?.width === latestCall?.canvasWidth &&
+              signatureCanvas.width ===
+                Math.round(signatureCanvas.clientWidth * dpr) &&
+              signatureCanvas.height ===
+                Math.round(signatureCanvas.clientHeight * dpr) &&
+              hasPreservedPixels
+            );
+          }),
+        { timeout: 5_000 }
+      )
+      .toBe(true);
+    await page.evaluate(() => {
+      const taskWindow = window as Window & {
+        __task7OriginalDrawImage?: typeof CanvasRenderingContext2D.prototype.drawImage;
+      };
+      if (taskWindow.__task7OriginalDrawImage) {
+        CanvasRenderingContext2D.prototype.drawImage =
+          taskWindow.__task7OriginalDrawImage;
+      }
+    });
+    await expect(continueButton).toBeEnabled();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const signatureCanvas = document.querySelector('canvas');
+            const context = signatureCanvas?.getContext('2d');
+            if (!signatureCanvas || !context) return false;
+
+            const dpr = window.devicePixelRatio || 1;
+            const hasPreservedPixels = context
+              .getImageData(0, 0, signatureCanvas.width, signatureCanvas.height)
+              .data.some((value, index) => index % 4 === 3 && value > 0);
+            return (
+              signatureCanvas.width ===
+                Math.round(signatureCanvas.clientWidth * dpr) &&
+              signatureCanvas.height ===
+                Math.round(signatureCanvas.clientHeight * dpr) &&
+              hasPreservedPixels
+            );
+          }),
+        { timeout: 5_000 }
+      )
+      .toBe(true);
+    const resizedCanvasBox = await canvas.boundingBox();
+    expect(resizedCanvasBox).not.toBeNull();
+    expect(resizedCanvasBox!.x).toBeGreaterThanOrEqual(0);
+    expect(resizedCanvasBox!.x + resizedCanvasBox!.width).toBeLessThanOrEqual(
+      390
+    );
+    await expect(continueButton).toBeEnabled();
+
+    await draw();
+    const capturedSignature = await canvas.evaluate((node) =>
+      (node as HTMLCanvasElement).toDataURL()
+    );
+    await page.waitForTimeout(100);
+    await page.evaluate(() => {
+      const taskWindow = window as Window & {
+        __task7ImageSrcDescriptor?: PropertyDescriptor;
+      };
+      const descriptor = Object.getOwnPropertyDescriptor(
+        HTMLImageElement.prototype,
+        'src'
+      );
+      if (!descriptor?.get || !descriptor.set) {
+        throw new Error('Could not delay signature history image loading.');
+      }
+      taskWindow.__task7ImageSrcDescriptor = descriptor;
+      Object.defineProperty(HTMLImageElement.prototype, 'src', {
+        configurable: true,
+        enumerable: descriptor.enumerable,
+        get: descriptor.get,
+        set(value: string) {
+          window.setTimeout(() => descriptor.set?.call(this, value), 150);
+        },
+      });
+    });
+    await page.getByRole('button', { name: 'Undo' }).click();
+    await continueButton.click();
+    await page.evaluate(() => {
+      const taskWindow = window as Window & {
+        __task7ImageSrcDescriptor?: PropertyDescriptor;
+      };
+      if (taskWindow.__task7ImageSrcDescriptor) {
+        Object.defineProperty(
+          HTMLImageElement.prototype,
+          'src',
+          taskWindow.__task7ImageSrcDescriptor
+        );
+        delete taskWindow.__task7ImageSrcDescriptor;
+      }
+    });
+    const pendingButton = page.getByRole('button', { name: /Uploading/i });
+    await expect(pendingButton).toBeDisabled();
+    await submitStarted;
+    expect(signatureUploadCount).toBe(1);
+    expect(submittedSignatureData).toBe(capturedSignature);
+    await expect(
+      page.getByRole('button', { name: 'Draw signature' })
+    ).toBeDisabled();
+    await expect(
+      page.getByRole('button', { name: 'Upload signature image' })
+    ).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Redo' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Clear' })).toBeDisabled();
+    await expect(legalConfirmation).toBeDisabled();
+    await expect(canvas).toHaveClass(/pointer-events-none/);
+    await expect(canvas).toBeVisible();
+    await expect(page.locator('input[type="file"]')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Clear' }).click({ force: true });
+    await legalConfirmation.click({ force: true });
+    await expect(legalConfirmation).toBeChecked();
+    expect(
+      await canvas.evaluate((node) => {
+        const signatureCanvas = node as HTMLCanvasElement;
+        const context = signatureCanvas.getContext('2d');
+        if (!context) return false;
+        return context
+          .getImageData(0, 0, signatureCanvas.width, signatureCanvas.height)
+          .data.some((value, index) => index % 4 !== 3 && value !== 0);
+      })
+    ).toBe(true);
+    await page
+      .getByRole('button', { name: 'Upload signature image' })
+      .click({ force: true });
+    await expect(canvas).toBeVisible();
+    await page.setViewportSize({ width: 360, height: 844 });
+    await page.waitForTimeout(250);
+    await expect
+      .poll(() =>
+        canvas.evaluate((node) => (node as HTMLCanvasElement).toDataURL())
+      )
+      .toBe(capturedSignature);
+    expect(submitCount).toBe(1);
+    await pendingButton.click({ force: true });
+    if (!allowSubmit) throw new Error('The terminal submission did not begin.');
+    allowSubmit();
+    await expect(
+      page.getByRole('heading', {
+        name: 'Your refund request has been submitted',
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'Once your refund is approved, we’ll notify you so you can download the official refund statement and settle any remaining service fee.',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(
+      page.getByText('The pension provider reviews your refund request.', {
+        exact: true,
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'The refund is paid directly to the bank account you provided.',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'Later, you may also be able to claim a German state pension refund',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'No thanks' })).toHaveCSS(
+      'color',
+      'rgb(0, 0, 0)'
+    );
+    await expect(page.getByTestId('success-main-icon')).toHaveCount(1);
+    await expect(page.getByTestId('success-main-icon')).toHaveClass(
+      /w-24.*h-24.*bg-\[#9FE870\].*rounded-full/
+    );
+    await expect(
+      page.getByTestId('success-main-icon').locator('svg')
+    ).toHaveClass(/w-12.*h-12.*text-\[#163300\]/);
+    await expect(
+      page.getByTestId('success-main-icon').locator('svg')
+    ).toHaveAttribute('aria-hidden', 'true');
+    const nextStepIcons = page.locator(
+      '[data-testid^="success-next-step-icon-"]'
+    );
+    await expect(nextStepIcons).toHaveCount(3);
+    for (const index of [0, 1, 2]) {
+      const nextStepIcon = page.getByTestId(`success-next-step-icon-${index}`);
+      await expect(nextStepIcon).toHaveCount(1);
+      await expect(nextStepIcon).toHaveClass(
+        /w-5.*h-5.*bg-\[#9FE870\].*rounded-full/
+      );
+      await expect(nextStepIcon.locator('svg')).toHaveClass(
+        /w-3.*h-3.*text-\[#163300\]/
+      );
+      await expect(nextStepIcon.locator('svg')).toHaveAttribute(
+        'aria-hidden',
+        'true'
+      );
+    }
+    await expect(page.getByTestId('onboarding-substeps')).toHaveCount(0);
+    await expect(
+      page.getByText('Sign & Submit', { exact: true }).last()
+    ).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(() => ({
+          identity: window.localStorage.getItem('vbl_flow_identity_v1'),
+          draft: window.localStorage.getItem('vbl_draft_claimId'),
+        }))
+      )
+      .toEqual({ identity: null, draft: null });
+
+    await page.evaluate(() => {
+      window.sessionStorage.setItem('task7_disable_calculator_seed', '1');
+    });
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await expect(
+      page.getByRole('heading', { name: 'Start your refund claim' })
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('checkbox')).toHaveCount(0);
+    await expect(
+      page.getByText(
+        'I expressly request that CompanyPension begin providing the service before the end of the 14-day withdrawal period. I understand that, if I withdraw after work has begun, I may have to pay for services already provided.',
+        { exact: true }
+      )
+    ).toHaveCount(0);
+    expect(submitCount).toBe(1);
+  });
+
+  test('calculator confirm uses full name and a single birth-date field', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    const declarations = page.getByRole('checkbox');
+    await declarations.nth(0).check();
+    await declarations.nth(1).check();
+    await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
+    await uploadIdentityDocument(page);
+
+    const fullName = page.getByLabel('Full Name');
+    const dateOfBirth = page.getByLabel('Date of Birth');
+    await expect(fullName).toHaveCount(1);
+    await expect(dateOfBirth).toHaveAttribute('type', 'date');
+    await expect(page.getByText('First name', { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByText('Middle name (optional)', { exact: true })
+    ).toHaveCount(0);
+    await expect(page.getByText('Last name', { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByText('Use the date of birth shown on your passport.', {
+        exact: true,
+      })
+    ).toHaveCount(0);
+
+    await fullName.fill('Cher');
+    await expect(
+      page.getByText('Enter your full first and last name.', { exact: true })
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(fullName).toBeFocused();
+
+    await fullName.fill('Anna Maria Dela Cruz');
+    await dateOfBirth.fill('2010-08-20');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(dateOfBirth).toBeFocused();
+    await dateOfBirth.fill('1990-01-15');
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+    await expect(
+      page.getByRole('heading', { name: 'Review', exact: true })
+    ).toBeVisible({ timeout: 10_000 });
+    await page.getByRole('button', { name: 'Personal information' }).click();
+    await expect(
+      page.getByText('Name: Anna Maria Dela Cruz', { exact: true })
+    ).toBeVisible();
+  });
+
+  test('direct get-started keeps the name parts and date controls', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    await uploadIdentityDocument(page);
+
+    await expect(page.getByText('First name', { exact: true })).toHaveCount(1);
+    await expect(
+      page.getByText('Middle name (optional)', { exact: true })
+    ).toHaveCount(1);
+    await expect(page.getByText('Last name', { exact: true })).toHaveCount(1);
+    await expect(page.getByPlaceholder('Day')).toHaveCount(1);
+    await expect(page.getByPlaceholder('Year')).toHaveCount(1);
+  });
+
+  test('calculator full name follows an external OCR identity update', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    const declarations = page.getByRole('checkbox');
+    await declarations.nth(0).check();
+    await declarations.nth(1).check();
+    await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
+    await uploadIdentityDocument(page);
+
+    const fullName = page.getByLabel('Full Name');
+    await fullName.fill('Local Person');
+    await page.route('**/api/documents/upload', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          document: {
+            id: 'document_updated',
+            fileName: 'passport.jpg',
+            fileType: 'application/pdf',
+            fileSize: 1000,
+            documentType: 'passport',
+            status: 'processed',
+            createdAt: new Date().toISOString(),
+          },
+          ocr: {
+            firstName: 'Updated',
+            lastName: 'Person',
+            dateOfBirth: '1990-01-15',
+            gender: 'male',
+            placeOfBirth: 'Sydney',
+            nationality: 'Australian',
+            passportNumber: 'P1234567',
+            passportIssueDate: '',
+            passportExpiryDate: '',
+            issuingCountry: 'AU',
+          },
+        }),
+      })
+    );
+    await page
+      .getByRole('button', { name: 'Remove uploaded identity document' })
+      .click();
+    await uploadIdentityDocument(page);
+
+    await expect(fullName).toHaveValue('Updated Person');
+  });
+
+  test('calculator Continue focuses the first missing non-name identity field', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    const declarations = page.getByRole('checkbox');
+    await declarations.nth(0).check();
+    await declarations.nth(1).check();
+    await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
+    await uploadIdentityDocument(page);
+
+    const nationality = page.getByPlaceholder('e.g. Australian');
+    await nationality.fill('');
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(nationality).toBeFocused();
+  });
+
+  test('calculator keeps structured OCR identity when a full-name draft is invalid', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    const declarations = page.getByRole('checkbox');
+    await declarations.nth(0).check();
+    await declarations.nth(1).check();
+    await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
+    await uploadIdentityDocument(page);
+
+    const fullName = page.getByLabel('Full Name');
+    await fullName.fill('Cher');
+    await expect(fullName).toHaveValue('Cher');
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const persisted = window.sessionStorage.getItem('vbl_onboarding_v1');
+          return persisted ? JSON.parse(persisted).data.identity : null;
+        })
+      )
+      .toMatchObject({
+        firstName: 'Test',
+        middleName: '',
+        lastName: 'User',
+      });
+    await page.reload();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const persisted = window.sessionStorage.getItem('vbl_onboarding_v1');
+          return persisted ? JSON.parse(persisted).data.identity : null;
+        })
+      )
+      .toMatchObject({
+        firstName: 'Test',
+        middleName: '',
+        lastName: 'User',
+      });
+  });
+
+  test('calculator validates and focuses required fields in rendered order', async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    await seedCalculatorOrigin(page);
+    await mockOnboardingApi(page);
+    await page.route('**/api/payments/create-checkout-session', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          url: `${baseURL}/get-started?payment=success&session_id=cs_mock`,
+          sessionId: 'cs_mock',
+        }),
+      })
+    );
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    const declarations = page.getByRole('checkbox');
+    await declarations.nth(0).check();
+    await declarations.nth(1).check();
+    await page.getByRole('button', { name: 'Pay €199 deposit' }).click();
+    await uploadIdentityDocument(page);
+
+    const continueButton = page.getByRole('button', { name: 'Continue' });
+    const nationality = page.getByLabel('Nationality');
+    const placeOfBirth = page.getByLabel('Place of birth');
+    const dateOfBirth = page.getByLabel('Date of Birth');
+    const gender = page.getByLabel('Gender');
+    await expect(continueButton).toBeEnabled();
+    await expect(continueButton).not.toHaveClass(/cursor-not-allowed/);
+
+    await nationality.fill('');
+    await placeOfBirth.fill('');
+    await dateOfBirth.fill('');
+    await gender.selectOption('');
+    await expect(nationality).toHaveAttribute('aria-invalid', 'true');
+    await expect(nationality).toHaveAttribute(
+      'aria-describedby',
+      'calculator-nationality-error'
+    );
+
+    await continueButton.click();
+    await expect(nationality).toBeFocused();
+    await nationality.fill('Australian');
+    await continueButton.click();
+    await expect(placeOfBirth).toBeFocused();
+    await placeOfBirth.fill('Sydney');
+    await continueButton.click();
+    await expect(dateOfBirth).toBeFocused();
+    await dateOfBirth.fill('1990-01-15');
+    await continueButton.click();
+    await expect(gender).toBeFocused();
   });
 });
 
@@ -580,35 +2193,6 @@ test.describe('Onboarding Full Flow', () => {
     await expect(page.getByPlaceholder('Email...')).toBeVisible();
     await expect(
       page.getByText("No password needed — we'll send you a secure log in link")
-    ).toBeVisible();
-  });
-
-  test('Payment screen explains deposit, service fee, and guarantee copy', async ({
-    page,
-  }) => {
-    await navigatePublicSectorToEligible(page);
-    await page
-      .getByRole('button', {
-        name: /Continue securely|Create your secure claim/i,
-      })
-      .click();
-
-    await completeCreateAccount(page);
-    await expect(
-      page.getByRole('heading', { name: /Start your refund claim/i })
-    ).toBeVisible({ timeout: 10_000 });
-    await expect(
-      page.getByText(
-        'Pay the €199 deposit to start your company pension refund claim.'
-      )
-    ).toBeVisible();
-    await expect(
-      page.getByText('deposit — credited toward your service fee')
-    ).toBeVisible();
-    await expect(
-      page.getByText(
-        /Money-back guarantee:.*pension provider rejects your claim/i
-      )
     ).toBeVisible();
   });
 
@@ -904,6 +2488,131 @@ test.describe('Onboarding Full Flow', () => {
     // Switch back
     await page.getByText('Draw signature').click();
     await expect(page.locator('canvas')).toBeVisible();
+  });
+
+  test('failed signature submit replays a resize queued while pending', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await mockOnboardingApi(page);
+
+    let releaseSubmit: (() => void) | undefined;
+    const submitStarted = new Promise<void>((resolve) => {
+      releaseSubmit = resolve;
+    });
+    let allowFailure: (() => void) | undefined;
+    const delayedFailure = new Promise<void>((resolve) => {
+      allowFailure = resolve;
+    });
+    await page.route('**/api/claims/claim_mock/submit', async (route) => {
+      releaseSubmit?.();
+      await delayedFailure;
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Temporary submission failure' }),
+      });
+    });
+
+    await navigatePublicSectorToEligible(page);
+    await page
+      .getByRole('button', { name: /Create your secure claim/i })
+      .click();
+    await completeCreateAccount(page);
+    await completePayment(page);
+    await completeIdentityUpload(page);
+    await completeMembership(page);
+    await completeAddress(page);
+    await completeBankDetails(page);
+    await completeReview(page);
+    await completeConfirmStep(page);
+
+    const canvas = page.locator('canvas');
+    await expect(canvas).toBeVisible();
+    await page.getByLabel('I confirm that this is my legal signature.').check();
+    const firstBox = await canvas.boundingBox();
+    if (!firstBox) throw new Error('Signature canvas was not rendered.');
+    await page.mouse.move(firstBox.x + 30, firstBox.y + 30);
+    await page.mouse.down();
+    await page.mouse.move(firstBox.x + 140, firstBox.y + 70);
+    await page.mouse.up();
+
+    const continueButton = page.getByRole('button', { name: 'Continue' });
+    await expect(continueButton).toBeEnabled();
+    await continueButton.click();
+    await submitStarted;
+    await page.setViewportSize({ width: 390, height: 844 });
+    if (!allowFailure)
+      throw new Error('The terminal submission did not begin.');
+    allowFailure();
+
+    await expect(
+      page.getByText(
+        'We could not submit your refund request. Please try again.',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(page.getByText(/Failed to save signature/)).toHaveCount(0);
+    await expect(continueButton).toBeEnabled();
+    await expect
+      .poll(
+        () =>
+          canvas.evaluate((node) => {
+            const signatureCanvas = node as HTMLCanvasElement;
+            const context = signatureCanvas.getContext('2d');
+            if (!context) return false;
+            const dpr = window.devicePixelRatio || 1;
+            return (
+              signatureCanvas.width ===
+                Math.round(signatureCanvas.clientWidth * dpr) &&
+              signatureCanvas.height ===
+                Math.round(signatureCanvas.clientHeight * dpr) &&
+              context
+                .getImageData(
+                  0,
+                  0,
+                  signatureCanvas.width,
+                  signatureCanvas.height
+                )
+                .data.some((value, index) => index % 4 === 3 && value > 0)
+            );
+          }),
+        { timeout: 5_000 }
+      )
+      .toBe(true);
+
+    const retryBox = await canvas.boundingBox();
+    if (!retryBox) throw new Error('Signature canvas was not rendered.');
+    const retryX = retryBox.width - 30;
+    const retryY = retryBox.height - 30;
+    await page.mouse.move(retryBox.x + retryX - 25, retryBox.y + retryY - 25);
+    await page.mouse.down();
+    await page.mouse.move(retryBox.x + retryX, retryBox.y + retryY);
+    await page.mouse.up();
+    await expect
+      .poll(() =>
+        canvas.evaluate(
+          (node, point) => {
+            const signatureCanvas = node as HTMLCanvasElement;
+            const context = signatureCanvas.getContext('2d');
+            if (!context) return false;
+            const dpr = window.devicePixelRatio || 1;
+            const x = Math.round(point.x * dpr);
+            const y = Math.round(point.y * dpr);
+            const radius = Math.max(3, Math.round(4 * dpr));
+            const left = Math.max(0, x - radius);
+            const top = Math.max(0, y - radius);
+            const right = Math.min(signatureCanvas.width, x + radius);
+            const bottom = Math.min(signatureCanvas.height, y + radius);
+            return context
+              .getImageData(left, top, right - left, bottom - top)
+              .data.some((value, index) => index % 4 === 3 && value > 0);
+          },
+          { x: retryX, y: retryY }
+        )
+      )
+      .toBe(true);
+    await expect(continueButton).toBeEnabled();
   });
 
   // ============================================================

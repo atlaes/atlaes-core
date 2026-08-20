@@ -1,16 +1,15 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   ArrowRight,
-  Building2,
   Check,
   ChevronDown,
   FileText,
   Info,
-  Landmark,
   Loader2,
   MessageCircle,
   Pencil,
@@ -364,6 +363,7 @@ interface CardButtonProps {
   description: string;
   onClick: () => void;
   disabled?: boolean;
+  testId?: string;
 }
 
 const CardButton: React.FC<CardButtonProps> = ({
@@ -373,11 +373,13 @@ const CardButton: React.FC<CardButtonProps> = ({
   description,
   onClick,
   disabled = false,
+  testId,
 }) => (
   <button
     type="button"
     onClick={onClick}
     disabled={disabled}
+    data-testid={testId}
     className={`w-full min-h-[90px] rounded-lg border px-5 py-4 text-left transition-all duration-150 ${
       selected
         ? 'border-[#163300] bg-[#9FE870]'
@@ -577,6 +579,7 @@ interface FormShellProps {
   onBack?: () => void;
   onContinue?: () => void;
   continueText?: string;
+  subtitleClassName?: string;
 }
 
 const FormShell: React.FC<FormShellProps> = ({
@@ -588,18 +591,21 @@ const FormShell: React.FC<FormShellProps> = ({
   onBack,
   onContinue,
   continueText = 'Continue',
+  subtitleClassName = 'text-gray-600',
 }) => (
-  <div className="mx-auto flex w-full max-w-[640px] flex-col">
+  <div className="mx-auto flex w-full max-w-[660px] flex-col">
     <div className="mb-9 text-center">
       <h1
-        className="text-[25px] font-bold leading-tight text-gray-950"
+        className="text-[27px] font-bold leading-tight text-gray-950"
         style={{ fontFamily: 'var(--vbl-font-inter-tight)' }}
       >
         {title}
       </h1>
       <div className="mx-auto mt-3 h-px w-full max-w-[552px] bg-gray-200" />
       {subtitle && (
-        <p className="mx-auto mt-3 max-w-[580px] text-base leading-6 text-gray-600">
+        <p
+          className={`mx-auto mt-3 max-w-[580px] text-[17px] leading-7 ${subtitleClassName}`}
+        >
           {subtitle}
         </p>
       )}
@@ -638,14 +644,13 @@ const FormShell: React.FC<FormShellProps> = ({
   </div>
 );
 
-// Client round-3 item 7: the side-menu steps show only the step name — the
-// per-step subtitle/description line was removed.
 const SidebarStep: React.FC<{
   index: number;
   title: string;
+  description: string;
   active: boolean;
   complete: boolean;
-}> = ({ index, title, active, complete }) => (
+}> = ({ index, title, description, active, complete }) => (
   <div
     className={`relative flex min-h-[96px] items-center gap-4 rounded-l-2xl px-6 ${
       active ? 'bg-[#9FE870] text-[#163300]' : 'text-white'
@@ -662,6 +667,7 @@ const SidebarStep: React.FC<{
     </div>
     <div>
       <p className="font-bold">{title}</p>
+      <p className="mt-1 text-sm leading-5">{description}</p>
     </div>
   </div>
 );
@@ -671,13 +677,14 @@ const CalculatorSidebar: React.FC<{ screen: CalculatorScreen }> = ({
 }) => {
   const activeSection = getCurrentSection(screen);
   const steps = [
-    { title: 'Pension Type' },
-    { title: 'Details' },
-    { title: 'Estimate' },
+    { title: 'Pension Type', description: 'Pick what you want to check.' },
+    { title: 'Details', description: 'A few quick questions.' },
+    { title: 'Estimate', description: 'See your estimated refund' },
   ];
 
   return (
     <aside
+      data-testid="calculator-sidebar"
       className="relative hidden w-[334px] shrink-0 overflow-hidden rounded-[18px] px-7 py-8 shadow-lg lg:flex lg:flex-col"
       style={{ backgroundColor: '#163300' }}
     >
@@ -691,6 +698,7 @@ const CalculatorSidebar: React.FC<{ screen: CalculatorScreen }> = ({
             key={step.title}
             index={index + 1}
             title={step.title}
+            description={step.description}
             active={activeSection === index}
             complete={activeSection > index}
           />
@@ -974,6 +982,7 @@ export const ManualVBLCalculator: React.FC = () => {
     calculation?.totalAmount ??
     calculation?.baseRefundAmount ??
     0;
+  const showSidebar = screen !== 'thresholds';
 
   return (
     <div
@@ -983,14 +992,23 @@ export const ManualVBLCalculator: React.FC = () => {
         fontFamily: 'var(--vbl-font-montserrat)',
       }}
     >
-      <div className="flex min-h-[calc(100vh-24px)] gap-4 md:min-h-[calc(100vh-32px)]">
-        <CalculatorSidebar screen={screen} />
-        <main className="flex flex-1 rounded-[18px] bg-white p-6 shadow-lg md:p-10">
-          <div className="flex min-h-full w-full items-center justify-center">
+      <div
+        className={`flex min-h-[calc(100vh-24px)] md:min-h-[calc(100vh-32px)] ${
+          showSidebar ? 'gap-4' : ''
+        }`}
+      >
+        {showSidebar && <CalculatorSidebar screen={screen} />}
+        <main
+          className={`flex rounded-[18px] bg-white p-6 shadow-lg md:p-10 ${
+            showSidebar ? 'flex-1' : 'w-full'
+          }`}
+        >
+          <div className="flex min-h-full w-full items-start justify-center pt-8 md:pt-12">
             {screen === 'pension-type' && (
               <FormShell
                 title="What refund do you want to estimate?"
                 subtitle="Estimate your possible VBL, ZVK, VddB or VddKO refund."
+                subtitleClassName="text-[#3E3F3C]"
                 showBack={false}
                 canContinue={canContinue}
                 onContinue={handleContinue}
@@ -998,7 +1016,14 @@ export const ManualVBLCalculator: React.FC = () => {
                 <div className="space-y-4">
                   <CardButton
                     selected={form.pensionType === 'public'}
-                    icon={<Building2 className="h-8 w-8 text-gray-700" />}
+                    icon={
+                      <Image
+                        src="/marketing/icons/pension-vbl.svg"
+                        alt=""
+                        width={61}
+                        height={61}
+                      />
+                    }
                     title="VBL / ZVK refund"
                     description="Estimate your possible public-sector company pension refund."
                     onClick={() => {
@@ -1015,7 +1040,14 @@ export const ManualVBLCalculator: React.FC = () => {
                   />
                   <CardButton
                     selected={form.pensionType === 'stage'}
-                    icon={<Landmark className="h-8 w-8 text-gray-700" />}
+                    icon={
+                      <Image
+                        src="/marketing/icons/pension-vddb.svg"
+                        alt=""
+                        width={61}
+                        height={61}
+                      />
+                    }
                     title="VddB / VddKO refund"
                     description="Estimate your possible stage or orchestra pension refund."
                     onClick={() => {
@@ -1045,6 +1077,25 @@ export const ManualVBLCalculator: React.FC = () => {
               >
                 <div className="space-y-4">
                   <CardButton
+                    selected={form.entryMethod === 'upload'}
+                    icon={
+                      isExtracting ? (
+                        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+                      ) : (
+                        <Upload className="h-8 w-8 text-gray-400" />
+                      )
+                    }
+                    title="Upload document"
+                    description="Use your pension document to pre-fill details for the estimate."
+                    onClick={() => {
+                      updateForm({ entryMethod: 'upload' });
+                      setExtractionError('');
+                      uploadInputRef.current?.click();
+                    }}
+                    disabled={isExtracting}
+                    testId="entry-method-card"
+                  />
+                  <CardButton
                     selected={form.entryMethod === 'manual'}
                     icon={<Pencil className="h-8 w-8 text-gray-500" />}
                     title="Enter details manually"
@@ -1065,24 +1116,7 @@ export const ManualVBLCalculator: React.FC = () => {
                         averageMonthlyGrossSalary: '',
                       });
                     }}
-                  />
-                  <CardButton
-                    selected={form.entryMethod === 'upload'}
-                    icon={
-                      isExtracting ? (
-                        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-                      ) : (
-                        <Upload className="h-8 w-8 text-gray-400" />
-                      )
-                    }
-                    title="Upload document"
-                    description="Use your pension document to pre-fill details for the estimate."
-                    onClick={() => {
-                      updateForm({ entryMethod: 'upload' });
-                      setExtractionError('');
-                      uploadInputRef.current?.click();
-                    }}
-                    disabled={isExtracting}
+                    testId="entry-method-card"
                   />
                   <input
                     ref={uploadInputRef}

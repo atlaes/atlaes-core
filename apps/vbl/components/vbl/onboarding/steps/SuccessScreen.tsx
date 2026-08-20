@@ -3,9 +3,11 @@
 import React from 'react';
 import { ArrowRight, Check, Bell } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import type { OnboardingVariant } from '@/components/vbl/onboarding/onboarding-variant';
 
 interface SuccessScreenProps {
   onGoToDashboard: () => void;
+  variant?: OnboardingVariant;
   onShowDRVUpsell?: () => void;
   onStartDRVClaim?: () => void;
   onRemindDRV?: () => void;
@@ -25,8 +27,15 @@ const WHAT_HAPPENS_NEXT = [
   'The refund is paid directly to the bank account you provided.',
 ];
 
+const CALCULATOR_WHAT_HAPPENS_NEXT = [
+  'The pension provider reviews your refund request.',
+  'Once your refund is approved, we’ll notify you so you can download the official refund statement and settle any remaining service fee.',
+  'The refund is paid directly to the bank account you provided.',
+];
+
 export const SuccessScreen: React.FC<SuccessScreenProps> = ({
   onGoToDashboard,
+  variant = 'default',
   onShowDRVUpsell,
   onStartDRVClaim,
   onRemindDRV,
@@ -47,12 +56,21 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
   };
 
   const showDRVSection = drvEligibilityDate || isDRVEligibleNow;
+  const whatHappensNext =
+    variant === 'calculator' ? CALCULATOR_WHAT_HAPPENS_NEXT : WHAT_HAPPENS_NEXT;
 
   return (
     <div className="max-w-lg mx-auto text-center">
       {/* Success Checkmark */}
-      <div className="w-24 h-24 bg-[#9FE870] rounded-full flex items-center justify-center mx-auto mb-6">
-        <Check className="w-12 h-12 text-[#163300]" strokeWidth={3} />
+      <div
+        data-testid="success-main-icon"
+        className="w-24 h-24 bg-[#9FE870] rounded-full flex items-center justify-center mx-auto mb-6"
+      >
+        <Check
+          aria-hidden="true"
+          className="w-12 h-12 text-[#163300]"
+          strokeWidth={3}
+        />
       </div>
 
       {/* Title */}
@@ -62,17 +80,26 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
 
       {/* Subtitle */}
       <p className="text-gray-600 mb-8">
-        Processing usually takes <span className="font-semibold">4-8 weeks</span>. You don't need to take any action during this time unless we contact you.
+        Processing usually takes{' '}
+        <span className="font-semibold">4-8 weeks</span>. You don't need to take
+        any action during this time unless we contact you.
       </p>
 
       {/* What happens next box */}
       <div className="bg-gray-50 rounded-xl p-6 mb-6 text-left">
         <h3 className="font-semibold text-gray-900 mb-4">What happens next:</h3>
         <ul className="space-y-3">
-          {WHAT_HAPPENS_NEXT.map((item, index) => (
+          {whatHappensNext.map((item, index) => (
             <li key={index} className="flex items-start gap-3">
-              <div className="w-5 h-5 bg-[#9FE870] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Check className="w-3 h-3 text-[#163300]" strokeWidth={3} />
+              <div
+                data-testid={`success-next-step-icon-${index}`}
+                className="w-5 h-5 bg-[#9FE870] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+              >
+                <Check
+                  aria-hidden="true"
+                  className="w-3 h-3 text-[#163300]"
+                  strokeWidth={3}
+                />
               </div>
               <span className="text-sm text-gray-700">{item}</span>
             </li>
@@ -103,7 +130,9 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
               Continue with another supplementary pension
             </h3>
             <p className="text-sm text-gray-600 mb-5">
-              These pensions are legally separate and must be claimed one at a time. You can start your next claim now or come back to it later from your dashboard.
+              These pensions are legally separate and must be claimed one at a
+              time. You can start your next claim now or come back to it later
+              from your dashboard.
             </p>
             <button
               onClick={onStartOtherClaim}
@@ -118,7 +147,9 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
       )}
 
       {/* Divider */}
-      {showDRVSection && !hasOtherClaim && <div className="border-t border-gray-200 mb-8" />}
+      {showDRVSection && !hasOtherClaim && (
+        <div className="border-t border-gray-200 mb-8" />
+      )}
 
       {/* DRV Upsell Section */}
       {showDRVSection && (
@@ -136,13 +167,17 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
             {isDRVEligibleNow ? (
               <>
                 <p className="text-lg font-medium mb-2">
-                  You may also be able to claim a<br />German state pension refund
+                  You may also be able to claim a<br />
+                  German state pension refund
                 </p>
                 <p className="text-sm mb-4">
-                  Based on your nationality, residence and contribution history, you may also be able to apply for a German state pension refund.
+                  Based on your nationality, residence and contribution history,
+                  you may also be able to apply for a German state pension
+                  refund.
                 </p>
                 <p className="text-sm mb-6">
-                  This is a separate and optional claim process from your company pension claim.
+                  This is a separate and optional claim process from your
+                  company pension claim.
                 </p>
                 <button
                   onClick={onStartDRVClaim}
@@ -160,11 +195,21 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
               </>
             ) : (
               <>
-                <p className="text-lg font-medium mb-2">
-                  Later, you may also be eligible for a<br />German state pension refund
-                </p>
+                {variant === 'calculator' ? (
+                  <p className="text-lg font-medium mb-2">
+                    Later, you may also be able to claim a German state pension
+                    refund
+                  </p>
+                ) : (
+                  <p className="text-lg font-medium mb-2">
+                    Later, you may also be eligible for a<br />
+                    German state pension refund
+                  </p>
+                )}
                 <p className="text-sm mb-4">
-                  Based on your nationality, residence and last contribution date, you may be able to apply for a German state pension refund from:
+                  Based on your nationality, residence and last contribution
+                  date, you may be able to apply for a German state pension
+                  refund from:
                 </p>
 
                 {/* Eligibility Date Box */}
@@ -175,7 +220,8 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
                 </div>
 
                 <p className="text-sm mb-6">
-                  This is a separate and optional claim process from your company pension claim. We can remind you when the time comes.
+                  This is a separate and optional claim process from your
+                  company pension claim. We can remind you when the time comes.
                 </p>
 
                 <button
@@ -188,11 +234,17 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
                   }`}
                 >
                   <Bell className="w-4 h-4" />
-                  {data.successData?.drvReminderSet ? 'Reminder set!' : 'Remind me when I can apply'}
+                  {data.successData?.drvReminderSet
+                    ? 'Reminder set!'
+                    : 'Remind me when I can apply'}
                 </button>
                 <button
                   onClick={onGoToDashboard}
-                  className="text-sm font-semibold text-[#4F46E5] hover:text-[#4338CA] transition-colors"
+                  className={
+                    variant === 'calculator'
+                      ? 'text-sm font-semibold text-black transition-colors'
+                      : 'text-sm font-semibold text-[#4F46E5] hover:text-[#4338CA] transition-colors'
+                  }
                 >
                   No thanks
                 </button>

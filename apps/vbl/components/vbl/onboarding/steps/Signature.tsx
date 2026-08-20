@@ -11,18 +11,23 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import type { OnboardingVariant } from '@/components/vbl/onboarding/onboarding-variant';
 import {
   uploadSignature as uploadSignatureApi,
   attachSignatureToClaim,
 } from '@/lib/onboarding-api';
 
 interface SignatureProps {
-  onNext: () => void;
+  onNext: () => void | boolean | Promise<void | boolean>;
+  variant?: OnboardingVariant;
 }
 
 type SignatureMode = 'draw' | 'upload';
 
-export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
+export const Signature: React.FC<SignatureProps> = ({
+  onNext,
+  variant = 'default',
+}) => {
   const { data, updateData, updateSignature } = useOnboarding();
   const [mode, setMode] = useState<SignatureMode>(
     data.signature.signatureType === 'upload' ? 'upload' : 'draw'
@@ -35,39 +40,164 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
+  const latestCanvasDataRef = useRef<string | undefined>(
+    data.signature.signatureType === 'draw'
+      ? data.signature.signatureData
+      : undefined
+  );
+  const fileReaderRef = useRef<FileReader | null>(null);
+  const fileReadGenerationRef = useRef(0);
+  const isMountedRef = useRef(true);
+  const isMutationLockedRef = useRef(false);
+  const canvasMutationGenerationRef = useRef(0);
+  const pendingResizeRef = useRef(false);
+  const resizeCanvasRef = useRef<(() => void) | null>(null);
+  const modeRef = useRef<SignatureMode>(mode);
+  modeRef.current = mode;
 
-  // Initialize canvas
+  const invalidateCanvasMutations = useCallback(() => {
+    canvasMutationGenerationRef.current += 1;
+    return canvasMutationGenerationRef.current;
+  }, []);
+
+  const canApplyCanvasMutation = useCallback(
+    (
+      generation: number,
+      expectedMode: SignatureMode,
+      context: CanvasRenderingContext2D
+    ) =>
+      isMountedRef.current &&
+      !isMutationLockedRef.current &&
+      canvasMutationGenerationRef.current === generation &&
+      modeRef.current === expectedMode &&
+      contextRef.current === context,
+    []
+  );
+
+  const invalidateFileReader = useCallback(() => {
+    fileReadGenerationRef.current += 1;
+    const reader = fileReaderRef.current;
+    fileReaderRef.current = null;
+    if (reader?.readyState === FileReader.LOADING) {
+      reader.abort();
+    }
+  }, []);
+
+  useEffect(
+    () => () => {
+      invalidateFileReader();
+    },
+    [invalidateFileReader]
+  );
+
   useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      pendingResizeRef.current = false;
+      resizeCanvasRef.current = null;
+      invalidateCanvasMutations();
+    };
+  }, [invalidateCanvasMutations]);
+
+  // Draw mode mounts its canvas conditionally, so initialization must follow
+  // the mode as well as saved data. Resize only the backing store: Tailwind's
+  // `w-full` remains the CSS width at every viewport size.
+  useEffect(() => {
+    if (mode !== 'draw') {
+      contextRef.current = null;
+      return;
+    }
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Set canvas size
-    canvas.width = canvas.offsetWidth * 2;
-    canvas.height = canvas.offsetHeight * 2;
-    canvas.style.width = `${canvas.offsetWidth}px`;
-    canvas.style.height = `${canvas.offsetHeight}px`;
-
-    const context = canvas.getContext('2d');
-    if (!context) return;
-
-    context.scale(2, 2);
-    context.lineCap = 'round';
-    context.strokeStyle = '#163300';
-    context.lineWidth = 2;
-    contextRef.current = context;
-
-    // Restore saved signature if exists
     if (
-      data.signature.signatureData &&
-      data.signature.signatureType === 'draw'
+      data.signature.signatureType === 'draw' &&
+      data.signature.signatureData
     ) {
-      const img = new Image();
-      img.onload = () => {
-        context.drawImage(img, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
-      };
-      img.src = data.signature.signatureData;
+      latestCanvasDataRef.current = data.signature.signatureData;
     }
-  }, [data.signature.signatureData, data.signature.signatureType]);
+
+    let disposed = false;
+    const resizeCanvas = () => {
+      if (isMutationLockedRef.current) {
+        pendingResizeRef.current = true;
+        return;
+      }
+
+      const cssWidth = canvas.clientWidth;
+      const cssHeight = canvas.clientHeight;
+      if (!cssWidth || !cssHeight) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.round(cssWidth * dpr);
+      const height = Math.round(cssHeight * dpr);
+      if (canvas.width === width && canvas.height === height) {
+        const context = canvas.getContext('2d');
+        if (!context) return;
+        context.setTransform(dpr, 0, 0, dpr, 0, 0);
+        context.lineCap = 'round';
+        context.strokeStyle = '#163300';
+        context.lineWidth = 2;
+        contextRef.current = context;
+        return;
+      }
+
+      const previousData =
+        latestCanvasDataRef.current ||
+        (canvas.width && canvas.height ? canvas.toDataURL() : undefined);
+      canvas.width = width;
+      canvas.height = height;
+
+      const context = canvas.getContext('2d');
+      if (!context) return;
+
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      context.lineCap = 'round';
+      context.strokeStyle = '#163300';
+      context.lineWidth = 2;
+      contextRef.current = context;
+
+      if (!previousData) return;
+      const img = new Image();
+      // Every restoration gets a new token. A later resize, Undo, or Redo
+      // invalidates this image before its async onload can redraw stale pixels.
+      const generation = invalidateCanvasMutations();
+      const expectedMode = modeRef.current;
+      img.onload = () => {
+        if (
+          disposed ||
+          !canApplyCanvasMutation(generation, expectedMode, context)
+        )
+          return;
+        context.drawImage(img, 0, 0, cssWidth, cssHeight);
+      };
+      img.src = previousData;
+    };
+
+    resizeCanvasRef.current = resizeCanvas;
+    resizeCanvas();
+    const observer = new ResizeObserver(resizeCanvas);
+    observer.observe(canvas.parentElement || canvas);
+    window.addEventListener('resize', resizeCanvas);
+
+    return () => {
+      disposed = true;
+      observer.disconnect();
+      window.removeEventListener('resize', resizeCanvas);
+      if (resizeCanvasRef.current === resizeCanvas) {
+        resizeCanvasRef.current = null;
+      }
+      if (contextRef.current) contextRef.current = null;
+    };
+  }, [
+    mode,
+    data.signature.signatureData,
+    data.signature.signatureType,
+    canApplyCanvasMutation,
+    invalidateCanvasMutations,
+  ]);
 
   const saveToHistory = useCallback(() => {
     const canvas = canvasRef.current;
@@ -80,32 +210,37 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
     setHistoryIndex(newHistory.length - 1);
   }, [history, historyIndex]);
 
-  const startDrawing = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    const context = contextRef.current;
-    if (!context) return;
+  const startDrawing = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      if (isUploading || isMutationLockedRef.current) return;
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+      const context = contextRef.current;
+      if (!context) return;
 
-    const rect = canvas.getBoundingClientRect();
-    let clientX: number, clientY: number;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    if ('touches' in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
+      const rect = canvas.getBoundingClientRect();
+      let clientX: number, clientY: number;
 
-    context.beginPath();
-    context.moveTo(clientX - rect.left, clientY - rect.top);
-    setIsDrawing(true);
-  }, []);
+      if ('touches' in e) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+
+      context.beginPath();
+      context.moveTo(clientX - rect.left, clientY - rect.top);
+      setIsDrawing(true);
+    },
+    [isUploading]
+  );
 
   const draw = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
-      if (!isDrawing) return;
+      if (isUploading || isMutationLockedRef.current || !isDrawing) return;
 
       const context = contextRef.current;
       if (!context) return;
@@ -128,11 +263,11 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       context.lineTo(clientX - rect.left, clientY - rect.top);
       context.stroke();
     },
-    [isDrawing]
+    [isDrawing, isUploading]
   );
 
   const stopDrawing = useCallback(() => {
-    if (isDrawing) {
+    if (!isUploading && !isMutationLockedRef.current && isDrawing) {
       const context = contextRef.current;
       if (context) {
         context.closePath();
@@ -145,14 +280,16 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       // attaching the stale (possibly invalidated) server-side ID.
       const canvas = canvasRef.current;
       if (canvas) {
+        const signatureData = canvas.toDataURL();
+        latestCanvasDataRef.current = signatureData;
         updateSignature({
-          signatureData: canvas.toDataURL(),
+          signatureData,
           signatureType: 'draw',
         });
         updateData({ signatureId: undefined });
       }
     }
-  }, [isDrawing, saveToHistory, updateSignature, updateData]);
+  }, [isDrawing, isUploading, saveToHistory, updateSignature, updateData]);
 
   // Client #15: every mutation to the drawn signature must invalidate the
   // cached server-side signatureId. Otherwise, if the user uploaded once,
@@ -171,12 +308,15 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
   // regardless of whether signatureId was stale or fresh. See lib/api.ts for
   // the fix.
   const handleUndo = useCallback(() => {
+    if (isUploading || isMutationLockedRef.current) return;
+
     if (historyIndex <= 0) {
       // Clear canvas
       const canvas = canvasRef.current;
       const context = contextRef.current;
       if (canvas && context) {
         context.clearRect(0, 0, canvas.width, canvas.height);
+        latestCanvasDataRef.current = undefined;
         updateSignature({ signatureData: undefined });
         updateData({ signatureId: undefined });
       }
@@ -189,17 +329,32 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
     if (!canvas || !context) return;
 
     const img = new Image();
+    const generation = invalidateCanvasMutations();
+    const expectedMode = modeRef.current;
     img.onload = () => {
+      if (!canApplyCanvasMutation(generation, expectedMode, context)) return;
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.drawImage(img, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
-      updateSignature({ signatureData: history[historyIndex - 1] });
+      const signatureData = history[historyIndex - 1];
+      latestCanvasDataRef.current = signatureData;
+      updateSignature({ signatureData });
       updateData({ signatureId: undefined });
     };
     img.src = history[historyIndex - 1];
     setHistoryIndex(historyIndex - 1);
-  }, [history, historyIndex, updateSignature, updateData]);
+  }, [
+    canApplyCanvasMutation,
+    history,
+    historyIndex,
+    invalidateCanvasMutations,
+    isUploading,
+    updateSignature,
+    updateData,
+  ]);
 
   const handleRedo = useCallback(() => {
+    if (isUploading || isMutationLockedRef.current) return;
+
     if (historyIndex >= history.length - 1) return;
 
     const canvas = canvasRef.current;
@@ -207,32 +362,53 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
     if (!canvas || !context) return;
 
     const img = new Image();
+    const generation = invalidateCanvasMutations();
+    const expectedMode = modeRef.current;
     img.onload = () => {
+      if (!canApplyCanvasMutation(generation, expectedMode, context)) return;
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.drawImage(img, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
-      updateSignature({ signatureData: history[historyIndex + 1] });
+      const signatureData = history[historyIndex + 1];
+      latestCanvasDataRef.current = signatureData;
+      updateSignature({ signatureData });
       updateData({ signatureId: undefined });
     };
     img.src = history[historyIndex + 1];
     setHistoryIndex(historyIndex + 1);
-  }, [history, historyIndex, updateSignature, updateData]);
+  }, [
+    canApplyCanvasMutation,
+    history,
+    historyIndex,
+    invalidateCanvasMutations,
+    isUploading,
+    updateSignature,
+    updateData,
+  ]);
 
   const handleClear = useCallback(() => {
+    if (isUploading || isMutationLockedRef.current) return;
+
     const canvas = canvasRef.current;
     const context = contextRef.current;
     if (!canvas || !context) return;
 
+    invalidateCanvasMutations();
     context.clearRect(0, 0, canvas.width, canvas.height);
     setHistory([]);
     setHistoryIndex(-1);
+    latestCanvasDataRef.current = undefined;
     updateSignature({ signatureData: undefined, signatureType: 'draw' });
     updateData({ signatureId: undefined });
-  }, [updateSignature, updateData]);
+  }, [invalidateCanvasMutations, isUploading, updateSignature, updateData]);
 
   const handleFileUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (isUploading || isMutationLockedRef.current) return;
+
       const file = e.target.files?.[0];
       if (!file) return;
+
+      invalidateFileReader();
 
       if (!file.type.startsWith('image/')) {
         alert('Please upload an image file');
@@ -240,8 +416,18 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       }
 
       const reader = new FileReader();
+      const generation = fileReadGenerationRef.current;
+      fileReaderRef.current = reader;
       reader.onload = (event) => {
+        if (
+          generation !== fileReadGenerationRef.current ||
+          isMutationLockedRef.current ||
+          !isMountedRef.current
+        )
+          return;
         const dataUrl = event.target?.result as string;
+        if (!dataUrl) return;
+        fileReaderRef.current = null;
         updateSignature({
           signatureFile: file,
           signatureData: dataUrl,
@@ -251,20 +437,104 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
         // Client #15: new upload invalidates any previously issued signatureId.
         updateData({ signatureId: undefined });
       };
+      reader.onerror = () => {
+        if (
+          generation !== fileReadGenerationRef.current ||
+          isMutationLockedRef.current ||
+          !isMountedRef.current
+        )
+          return;
+        fileReaderRef.current = null;
+        setUploadError('Failed to read signature image. Please try again.');
+      };
       reader.readAsDataURL(file);
     },
-    [updateSignature, updateData]
+    [invalidateFileReader, isUploading, updateSignature, updateData]
+  );
+
+  const handleModeChange = useCallback(
+    (nextMode: SignatureMode) => {
+      if (isUploading || isMutationLockedRef.current) return;
+      if (nextMode === mode) return;
+
+      // A signature belongs to its active input method. Clearing it here
+      // avoids hidden Draw/Upload state enabling Continue or reusing a
+      // server-side ID after the user selects a different method.
+      setIsDrawing(false);
+      setHistory([]);
+      setHistoryIndex(-1);
+      latestCanvasDataRef.current = undefined;
+      contextRef.current = null;
+      invalidateFileReader();
+      invalidateCanvasMutations();
+      pendingResizeRef.current = false;
+      updateSignature({
+        signatureFile: null,
+        signatureData: undefined,
+        signaturePreview: undefined,
+        signatureType: '',
+      });
+      updateData({ signatureId: undefined });
+      modeRef.current = nextMode;
+      setMode(nextMode);
+    },
+    [
+      invalidateCanvasMutations,
+      invalidateFileReader,
+      isUploading,
+      mode,
+      updateData,
+      updateSignature,
+    ]
+  );
+
+  const handleRemoveUploadedSignature = useCallback(() => {
+    if (isUploading || isMutationLockedRef.current) return;
+
+    invalidateFileReader();
+    updateSignature({
+      signatureFile: null,
+      signatureData: undefined,
+      signaturePreview: undefined,
+      signatureType: '',
+    });
+    // Client #15: deleting the uploaded signature also clears the stale
+    // server-side ID so it can't be reused.
+    updateData({ signatureId: undefined });
+  }, [invalidateFileReader, isUploading, updateData, updateSignature]);
+
+  const handleLegalConfirmation = useCallback(
+    (legalConfirmed: boolean) => {
+      if (isUploading || isMutationLockedRef.current) return;
+      updateSignature({ legalConfirmed });
+    },
+    [isUploading, updateSignature]
   );
 
   const handleContinue = useCallback(async () => {
-    const sigData = data.signature.signatureData;
+    if (isUploading || isMutationLockedRef.current) return;
+
+    const sigData =
+      mode === 'draw'
+        ? data.signature.signatureType === 'draw'
+          ? data.signature.signatureData
+          : undefined
+        : data.signature.signatureType === 'upload'
+          ? data.signature.signatureData
+          : undefined;
     if (!sigData) return;
 
+    // React state updates are asynchronous. Lock and invalidate callback
+    // generations synchronously so an Image.onload already in flight cannot
+    // redraw or replace this exact payload while it is attaching/submitting.
+    isMutationLockedRef.current = true;
+    invalidateCanvasMutations();
     setIsUploading(true);
     setUploadError(null);
 
     // If signature was already uploaded (e.g., retry after attach failure), reuse the ID
     let signatureId = data.signatureId;
+    let completedSuccessfully = false;
 
     try {
       if (!signatureId) {
@@ -286,7 +556,11 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       // property and stored the literal string "undefined" as the access
       // token, so every request after the first silent refresh — including
       // this one on a delete + re-enter retry — failed JWT verification).
-      onNext();
+      // Void remains the legacy successful result for ordinary substep
+      // callers. Terminal coordinators return false when their submit path
+      // intentionally remains on Signature so this component can unlock.
+      const completionResult = await onNext();
+      completedSuccessfully = completionResult !== false;
     } catch (err: any) {
       console.error('Signature upload error:', err);
       const detail = err?.response?.data?.error || err?.message || '';
@@ -294,22 +568,44 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
         `Failed to save signature${detail ? `: ${detail}` : ''}. Please try again.`
       );
     } finally {
+      isMutationLockedRef.current = false;
       setIsUploading(false);
+      if (
+        !completedSuccessfully &&
+        isMountedRef.current &&
+        modeRef.current === 'draw' &&
+        pendingResizeRef.current
+      ) {
+        pendingResizeRef.current = false;
+        resizeCanvasRef.current?.();
+      }
     }
   }, [
     data.claimId,
     data.signatureId,
     data.signature.signatureData,
+    data.signature.signatureType,
+    mode,
+    isUploading,
+    invalidateCanvasMutations,
     updateData,
     onNext,
   ]);
 
-  const canProceed =
-    (!!data.signature.signatureData || !!data.signature.signatureFile) &&
-    data.signature.legalConfirmed;
+  const hasActiveSignature =
+    mode === 'draw'
+      ? data.signature.signatureType === 'draw' &&
+        !!data.signature.signatureData
+      : data.signature.signatureType === 'upload' &&
+        (!!data.signature.signatureData || !!data.signature.signatureFile);
+  const canProceed = hasActiveSignature && data.signature.legalConfirmed;
 
   return (
-    <div className="max-w-lg mx-auto">
+    <div
+      className={
+        variant === 'calculator' ? 'mx-auto max-w-[760px]' : 'max-w-lg mx-auto'
+      }
+    >
       <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
         Add your signature
       </h2>
@@ -323,23 +619,35 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       {/* Mode Toggle */}
       <div className="flex gap-2 mb-6">
         <button
-          onClick={() => setMode('draw')}
-          className={`flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-medium transition-colors ${
+          type="button"
+          disabled={isUploading}
+          onClick={() => handleModeChange('draw')}
+          className={`${
+            variant === 'calculator'
+              ? 'flex-1 rounded-lg px-4 py-4 text-[18px] font-medium flex items-center justify-center gap-2 transition-colors'
+              : 'flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-medium transition-colors'
+          } ${
             mode === 'draw'
               ? 'bg-[#9FE870] text-[#163300]'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
+          } ${isUploading ? 'cursor-not-allowed opacity-50' : ''}`}
         >
           <Pencil className="w-4 h-4" />
           Draw signature
         </button>
         <button
-          onClick={() => setMode('upload')}
-          className={`flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-medium transition-colors ${
+          type="button"
+          disabled={isUploading}
+          onClick={() => handleModeChange('upload')}
+          className={`${
+            variant === 'calculator'
+              ? 'flex-1 rounded-lg px-4 py-4 text-[18px] font-medium flex items-center justify-center gap-2 transition-colors'
+              : 'flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-medium transition-colors'
+          } ${
             mode === 'upload'
               ? 'bg-[#9FE870] text-[#163300]'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
+          } ${isUploading ? 'cursor-not-allowed opacity-50' : ''}`}
         >
           <Upload className="w-4 h-4" />
           Upload signature image
@@ -362,8 +670,11 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
               onTouchStart={startDrawing}
               onTouchMove={draw}
               onTouchEnd={stopDrawing}
-              className="w-full cursor-crosshair"
-              style={{ height: '200px' }}
+              aria-disabled={isUploading}
+              className={`w-full cursor-crosshair${
+                variant === 'calculator' ? ' h-[300px]' : ''
+              }${isUploading ? ' pointer-events-none opacity-50' : ''}`}
+              style={variant === 'calculator' ? undefined : { height: '200px' }}
             />
             {!data.signature.signatureData && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -376,7 +687,7 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
           <div className="flex justify-center gap-3 mt-4">
             <button
               onClick={handleUndo}
-              disabled={historyIndex < 0}
+              disabled={isUploading || historyIndex < 0}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Undo2 className="w-4 h-4" />
@@ -384,7 +695,7 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
             </button>
             <button
               onClick={handleRedo}
-              disabled={historyIndex >= history.length - 1}
+              disabled={isUploading || historyIndex >= history.length - 1}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Redo2 className="w-4 h-4" />
@@ -392,7 +703,8 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
             </button>
             <button
               onClick={handleClear}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              disabled={isUploading}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Trash2 className="w-4 h-4" />
               Clear
@@ -413,31 +725,30 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
                 className="max-h-32 mx-auto"
               />
               <button
-                onClick={() => {
-                  updateSignature({
-                    signatureFile: null,
-                    signatureData: undefined,
-                    signaturePreview: undefined,
-                    signatureType: '',
-                  });
-                  // Client #15: deleting the uploaded signature also clears
-                  // the stale server-side ID so it can't be reused.
-                  updateData({ signatureId: undefined });
-                }}
-                className="absolute -top-2 -right-2 p-1 bg-red-100 rounded-full hover:bg-red-200 transition-colors"
+                type="button"
+                aria-label="Remove uploaded signature"
+                disabled={isUploading}
+                onClick={handleRemoveUploadedSignature}
+                className="absolute -top-2 -right-2 p-1 bg-red-100 rounded-full hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Trash2 className="w-4 h-4 text-red-600" />
+                <Trash2 aria-hidden="true" className="w-4 h-4 text-red-600" />
               </button>
             </div>
           ) : (
             <>
               <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600 mb-2">Upload signature image</p>
-              <label className="inline-block px-4 py-2 bg-[#9FE870] text-[#163300] font-medium rounded-lg cursor-pointer hover:bg-[#8AD860] transition-colors">
+              <label
+                aria-disabled={isUploading}
+                className={`inline-block px-4 py-2 bg-[#9FE870] text-[#163300] font-medium rounded-lg cursor-pointer hover:bg-[#8AD860] transition-colors ${
+                  isUploading ? 'cursor-not-allowed opacity-50' : ''
+                }`}
+              >
                 Choose file
                 <input
                   type="file"
                   accept="image/*"
+                  disabled={isUploading}
                   onChange={handleFileUpload}
                   className="hidden"
                 />
@@ -454,13 +765,16 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
         </div>
       )}
 
-      <label className="mt-6 flex cursor-pointer items-start gap-3">
+      <label
+        className={`mt-6 flex items-start gap-3 ${
+          isUploading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+        }`}
+      >
         <input
           type="checkbox"
           checked={data.signature.legalConfirmed}
-          onChange={(e) =>
-            updateSignature({ legalConfirmed: e.target.checked })
-          }
+          disabled={isUploading}
+          onChange={(e) => handleLegalConfirmation(e.target.checked)}
           className="mt-1 h-4 w-4 rounded border-gray-300 text-[#9FE870] focus:ring-[#9FE870]"
         />
         <span className="text-sm text-gray-700">
@@ -472,7 +786,11 @@ export const Signature: React.FC<SignatureProps> = ({ onNext }) => {
       <button
         onClick={handleContinue}
         disabled={!canProceed || isUploading}
-        className={`w-full mt-8 py-4 px-6 font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors ${
+        className={`${
+          variant === 'calculator'
+            ? 'mt-10 w-full rounded-lg px-6 py-4 text-[18px] font-semibold flex items-center justify-center gap-2 transition-colors'
+            : 'w-full mt-8 py-4 px-6 font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors'
+        } ${
           canProceed && !isUploading
             ? 'bg-[#9FE870] text-[#163300] hover:bg-[#8AD860]'
             : 'bg-gray-200 text-gray-500 cursor-not-allowed'

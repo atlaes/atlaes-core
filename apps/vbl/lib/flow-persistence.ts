@@ -362,12 +362,17 @@ export interface PersistedFlowIdentity {
   version: number;
   pensionType: 'public' | 'private' | '';
   pensionProvider: string;
+  origin?: 'calculator' | 'get-started';
 }
 
 export function saveFlowIdentity(
   state: Omit<PersistedFlowIdentity, 'version'>
 ): void {
-  if (state.pensionType === '' && state.pensionProvider === '') {
+  if (
+    state.pensionType === '' &&
+    state.pensionProvider === '' &&
+    state.origin !== 'calculator'
+  ) {
     clearFlowIdentity();
     return;
   }
@@ -382,12 +387,28 @@ export function clearFlowIdentity(): void {
   safeClearLocal(FLOW_IDENTITY_KEY);
 }
 
-// Clears all persisted flow blobs — used on successful final submission and
-// on explicit flow restart (e.g. "Return to start" from the eligibility
-// result screen). Single clear point per Task 13 discipline: any new
-// persisted key (e.g. flow identity, CRITICAL 2) is added here too.
-export function clearAllFlowPersistence(): void {
+function clearSessionFlowPersistence(): void {
   clearEligibilityState();
   clearOnboardingState();
+}
+
+// Clears all persisted flow blobs — used on calculator completion and on
+// explicit flow restart (e.g. "Return to start" from the eligibility result
+// screen). A completed calculator claim owns its calculator identity, so it
+// must not leave that identity behind as resumable state.
+export function clearAllFlowPersistence(): void {
+  clearSessionFlowPersistence();
   clearFlowIdentity();
+}
+
+// A directly mounted /get-started flow always owns its tab-scoped resume
+// state. It does not own a calculator identity written after mount, however:
+// that can represent an active calculator flow in another tab, so retain it.
+// Direct-origin identities clear here; a mounted calculator flow uses the
+// full cleanup above and clears its own calculator identity.
+export function clearCompletedDirectFlowPersistence(): void {
+  clearSessionFlowPersistence();
+  if (loadFlowIdentity()?.origin !== 'calculator') {
+    clearFlowIdentity();
+  }
 }
