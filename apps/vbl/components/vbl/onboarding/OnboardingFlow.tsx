@@ -11,6 +11,11 @@ import {
   SubmitDetailsSubStep,
 } from '@/contexts/OnboardingContext';
 import { getPendingCalculatorSession } from '@/lib/vbl-pending-calculator-sessions-api';
+import {
+  clearAllFlowPersistence,
+  loadFlowIdentity,
+  saveFlowIdentity,
+} from '@/lib/flow-persistence';
 import { OnboardingLayout } from '@/components/vbl/onboarding/OnboardingLayout';
 import { PensionTypeSelection } from '@/components/vbl/onboarding/steps/PensionTypeSelection';
 import { CreateAccount } from '@/components/vbl/onboarding/steps/CreateAccount';
@@ -29,8 +34,6 @@ import {
   type OnboardingSource,
   type OnboardingVariant,
 } from '@/components/vbl/onboarding/onboarding-variant';
-import { saveFlowIdentity } from '@/lib/flow-persistence';
-import { clearAllFlowPersistence } from '@/lib/flow-persistence';
 import { markStepComplete, stopClaim, submitClaim } from '@/lib/onboarding-api';
 
 interface OnboardingFlowProps {
@@ -62,6 +65,8 @@ export function OnboardingFlow({
   } = useOnboarding();
 
   const isCalculatorSource = source === 'calculator';
+  const [hasResolvedCalculatorIdentity, setHasResolvedCalculatorIdentity] =
+    useState(!isCalculatorSource);
 
   // The calculator may surface a private/bAV claim, but its calculator
   // variant must never be applied to that paygate.
@@ -87,13 +92,18 @@ export function OnboardingFlow({
     submitDetailsSubsteps[submitDetailsSubsteps.length - 1]?.id === 'signature';
 
   useEffect(() => {
-    if (!isCalculatorSource) return;
+    if (!isCalculatorSource || !hasResolvedCalculatorIdentity) return;
     saveFlowIdentity({
       pensionType: data.pensionType,
       pensionProvider: data.membership.pensionProvider,
       origin: 'calculator',
     });
-  }, [data.pensionType, data.membership.pensionProvider, isCalculatorSource]);
+  }, [
+    data.pensionType,
+    data.membership.pensionProvider,
+    hasResolvedCalculatorIdentity,
+    isCalculatorSource,
+  ]);
 
   // Track if user has completed pension type selection (pre-step).
   // Client #8: only show it when the calculator detected multiple claim
@@ -164,16 +174,37 @@ export function OnboardingFlow({
       publicStageProvider?: string;
     }) => {
       if (cancelled) return;
-      if (parsed.pensionProvider) {
-        updateMembership({ pensionProvider: parsed.pensionProvider });
+
+      const claimTypes = parsed.claimTypes ?? [];
+      const hasPublicOrStage =
+        claimTypes.includes('public') ||
+        claimTypes.includes('stage') ||
+        claimTypes.includes('orchestra');
+      const hasPrivate = claimTypes.includes('private');
+      const pensionType =
+        hasPrivate && !hasPublicOrStage
+          ? 'private'
+          : hasPublicOrStage && !hasPrivate
+            ? 'public'
+            : '';
+      const pensionProvider =
+        parsed.pensionProvider ||
+        (pensionType === 'private'
+          ? parsed.privateProvider
+          : pensionType === 'public'
+            ? parsed.publicStageProvider
+            : '') ||
+        '';
+
+      if (pensionProvider) {
+        updateMembership({ pensionProvider });
+      }
+      if (pensionType) {
+        updateData({ pensionType });
+        saveFlowIdentity({ pensionType, pensionProvider });
       }
       if (parsed.claimTypes) {
         setDetectedClaimTypes(parsed.claimTypes);
-        const hasPublicOrStage =
-          parsed.claimTypes.includes('public') ||
-          parsed.claimTypes.includes('stage') ||
-          parsed.claimTypes.includes('orchestra');
-        const hasPrivate = parsed.claimTypes.includes('private');
         setShowPensionTypeSelection(hasPublicOrStage && hasPrivate);
         if (hasPrivate && !hasPublicOrStage) {
           updateData({ pensionType: 'private' });
@@ -191,23 +222,27 @@ export function OnboardingFlow({
 
     const hydrate = async () => {
       if (sessionToken) {
-        const session = await getPendingCalculatorSession(sessionToken);
-        if (session && !cancelled) {
-          applySelection({
-            pensionProvider: session.pensionProvider ?? undefined,
-            claimTypes: session.claimTypes ?? [],
-            privateProvider: session.privateProvider ?? undefined,
-            publicStageProvider: session.publicStageProvider ?? undefined,
-          });
-          // Cache the token in sessionStorage so CreateAccount can link the
-          // email to it on submit without re-parsing the URL.
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem(
-              'vbl-pending-calculator-session-token',
-              sessionToken
-            );
+        try {
+          const session = await getPendingCalculatorSession(sessionToken);
+          if (session && !cancelled) {
+            applySelection({
+              pensionProvider: session.pensionProvider ?? undefined,
+              claimTypes: session.claimTypes ?? [],
+              privateProvider: session.privateProvider ?? undefined,
+              publicStageProvider: session.publicStageProvider ?? undefined,
+            });
+            // Cache the token in sessionStorage so CreateAccount can link the
+            // email to it on submit without re-parsing the URL.
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem(
+                'vbl-pending-calculator-session-token',
+                sessionToken
+              );
+            }
+            return;
           }
-          return;
+        } catch {
+          // Fall through to the browser persistence sources.
         }
       }
 
@@ -216,24 +251,48 @@ export function OnboardingFlow({
         typeof window !== 'undefined'
           ? sessionStorage.getItem('calculator-selection')
           : null;
-      if (!stored) return;
-      try {
-        const parsed = JSON.parse(stored) as {
-          pensionProvider?: string;
-          claimTypes?: string[];
-          privateProvider?: string;
-          publicStageProvider?: string;
-        };
-        applySelection(parsed);
-      } catch {
-        // Ignore parsing errors
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored) as {
+            pensionProvider?: string;
+            claimTypes?: string[];
+            privateProvider?: string;
+            publicStageProvider?: string;
+          };
+          applySelection(parsed);
+          return;
+        } catch {
+          // Fall through to the cross-tab identity.
+        } finally {
+          sessionStorage.removeItem('calculator-selection');
+        }
       }
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('calculator-selection');
+
+      const savedIdentity = loadFlowIdentity();
+      if (
+        savedIdentity?.origin === 'calculator' &&
+        (savedIdentity.pensionType || savedIdentity.pensionProvider)
+      ) {
+        applySelection({
+          pensionProvider: savedIdentity.pensionProvider || undefined,
+          claimTypes: savedIdentity.pensionType
+            ? [savedIdentity.pensionType]
+            : undefined,
+          privateProvider:
+            savedIdentity.pensionType === 'private'
+              ? savedIdentity.pensionProvider
+              : undefined,
+          publicStageProvider:
+            savedIdentity.pensionType === 'public'
+              ? savedIdentity.pensionProvider
+              : undefined,
+        });
       }
     };
 
-    hydrate();
+    hydrate().finally(() => {
+      if (!cancelled) setHasResolvedCalculatorIdentity(true);
+    });
 
     return () => {
       cancelled = true;

@@ -33,6 +33,10 @@ const initialData: EligibilityData = {
   consecutiveContribution: '',
   contributionDuration: '',
   publicEntryPath: '',
+  publicWorkedPublicAfter: '',
+  publicOtherInstitution: '',
+  publicPriorRefund: '',
+  publicCivilServant: '',
   stageEntryPath: '',
   stageContributionDuration: '',
   stagePost2001ContributionDuration: '',
@@ -85,6 +89,7 @@ interface EligibilityContextType {
   eligibilityConfirmed: boolean;
   goNext: (updates?: Partial<EligibilityData>) => void;
   goBack: () => void;
+  backFromResult: () => void;
   reset: () => void;
   confirmEligibility: () => void;
 }
@@ -260,6 +265,16 @@ export function EligibilityProvider({ children }: { children: ReactNode }) {
     setEligibilityConfirmed(true);
   }, []);
 
+  // Figma 1156-3840: the bAV eligible screen has a Back control that returns
+  // to the last question instead of restarting. The step index is untouched
+  // while a result is shown, so clearing the result state is enough.
+  const backFromResult = useCallback(() => {
+    setResult(null);
+    setIneligibilityInfo(null);
+    setWaitingInfo(null);
+    setReviewInfo(null);
+  }, []);
+
   const reset = useCallback(() => {
     setData(initialData);
     setCurrentStepIndex(-1);
@@ -291,6 +306,7 @@ export function EligibilityProvider({ children }: { children: ReactNode }) {
         eligibilityConfirmed,
         goNext,
         goBack,
+        backFromResult,
         reset,
         confirmEligibility,
       }}

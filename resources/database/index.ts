@@ -2,7 +2,7 @@ import { vpc } from '../network';
    // PostgreSQL Database
 export const postgres = new sst.aws.Postgres('AtlaesDatabase', {
       vpc,
-      proxy: true,
+      proxy: false,
       version: '16.6',
       dev: {
         username: 'vbl_user',

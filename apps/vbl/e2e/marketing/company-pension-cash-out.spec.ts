@@ -36,3 +36,20 @@ test('company-pension-cash-out shows the cash-out vs DRV comparison table', asyn
     })
   ).toBeVisible();
 });
+
+test('company-pension-cash-out uses the Figma dark process and pricing bands', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/company-pension-cash-out');
+
+  for (const heading of [
+    'Complete your bAV cash-out online in five steps',
+    'Pricing for bAV cash-outs',
+  ]) {
+    const section = page
+      .getByRole('heading', { name: heading })
+      .locator('xpath=ancestor::section[1]');
+    await expect(section).toHaveCSS('background-color', 'rgb(22, 51, 0)');
+  }
+});

@@ -112,10 +112,47 @@ async function mockCalculatorOnboardingApi(page: Page) {
   );
 }
 
+test('preserves the saved calculator provider while the no-session route initializes', async ({
+  page,
+}) => {
+  await mockCalculatorOnboardingApi(page);
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      'vbl_flow_identity_v1',
+      JSON.stringify({
+        version: 1,
+        pensionType: 'public',
+        pensionProvider: 'VBLklassik',
+        origin: 'calculator',
+      })
+    );
+  });
+  await page.goto('/calculator/onboarding');
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const raw = window.localStorage.getItem('vbl_flow_identity_v1');
+        return raw ? JSON.parse(raw) : null;
+      })
+    )
+    .toEqual({
+      version: 1,
+      pensionType: 'public',
+      pensionProvider: 'VBLklassik',
+      origin: 'calculator',
+    });
+
+  await expect(
+    page.getByRole('heading', { name: 'Create your secure claim' })
+  ).toBeVisible();
+});
+
 test.describe('Onboarding Edge Cases', () => {
   test.beforeEach(async ({ page }) => {
     await mockCalculatorOnboardingApi(page);
     await page.addInitScript(() => {
+      if (window.location.pathname === '/calculator/onboarding') return;
       window.localStorage.setItem(
         'vbl_flow_identity_v1',
         JSON.stringify({

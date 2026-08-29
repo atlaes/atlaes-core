@@ -133,7 +133,10 @@
   "/vbl-refund": {
     "nodeId": "1244:3166",
     "assets": [
-      "/marketing/shared/guided-process-smiling-man-laptop.png"
+      "/marketing/shared/guided-process-smiling-man-laptop.png",
+      "/marketing/vbl-refund/laptop-vbl-document-checklist.png",
+      "/marketing/vbl-refund/vbl-refund-eligibility-calendar.png",
+      "/marketing/vbl-refund/vbl-refund-ineligible-review.png"
     ]
   },
   "/zvk-refund": {
@@ -157,8 +160,6 @@
   },
   "/refund-calculator": {
     "nodeId": "1338:72",
-    "assets": [
-      "/marketing/shared/guided-process-smiling-man-laptop.png"
-    ]
+    "assets": ["/marketing/shared/guided-process-smiling-man-laptop.png"]
   }
 }

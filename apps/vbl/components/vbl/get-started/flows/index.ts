@@ -62,6 +62,11 @@ export interface EligibilityData {
   consecutiveContribution: 'yes' | 'no' | '';
   contributionDuration: ContributionDurationType;
   publicEntryPath: PublicEntryPathType;
+  // Final public-sector questionnaire (Figma 1858-711) — any 'yes' blocks
+  publicWorkedPublicAfter: 'yes' | 'no' | '';
+  publicOtherInstitution: 'yes' | 'no' | '';
+  publicPriorRefund: 'yes' | 'no' | '';
+  publicCivilServant: 'yes' | 'no' | '';
   // Stage-specific
   stageEntryPath: StageEntryPathType;
   stageContributionDuration: StageContributionDurationType;
@@ -94,6 +99,7 @@ export type StepId =
   | 'pension_scheme'
   | 'contribution_period'
   | 'contribution_duration'
+  | 'public_final_questions'
   | 'stage_pension_details'
   | 'stage_contribution_duration'
   | 'stage_post_2001_contribution_duration'
@@ -109,6 +115,9 @@ export interface IneligibilityInfo {
   title: string;
   message: string;
   secondaryMessage?: string;
+  // Figma 455-15644: some rejection screens (e.g. ZVK selected) send the
+  // user to the homepage instead of restarting the eligibility flow.
+  returnTo?: 'start' | 'homepage';
 }
 
 export interface WaitingInfo {
@@ -130,12 +139,6 @@ export interface FlowConfig {
     stepId: StepId,
     data: EligibilityData
   ) => IneligibilityInfo | null;
-  checkWaiting?: (
-    stepId: StepId,
-    data: EligibilityData
-  ) => WaitingInfo | null;
-  checkReview?: (
-    stepId: StepId,
-    data: EligibilityData
-  ) => ReviewInfo | null;
+  checkWaiting?: (stepId: StepId, data: EligibilityData) => WaitingInfo | null;
+  checkReview?: (stepId: StepId, data: EligibilityData) => ReviewInfo | null;
 }

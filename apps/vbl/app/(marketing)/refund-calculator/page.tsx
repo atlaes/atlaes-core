@@ -1,15 +1,33 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { ArrowRight, Calendar, Check, Info, User, X } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
-import { SectionHeading } from '@/components/marketing/SectionHeading';
+import {
+  SectionHeading,
+  FAQ_EYEBROW_WIDTH,
+} from '@/components/marketing/SectionHeading';
 import { StepCard } from '@/components/marketing/StepCard';
 import { CtaBand } from '@/components/marketing/CtaBand';
-import { ImportantCallout } from '@/components/marketing/ImportantCallout';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
+import { FaqAccordion } from '@/components/marketing/FaqAccordion';
+import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
+
+/**
+ * Placeholder for FAQ entries the design lists but the master copy does not
+ * answer. Copy governance: never invent FAQ answers — surface the question and
+ * route the user, then replace once the client supplies the text.
+ */
+const FAQ_ANSWER_PENDING = (
+  <p>
+    The full answer to this question will be published here soon. You can also{' '}
+    <Link href="/faq" className="font-semibold text-brand underline">
+      see all FAQs
+    </Link>{' '}
+    in the meantime.
+  </p>
+);
 
 // ---------------------------------------------------------------------------
 // CTA routing
@@ -36,15 +54,43 @@ const BAV_HREF = '/company-pension-cash-out';
 // Local, page-only building blocks
 // ---------------------------------------------------------------------------
 
-function CheckList({ items }: { items: ReactNode[] }) {
+function CheckList({
+  items,
+  tone = 'light',
+}: {
+  items: ReactNode[];
+  /**
+   * `dark` is required on the brand-green bands: the light-tone disc is
+   * brand green itself and disappears against them, so the dark tone inverts
+   * to an accent disc with a brand-green check (the treatment the other
+   * dark sections already use).
+   */
+  tone?: 'light' | 'dark';
+}) {
+  const dark = tone === 'dark';
   return (
     <ul className="space-y-3">
       {items.map((item, index) => (
-        <li key={index} className="flex items-start gap-3 text-gray-700">
-          <Check
-            className="mt-0.5 h-5 w-5 shrink-0 text-brand"
+        <li
+          key={index}
+          className={`flex items-start gap-3 ${dark ? 'text-white/85' : 'text-gray-700'}`}
+        >
+          {/* Filled brand-green disc with a white tick, matching Figma
+              1339:3086 and the shared `check-bullet.svg` used on the about and
+              pricing pages. This list previously rendered a bare lucide tick
+              with no disc, which is the checklist-icon mismatch the client
+              flagged on 2026-07-23. */}
+          <span
             aria-hidden="true"
-          />
+            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+              dark ? 'bg-accent' : 'bg-brand'
+            }`}
+          >
+            <Check
+              className={`h-3 w-3 ${dark ? 'text-brand' : 'text-white'}`}
+              strokeWidth={3}
+            />
+          </span>
           <span className="text-base leading-relaxed">{item}</span>
         </li>
       ))}
@@ -57,10 +103,17 @@ function CrossList({ items }: { items: ReactNode[] }) {
     <ul className="space-y-3">
       {items.map((item, index) => (
         <li key={index} className="flex items-start gap-3 text-gray-700">
-          <X
-            className="mt-0.5 h-5 w-5 shrink-0 text-gray-400"
+          {/* Filled red disc with a white cross, mirroring CheckList's green
+              disc. Figma 1358:948 draws these as solid badges; ours was a bare
+              grey tick-mark, part of what the client flagged as "design not
+              followed" on 2026-07-23. The red is matched by eye from the
+              design (anonymous Figma gives no colour readout). */}
+          <span
             aria-hidden="true"
-          />
+            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-600"
+          >
+            <X className="h-3 w-3 text-white" strokeWidth={3} />
+          </span>
           <span className="text-base leading-relaxed">{item}</span>
         </li>
       ))}
@@ -110,22 +163,55 @@ function ArrowLink({
   href,
   children,
   variant = 'solid',
+  fullWidth = false,
+  size = 'default',
+  // The updated design renders this page's section CTAs as plain buttons with
+  // no trailing arrow (verified against Figma 1346:213 and 1353:419), so the
+  // arrow is opt-in rather than the default despite the component's name.
+  showArrow = false,
 }: {
   href: string;
   children: ReactNode;
-  variant?: 'solid' | 'outline';
+  /** Stretches the button to its container and centres the label — Figma
+   *  1346:213 renders the calculator-scope CTAs as block buttons. */
+  fullWidth?: boolean;
+  /** Exact page-local button dimensions from the approved Figma frames. */
+  size?: 'default' | 'continuation' | 'pricing';
+  /** The updated design drops the trailing arrow on section CTAs. */
+  showArrow?: boolean;
+  /**
+   * `link` renders plain underlined text rather than a button — Figma
+   * 1358:1204 shows "See how the full process works" as a text link beside the
+   * solid CTA, not as a second button (client feedback 2026-07-23).
+   */
+  variant?: 'solid' | 'outline' | 'outlineDark' | 'link';
 }) {
   const styles =
     variant === 'solid'
-      ? 'bg-accent text-brand hover:bg-accent-hover'
-      : 'border border-brand/25 text-brand hover:bg-brand/5';
+      ? // `border-transparent` keeps the solid button the same height as the
+        // outline one, so a solid and an outline CTA sitting in adjacent cards
+        // line up exactly rather than 2px apart (client feedback 2026-07-23).
+        'rounded-brand border border-transparent px-6 py-3 bg-accent text-brand hover:bg-accent-hover'
+      : variant === 'outline'
+        ? 'rounded-brand px-6 py-3 border border-brand/25 text-brand hover:bg-brand/5'
+        : variant === 'outlineDark'
+          ? 'rounded-brand px-6 py-3 border border-white/60 text-white hover:bg-white/10'
+          : 'text-brand underline underline-offset-4 hover:text-brand/70';
+  const sizeStyles = {
+    default: '',
+    continuation: 'h-[63px] sm:w-[369px]',
+    pricing: 'h-[63px] sm:w-[355px]',
+  } as const;
+  const fillsAvailableWidth = fullWidth || size !== 'default';
   return (
     <Link
       href={href}
-      className={`inline-flex items-center gap-2 rounded-brand px-6 py-3 text-base font-semibold transition-colors ${styles}`}
+      className={`${
+        fillsAvailableWidth ? 'flex w-full justify-center' : 'inline-flex'
+      } items-center gap-2 text-base font-semibold transition-colors ${styles} ${sizeStyles[size]}`}
     >
       {children}
-      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+      {showArrow ? <ArrowRight className="h-4 w-4" aria-hidden="true" /> : null}
     </Link>
   );
 }
@@ -166,6 +252,7 @@ export default function RefundCalculatorPage() {
       {/* ---- HERO (Figma 1338:3012) ---- */}
       <Hero
         eyebrow="Refund calculator"
+        eyebrowWidth={259}
         title="Estimate your VBL, ZVK, VddB or VddKO refund"
         body="Upload a pension document or enter what you know to receive a first estimate. You can review the result before deciding whether to continue with your refund application online."
         primaryCta={{
@@ -185,7 +272,9 @@ export default function RefundCalculatorPage() {
               pension scheme or institution confirms the final amount and
               decides whether your refund is approved.
             </p>
-            <p>
+            {/* Accent green (#9FE870 = `text-accent`) per client feedback
+                2026-07-23; the two paragraphs above stay muted white. */}
+            <p className="text-accent">
               Using the calculator does not create a contract or obligation. You
               continue only if you choose to.
             </p>
@@ -193,67 +282,13 @@ export default function RefundCalculatorPage() {
         }
       />
 
-      {/* ---- MADE FOR PEOPLE / GUIDED ONLINE PROCESS (Figma 1338:3029) ---- */}
-      <section className="bg-white">
-        <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
-            <SectionHeading
-              title="Made for people who no longer want to deal with German paperwork"
-              body="Company pension cases are often confusing after you leave Germany."
-            />
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-gray-600">
-              Your provider may write in German. Your former employer may no
-              longer be involved. Your documents may mention bAV, VBL, ZVK, VddB
-              or VddKO without clearly explaining what you can do next.
-            </p>
-          </div>
-
-          <div className="mt-14 grid items-start gap-10 lg:grid-cols-2">
-            <div>
-              <p className="text-lg font-semibold text-brand">
-                CompanyPension turns this into a guided online process:
-              </p>
-              <div className="mt-6">
-                <CheckList
-                  items={[
-                    'You enter your pension details online',
-                    'You upload your provider documents or add the details manually',
-                    'The platform builds the right cash-out or refund flow based on your answers',
-                    'You review your details and sign online',
-                    'You submit your request digitally inside the platform',
-                    'Human support is available when translation, clarification or follow-up is needed',
-                  ]}
-                />
-              </div>
-              <p className="mt-6 text-base leading-relaxed text-gray-600">
-                The goal is simple: help you handle your German company pension
-                cash-out or refund without getting lost in German paperwork
-              </p>
-            </div>
-            {/* Figma 1338:3056 "image 827" — supporting illustration (same
-                source as vbl-refund 1244:3769; deduped to marketing/shared) */}
-            <div
-              aria-hidden="true"
-              className="hidden min-h-[420px] items-center justify-center rounded-2xl bg-neutral-50 lg:flex"
-            >
-              <Image
-                src="/marketing/shared/guided-process-smiling-man-laptop.png"
-                alt=""
-                width={521}
-                height={597}
-                className="h-full max-h-[420px] w-auto object-contain"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ---- START YOUR ESTIMATE / CHOOSER (Figma 1339:3086) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="Start your estimate"
+              eyebrowWidth={272}
               title="Upload a document or enter the details yourself"
               body="Choose whichever option is easier for you."
             />
@@ -269,7 +304,7 @@ export default function RefundCalculatorPage() {
               title="Upload-assisted estimate"
               body="Upload a VBL, ZVK, VddB or VddKO letter, statement or pension document."
             >
-              <p className="mt-6 text-base font-medium text-brand">
+              <p className="mt-6 text-base font-semibold text-brand">
                 Where possible, the platform reads available information such
                 as:
               </p>
@@ -288,7 +323,7 @@ export default function RefundCalculatorPage() {
                 You can review and correct every extracted detail before it is
                 used.
               </p>
-              <p className="mt-6 text-base font-medium text-brand">
+              <p className="mt-6 text-base font-semibold text-brand">
                 Best if you have
               </p>
               <div className="mt-4">
@@ -302,14 +337,14 @@ export default function RefundCalculatorPage() {
                   ]}
                 />
               </div>
-              <div className="mt-8">
-                <ArrowLink href={CALC_HREF}>Upload my document</ArrowLink>
-              </div>
-              <p className="mt-6 text-sm leading-relaxed text-gray-500">
+              <p className="mt-6 min-h-[3.75rem] text-sm leading-relaxed text-gray-500">
                 Uploaded documents are processed securely for your estimate and
                 next-step routing. See the Privacy Policy for details about
                 processing, retention and deletion.
               </p>
+              <div className="mt-8 flex flex-1 items-end">
+                <ArrowLink href={CALC_HREF}>Upload my document</ArrowLink>
+              </div>
             </OptionCard>
 
             <OptionCard
@@ -317,7 +352,7 @@ export default function RefundCalculatorPage() {
               title="Manual estimate"
               body="Enter the information yourself if you do not want to upload a document yet."
             >
-              <p className="mt-6 text-base font-medium text-brand">
+              <p className="mt-6 text-base font-semibold text-brand">
                 The calculator may ask for:
               </p>
               <div className="mt-4">
@@ -333,7 +368,7 @@ export default function RefundCalculatorPage() {
                   ]}
                 />
               </div>
-              <p className="mt-6 text-base font-medium text-brand">
+              <p className="mt-6 text-base font-semibold text-brand">
                 Best if you know
               </p>
               <div className="mt-4">
@@ -347,7 +382,7 @@ export default function RefundCalculatorPage() {
                   ]}
                 />
               </div>
-              <div className="mt-8">
+              <div className="mt-8 flex flex-1 items-end">
                 <ArrowLink href={CALC_HREF} variant="outline">
                   Enter details manually
                 </ArrowLink>
@@ -368,7 +403,7 @@ export default function RefundCalculatorPage() {
             </p>
             <div className="mt-6 grid gap-10 lg:grid-cols-2">
               <div>
-                <p className="text-base font-medium text-brand">
+                <p className="text-base font-semibold text-brand">
                   The platform helps identify whether you have:
                 </p>
                 <div className="mt-4">
@@ -389,7 +424,7 @@ export default function RefundCalculatorPage() {
                 </p>
               </div>
               <div>
-                <p className="text-base font-medium text-brand">Best if:</p>
+                <p className="text-base font-semibold text-brand">Best if:</p>
                 <div className="mt-4">
                   <CheckList
                     items={[
@@ -402,16 +437,18 @@ export default function RefundCalculatorPage() {
                 </div>
               </div>
             </div>
-            <div className="mt-8">
+            {/* Centred button with the reassurance line beneath it, both
+                inside this card — client feedback 2026-07-23. The line used to
+                sit outside the card entirely, under the whole section. */}
+            <div className="mt-8 flex justify-center">
               <ArrowLink href={CALC_HREF} variant="outline">
                 Identify my pension document
               </ArrowLink>
             </div>
+            <p className="mt-6 text-center text-base leading-relaxed text-gray-600">
+              You can see your estimate before starting the paid refund process.
+            </p>
           </div>
-
-          <p className="mt-8 text-center text-base leading-relaxed text-gray-600">
-            You can see your estimate before starting the paid refund process.
-          </p>
         </div>
       </section>
 
@@ -427,7 +464,7 @@ export default function RefundCalculatorPage() {
           </div>
 
           <div className="mt-14 grid gap-8 lg:grid-cols-2">
-            <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
+            <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
               <h3 className="text-xl font-semibold text-brand">
                 Estimate a VBL or ZVK refund
               </h3>
@@ -451,7 +488,7 @@ export default function RefundCalculatorPage() {
                 The calculator can use the information available to estimate
                 eligible employee contributions.
               </p>
-              <p className="mt-6 text-base font-medium text-brand">
+              <p className="mt-6 text-base font-semibold text-brand">
                 Helpful information
               </p>
               <div className="mt-4">
@@ -466,8 +503,12 @@ export default function RefundCalculatorPage() {
                   ]}
                 />
               </div>
-              <div className="mt-8">
-                <ArrowLink href={CALC_HREF}>
+              {/* Figma 1346:213: left block = solid accent, right block =
+                  outline; both are full-width and carry no arrow. Ours had two
+                  solid inline buttons, which is the button colour/alignment
+                  mismatch the client flagged on 2026-07-23. */}
+              <div className="mt-8 flex flex-1 flex-col justify-end">
+                <ArrowLink href={CALC_HREF} fullWidth>
                   Estimate my VBL or ZVK refund
                 </ArrowLink>
               </div>
@@ -478,7 +519,7 @@ export default function RefundCalculatorPage() {
               </p>
             </div>
 
-            <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
+            <div className="flex h-full flex-col rounded-2xl border border-neutral-400 bg-white p-8">
               <h3 className="text-xl font-semibold text-brand">
                 Estimate a VddB or VddKO refund
               </h3>
@@ -500,7 +541,7 @@ export default function RefundCalculatorPage() {
                 The calculator can use your employment and contribution
                 information to provide a first estimate.
               </p>
-              <p className="mt-6 text-base font-medium text-brand">
+              <p className="mt-6 text-base font-semibold text-brand">
                 Helpful information
               </p>
               <div className="mt-4">
@@ -515,12 +556,12 @@ export default function RefundCalculatorPage() {
                   ]}
                 />
               </div>
-              <div className="mt-8">
-                <ArrowLink href={CALC_HREF}>
+              <div className="mt-8 flex flex-1 flex-col justify-end">
+                <ArrowLink href={CALC_HREF} variant="outline" fullWidth>
                   Estimate my VddB or VddKO refund
                 </ArrowLink>
               </div>
-              <p className="mt-6 text-sm leading-relaxed text-gray-500">
+              <p className="mt-6 min-h-[3.75rem] text-sm leading-relaxed text-gray-500">
                 VddB or VddKO confirms your recorded periods, eligibility and
                 final refund amount.
               </p>
@@ -530,7 +571,7 @@ export default function RefundCalculatorPage() {
       </section>
 
       {/* ---- CHOOSE THE CORRECT ROUTE (Figma 1353:419) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -600,7 +641,7 @@ export default function RefundCalculatorPage() {
       <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="mx-auto max-w-3xl text-center text-brand">
-            <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-4 py-2 text-sm font-medium text-brand">
+            <span className="mb-5 inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-brand/25 bg-brand/5 px-5 py-1 text-center font-display text-base font-medium text-brand sm:whitespace-nowrap">
               bAV cash-outs
             </span>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -612,7 +653,7 @@ export default function RefundCalculatorPage() {
           </div>
 
           <div className="mt-12 grid gap-8 lg:grid-cols-2">
-            <div className="rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
+            <div className="rounded-2xl border border-neutral-400 bg-white p-8">
               <p className="text-lg font-semibold text-brand">
                 Your document may show:
               </p>
@@ -648,7 +689,7 @@ export default function RefundCalculatorPage() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
+            <div className="rounded-2xl border border-neutral-400 bg-white p-8">
               <p className="text-lg font-semibold text-brand">
                 That can depend on:
               </p>
@@ -698,14 +739,18 @@ export default function RefundCalculatorPage() {
         </div>
       </section>
 
-      {/* ---- THE CALCULATOR PROCESS (Figma 1356:834) ---- */}
-      <section className="bg-neutral-50">
+      {/* ---- THE CALCULATOR PROCESS (Figma 1356:834) ----
+          Brand-green band, not the light-grey wash this shipped with. Figma
+          renders the whole section dark with white step cards and a
+          white-outlined CTA; that mismatch is why the client marked this
+          section "design not followed" on 2026-07-23. */}
+      <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
-            <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-white px-4 py-2 text-sm font-medium text-brand">
+          <div className="flex flex-col items-center text-center">
+            <span className="mb-5 inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-white/30 bg-white/5 px-5 py-1 text-center font-display text-base font-medium text-white sm:whitespace-nowrap">
               The calculator process
             </span>
-            <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-brand sm:text-4xl">
+            <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-accent sm:text-4xl">
               Get a first estimate in five simple steps
             </h2>
           </div>
@@ -738,15 +783,19 @@ export default function RefundCalculatorPage() {
           </div>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <ArrowLink href={CALC_HREF}>Calculate my refund</ArrowLink>
-            <ArrowLink href={START_HREF} variant="outline">
+            {/* On the dark band the outline CTA needs white borders/text — the
+                brand-green outline is invisible here. */}
+            <ArrowLink href={START_HREF} variant="outlineDark">
               Start my refund directly
             </ArrowLink>
           </div>
         </div>
       </section>
 
-      {/* ---- UNDERSTANDING THE RESULT (Figma 1358:1010) ---- */}
-      <section className="bg-white">
+      {/* ---- UNDERSTANDING THE RESULT (Figma 1358:948/1010) ----
+          Light-grey band, not white — the design sets this section on the
+          #f3f4f4 wash with its cards in white. */}
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -757,7 +806,7 @@ export default function RefundCalculatorPage() {
           </div>
 
           <div className="mt-14 grid gap-8 lg:grid-cols-2">
-            <div className="rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
+            <div className="rounded-2xl border border-neutral-400 bg-white p-8">
               <p className="text-lg font-semibold text-brand">
                 Your estimate can help you:
               </p>
@@ -775,7 +824,7 @@ export default function RefundCalculatorPage() {
                 />
               </div>
             </div>
-            <div className="rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
+            <div className="rounded-2xl border border-neutral-400 bg-white p-8">
               <p className="text-lg font-semibold text-brand">
                 Your estimate cannot:
               </p>
@@ -805,11 +854,13 @@ export default function RefundCalculatorPage() {
         </div>
       </section>
 
-      {/* ---- YOUR NEXT STEP / CONTINUE ONLINE (Figma 1358:1204) ---- */}
-      <section className="bg-neutral-50">
+      {/* ---- YOUR NEXT STEP / CONTINUE ONLINE (Figma 1358:1204) ----
+          White, not the light-grey wash: the client asked for the grey to be
+          removed from this section on 2026-07-23. */}
+      <section className="bg-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
-            <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-white px-4 py-2 text-sm font-medium text-brand">
+            <span className="mb-5 inline-flex min-h-10 w-full max-w-full items-center justify-center rounded-full border border-brand/25 bg-white px-5 py-1 text-center font-display text-base font-medium text-brand sm:w-[228px] sm:whitespace-nowrap">
               Your next step
             </span>
             <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-brand sm:text-4xl">
@@ -858,8 +909,10 @@ export default function RefundCalculatorPage() {
           </div>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <ArrowLink href={START_HREF}>Start my refund</ArrowLink>
-            <ArrowLink href={PROCESS_HREF} variant="outline">
+            <ArrowLink href={START_HREF} size="continuation">
+              Start my refund
+            </ArrowLink>
+            <ArrowLink href={PROCESS_HREF} variant="link">
               See how the full process works
             </ArrowLink>
           </div>
@@ -872,80 +925,161 @@ export default function RefundCalculatorPage() {
           copy, so the transformation does not apply. "The calculator is free to
           use" below is verbatim design copy about the calculator's cost and is
           unaffected. */}
-      <section className="bg-white">
+      {/* Brand-green band with a translucent card — Figma 1358:1382 renders
+          this section dark with white body copy and a white-outlined CTA; it
+          shipped white, which is why the client marked it "design not
+          followed" on 2026-07-23. */}
+      <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
-            <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-neutral-50 px-4 py-2 text-sm font-medium text-brand">
+          <div className="flex flex-col items-center text-center">
+            <span className="mb-5 inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-white/30 bg-white/5 px-5 py-1 text-center font-display text-base font-medium text-white sm:whitespace-nowrap">
               Continue only when you are ready
             </span>
-            <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-brand sm:text-4xl">
+            <h2 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-accent sm:text-4xl">
               What does the full refund process cost?
             </h2>
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-gray-600">
+            <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/80">
               The calculator is free to use and does not create a payment
               obligation. You only pay if you decide to continue into the full
               refund process.
             </p>
           </div>
 
-          <div className="mx-auto mt-12 max-w-xl rounded-2xl border border-neutral-400 bg-neutral-50 p-8">
+          <div className="mx-auto mt-12 max-w-xl rounded-2xl border border-white/20 bg-black/20 p-8">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span className="text-3xl font-bold text-brand">
+              <span className="text-3xl font-bold text-accent">
                 €199 deposit to start the process
               </span>
-              <span className="text-base text-gray-600">
+              <span className="text-base text-white/70">
                 (credited toward the final fee)
               </span>
             </div>
-            <p className="mt-4 text-lg font-semibold text-brand">
+            <p className="mt-4 text-lg font-semibold text-white">
               9.75% success fee if approved
             </p>
-            <p className="mt-8 text-base font-semibold text-brand">
+            <p className="mt-8 text-base font-semibold text-white">
               Pricing details
             </p>
             <div className="mt-4">
               <CheckList
+                tone="dark"
                 items={[
                   'The minimum total service fee is €199.',
                   'The €199 deposit is credited toward the final service fee.',
                   'Only the remaining difference becomes due after approval.',
                   'If the pension institution rejects a completed and submitted refund request, the €199 deposit is refunded in full.',
                   'This does not apply if the application is abandoned or left incomplete.',
-                  'If approved, the pension institution pays the refund directly to the bank account you provide. CompanyPension does not deduct its fee from the refund and does not receive, hold or forward approved pension money.',
                 ]}
               />
             </div>
-            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-              <ArrowLink href={START_HREF}>Start my refund</ArrowLink>
-              <ArrowLink href={PRICING_HREF} variant="outline">
-                View full pricing
-              </ArrowLink>
-            </div>
+          </div>
+          <p className="mx-auto mt-8 max-w-3xl text-center text-base leading-relaxed text-white/80">
+            If approved, the pension institution pays the refund directly to the
+            bank account you provide. CompanyPension does not deduct its fee
+            from the refund and does not receive, hold or forward approved
+            pension money.
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-4 lg:flex-row">
+            <ArrowLink href={START_HREF} size="pricing">
+              Start my refund
+            </ArrowLink>
+            <ArrowLink href={PRICING_HREF} variant="outlineDark" size="pricing">
+              View full pricing
+            </ArrowLink>
           </div>
         </div>
       </section>
 
-      {/* ---- FAQ (Figma 1361:xxx) ----
-          FAQ_ANSWER_PENDING: every FAQ item in this frame is a component
-          instance carrying lorem defaults ("How do I pay for the…", "Can I
-          cancel my Esse…", "We need to add new u…", "My team wants to can…").
-          Only the section heading and eyebrow are non-instance verbatim copy.
-          Questions and answers are UNVERIFIABLE from the XML and must not be
-          invented — a backfill pass fills them once Figma access is restored. */}
-      <section className="bg-neutral-50">
+      {/* ---- FAQ (Figma 1361:78) — answers from the shared FAQ master copy via
+           faqItems.tsx (FAQ CompanyPension 22062026.pdf).
+           All 16 questions the design lists are now present (the page shipped
+           only 5; client feedback 2026-07-23). Questions are transcribed from
+           the Figma accordion. Figma leaves 15 of the 16 collapsed, so their
+           answers are not readable there — each question below is wired to the
+           master answer that covers it, and the six with no master match carry
+           the standard pending placeholder rather than invented copy.
+           COPY GAP — FLAGGED: those six need client-supplied answers. */}
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="FAQ"
+              eyebrowWidth={FAQ_EYEBROW_WIDTH}
               title="Questions about estimating your refund"
             />
           </div>
-          <div className="mx-auto mt-12 max-w-3xl">
-            <InfoNote>
-              FAQ content for this page is pending. The questions and answers in
-              the source design are placeholder component instances and will be
-              added once the final copy is available.
-            </InfoNote>
+          <div className="mx-auto mt-12 max-w-4xl">
+            <FaqAccordion
+              items={[
+                {
+                  ...FAQ.calculatorFirst,
+                  question: 'Can I calculate my German company pension refund?',
+                },
+                {
+                  ...FAQ.howMuch,
+                  question: 'How much VBL refund could I receive?',
+                },
+                {
+                  ...FAQ.zvkRefund,
+                  question: 'Can I calculate my ZVK refund?',
+                },
+                {
+                  ...FAQ.vddbRefund,
+                  question: 'Can I estimate a VddB or VddKO refund?',
+                },
+                {
+                  ...FAQ.refundVsCashout,
+                  question: 'Can I calculate my bAV cash-out?',
+                },
+                {
+                  question:
+                    'Why can I estimate a VBL refund but not a bAV cash-out?',
+                  answer: FAQ_ANSWER_PENDING,
+                },
+                {
+                  ...FAQ.uploadInsteadManual,
+                  question: 'Can I upload a pension letter?',
+                },
+                {
+                  question: 'Can I enter the information myself?',
+                  answer: FAQ_ANSWER_PENDING,
+                },
+                {
+                  ...FAQ.documentsNeeded,
+                  question: 'What if my pension document is incomplete?',
+                },
+                {
+                  question: 'Is my estimated refund guaranteed?',
+                  answer: FAQ_ANSWER_PENDING,
+                },
+                {
+                  ...FAQ.bothRefunds,
+                  question: 'Does the calculator include my DRV refund?',
+                },
+                {
+                  question: 'Do I have to continue after seeing the estimate?',
+                  answer: FAQ_ANSWER_PENDING,
+                },
+                {
+                  question: 'What should I do after getting the estimate?',
+                  answer: FAQ_ANSWER_PENDING,
+                },
+                {
+                  question:
+                    'Can I use the calculator if I do not know what pension I have?',
+                  answer: FAQ_ANSWER_PENDING,
+                },
+                {
+                  ...FAQ.whoReceives,
+                  question: 'Who receives the approved refund?',
+                },
+                {
+                  ...FAQ.advisorOrLawFirm,
+                  question: 'Is CompanyPension a pension advisor?',
+                },
+              ]}
+              defaultOpenIndex={0}
+            />
           </div>
           <div className="mt-10 flex justify-center">
             <Link
@@ -964,135 +1098,124 @@ export default function RefundCalculatorPage() {
           verbatim per wave-wide precedent (Tasks 13/14). Replace "[Add actual
           review date]" and "[Add reviewer name and role]" with real values
           before publication. */}
-      <section className="bg-white">
+      {/* Grey band with the content in a white card — Figma 1364:3163 (client
+          feedback 2026-07-23: "background color should be #F3F4F4"). The card
+          is part of that design, not decoration: the grey reads as the section
+          and the white as the panel sitting on it. */}
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="text-brand">
-            <SectionHeading
-              align="left"
-              eyebrow="Platform scope"
-              title="A refund estimate and digital application platform"
-            />
-          </div>
-          <div className="mt-8 max-w-4xl space-y-4 text-base leading-relaxed text-gray-600">
-            <p>
-              The calculator provides a preliminary estimate using the documents
-              and information you provide.
-            </p>
-            <p>
-              It does not approve your refund and does not replace the records
-              or assessment of VBL, your ZVK, VddB or VddKO.
-            </p>
-            <p className="font-semibold text-brand">
-              If you continue into the full refund process:
-            </p>
-            <ul className="space-y-3">
-              {[
-                'The platform prepares the application from the information you provide.',
-                'You review and sign the application yourself.',
-                'You remain the applicant and claimant.',
-                'The signed application is technically transmitted through the CompanyPension platform.',
-                'The pension scheme or institution makes the final decision.',
-              ].map((item) => (
-                <li key={item} className="flex items-start gap-3">
-                  <span
-                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand"
-                    aria-hidden="true"
-                  />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-            <p>
-              CompanyPension does not provide pension, legal, tax, insurance or
-              financial advice.
-            </p>
-            <p>
-              CompanyPension does not receive, hold or forward approved pension
-              money.
-            </p>
-          </div>
-
-          <h3 className="mt-12 text-2xl font-bold tracking-tight text-brand">
-            Limited authorization
-          </h3>
-          <div className="mt-5 max-w-4xl space-y-4 text-base leading-relaxed text-gray-600">
-            <p>You may give ATLAES GmbH limited authorization to:</p>
-            <ul className="space-y-3">
-              {[
-                'Receive and forward relevant correspondence',
-                'Receive information about the final decision',
-                'Receive information about the approved amount',
-              ].map((item) => (
-                <li key={item} className="flex items-start gap-3">
-                  <span
-                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand"
-                    aria-hidden="true"
-                  />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-            <p>
-              This allows the platform to display follow-up requests and
-              calculate the agreed service fee.
-            </p>
-            <p>
-              The authorization does not make ATLAES GmbH the applicant or
-              claimant.
-            </p>
-          </div>
-
-          {/* Source-basis review-metadata row (Figma 1364:3225–3246). */}
-          <div className="mt-12 flex max-w-4xl flex-col gap-8 border-t border-neutral-400 pt-10 sm:flex-row sm:gap-16">
-            <div className="flex items-center gap-4">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-brand bg-accent/20 text-brand">
-                <Calendar className="h-7 w-7" aria-hidden="true" />
-              </span>
-              <span>
-                <span className="block text-sm font-semibold uppercase tracking-wide text-brand">
-                  LAST REVIEWED
-                </span>
-                <span className="mt-1 block text-base text-gray-600">
-                  [Add actual review date]
-                </span>
-              </span>
+          <div className="rounded-2xl bg-white p-8 sm:p-12">
+            <div className="text-brand">
+              <SectionHeading
+                align="left"
+                eyebrow="Platform scope"
+                title="A refund estimate and digital application platform"
+              />
             </div>
-            <div className="flex items-center gap-4">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-brand bg-accent/20 text-brand">
-                <User className="h-7 w-7" aria-hidden="true" />
-              </span>
-              <span>
-                <span className="block text-sm font-semibold uppercase tracking-wide text-brand">
-                  REVIEWED BY
+            <div className="mt-8 max-w-4xl space-y-4 text-base leading-relaxed text-gray-600">
+              <p>
+                The calculator provides a preliminary estimate using the
+                documents and information you provide.
+              </p>
+              <p>
+                It does not approve your refund and does not replace the records
+                or assessment of VBL, your ZVK, VddB or VddKO.
+              </p>
+              <p className="font-semibold text-brand">
+                If you continue into the full refund process:
+              </p>
+              <ul className="space-y-3">
+                {[
+                  'The platform prepares the application from the information you provide.',
+                  'You review and sign the application yourself.',
+                  'You remain the applicant and claimant.',
+                  'The signed application is technically transmitted through the CompanyPension platform.',
+                  'The pension scheme or institution makes the final decision.',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-3">
+                    <span
+                      className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand"
+                      aria-hidden="true"
+                    />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <p>
+                CompanyPension does not provide pension, legal, tax, insurance
+                or financial advice.
+              </p>
+              <p>
+                CompanyPension does not receive, hold or forward approved
+                pension money.
+              </p>
+            </div>
+
+            <h3 className="mt-12 text-2xl font-bold tracking-tight text-brand">
+              Limited authorization
+            </h3>
+            <div className="mt-5 max-w-4xl space-y-4 text-base leading-relaxed text-gray-600">
+              <p>You may give ATLAES GmbH limited authorization to:</p>
+              <ul className="space-y-3">
+                {[
+                  'Receive and forward relevant correspondence',
+                  'Receive information about the final decision',
+                  'Receive information about the approved amount',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-3">
+                    <span
+                      className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand"
+                      aria-hidden="true"
+                    />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <p>
+                This allows the platform to display follow-up requests and
+                calculate the agreed service fee.
+              </p>
+              <p>
+                The authorization does not make ATLAES GmbH the applicant or
+                claimant.
+              </p>
+            </div>
+
+            {/* Source-basis review-metadata row (Figma 1364:3225–3246). */}
+            <div className="mt-12 flex max-w-4xl flex-col gap-8 border-t border-neutral-400 pt-10 sm:flex-row sm:gap-16">
+              <div className="flex items-center gap-4">
+                {/* Figma 1364:3163 renders these review-metadata icons small and
+                  inline (~20px), not in the 56px tinted tiles we had — that
+                  size difference is what the client flagged on 2026-07-23. */}
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent/20 text-brand">
+                  <Calendar className="h-4 w-4" aria-hidden="true" />
                 </span>
-                <span className="mt-1 block text-base text-gray-600">
-                  [Add reviewer name and role]
+                <span>
+                  <span className="block text-sm font-semibold uppercase tracking-wide text-brand">
+                    LAST REVIEWED
+                  </span>
+                  <span className="mt-1 block text-base text-gray-600">
+                    [Add actual review date]
+                  </span>
                 </span>
-              </span>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent/20 text-brand">
+                  <User className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <span>
+                  <span className="block text-sm font-semibold uppercase tracking-wide text-brand">
+                    REVIEWED BY
+                  </span>
+                  <span className="mt-1 block text-base text-gray-600">
+                    [Add reviewer name and role]
+                  </span>
+                </span>
+              </div>
             </div>
           </div>
         </div>
       </section>
-
-      {/* ---- IMPORTANT INFORMATION (Figma footer disclaimer 1365:3282) ---- */}
-      <ImportantCallout>
-        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          A digital application platform, not pension advice
-        </h2>
-        <p className="mt-6 text-base leading-relaxed text-gray-600">
-          Company Pension provides a digital application platform for German
-          company pension cash-outs and refunds. Company Pension does not
-          provide legal, tax, pension, insurance or financial advice and does
-          not act as a legal representative, pension advisor, insurance broker
-          or financial advisor. Information on this website is general guidance
-          only and does not replace professional advice. Users remain the
-          claimant. Approval and payment decisions are made by the relevant
-          pension provider, pension scheme or institution. If legal services are
-          required for a specific case, they are carried out separately by the
-          responsible legal partner. Approved funds are paid directly to the
-          bank account provided by the user.
-        </p>
-      </ImportantCallout>
 
       {/* ---- CLOSING CTA BAND (Figma 1365:3252) ---- */}
       <CtaBand

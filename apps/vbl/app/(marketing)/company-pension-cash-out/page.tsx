@@ -2,13 +2,18 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Check, Info } from 'lucide-react';
 import { Hero } from '@/components/marketing/Hero';
-import { SectionHeading } from '@/components/marketing/SectionHeading';
+import {
+  SectionHeading,
+  FAQ_EYEBROW_WIDTH,
+} from '@/components/marketing/SectionHeading';
 import { FeatureCard } from '@/components/marketing/FeatureCard';
 import { StepCard } from '@/components/marketing/StepCard';
 import { CtaBand } from '@/components/marketing/CtaBand';
 import { ImportantCallout } from '@/components/marketing/ImportantCallout';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
 import { GlossaryCard } from '@/components/marketing/GlossaryCard';
+import { FaqAccordion } from '@/components/marketing/FaqAccordion';
+import { FAQ } from '@/components/marketing/faqItems';
 
 const CONTAINER = 'mx-auto max-w-[1200px] px-6';
 
@@ -27,15 +32,35 @@ const REFUND_HREF = '/vbl-refund';
 // Local, page-only building blocks (same conventions as the vbl-refund page)
 // ---------------------------------------------------------------------------
 
-function CheckList({ items }: { items: ReactNode[] }) {
+function CheckList({
+  items,
+  tone = 'light',
+}: {
+  items: ReactNode[];
+  tone?: 'light' | 'dark';
+}) {
   return (
     <ul className="space-y-3">
       {items.map((item, index) => (
-        <li key={index} className="flex items-start gap-3 text-gray-700">
-          <Check
-            className="mt-0.5 h-5 w-5 shrink-0 text-brand"
-            aria-hidden="true"
-          />
+        <li
+          key={index}
+          className={`flex items-start gap-3 ${tone === 'dark' ? 'text-white/85' : 'text-gray-700'}`}
+        >
+          {tone === 'dark' ? (
+            <span
+              aria-hidden="true"
+              className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent"
+            >
+              <Check className="h-3.5 w-3.5 text-brand" strokeWidth={3} />
+            </span>
+          ) : (
+            <img
+              src="/marketing/icons/check-bullet.svg"
+              alt=""
+              aria-hidden="true"
+              className="mt-0.5 h-5 w-5 shrink-0"
+            />
+          )}
           <span className="text-base leading-relaxed">{item}</span>
         </li>
       ))}
@@ -76,14 +101,20 @@ function ArrowLink({ href, children }: { href: string; children: ReactNode }) {
 function SecondaryLink({
   href,
   children,
+  tone = 'light',
 }: {
   href: string;
   children: ReactNode;
+  tone?: 'light' | 'dark';
 }) {
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-2 rounded-brand border border-neutral-400 bg-white px-6 py-3 text-base font-semibold text-brand transition-colors hover:bg-neutral-50"
+      className={`inline-flex items-center gap-2 rounded-brand border px-6 py-3 text-base font-semibold transition-colors ${
+        tone === 'dark'
+          ? 'border-white/60 text-white hover:bg-white/10'
+          : 'border-neutral-400 bg-white text-brand hover:bg-neutral-50'
+      }`}
     >
       {children}
       <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -240,7 +271,7 @@ export default function CompanyPensionCashOutPage() {
       </section>
 
       {/* ---- BUILT AROUND YOUR DOCUMENTS (Figma 1258:113) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
@@ -306,7 +337,7 @@ export default function CompanyPensionCashOutPage() {
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Can I cash out my bAV after leaving Germany?
               </h2>
               <p className="mt-6 text-lg font-semibold text-brand">Possibly.</p>
@@ -366,11 +397,11 @@ export default function CompanyPensionCashOutPage() {
       </section>
 
       {/* ---- PROVIDER / CONTRACT RECOGNITION (Figma 1261:461) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 Your company pension may appear under a provider or contract
                 name
               </h2>
@@ -514,11 +545,11 @@ export default function CompanyPensionCashOutPage() {
           not match this DRV-vs-bAV section. Rendered verbatim per the
           verbatim/never-invent rule and flagged in the task report for the
           client to correct in Figma. */}
-      <section className="bg-neutral-50">
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 When can I get a VBL refund?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -685,9 +716,9 @@ export default function CompanyPensionCashOutPage() {
       </section>
 
       {/* ---- 5-STEP DIGITAL PROCESS (Figma 1262:906) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className="flex flex-col items-center text-center">
             <SectionHeading
               eyebrow="The digital process"
               title="Complete your bAV cash-out online in five steps"
@@ -695,26 +726,31 @@ export default function CompanyPensionCashOutPage() {
           </div>
           <div className="mt-14 grid gap-6 md:grid-cols-2">
             <StepCard
+              tone="dark"
               number="01"
               title="Check whether a cash-out may be possible"
               body="Upload a pension document or answer guided questions. The platform reads the available details and checks which bAV cash-out route may be relevant."
             />
             <StepCard
+              tone="dark"
               number="02"
               title="Secure your claim"
               body="If the case may be possible, create your secure account, review the pricing and pay the €199 deposit to activate the full process. Your deposit is credited toward your final service fee."
             />
             <StepCard
+              tone="dark"
               number="03"
               title="Complete your details"
               body="Upload your ID and any missing pension or employment documents. Add or confirm your personal, pension, employer and bank details."
             />
             <StepCard
+              tone="dark"
               number="04"
               title="Review, sign and submit digitally"
               body="Review the completed application, confirm the details and sign it yourself online. After signing, the application is technically transmitted to the responsible employer, provider or pension institution through the CompanyPension platform. You remain the applicant and claimant."
             />
             <StepCard
+              tone="dark"
               number="05"
               title="Receive your money and pay the remaining fee"
               body="The employer or provider reviews the application and makes the final decision. Where authorised, correspondence and requests for additional information can be displayed through your secure account. If approved, the money is paid directly to the bank account you provide. Your €199 deposit is credited toward the 9.75% success fee, and only the remaining service fee becomes due. CompanyPension does not receive, hold or forward approved pension money."
@@ -735,7 +771,7 @@ export default function CompanyPensionCashOutPage() {
               <span className="mb-5 inline-flex items-center rounded-full border border-brand/25 bg-brand/5 px-4 py-2 text-sm font-medium text-brand">
                 Documents
               </span>
-              <h2 className="text-3xl font-bold tracking-tight text-brand sm:text-4xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-brand sm:text-[2.5rem] sm:leading-[1.15]">
                 What documents do I need for a bAV cash-out?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-gray-600">
@@ -795,44 +831,45 @@ export default function CompanyPensionCashOutPage() {
       </section>
 
       {/* ---- PRICING (Figma 1262:1665) ---- */}
-      <section className="bg-neutral-50">
+      <section className="bg-brand text-white">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
-          <div className="flex flex-col items-center text-center text-brand">
+          <div className="flex flex-col items-center text-center">
             <SectionHeading
               eyebrow="Pricing"
               title="Pricing for bAV cash-outs"
             />
           </div>
           <div className="mx-auto mt-12 grid max-w-4xl gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl border border-neutral-400 bg-white p-8">
+            <div className="rounded-2xl border border-white/20 bg-black/20 p-8">
               <div className="flex flex-wrap items-center gap-3">
                 <div>
-                  <span className="text-4xl font-bold text-brand">€199</span>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <span className="text-4xl font-bold text-accent">€199</span>
+                  <p className="mt-1 text-sm text-white/70">
                     deposit credited toward your service fee
                   </p>
                 </div>
-                <span className="text-2xl font-bold text-gray-400">+</span>
+                <span className="text-2xl font-bold text-white/50">+</span>
                 <div>
-                  <span className="text-4xl font-bold text-brand">9.75%</span>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <span className="text-4xl font-bold text-accent">9.75%</span>
+                  <p className="mt-1 text-sm text-white/70">
                     success fee only if approved
                   </p>
                 </div>
               </div>
-              <p className="mt-6 text-base leading-relaxed text-gray-600">
+              <p className="mt-6 text-base leading-relaxed text-white/75">
                 The €199 deposit activates the full digital cash-out process.
               </p>
-              <p className="mt-4 text-base leading-relaxed text-gray-600">
+              <p className="mt-4 text-base leading-relaxed text-white/75">
                 If approved, the provider pays the money directly to the bank
                 account you provide. CompanyPension does not receive, hold or
                 forward approved pension money.
               </p>
-              <p className="mt-6 text-base font-semibold text-brand">
+              <p className="mt-6 text-base font-semibold text-white">
                 If the cash-out is approved:
               </p>
               <div className="mt-4">
                 <CheckList
+                  tone="dark"
                   items={[
                     'The success fee is 9.75% of the approved amount',
                     'The minimum total service fee is €199',
@@ -843,18 +880,19 @@ export default function CompanyPensionCashOutPage() {
               </div>
               <div className="mt-8 flex flex-wrap gap-4">
                 <ArrowLink href={START_HREF}>Start my cash-out</ArrowLink>
-                <SecondaryLink href={PRICING_HREF}>
+                <SecondaryLink href={PRICING_HREF} tone="dark">
                   See full pricing
                 </SecondaryLink>
               </div>
             </div>
             <div className="flex flex-col gap-6">
-              <div className="rounded-2xl border border-neutral-400 bg-white p-8">
-                <p className="text-lg font-semibold text-brand">
+              <div className="rounded-2xl border border-white/20 bg-black/20 p-8">
+                <p className="text-lg font-semibold text-white">
                   What the deposit activates
                 </p>
                 <div className="mt-6">
                   <CheckList
+                    tone="dark"
                     items={[
                       'Secure claim account',
                       'Pension-document upload',
@@ -870,18 +908,21 @@ export default function CompanyPensionCashOutPage() {
                   />
                 </div>
               </div>
-              <div className="rounded-2xl border border-neutral-400 bg-white p-8">
-                <p className="text-lg font-semibold text-brand">
+              <div className="rounded-2xl border border-white/20 bg-black/20 p-8">
+                <p className="text-lg font-semibold text-white">
                   If no cash-out request can be submitted
                 </p>
-                <p className="mt-3 text-base leading-relaxed text-gray-600">
+                <p className="mt-3 text-base leading-relaxed text-white/75">
                   If the cash-out cannot be submitted after the digital case and
                   document review:
                 </p>
                 <div className="mt-4">
-                  <CheckList items={['€79 is retained', '€120 is refunded']} />
+                  <CheckList
+                    tone="dark"
+                    items={['€79 is retained', '€120 is refunded']}
+                  />
                 </div>
-                <p className="mt-4 text-base leading-relaxed text-gray-600">
+                <p className="mt-4 text-base leading-relaxed text-white/75">
                   The retained €79 covers the secure claim setup, document
                   extraction and case review.
                 </p>
@@ -962,26 +1003,30 @@ export default function CompanyPensionCashOutPage() {
         </div>
       </section>
 
-      {/* ---- FAQ (Figma 1264:2503) ----
-          FAQ_ANSWER_PENDING: every FAQ item in this frame is a component
-          instance carrying lorem defaults ("How do I pay for the…", "You can pay
-          with a c…", "My team wants to can…"). Questions and answers are
-          UNVERIFIABLE from the XML and must not be invented — filled in a
-          backfill pass once Figma access is restored. */}
-      <section className="bg-neutral-50">
+      {/* ---- FAQ (Figma 1264:2503) — answers from the shared FAQ master copy via faqItems.tsx (FAQ CompanyPension 22062026.pdf) ---- */}
+      <section className="bg-[#f3f4f4]">
         <div className={`${CONTAINER} py-20 sm:py-24`}>
           <div className="flex flex-col items-center text-center text-brand">
             <SectionHeading
               eyebrow="FAQ"
+              eyebrowWidth={FAQ_EYEBROW_WIDTH}
               title="Company pension cash-out: common questions"
             />
           </div>
-          <div className="mx-auto mt-12 max-w-3xl">
-            <InfoNote>
-              FAQ content for this page is pending. The questions and answers in
-              the source design are placeholder component instances and will be
-              added once the final copy is available.
-            </InfoNote>
+          <div className="mx-auto mt-12 max-w-4xl">
+            <FaqAccordion
+              items={[
+                FAQ.cashOutAfterLeaving,
+                FAQ.smallBav2026,
+                FAQ.vestedBavPayout,
+                FAQ.drvHelpsBav,
+                FAQ.whichProviders,
+                FAQ.everyProviderLumpSum,
+                FAQ.employerApproval,
+                FAQ.healthInsurance,
+              ]}
+              defaultOpenIndex={0}
+            />
           </div>
           <div className="mt-10 flex justify-center">
             <Link
@@ -1046,7 +1091,7 @@ export default function CompanyPensionCashOutPage() {
 
       {/* ---- IMPORTANT INFORMATION (Figma 1265:2750) ---- */}
       <ImportantCallout>
-        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
           A digital application platform—not a pension advisor or claims agent
         </h2>
         <p className="mt-6 text-base leading-relaxed text-gray-600">

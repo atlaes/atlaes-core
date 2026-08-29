@@ -26,9 +26,7 @@ test('reviews shows testimonials and rating summary', async ({ page }) => {
   await expect(page.getByText('David R.')).toBeVisible();
   // Third-party rating summary now uses the real platform badges (the Google
   // "4.9" rating is baked into the exported logo image), so assert the badge.
-  await expect(
-    page.getByRole('img', { name: /google rating/i })
-  ).toBeVisible();
+  await expect(page.getByRole('img', { name: /google rating/i })).toBeVisible();
 });
 
 test('reviews closing CTA links to the funnel', async ({ page }) => {
@@ -39,4 +37,20 @@ test('reviews closing CTA links to the funnel', async ({ page }) => {
   await expect(
     page.getByRole('link', { name: 'View pricing' })
   ).toHaveAttribute('href', '/pricing');
+});
+
+test('reviews uses equal approved CTA dimensions in the digital-process band', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/reviews');
+
+  const section = page
+    .getByRole('heading', { name: 'Built for online pension applications' })
+    .locator('xpath=ancestor::section[1]');
+  for (const name of ['See how it works', 'View pricing']) {
+    const action = section.getByRole('link', { name });
+    await expect(action).toHaveCSS('width', '345px');
+    await expect(action).toHaveCSS('height', '63px');
+  }
 });

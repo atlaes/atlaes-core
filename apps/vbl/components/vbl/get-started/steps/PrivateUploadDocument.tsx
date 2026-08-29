@@ -4,7 +4,6 @@ import React, { useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  Check,
   ChevronDown,
   FileText,
   Info,
@@ -237,33 +236,6 @@ const FooterActions: React.FC<{
   </div>
 );
 
-const RefundStatusOption: React.FC<{
-  value: Exclude<PrivateStatePensionRefundReceivedType, ''>;
-  selected: boolean;
-  onSelect: () => void;
-  children: React.ReactNode;
-}> = ({ selected, onSelect, children }) => (
-  <button
-    type="button"
-    aria-pressed={selected}
-    onClick={onSelect}
-    className={`flex min-h-[76px] w-full items-center gap-3 rounded-[7px] border px-5 py-4 text-left text-[15px] font-bold transition ${
-      selected
-        ? 'border-[#5A9A23] bg-[#9FE870] text-[#163300]'
-        : 'border-[#D6DCE3] bg-[#EFF2F0] text-[#3F464F] hover:border-[#5A9A23]'
-    }`}
-  >
-    <span
-      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${
-        selected ? 'bg-[#163300]' : 'border border-[#C6CED6] bg-white'
-      }`}
-    >
-      {selected && <Check className="h-2.5 w-2.5 text-white" />}
-    </span>
-    {children}
-  </button>
-);
-
 export const PrivateUploadDocument: React.FC = () => {
   const { data, goBack, goNext } = useEligibility();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -368,36 +340,35 @@ export const PrivateUploadDocument: React.FC = () => {
             Have you already received your German state pension refund?
           </h2>
           <div className="mx-auto mt-3 h-px w-full max-w-[560px] bg-[#D9DEE7]" />
+          {/* Figma 1156-3069 (tester feedback 2026-08-04): one-line subtitle
+              and plain Yes/No buttons, matching the manual step. */}
           <p className="mx-auto mt-4 max-w-[560px] text-[16px] leading-6 text-[#4B5563]">
-            For some bAV cash-outs, an approved German state pension refund can
-            be important — especially if the pension amount is above the usual
-            small-benefit range.
+            This means a refund of your DRV / Deutsche Rentenversicherung
+            contributions.
           </p>
         </div>
 
-        <div className="mx-auto max-w-[560px] space-y-3">
-          <RefundStatusOption
-            value="yes"
-            selected={form.statePensionRefundReceived === 'yes'}
-            onSelect={() => updateForm({ statePensionRefundReceived: 'yes' })}
-          >
-            Yes, my German state pension refund has been approved
-          </RefundStatusOption>
-          <RefundStatusOption
-            value="no"
-            selected={form.statePensionRefundReceived === 'no'}
-            onSelect={() => updateForm({ statePensionRefundReceived: 'no' })}
-          >
-            No, I have not received a German state pension refund
-          </RefundStatusOption>
-        </div>
-
-        <div className="mx-auto mt-5 flex max-w-[560px] items-start gap-2 text-left text-[14px] leading-5 text-[#4B5563]">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#4B5563]" />
-          <p>
-            A DRV refund does not include your bAV. It can only matter as part
-            of a separate bAV cash-out request.
-          </p>
+        <div className="mb-6 flex justify-center gap-4">
+          {(['yes', 'no'] as const).map((value) => {
+            const isSelected = form.statePensionRefundReceived === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() =>
+                  updateForm({ statePensionRefundReceived: value })
+                }
+                className={`h-10 w-[168px] rounded-[7px] border text-[14px] font-medium transition-all ${
+                  isSelected
+                    ? 'border-[#163300] bg-[#9FE870] text-[#163300]'
+                    : 'border-[#D6DCE3] bg-[#EFF2F0] text-[#163300] hover:border-[#163300]'
+                }`}
+              >
+                {value === 'yes' ? 'Yes' : 'No'}
+              </button>
+            );
+          })}
         </div>
 
         <FooterActions

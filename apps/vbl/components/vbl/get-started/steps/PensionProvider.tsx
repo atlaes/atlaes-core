@@ -1,26 +1,23 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 import { useEligibility } from '@/contexts/EligibilityContext';
 import { PensionProviderType } from '@/components/vbl/get-started/flows';
-import { PUBLIC_PENSION_PROVIDERS_BY_STATE } from '@/components/vbl/company-pension-providers';
+
+// Figma 454-10444 (tester feedback 2026-08-04): the manual check always
+// offers VBL and ZVK, independent of the selected federal state. Selecting
+// ZVK ends on the rejection screen (flows/public-sector.ts). The
+// state-specific provider names remain in company-pension-providers.ts for
+// the calculator and the upload path.
+const PROVIDERS: PensionProviderType[] = ['VBL', 'ZVK'];
 
 export const PensionProvider: React.FC = () => {
   const { data, goNext } = useEligibility();
   const [selected, setSelected] = useState<PensionProviderType>(
     data.pensionProvider || ''
   );
-  const providers = useMemo(
-    () => PUBLIC_PENSION_PROVIDERS_BY_STATE[data.federalState] || [],
-    [data.federalState]
-  );
-
-  useEffect(() => {
-    if (selected && !providers.includes(selected)) {
-      setSelected('');
-    }
-  }, [providers, selected]);
+  const providers = PROVIDERS;
 
   const handleContinue = () => {
     if (!selected) return;
@@ -46,9 +43,7 @@ export const PensionProvider: React.FC = () => {
       <div className="relative">
         <select
           value={selected}
-          onChange={(e) =>
-            setSelected(e.target.value as PensionProviderType)
-          }
+          onChange={(e) => setSelected(e.target.value as PensionProviderType)}
           className="h-12 w-full cursor-pointer appearance-none rounded-[8px] border border-[#D3DAE8] bg-white px-4 pr-10 text-[16px] text-[#1F2937] shadow-sm transition-all focus:border-[#9FE870] focus:outline-none focus:ring-2 focus:ring-[#9FE870]/20"
         >
           <option value="">Select company pension</option>
