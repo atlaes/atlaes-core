@@ -49,14 +49,26 @@ const api = async (url) => {
   return res.json();
 };
 
-// Collect every frame/component node worth comparing, with its page name.
-const collectFrames = (node, page, out) => {
+// Collect frames worth comparing, with their page name.
+//
+// Visibility is INHERITED: this file keeps superseded design work on the canvas
+// with the top-level group toggled off, so a visible-looking text node can sit
+// inside a hidden ancestor. Reading such a node as current spec is how you end
+// up implementing a design decision that was reversed months ago — so hidden
+// subtrees are skipped wholesale and only counted.
+const collectFrames = (node, page, out, hidden = false, stats = null) => {
   if (!node) return out;
+  const isHidden = hidden || node.visible === false;
   if (['FRAME', 'COMPONENT', 'COMPONENT_SET'].includes(node.type)) {
-    out.push({ id: node.id, name: node.name, page });
+    if (isHidden) {
+      if (stats) stats.hiddenFrames += 1;
+    } else {
+      out.push({ id: node.id, name: node.name, page });
+    }
   }
+  // Descend even when hidden so the skipped count is accurate.
   for (const child of node.children ?? []) {
-    collectFrames(child, page, out);
+    collectFrames(child, page, out, isHidden, stats);
   }
   return out;
 };
@@ -102,10 +114,14 @@ const main = async () => {
   console.log(`  version:      ${file.version}\n`);
 
   const frames = [];
+  const stats = { hiddenFrames: 0 };
   for (const page of file.document.children ?? []) {
-    collectFrames(page, page.name, frames);
+    collectFrames(page, page.name, frames, false, stats);
   }
   console.log(`Live frames discovered: ${frames.length}`);
+  console.log(
+    `Hidden frames skipped:  ${stats.hiddenFrames} (superseded design — not spec)`
+  );
 
   const exports = listExports();
   console.log(`Committed exports:      ${exports.size}\n`);
