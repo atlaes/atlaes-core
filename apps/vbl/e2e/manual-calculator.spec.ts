@@ -171,8 +171,22 @@ async function chooseUpload(page: Page, pensionName: string) {
       name: 'Upload a pension document or enter details manually',
     })
   ).toBeVisible();
-  const fileChooserPromise = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: /Upload document/ }).click();
+  await continueButton(page).click();
+
+  // The dedicated upload step (Figma 1428:1295 / 1428:1395) sits between the
+  // entry-method choice and the extracted-details review.
+  await expect(
+    page.getByRole('heading', {
+      name: /Upload your (VBL\/ZVK|VddB\/VddKO) document/,
+    })
+  ).toBeVisible();
+  await expect(
+    page.getByText('Accepted formats: PDF, JPG, PNG')
+  ).toBeVisible();
+
+  const fileChooserPromise = page.waitForEvent('filechooser');
+  await page.getByTestId('calculator-upload-dropzone').click();
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles({
     name: 'vbl-statement.pdf',

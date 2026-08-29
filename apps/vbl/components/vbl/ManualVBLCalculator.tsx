@@ -13,7 +13,6 @@ import {
   Clock,
   FileText,
   Info,
-  Loader2,
   MessageCircle,
   Pencil,
   Upload,
@@ -43,6 +42,7 @@ type YesNo = 'yes' | 'no' | '';
 type CalculatorScreen =
   | 'pension-type'
   | 'entry-method'
+  | 'upload'
   | 'upload-review'
   | 'federal-state'
   | 'provider'
@@ -240,6 +240,18 @@ const monthToNumber = (month: string) =>
   String(MONTHS.indexOf(month) + 1).padStart(2, '0');
 
 // Everything from the estimate onwards belongs to the last sidebar step.
+// Copy for the dedicated upload step (Figma "Upload screen for VBL/ZVK"
+// 1428:1295 and "Upload screen for VddB/VddKO" 1428:1395).
+const getUploadScreenTitle = (pensionType: PensionType) =>
+  pensionType === 'stage'
+    ? 'Upload your VddB/VddKO document'
+    : 'Upload your VBL/ZVK document';
+
+const getUploadScreenSubtitle = (pensionType: PensionType) =>
+  pensionType === 'stage'
+    ? 'Upload a VddB, VddKO, Bühnenversorgung or Kulturorchester document so we can pre-fill details for your estimate.'
+    : 'Upload a VBL or ZVK letter, statement or pension document so we can pre-fill details for your estimate.';
+
 const ESTIMATE_SECTION_SCREENS: CalculatorScreen[] = [
   'result',
   'eligibility-questions',
@@ -962,7 +974,8 @@ export const ManualVBLCalculator: React.FC = () => {
 
   const goBack = () => {
     if (screen === 'entry-method') setScreen('pension-type');
-    else if (screen === 'upload-review') setScreen('entry-method');
+    else if (screen === 'upload') setScreen('entry-method');
+    else if (screen === 'upload-review') setScreen('upload');
     else if (screen === 'federal-state') setScreen('entry-method');
     else if (screen === 'provider') setScreen('federal-state');
     else if (screen === 'period') setScreen('provider');
@@ -1082,10 +1095,12 @@ export const ManualVBLCalculator: React.FC = () => {
       setScreen('entry-method');
     } else if (screen === 'entry-method') {
       if (form.entryMethod === 'upload') {
-        void extractSelectedUpload();
+        setScreen('upload');
       } else {
         setScreen('federal-state');
       }
+    } else if (screen === 'upload') {
+      void extractSelectedUpload();
     } else if (screen === 'upload-review') {
       if (form.vblPlan === 'VBLextra') {
         setScreen('vested');
@@ -1169,6 +1184,7 @@ export const ManualVBLCalculator: React.FC = () => {
   const canContinue =
     (screen === 'pension-type' && form.pensionType !== '') ||
     (screen === 'entry-method' && form.entryMethod !== '') ||
+    (screen === 'upload' && selectedUploadFile !== null) ||
     (screen === 'upload-review' &&
       getSelectedProvider(form) !== '' &&
       // Extraction can return VBL without a plan; without this the VBLextra
@@ -1294,29 +1310,20 @@ export const ManualVBLCalculator: React.FC = () => {
               <FormShell
                 title="Upload a pension document or enter details manually"
                 subtitle="Upload your pension statement for a faster estimate, or answer a few questions yourself."
-                canContinue={canContinue && !isExtracting}
+                canContinue={canContinue}
                 onBack={goBack}
                 onContinue={handleContinue}
-                continueText={isExtracting ? 'Reading document' : 'Continue'}
               >
                 <div className="space-y-4">
                   <CardButton
                     selected={form.entryMethod === 'upload'}
-                    icon={
-                      isExtracting ? (
-                        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-                      ) : (
-                        <Upload className="h-8 w-8 text-gray-400" />
-                      )
-                    }
+                    icon={<Upload className="h-8 w-8 text-gray-400" />}
                     title="Upload document"
                     description="Use your pension document to pre-fill details for the estimate."
                     onClick={() => {
                       updateForm({ entryMethod: 'upload' });
                       setExtractionError('');
-                      uploadInputRef.current?.click();
                     }}
-                    disabled={isExtracting}
                     testId="entry-method-card"
                   />
                   <CardButton
@@ -1342,6 +1349,52 @@ export const ManualVBLCalculator: React.FC = () => {
                     }}
                     testId="entry-method-card"
                   />
+                  <div className="flex items-start gap-2 px-1 text-center text-sm leading-5 text-gray-600">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                    <p>
+                      You can upload only the relevant page and hide details
+                      that are not needed for this check. If you continue with a
+                      refund request, the document can be carried into your
+                      secure claim.
+                    </p>
+                  </div>
+                </div>
+              </FormShell>
+            )}
+
+            {screen === 'upload' && (
+              <FormShell
+                title={getUploadScreenTitle(form.pensionType)}
+                subtitle={getUploadScreenSubtitle(form.pensionType)}
+                canContinue={canContinue && !isExtracting}
+                onBack={goBack}
+                onContinue={handleContinue}
+                continueText={isExtracting ? 'Reading document' : 'Continue'}
+              >
+                <div className="space-y-4">
+                  <button
+                    type="button"
+                    data-testid="calculator-upload-dropzone"
+                    onClick={() => uploadInputRef.current?.click()}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const file = event.dataTransfer.files?.[0];
+                      if (!file) return;
+                      setSelectedUploadFile(file);
+                      setExtractionError('');
+                    }}
+                    disabled={isExtracting}
+                    className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-[#D7DCE8] bg-white px-6 py-10 text-center transition hover:border-[#9FE870] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Upload className="h-8 w-8 text-gray-400" />
+                    <span className="font-semibold text-[#163300]">
+                      Drag and drop your file here or browse
+                    </span>
+                    <span className="text-sm text-gray-600">
+                      Accepted formats: PDF, JPG, PNG
+                    </span>
+                  </button>
                   <input
                     ref={uploadInputRef}
                     name="pensionDocument"
@@ -1370,9 +1423,7 @@ export const ManualVBLCalculator: React.FC = () => {
                     <Info className="mt-0.5 h-4 w-4 shrink-0" />
                     <p>
                       You can upload only the relevant page and hide details
-                      that are not needed for this check. If you continue with a
-                      refund request, the document can be carried into your
-                      secure claim.
+                      that are not needed for this check.
                     </p>
                   </div>
                 </div>
