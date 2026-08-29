@@ -252,6 +252,90 @@ const getUploadScreenSubtitle = (pensionType: PensionType) =>
     ? 'Upload a VddB, VddKO, Bühnenversorgung or Kulturorchester document so we can pre-fill details for your estimate.'
     : 'Upload a VBL or ZVK letter, statement or pension document so we can pre-fill details for your estimate.';
 
+// Screens the approved design draws under the four-step onboarding header
+// instead of the calculator's own three-step sidebar. Everything from the
+// post-estimate questionnaire onward sits in the "Check" stage of the wider
+// claim journey (Figma 1858:1682, 1858:1868, 1858:1991, 2073:11191 and the
+// waiting/reminder/stopped frames).
+const ONBOARDING_HEADER_SCREENS: CalculatorScreen[] = [
+  'stage-post2018',
+  'stage-post2001',
+  'eligibility-questions',
+  'ready',
+  'waiting',
+  'not-startable',
+  'blocked',
+  'vested',
+];
+
+const CALCULATOR_JOURNEY_STEPS = [
+  'Check',
+  'Secure Claim',
+  'Complete Details',
+  'Sign & Submit',
+];
+
+// The calculator only ever occupies step 1; the later steps belong to the
+// onboarding flow it hands off to.
+const CalculatorJourneyHeader: React.FC = () => (
+  <div
+    className="rounded-[18px] px-8 pt-6 pb-5"
+    style={{ backgroundColor: '#163300' }}
+    data-testid="calculator-journey-header"
+  >
+    <div className="mb-6 flex items-center justify-center gap-3">
+      <CompanyPensionLogo className="h-auto w-[220px]" />
+    </div>
+    <div className="mb-6 h-px w-full bg-white/20" />
+    <div className="flex items-center justify-center">
+      {CALCULATOR_JOURNEY_STEPS.map((label, index) => {
+        const isActive = index === 0;
+        return (
+          <React.Fragment key={label}>
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-2">
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
+                    isActive
+                      ? 'bg-[#9FE870] text-[#163300]'
+                      : 'border-2 border-white/70 text-white'
+                  }`}
+                >
+                  {index + 1}
+                </div>
+                <span
+                  className={`text-sm font-medium ${
+                    isActive ? 'text-[#9FE870]' : 'text-white'
+                  }`}
+                >
+                  {label}
+                </span>
+              </div>
+              <div className="mt-3">
+                {isActive ? (
+                  <div
+                    className="h-0 w-0"
+                    style={{
+                      borderLeft: '8px solid transparent',
+                      borderRight: '8px solid transparent',
+                      borderBottom: '8px solid white',
+                    }}
+                  />
+                ) : (
+                  <div className="h-2" />
+                )}
+              </div>
+            </div>
+            {index < CALCULATOR_JOURNEY_STEPS.length - 1 && (
+              <div className="mx-4 mb-3 h-0.5 w-20 bg-white/50" />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  </div>
+);
+
 const ESTIMATE_SECTION_SCREENS: CalculatorScreen[] = [
   'result',
   'eligibility-questions',
@@ -1215,14 +1299,11 @@ export const ManualVBLCalculator: React.FC = () => {
     calculation?.totalAmount ??
     calculation?.baseRefundAmount ??
     0;
-  // The final questionnaire is a full-width, centered screen in the approved
-  // design (Figma node 1858:1682) — it drops the calculator sidebar in favour
-  // of the onboarding step header. Applies to the stage variant of the same
-  // screen too, since it is the same layout with different copy.
-  const showSidebar =
-    screen !== 'stage-post2018' &&
-    screen !== 'stage-post2001' &&
-    screen !== 'eligibility-questions';
+  // From the post-estimate questionnaire onward the design swaps the
+  // calculator sidebar for the four-step journey header; the estimate itself
+  // and everything before it keep the sidebar.
+  const showJourneyHeader = ONBOARDING_HEADER_SCREENS.includes(screen);
+  const showSidebar = !showJourneyHeader;
 
   return (
     <div
@@ -1233,16 +1314,13 @@ export const ManualVBLCalculator: React.FC = () => {
       }}
     >
       <div
-        className={`flex min-h-[calc(100vh-24px)] md:min-h-[calc(100vh-32px)] ${
-          showSidebar ? 'gap-4' : ''
+        className={`flex min-h-[calc(100vh-24px)] gap-4 md:min-h-[calc(100vh-32px)] ${
+          showJourneyHeader ? 'flex-col' : ''
         }`}
       >
         {showSidebar && <CalculatorSidebar screen={screen} />}
-        <main
-          className={`flex rounded-[18px] bg-white p-6 shadow-lg md:p-10 ${
-            showSidebar ? 'flex-1' : 'w-full'
-          }`}
-        >
+        {showJourneyHeader && <CalculatorJourneyHeader />}
+        <main className="flex flex-1 rounded-[18px] bg-white p-6 shadow-lg md:p-10">
           <div className="flex min-h-full w-full items-start justify-center pt-8 md:pt-12">
             {screen === 'pension-type' && (
               <FormShell

@@ -499,20 +499,44 @@ test.describe('Manual VBL calculator', () => {
     await page.getByLabel('Average monthly gross salary (€)').fill('3500');
     await continueButton(page).click();
 
-    // The sidebar is present on the estimate screen ...
+    // The estimate screen keeps the three-step sidebar and has no journey
+    // header (Figma Screen 7A, 1428:2570).
     await expect(
       page.getByRole('heading', { name: 'Your estimated VBL/ZVK refund' })
     ).toBeVisible();
     await expect(page.getByTestId('calculator-sidebar')).toBeVisible();
+    await expect(page.getByTestId('calculator-journey-header')).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Start VBL/ZVK refund' }).click();
 
-    // ... and absent on the questionnaire, per Figma node 1858:1682.
+    // From the questionnaire onward the shells swap: sidebar out, four-step
+    // journey header in (Figma 1858:1682).
     await expect(
       page.getByRole('heading', {
         name: 'A few more details about your public-sector pension',
       })
     ).toBeVisible();
+    await expect(page.getByTestId('calculator-sidebar')).toHaveCount(0);
+    const header = page.getByTestId('calculator-journey-header');
+    await expect(header).toBeVisible();
+    for (const label of [
+      'Check',
+      'Secure Claim',
+      'Complete Details',
+      'Sign & Submit',
+    ]) {
+      await expect(header.getByText(label, { exact: true })).toBeVisible();
+    }
+
+    // ... and the outcome screen keeps that same shell (Figma 1858:1868).
+    await answerEligibilityQuestions(page, 'No');
+    await continueButton(page).click();
+    await expect(
+      page.getByRole('heading', {
+        name: 'Your refund can be started with CompanyPension',
+      })
+    ).toBeVisible();
+    await expect(page.getByTestId('calculator-journey-header')).toBeVisible();
     await expect(page.getByTestId('calculator-sidebar')).toHaveCount(0);
   });
 
