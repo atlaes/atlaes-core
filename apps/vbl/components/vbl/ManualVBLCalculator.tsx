@@ -1199,8 +1199,14 @@ export const ManualVBLCalculator: React.FC = () => {
     calculation?.totalAmount ??
     calculation?.baseRefundAmount ??
     0;
+  // The final questionnaire is a full-width, centered screen in the approved
+  // design (Figma node 1858:1682) — it drops the calculator sidebar in favour
+  // of the onboarding step header. Applies to the stage variant of the same
+  // screen too, since it is the same layout with different copy.
   const showSidebar =
-    screen !== 'stage-post2018' && screen !== 'stage-post2001';
+    screen !== 'stage-post2018' &&
+    screen !== 'stage-post2001' &&
+    screen !== 'eligibility-questions';
 
   return (
     <div

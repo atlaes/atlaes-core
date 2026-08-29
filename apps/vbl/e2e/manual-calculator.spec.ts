@@ -468,6 +468,40 @@ test.describe('Manual VBL calculator', () => {
     await expect(page).toHaveURL(/\/calculator\/onboarding/);
   });
 
+  test('drops the sidebar on the final public-pension questionnaire', async ({
+    page,
+  }) => {
+    await mockCalculation(page);
+    await mockPendingSession(page);
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    await chooseManual(page, 'VBL / ZVK refund');
+    await chooseDropdownOption(page, 'Employer’s federal state', 'Bavaria');
+    await continueButton(page).click();
+    await chooseDropdownOption(page, 'Company pension', 'VBL');
+    await page.getByRole('button', { name: 'VBLklassik' }).click();
+    await continueButton(page).click();
+    await enterContributionPeriod(page, 'January', '2020', 'December', '2021');
+    await page.getByLabel('Average monthly gross salary (€)').fill('3500');
+    await continueButton(page).click();
+
+    // The sidebar is present on the estimate screen ...
+    await expect(
+      page.getByRole('heading', { name: 'Your estimated VBL/ZVK refund' })
+    ).toBeVisible();
+    await expect(page.getByTestId('calculator-sidebar')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Start VBL/ZVK refund' }).click();
+
+    // ... and absent on the questionnaire, per Figma node 1858:1682.
+    await expect(
+      page.getByRole('heading', {
+        name: 'A few more details about your public-sector pension',
+      })
+    ).toBeVisible();
+    await expect(page.getByTestId('calculator-sidebar')).toHaveCount(0);
+  });
+
   test('stops the public flow when an eligibility question is answered yes', async ({
     page,
   }) => {
