@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { logger } from '../utils/logger';
 import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/admin';
+import { validateUuidParams } from '../middleware/validate-uuid';
 import { ClaimsApplicationService } from '../services/claims-application';
 import { getPresignedUrl } from '../utils/s3';
 
@@ -56,7 +57,7 @@ admin.get('/claims', async (c) => {
 // Claim Detail
 // ============================================================
 
-admin.get('/claims/:id', async (c) => {
+admin.get('/claims/:id', validateUuidParams('id'), async (c) => {
   try {
     const claimId = c.req.param('id');
 
@@ -91,7 +92,7 @@ admin.get('/claims/:id', async (c) => {
 // Claim Documents
 // ============================================================
 
-admin.get('/claims/:id/documents', async (c) => {
+admin.get('/claims/:id/documents', validateUuidParams('id'), async (c) => {
   try {
     const claimId = c.req.param('id');
     const documents =
@@ -111,7 +112,7 @@ admin.get('/claims/:id/documents', async (c) => {
 // Document Download (pre-signed URL)
 // ============================================================
 
-admin.get('/claims/:id/documents/:docId/download', async (c) => {
+admin.get('/claims/:id/documents/:docId/download', validateUuidParams('id', 'docId'), async (c) => {
   try {
     const documentId = c.req.param('docId');
 
@@ -145,7 +146,7 @@ admin.get('/claims/:id/documents/:docId/download', async (c) => {
 // Workflow History
 // ============================================================
 
-admin.get('/claims/:id/workflow', async (c) => {
+admin.get('/claims/:id/workflow', validateUuidParams('id'), async (c) => {
   try {
     const claimId = c.req.param('id');
     const history =
@@ -172,6 +173,7 @@ const updateStatusSchema = z.object({
 
 admin.put(
   '/claims/:id/status',
+  validateUuidParams('id'),
   zValidator('json', updateStatusSchema),
   async (c) => {
     try {
@@ -207,6 +209,7 @@ const addNoteSchema = z.object({
 
 admin.post(
   '/claims/:id/notes',
+  validateUuidParams('id'),
   zValidator('json', addNoteSchema),
   async (c) => {
     try {

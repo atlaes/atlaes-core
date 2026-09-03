@@ -3,6 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { logger } from '../utils/logger';
 import { authMiddleware } from '../middleware/auth';
+import { validateUuidParams } from '../middleware/validate-uuid';
 import {
   ClaimsApplicationService,
   ClaimData,
@@ -246,7 +247,7 @@ claims.get('/', authMiddleware, async (c) => {
 });
 
 // Get single claim by ID
-claims.get('/:id', authMiddleware, async (c) => {
+claims.get('/:id', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const claimId = c.req.param('id');
@@ -283,6 +284,7 @@ claims.get('/:id', authMiddleware, async (c) => {
 claims.put(
   '/:id',
   authMiddleware,
+  validateUuidParams('id'),
   zValidator('json', updateClaimSchema),
   async (c) => {
     try {
@@ -329,7 +331,7 @@ claims.put(
 );
 
 // Delete draft claim
-claims.delete('/:id', authMiddleware, async (c) => {
+claims.delete('/:id', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const claimId = c.req.param('id');
@@ -376,6 +378,7 @@ claims.delete('/:id', authMiddleware, async (c) => {
 claims.post(
   '/:id/documents',
   authMiddleware,
+  validateUuidParams('id'),
   zValidator('json', addDocumentSchema),
   async (c) => {
     try {
@@ -413,7 +416,7 @@ claims.post(
 );
 
 // Get all documents for claim
-claims.get('/:id/documents', authMiddleware, async (c) => {
+claims.get('/:id/documents', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const claimId = c.req.param('id');
@@ -441,7 +444,7 @@ claims.get('/:id/documents', authMiddleware, async (c) => {
 });
 
 // Remove document from claim
-claims.delete('/:id/documents/:docId', authMiddleware, async (c) => {
+claims.delete('/:id/documents/:docId', authMiddleware, validateUuidParams('id', 'docId'), async (c) => {
   try {
     const user = c.get('user');
     const claimId = c.req.param('id');
@@ -490,6 +493,7 @@ claims.delete('/:id/documents/:docId', authMiddleware, async (c) => {
 claims.post(
   '/:id/signature',
   authMiddleware,
+  validateUuidParams('id'),
   zValidator('json', attachSignatureSchema),
   async (c) => {
     try {
@@ -547,6 +551,7 @@ claims.post(
 claims.post(
   '/:id/stop',
   authMiddleware,
+  validateUuidParams('id'),
   zValidator('json', stopClaimSchema),
   async (c) => {
     try {
@@ -614,7 +619,7 @@ claims.post(
 // ============================================================
 
 // Get step completion status
-claims.get('/:id/steps', authMiddleware, async (c) => {
+claims.get('/:id/steps', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const claimId = c.req.param('id');
@@ -645,6 +650,7 @@ claims.get('/:id/steps', authMiddleware, async (c) => {
 claims.put(
   '/:id/steps/:stepName',
   authMiddleware,
+  validateUuidParams('id'),
   zValidator('json', stepCompletionSchema),
   async (c) => {
     try {
@@ -718,6 +724,7 @@ claims.put(
 claims.post(
   '/:id/workflow',
   authMiddleware,
+  validateUuidParams('id'),
   zValidator('json', workflowTransitionSchema),
   async (c) => {
     try {
@@ -765,7 +772,7 @@ claims.post(
 );
 
 // Get workflow history
-claims.get('/:id/workflow/history', authMiddleware, async (c) => {
+claims.get('/:id/workflow/history', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const claimId = c.req.param('id');
@@ -799,7 +806,7 @@ claims.get('/:id/workflow/history', authMiddleware, async (c) => {
 // ============================================================
 
 // Validate claim for submission
-claims.get('/:id/validate', authMiddleware, async (c) => {
+claims.get('/:id/validate', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const claimId = c.req.param('id');
@@ -827,7 +834,7 @@ claims.get('/:id/validate', authMiddleware, async (c) => {
 });
 
 // Submit claim
-claims.post('/:id/submit', authMiddleware, async (c) => {
+claims.post('/:id/submit', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const claimId = c.req.param('id');
@@ -861,7 +868,7 @@ claims.post('/:id/submit', authMiddleware, async (c) => {
 // ============================================================
 
 // Record identity form download
-claims.post('/:id/identity-form-downloaded', authMiddleware, async (c) => {
+claims.post('/:id/identity-form-downloaded', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const claimId = c.req.param('id');
@@ -920,7 +927,7 @@ claims.post('/:id/identity-form-downloaded', authMiddleware, async (c) => {
 // ============================================================
 
 // Generate (or regenerate) the combined claim PDF and return a download URL
-claims.post('/:id/generate-pdf', authMiddleware, async (c) => {
+claims.post('/:id/generate-pdf', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const claimId = c.req.param('id');
@@ -959,7 +966,7 @@ claims.post('/:id/generate-pdf', authMiddleware, async (c) => {
 });
 
 // Get a presigned download URL for the already-generated claim PDF
-claims.get('/:id/pdf', authMiddleware, async (c) => {
+claims.get('/:id/pdf', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const claimId = c.req.param('id');

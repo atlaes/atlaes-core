@@ -3,6 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { logger } from '../utils/logger';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
+import { validateUuidParams } from '../middleware/validate-uuid';
 import {
   GPRCalculationService,
   GPRCalculationInput,
@@ -345,7 +346,7 @@ gpr.get('/applications', authMiddleware, async (c) => {
 });
 
 // Get single application by ID (protected endpoint)
-gpr.get('/applications/:id', authMiddleware, async (c) => {
+gpr.get('/applications/:id', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const applicationId = c.req.param('id');
@@ -382,6 +383,7 @@ gpr.get('/applications/:id', authMiddleware, async (c) => {
 gpr.put(
   '/applications/:id',
   authMiddleware,
+  validateUuidParams('id'),
   zValidator('json', applicationUpdateSchema),
   async (c) => {
     try {

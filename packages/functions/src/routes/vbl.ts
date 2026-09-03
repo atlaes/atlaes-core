@@ -22,6 +22,7 @@ import {
   HealthInsuranceDocumentExtractionProviderError,
 } from '../services/health-insurance-document-extraction';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
+import { validateUuidParams } from '../middleware/validate-uuid';
 import { db } from '../utils/db';
 import { applications, calculationLogs } from '../drizzle/schema/vbl';
 import { eq, and } from 'drizzle-orm';
@@ -522,7 +523,7 @@ vbl.get('/applications', authMiddleware, async (c) => {
 });
 
 // Get specific application
-vbl.get('/applications/:id', authMiddleware, async (c) => {
+vbl.get('/applications/:id', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const applicationId = c.req.param('id');
@@ -568,6 +569,7 @@ vbl.get('/applications/:id', authMiddleware, async (c) => {
 vbl.put(
   '/applications/:id',
   authMiddleware,
+  validateUuidParams('id'),
   zValidator('json', applicationUpdateSchema),
   async (c) => {
     try {
@@ -625,7 +627,7 @@ vbl.put(
 );
 
 // Get calculation history for an application
-vbl.get('/applications/:id/calculations', authMiddleware, async (c) => {
+vbl.get('/applications/:id/calculations', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const applicationId = c.req.param('id');
@@ -672,7 +674,7 @@ vbl.get('/applications/:id/calculations', authMiddleware, async (c) => {
 });
 
 // Submit application for processing
-vbl.post('/applications/:id/submit', authMiddleware, async (c) => {
+vbl.post('/applications/:id/submit', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const applicationId = c.req.param('id');
