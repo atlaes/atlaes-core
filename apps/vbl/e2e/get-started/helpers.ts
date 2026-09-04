@@ -202,6 +202,25 @@ export async function completePublicFinalQuestions(
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
 }
 
+// Figma 2346-5922: the upload path ends on a two-question screen instead of
+// the manual four-question one.
+export async function completePublicUploadFinalQuestions(
+  page: Page,
+  answers: ('Yes' | 'No')[] = ['No', 'No']
+) {
+  await expect(
+    page.getByRole('heading', {
+      name: /A few more details about your (VBL|ZVK|VBL\/ZVK) insurance/,
+    })
+  ).toBeVisible({ timeout: 5_000 });
+  const fieldsets = page.locator('fieldset');
+  await expect(fieldsets).toHaveCount(answers.length);
+  for (let i = 0; i < answers.length; i++) {
+    await fieldsets.nth(i).getByLabel(answers[i], { exact: true }).check();
+  }
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+}
+
 export async function selectStagePensionDetails(
   page: Page,
   provider: 'VddB' | 'VddKO'

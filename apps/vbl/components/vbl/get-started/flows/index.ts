@@ -67,6 +67,10 @@ export interface EligibilityData {
   publicOtherInstitution: 'yes' | 'no' | '';
   publicPriorRefund: 'yes' | 'no' | '';
   publicCivilServant: 'yes' | 'no' | '';
+  // Upload-path questionnaire (Figma 2346-5922) — the two-question gate shown
+  // after the extracted document details are confirmed; any 'yes' blocks
+  publicUploadDisabled: 'yes' | 'no' | '';
+  publicUploadMandatoryInsurance: 'yes' | 'no' | '';
   // Stage-specific
   stageEntryPath: StageEntryPathType;
   stageContributionDuration: StageContributionDurationType;
@@ -99,6 +103,7 @@ export type StepId =
   | 'pension_scheme'
   | 'contribution_period'
   | 'contribution_duration'
+  | 'public_upload_final_questions'
   | 'public_final_questions'
   | 'stage_pension_details'
   | 'stage_contribution_duration'

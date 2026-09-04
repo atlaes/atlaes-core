@@ -37,6 +37,8 @@ const initialData: EligibilityData = {
   publicOtherInstitution: '',
   publicPriorRefund: '',
   publicCivilServant: '',
+  publicUploadDisabled: '',
+  publicUploadMandatoryInsurance: '',
   stageEntryPath: '',
   stageContributionDuration: '',
   stagePost2001ContributionDuration: '',
@@ -127,7 +129,10 @@ export function EligibilityProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setData(persisted.data);
+    // Merge over the defaults so a blob persisted before a field was added
+    // still yields every key (missing answers read as '' rather than
+    // undefined).
+    setData({ ...initialData, ...persisted.data });
     setCurrentStepIndex(persisted.currentStepIndex);
     setStepHistory(persisted.stepHistory);
     setResult(persisted.result);

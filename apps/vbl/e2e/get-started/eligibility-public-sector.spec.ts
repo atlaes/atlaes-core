@@ -10,6 +10,7 @@ import {
   selectContributionPeriod,
   selectContributionDuration,
   completePublicFinalQuestions,
+  completePublicUploadFinalQuestions,
   expectEligibleResult,
   expectNotEligibleResult,
 } from './helpers';
@@ -145,10 +146,57 @@ test.describe('Public Sector Eligibility', () => {
     ).toHaveValue('Bavaria');
 
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
-    // Figma 1858-711: the final questionnaire is the last gate for every
-    // public path, upload included.
-    await completePublicFinalQuestions(page);
+    // Figma 2346-5922: the upload path ends on its own two-question gate,
+    // titled after the confirmed scheme, not the manual four-question one.
+    await expect(
+      page.getByRole('heading', {
+        name: 'A few more details about your VBL insurance',
+      })
+    ).toBeVisible({ timeout: 5_000 });
+    await expect(
+      page.getByText(
+        'Are you currently occupationally disabled or unable to work?'
+      )
+    ).toBeVisible();
+    await expect(
+      page.getByText(/subject to mandatory insurance with another/)
+    ).toBeVisible();
+    await expect(
+      page.getByText(/did you work for another German public-sector employer/)
+    ).toHaveCount(0);
+    await completePublicUploadFinalQuestions(page);
     await expectEligibleResult(page);
+  });
+
+  test('uploaded document: any Yes on the upload questionnaire → cannot be started', async ({
+    page,
+  }) => {
+    await mockPublicUploadExtraction(page, {
+      provider: 'VBL',
+      vblPlan: 'VBLklassik',
+      federalState: 'Bavaria',
+      startMonth: 'January',
+      startYear: '2016',
+      endMonth: 'December',
+      endYear: '2017',
+      employmentEndMonth: 'December',
+      employmentEndYear: '2017',
+    });
+
+    await navigateToGetStarted(page);
+    await selectEmploymentType(page, 'VBL / ZVK Refund');
+    await selectPublicEntryPath(page, 'Upload document');
+    await uploadPublicPensionDocument(page);
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+
+    // Figma 2346-6081 "Any Yes" → 2346-6090: the rejection says "started".
+    await completePublicUploadFinalQuestions(page, ['No', 'Yes']);
+    await expectNotEligibleResult(page);
+    await expect(
+      page.getByRole('heading', {
+        name: 'This refund cannot currently be started with CompanyPension',
+      })
+    ).toBeVisible();
   });
 
   test('uploaded ZVK document asks only missing needed fields and hides VBL plan', async ({
@@ -197,7 +245,12 @@ test.describe('Public Sector Eligibility', () => {
     await page.getByLabel('End year', { exact: true }).selectOption('2017');
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
-    await completePublicFinalQuestions(page);
+    await expect(
+      page.getByRole('heading', {
+        name: 'A few more details about your ZVK insurance',
+      })
+    ).toBeVisible({ timeout: 5_000 });
+    await completePublicUploadFinalQuestions(page);
     await expectEligibleResult(page);
   });
 

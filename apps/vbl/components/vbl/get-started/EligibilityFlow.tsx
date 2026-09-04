@@ -13,6 +13,7 @@ import { PensionScheme } from './steps/PensionScheme';
 import { ContributionPeriod } from './steps/ContributionPeriod';
 import { ContributionDuration } from './steps/ContributionDuration';
 import { PublicFinalQuestions } from './steps/PublicFinalQuestions';
+import { PublicUploadFinalQuestions } from './steps/PublicUploadFinalQuestions';
 import { StagePensionDetails } from './steps/StagePensionDetails';
 import { StageContributionDuration } from './steps/StageContributionDuration';
 import { StageUploadDocument } from './steps/StageUploadDocument';
@@ -31,6 +32,7 @@ const STEP_COMPONENTS: Record<string, React.FC> = {
   pension_scheme: PensionScheme,
   contribution_period: ContributionPeriod,
   contribution_duration: ContributionDuration,
+  public_upload_final_questions: PublicUploadFinalQuestions,
   public_final_questions: PublicFinalQuestions,
   // Stage steps
   stage_entry_path: PublicEntryPath,

@@ -24,6 +24,17 @@ const PUBLIC_FINAL_QUESTION_FIELDS = [
   'publicCivilServant',
 ] as const;
 
+// Figma 2346-5922: the upload path ends on its own two-question screen
+// instead of the manual four-question one.
+const PUBLIC_UPLOAD_FINAL_QUESTION_FIELDS = [
+  'publicUploadDisabled',
+  'publicUploadMandatoryInsurance',
+] as const;
+
+function isUploadPath(data: EligibilityData): boolean {
+  return data.publicEntryPath === 'upload';
+}
+
 function endedInOrAfter2018(data: EligibilityData): boolean {
   const endYear = Number(data.employmentEndYear);
   return Number.isFinite(endYear) && endYear >= 2018;
@@ -86,11 +97,27 @@ export const publicSectorFlow: FlowConfig = {
     'contribution_period',
     'contribution_duration',
     'public_final_questions',
+    // Appended after the manual questionnaire on purpose: the two final
+    // steps are mutually exclusive by entry path (see shouldSkipStep), so
+    // order is irrelevant, and keeping the earlier indices stable means a
+    // sessionStorage snapshot persisted before this step existed still
+    // resumes on the right screen.
+    'public_upload_final_questions',
   ],
 
   shouldSkipStep(stepId: StepId, data: EligibilityData): boolean {
     if (stepId === 'public_upload') {
-      return data.publicEntryPath !== 'upload';
+      return !isUploadPath(data);
+    }
+
+    // Figma 2346-5922 / 2346-6081: the upload path gets the two-question
+    // "[VBL/ZVK] insurance" gate and never sees the manual four-question
+    // screen (Figma 2346-3635), which stays exclusive to the manual path.
+    if (stepId === 'public_upload_final_questions') {
+      return !isUploadPath(data);
+    }
+    if (stepId === 'public_final_questions') {
+      return isUploadPath(data);
     }
 
     if (
@@ -172,9 +199,21 @@ export const publicSectorFlow: FlowConfig = {
         }
         return null;
 
-      // Figma 1858-711 → 1858-1192: any 'yes' on the final questionnaire
-      // blocks the refund. Runs for the upload path too — it is the final
-      // gate for every public-sector path.
+      // Figma 2346-5922 → 2346-6090 ("Any Yes"): the upload-path
+      // questionnaire is the final gate for uploaded documents.
+      case 'public_upload_final_questions':
+        if (
+          PUBLIC_UPLOAD_FINAL_QUESTION_FIELDS.some(
+            (field) => data[field] === 'yes'
+          )
+        ) {
+          return { title: CANNOT_BE_STARTED, message: '' };
+        }
+        return null;
+
+      // Figma 1858-711 → 1858-1192 (now 2346-3635 → 2346-5804): any 'yes'
+      // on the final questionnaire blocks the refund. Manual path only — the
+      // upload path is gated by 'public_upload_final_questions' above.
       case 'public_final_questions':
         if (
           PUBLIC_FINAL_QUESTION_FIELDS.some((field) => data[field] === 'yes')
