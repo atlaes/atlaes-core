@@ -26,10 +26,7 @@ import {
   PensionDocumentType,
 } from '../../lib/vbl-pension-document-extraction-api';
 import { CompanyPensionLogo } from './icons/CompanyPensionLogo';
-import {
-  PUBLIC_FEDERAL_STATES,
-  PUBLIC_PENSION_PROVIDERS_BY_STATE,
-} from './company-pension-providers';
+import { PUBLIC_FEDERAL_STATES } from './company-pension-providers';
 
 type PensionType = 'public' | 'stage' | '';
 type EntryMethod = 'manual' | 'upload' | '';
@@ -204,10 +201,14 @@ const getUploadFederalStates = (pensionType: PensionType) =>
     ? ['Berlin', ...ALL_FEDERAL_STATES]
     : ['Berlin', ...PUBLIC_FEDERAL_STATES, ...EAST_STATES];
 
+// Figma 1428:2110 ("Select your company pension"): the public dropdown always
+// offers VBL and ZVK, on both the manual and the upload-review path. The
+// state-specific institution names (e.g. 'ZVK (KVBW)') belong to the
+// onboarding membership step, not to the estimate.
+const PUBLIC_PROVIDER_OPTIONS: PublicProvider[] = ['VBL', 'ZVK'];
+
 const getProviderOptions = (form: ManualFormData) =>
-  form.pensionType === 'stage'
-    ? ['VddB', 'VddKO']
-    : (PUBLIC_PENSION_PROVIDERS_BY_STATE[form.federalState] ?? ['VBL']);
+  form.pensionType === 'stage' ? ['VddB', 'VddKO'] : PUBLIC_PROVIDER_OPTIONS;
 
 const YEARS = Array.from(
   { length: new Date().getFullYear() - 2004 + 1 },
@@ -1565,13 +1566,7 @@ export const ManualVBLCalculator: React.FC = () => {
                   <SelectField
                     label="German federal state"
                     value={form.federalState}
-                    onChange={(value) =>
-                      updateForm({
-                        federalState: value,
-                        publicProvider: '',
-                        vblPlan: '',
-                      })
-                    }
+                    onChange={(value) => updateForm({ federalState: value })}
                     options={getUploadFederalStates(form.pensionType)}
                     placeholder="Select federal state"
                   />
@@ -1692,13 +1687,7 @@ export const ManualVBLCalculator: React.FC = () => {
                 <SelectField
                   label="Employer’s federal state"
                   value={form.federalState}
-                  onChange={(value) =>
-                    updateForm({
-                      federalState: value,
-                      publicProvider: '',
-                      vblPlan: '',
-                    })
-                  }
+                  onChange={(value) => updateForm({ federalState: value })}
                   options={getFederalStateOptions(form.pensionType)}
                   placeholder="Select federal state"
                 />

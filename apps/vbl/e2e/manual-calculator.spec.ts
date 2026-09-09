@@ -181,9 +181,7 @@ async function chooseUpload(page: Page, pensionName: string) {
       name: /Upload your (VBL\/ZVK|VddB\/VddKO) document/,
     })
   ).toBeVisible();
-  await expect(
-    page.getByText('Accepted formats: PDF, JPG, PNG')
-  ).toBeVisible();
+  await expect(page.getByText('Accepted formats: PDF, JPG, PNG')).toBeVisible();
 
   const fileChooserPromise = page.waitForEvent('filechooser');
   await page.getByTestId('calculator-upload-dropzone').click();
@@ -420,6 +418,55 @@ test.describe('Manual VBL calculator', () => {
           endDate: '2021-12',
           averageMonthlyGrossSalary: '3500',
           germanFederalState: 'Bavaria',
+        },
+      ],
+      userType: 'insured_person',
+    });
+  });
+
+  test('offers VBL and ZVK in every public state and estimates a ZVK refund', async ({
+    page,
+  }) => {
+    const api = await mockCalculation(page, 8000);
+
+    await chooseManual(page, 'VBL / ZVK refund');
+    // Bremen used to be a VBL-only state; the dropdown must still list both.
+    await chooseDropdownOption(page, 'Employer’s federal state', 'Bremen');
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Select your company pension' })
+    ).toBeVisible();
+    await page.getByRole('button', { name: /Company pension/ }).click();
+    await expect(page.getByRole('option')).toHaveText(['VBL', 'ZVK']);
+    await page.getByRole('option', { name: 'ZVK' }).click();
+    // The VBLklassik / VBLextra plan choice only applies to VBL.
+    await expect(page.getByRole('button', { name: 'VBLklassik' })).toHaveCount(
+      0
+    );
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'When did you pay into this pension?' })
+    ).toBeVisible();
+    await enterContributionPeriod(page, 'January', '2020', 'December', '2021');
+    await page.getByLabel('Average monthly gross salary (€)').fill('3500');
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Your estimated VBL/ZVK refund' })
+    ).toBeVisible();
+    await expect(page.getByText('€ 8,000')).toBeVisible();
+
+    expect(api.getPayload()).toEqual({
+      jobs: [
+        {
+          employmentType: 'Public sector',
+          supplementaryPensions: ['ZVK'],
+          startDate: '2020-01',
+          endDate: '2021-12',
+          averageMonthlyGrossSalary: '3500',
+          germanFederalState: 'Bremen',
         },
       ],
       userType: 'insured_person',
@@ -915,6 +962,59 @@ test.describe('Manual VBL calculator', () => {
           endDate: '2021-12',
           averageMonthlyGrossSalary: '3500',
           germanFederalState: 'Berlin',
+        },
+      ],
+      userType: 'insured_person',
+    });
+  });
+
+  test('offers VBL and ZVK on the upload review and keeps the extracted ZVK provider', async ({
+    page,
+  }) => {
+    const api = await mockCalculation(page, 6500);
+    await mockExtraction(page, {
+      provider: 'ZVK',
+      vblPlan: null,
+      federalState: 'Bremen',
+    });
+
+    await chooseUpload(page, 'VBL / ZVK refund');
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'We found these details in your document',
+      })
+    ).toBeVisible();
+    const providerField = page.getByRole('button', {
+      name: /Company pension provider ZVK/,
+    });
+    await expect(providerField).toBeVisible();
+    await providerField.click();
+    await expect(page.getByRole('option')).toHaveText(['VBL', 'ZVK']);
+    await page.getByRole('option', { name: 'ZVK' }).click();
+    await expect(page.getByRole('button', { name: 'VBLklassik' })).toHaveCount(
+      0
+    );
+    // Changing the state must not wipe the provider read from the document.
+    await chooseDropdownOption(page, 'German federal state', 'Hesse');
+    await expect(
+      page.getByRole('button', { name: /Company pension provider ZVK/ })
+    ).toBeVisible();
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Your estimated VBL/ZVK refund' })
+    ).toBeVisible();
+    await expect(page.getByText('€ 6,500')).toBeVisible();
+    expect(api.getPayload()).toEqual({
+      jobs: [
+        {
+          employmentType: 'Public sector',
+          supplementaryPensions: ['ZVK'],
+          startDate: '2020-01',
+          endDate: '2021-12',
+          averageMonthlyGrossSalary: '3500',
+          germanFederalState: 'Hesse',
         },
       ],
       userType: 'insured_person',
