@@ -103,10 +103,31 @@ Defined in `packages/functions/src/drizzle/schema/`:
 ## SST / AWS
 
 - Config: `sst.config.ts` — app name `atlaes`, region `eu-central-1`
-- Resources split into: network, database, storage, services, web (in `resources/`)
+- Resources split into: network, database, storage, email, services, events, web (in `resources/`)
 - Staging deploys all resources; other stages deploy web only
 - AWS profile: `atlaes` (set automatically by scripts)
 - Production API: `https://api.atlaes.de`, Staging: `https://staging.api.atlaes.de`
+
+### Staging is deployed by CI only
+
+Pushing to the `staging` branch runs `.github/workflows/deploy-staging.yml`,
+which deploys with the AWS credentials stored in the repo's GitHub secrets
+and then calls `POST /api/migrations/run` until the deployed container
+reports the latest migration tag. **That AWS account is not the one behind
+the local AWS profile.** The local account holds only an old production
+state, a leftover `atlaes-staging-*` bucket and an empty `staging` stack
+(created by an `sst refresh` on 2026-09-14). Consequences:
+
+- Never run `sst deploy --stage staging` locally; it would build a second
+  staging in the wrong account. Push to `staging` instead and watch the run
+  with `gh run list --workflow deploy-staging.yml`.
+- Anything checked or changed in the AWS console for staging (SES
+  identities, sandbox status, logs, secrets via `sst secret`) has to be done
+  in the CI account.
+- SES sends from `noreply@atlaes.de`; `atlaes.de` is the only sender identity
+  the stack verifies (`resources/email`). While the account is in the SES
+  sandbox, recipients must be verified identities too, or mail is dropped
+  silently while the API still reports success.
 
 ## Docker
 
