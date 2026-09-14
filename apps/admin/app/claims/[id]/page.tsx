@@ -10,6 +10,8 @@ import {
   addNote,
   getDocumentDownloadUrl,
   setClaimRouting,
+  getPackageDownloadUrl,
+  regeneratePackage,
   ClaimDetailResponse,
   ClaimHandlingRoute,
   ClaimPayoutTarget,
@@ -141,6 +143,22 @@ export default function ClaimDetailPage() {
       setRouteForm(null);
     },
   });
+
+  const regenerateMutation = useMutation({
+    mutationFn: () => regeneratePackage(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-claim', id] });
+    },
+  });
+
+  const handlePackageDownload = async () => {
+    try {
+      const result = await getPackageDownloadUrl(id);
+      if (result.downloadUrl) window.open(result.downloadUrl, '_blank');
+    } catch (err) {
+      console.error('Package download failed:', err);
+    }
+  };
 
   const noteMutation = useMutation({
     mutationFn: (note: string) => addNote(id, note),
@@ -350,7 +368,46 @@ export default function ClaimDetailPage() {
               {claim.lettershopSubmissionId
                 ? ` · Sent to lettershop (job ${claim.lettershopSubmissionId})`
                 : ''}
+              {claim.pdfS3Key ? ' · Package generated' : ' · No package yet'}
             </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {claim.pdfS3Key && (
+                <button
+                  onClick={handlePackageDownload}
+                  className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Download package
+                </button>
+              )}
+              {isBav && claim.status !== 'draft' && (
+                <button
+                  onClick={() => regenerateMutation.mutate()}
+                  disabled={regenerateMutation.isPending}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {regenerateMutation.isPending
+                    ? 'Generating...'
+                    : 'Regenerate bAV package'}
+                </button>
+              )}
+            </div>
+            {regenerateMutation.isError && (
+              <p className="mt-1 text-xs text-red-600">
+                {(
+                  (regenerateMutation.error as { response?: { data?: { error?: string } } })
+                    .response?.data?.error ??
+                  (regenerateMutation.error as Error).message
+                )}
+              </p>
+            )}
+            {regenerateMutation.isSuccess &&
+              regenerateMutation.data.missingPlaceholders.length > 0 && (
+                <p className="mt-1 text-xs text-amber-700">
+                  Generated with empty placeholders:{' '}
+                  {regenerateMutation.data.missingPlaceholders.join(', ')}
+                </p>
+              )}
           </div>
           {!routeForm && (
             <button

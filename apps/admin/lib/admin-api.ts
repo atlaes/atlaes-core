@@ -212,6 +212,27 @@ export async function setClaimRouting(
   return data.claim;
 }
 
+export async function getPackageDownloadUrl(
+  id: string
+): Promise<{ pdfS3Key: string; downloadUrl: string | null }> {
+  const { data } = await apiClient.get(`/admin/claims/${id}/package`);
+  return data;
+}
+
+export async function regeneratePackage(id: string): Promise<{
+  pdfS3Key: string;
+  downloadUrl: string | null;
+  templateId: string;
+  signer: string;
+  copyS3Key: string | null;
+  missingPlaceholders: string[];
+}> {
+  const { data } = await apiClient.post(
+    `/admin/claims/${id}/package/regenerate`
+  );
+  return data;
+}
+
 export async function addNote(id: string, note: string): Promise<void> {
   await apiClient.post(`/admin/claims/${id}/notes`, { note });
 }

@@ -208,6 +208,81 @@ admin.put(
 );
 
 // ============================================================
+// Generated package (letter PDF)
+// ============================================================
+
+// Presigned URL for the claim's generated package (VBL or bAV), for ops
+// to check it or hand it to the law firm.
+admin.get('/claims/:id/package', validateUuidParams('id'), async (c) => {
+  try {
+    const claimId = c.req.param('id');
+    const claim = await ClaimsApplicationService.getClaimAsAdmin(claimId);
+    if (!claim) {
+      return c.json({ success: false, error: 'Claim not found' }, 404);
+    }
+    if (!claim.pdfS3Key) {
+      return c.json(
+        { success: false, error: 'No package has been generated yet' },
+        404
+      );
+    }
+    const downloadUrl = await getPresignedUrl(claim.pdfS3Key);
+    return c.json({ success: true, pdfS3Key: claim.pdfS3Key, downloadUrl });
+  } catch (error) {
+    logger.error('Admin package download error:', error);
+    return c.json({ success: false, error: 'Failed to get package' }, 500);
+  }
+});
+
+// Regenerate the bAV Abfindung package (e.g. after ops changed the
+// handling route or the recipient address). VBL packages are regenerated
+// by the claimant via POST /api/claims/:id/generate-pdf.
+admin.post(
+  '/claims/:id/package/regenerate',
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const claimId = c.req.param('id');
+      const claim = await ClaimsApplicationService.getClaimAsAdmin(claimId);
+      if (!claim) {
+        return c.json({ success: false, error: 'Claim not found' }, 404);
+      }
+      if (claim.pensionType !== 'private') {
+        return c.json(
+          { success: false, error: 'Only bAV cash-out packages can be regenerated here' },
+          400
+        );
+      }
+      const { BavLetterPackageService } = await import(
+        '../services/bav-letters'
+      );
+      const result = await BavLetterPackageService.generateAndStoreForClaim(
+        claimId,
+        user.id,
+        { asAdmin: true }
+      );
+      const downloadUrl = await getPresignedUrl(result.pdfS3Key);
+      return c.json({
+        success: true,
+        pdfS3Key: result.pdfS3Key,
+        downloadUrl,
+        templateId: result.templateId,
+        signer: result.signer,
+        copyS3Key: result.copy?.s3Key ?? null,
+        missingPlaceholders: result.missingPlaceholders,
+      });
+    } catch (error) {
+      logger.error('Admin package regenerate error:', error);
+      const message =
+        error instanceof Error ? error.message : 'Failed to regenerate package';
+      const statusCode = message.startsWith('Cannot generate') ? 400 : 500;
+      return c.json({ success: false, error: message }, statusCode);
+    }
+  }
+);
+
+// ============================================================
 // Handling Route (direct vs law firm)
 // ============================================================
 

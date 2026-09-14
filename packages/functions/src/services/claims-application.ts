@@ -1176,15 +1176,50 @@ export class ClaimsApplicationService {
       logger.info(`Claim submitted: ${claimId}`);
 
       // bAV cash-out claims get the Abfindung letter package (services/
-      // bav-letters), not the VBL L203 package below. Package rendering for
-      // bAV is wired in a follow-up; until then nothing is generated or
-      // mailed for them, and ops see the claim in the admin with its
-      // handling route.
+      // bav-letters), not the VBL L203 package below. Same non-fatal
+      // contract: generation or delivery failures are logged, the
+      // submission stands, and ops can regenerate from the admin.
       if (result.pensionType === 'private') {
-        logger.info('bAV claim submitted; letter package generation pending', {
-          claimId,
-          handlingRoute: result.handlingRoute ?? 'direct',
-        });
+        const handlingRoute = result.handlingRoute ?? 'direct';
+        try {
+          const { BavLetterPackageService } = await import('./bav-letters');
+          const pkg = await BavLetterPackageService.generateAndStoreForClaim(
+            claimId,
+            userId
+          );
+          if (handlingRoute === 'law_firm') {
+            logger.info('bAV package stored for the law firm; lettershop skipped', {
+              claimId,
+              templateId: pkg.templateId,
+            });
+          } else {
+            try {
+              const { LettershopService } = await import('./lettershop');
+              await LettershopService.sendClaimPdf(claimId, pkg.bytes, userId);
+              if (pkg.copy) {
+                await LettershopService.sendClaimPdf(
+                  claimId,
+                  pkg.copy.bytes,
+                  userId,
+                  'copy'
+                );
+              }
+            } catch (lettershopError) {
+              logger.warn('Failed to submit bAV package to lettershop', {
+                claimId,
+                error:
+                  lettershopError instanceof Error
+                    ? lettershopError.message
+                    : String(lettershopError),
+              });
+            }
+          }
+        } catch (pkgError) {
+          logger.warn('Failed to generate bAV package after submission', {
+            claimId,
+            error: pkgError instanceof Error ? pkgError.message : String(pkgError),
+          });
+        }
         return mapRowToClaim(result);
       }
 

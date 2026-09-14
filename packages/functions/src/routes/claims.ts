@@ -982,10 +982,27 @@ claims.post('/:id/generate-pdf', authMiddleware, validateUuidParams('id'), async
     const user = c.get('user');
     const claimId = c.req.param('id');
 
-    const { pdfS3Key } = await ClaimPdfService.generateAndStoreForClaim(
-      claimId,
-      user.id
-    );
+    // bAV cash-out claims get the Abfindung package, everything else the
+    // VBL L203 package.
+    const existing = await ClaimsApplicationService.getClaim(claimId, user.id);
+    if (!existing) {
+      return c.json({ success: false, error: 'Claim not found' }, 404);
+    }
+    let pdfS3Key: string;
+    if (existing.pensionType === 'private') {
+      const { BavLetterPackageService } = await import(
+        '../services/bav-letters'
+      );
+      ({ pdfS3Key } = await BavLetterPackageService.generateAndStoreForClaim(
+        claimId,
+        user.id
+      ));
+    } else {
+      ({ pdfS3Key } = await ClaimPdfService.generateAndStoreForClaim(
+        claimId,
+        user.id
+      ));
+    }
     const downloadUrl = await getPresignedUrl(pdfS3Key);
 
     logger.info(`Claim PDF generated: ${claimId} for user: ${user.id}`);
