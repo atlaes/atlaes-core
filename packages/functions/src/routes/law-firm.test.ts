@@ -192,7 +192,7 @@ describe('Law firm portal routes', () => {
   });
 
   describe('access', () => {
-    it('rejects a plain user and an admin on the portal', async () => {
+    it('rejects a plain user and an admin without membership', async () => {
       expect(
         (await request('GET', '/api/law-firm/me', claimant.token)).status
       ).toBe(403);
@@ -383,7 +383,7 @@ describe('Law firm portal routes', () => {
   });
 
   describe('admin invitations', () => {
-    it('creates a law_firm user with membership and refuses an admin email', async () => {
+    it('creates a law_firm user with membership; an admin keeps admin', async () => {
       const email = `test-lawfirm-invitee-${stamp}@example.com`;
       const res = await request(
         'POST',
@@ -401,13 +401,22 @@ describe('Law firm portal routes', () => {
       `;
       expect(invitee[0].role).toBe('law_firm');
 
-      const refused = await request(
+      // Developer privilege: an admin can be added and keeps admin, and
+      // the portal then lets them in through the membership.
+      const asAdmin = await request(
         'POST',
         `/api/admin/law-firms/${firmA.id}/members`,
         adminUser.token,
         { email: adminUser.user.email, firstName: 'A', lastName: 'B' }
       );
-      expect(refused.status).toBe(400);
+      expect(asAdmin.status).toBe(201);
+      const adminRow = await testClient`
+        SELECT role FROM shared.users WHERE id = ${adminUser.user.id}::uuid
+      `;
+      expect(adminRow[0].role).toBe('admin');
+      const portal = await request('GET', '/api/law-firm/me', adminUser.token);
+      expect(portal.status).toBe(200);
+      expect((await portal.json()).firm.id).toBe(firmA.id);
     });
 
     it('is not reachable by law-firm users', async () => {

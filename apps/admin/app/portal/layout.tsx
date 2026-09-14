@@ -20,7 +20,9 @@ export default function PortalLayout({
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const allowed = user?.role === 'law_firm';
+  // Firm users always; admins only when ops added them as a member
+  // (checked server-side by /law-firm/me).
+  const allowed = user?.role === 'law_firm' || user?.role === 'admin';
 
   useEffect(() => {
     if (isLoading) return;
@@ -47,15 +49,25 @@ export default function PortalLayout({
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center">
         <p className="text-sm text-gray-600">
-          Your account has no active partner firm membership. Please contact
-          CompanyPension ops.
+          {user?.role === 'admin'
+            ? 'Your admin account is not a member of a partner firm. Add yourself under Law firms to check the portal.'
+            : 'Your account has no active partner firm membership. Please contact CompanyPension ops.'}
         </p>
-        <button
-          onClick={logout}
-          className="mt-4 text-sm text-brand-dark underline"
-        >
-          Sign out
-        </button>
+        {user?.role === 'admin' ? (
+          <Link
+            href="/law-firms"
+            className="mt-4 inline-block text-sm text-brand-dark underline"
+          >
+            Go to Law firms
+          </Link>
+        ) : (
+          <button
+            onClick={logout}
+            className="mt-4 text-sm text-brand-dark underline"
+          >
+            Sign out
+          </button>
+        )}
       </div>
     );
   }
@@ -94,6 +106,14 @@ export default function PortalLayout({
             </nav>
           </div>
           <div className="flex items-center gap-3">
+            {user?.role === 'admin' && (
+              <Link
+                href="/claims"
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Admin
+              </Link>
+            )}
             <span className="hidden text-sm text-gray-500 sm:inline">
               {user?.email}
             </span>

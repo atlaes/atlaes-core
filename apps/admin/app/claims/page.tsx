@@ -77,7 +77,9 @@ function RouteBadge({
     <span className="inline-flex flex-wrap items-center gap-1">
       <span
         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-          isLawFirm ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-700'
+          isLawFirm
+            ? 'bg-indigo-100 text-indigo-700'
+            : 'bg-gray-100 text-gray-700'
         }`}
       >
         {isLawFirm ? 'Assigned to law firm' : 'Direct'}
@@ -202,6 +204,12 @@ export default function ClaimsPage() {
             <Scale className="h-4 w-4" />
             Law firms
           </Link>
+          <Link
+            href="/portal"
+            className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            Portal
+          </Link>
           <span className="text-sm text-gray-500">{user?.email}</span>
           <button
             onClick={logout}
@@ -246,46 +254,46 @@ export default function ClaimsPage() {
 
       {/* Status Filter Tabs + handling-route filter */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-      <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => {
-              setStatusFilter(tab.key);
+        <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
+          {STATUS_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => {
+                setStatusFilter(tab.key);
+                setPage(1);
+              }}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                statusFilter === tab.key
+                  ? 'bg-white text-brand-dark shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab.label}
+              {stats && tab.key && (
+                <span className="ml-1.5 text-xs text-gray-400">
+                  {stats[tab.key as keyof ClaimStats] ?? 0}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          <span>Handling</span>
+          <select
+            value={routeFilter}
+            onChange={(e) => {
+              setRouteFilter(e.target.value as '' | ClaimHandlingRoute);
               setPage(1);
             }}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              statusFilter === tab.key
-                ? 'bg-white text-brand-dark shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
+            className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent"
           >
-            {tab.label}
-            {stats && tab.key && (
-              <span className="ml-1.5 text-xs text-gray-400">
-                {stats[tab.key as keyof ClaimStats] ?? 0}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-      <label className="flex items-center gap-2 text-sm text-gray-600">
-        <span>Handling</span>
-        <select
-          value={routeFilter}
-          onChange={(e) => {
-            setRouteFilter(e.target.value as '' | ClaimHandlingRoute);
-            setPage(1);
-          }}
-          className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent"
-        >
-          {ROUTE_FILTERS.map((f) => (
-            <option key={f.key} value={f.key}>
-              {f.label}
-            </option>
-          ))}
-        </select>
-      </label>
+            {ROUTE_FILTERS.map((f) => (
+              <option key={f.key} value={f.key}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {/* Claims Table */}
@@ -382,8 +390,7 @@ export default function ClaimsPage() {
               <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3">
                 <p className="text-sm text-gray-500">
                   Showing {(page - 1) * 20 + 1}–
-                  {Math.min(page * 20, claimsData.total)} of{' '}
-                  {claimsData.total}
+                  {Math.min(page * 20, claimsData.total)} of {claimsData.total}
                 </p>
                 <div className="flex gap-1">
                   <button
@@ -394,9 +401,7 @@ export default function ClaimsPage() {
                     <ChevronLeft className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() =>
-                      setPage((p) => Math.min(totalPages, p + 1))
-                    }
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
                     className="rounded-md border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50 disabled:opacity-30"
                   >

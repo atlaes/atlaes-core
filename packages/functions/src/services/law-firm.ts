@@ -362,7 +362,8 @@ export class LawFirmService {
    * Ops invites a named person at the firm. Finds or creates the user,
    * sets role = 'law_firm', records the membership and mails a sign-in
    * link that opens the admin app (which routes law-firm users to the
-   * portal). Refuses to demote an admin.
+   * portal). An existing admin keeps the admin role and gains the
+   * membership, so ops/developers can check the portal with one account.
    */
   static async inviteMember(
     firmId: string,
@@ -380,9 +381,7 @@ export class LawFirmService {
 
     const email = input.email.trim().toLowerCase();
     let user = await UserService.findByEmail(email);
-    if (user?.role === 'admin') {
-      throw new Error('Invalid invite: this email belongs to an admin user');
-    }
+    const keepsAdminRole = user?.role === 'admin';
     if (!user) {
       user = await UserService.createUser({
         email,
@@ -404,10 +403,12 @@ export class LawFirmService {
 
     const role: LawFirmMemberRole = input.role ?? 'member';
     const membership = await db.transaction(async (tx: any) => {
-      await tx
-        .update(users)
-        .set({ role: 'law_firm', updatedAt: new Date() })
-        .where(eq(users.id, user!.id));
+      if (!keepsAdminRole) {
+        await tx
+          .update(users)
+          .set({ role: 'law_firm', updatedAt: new Date() })
+          .where(eq(users.id, user!.id));
+      }
 
       let row: typeof lawFirmMembers.$inferSelect;
       if (existing) {
@@ -433,7 +434,13 @@ export class LawFirmService {
         action: 'law_firm_member_invited',
         resource: 'law_firm',
         resourceId: firmId,
-        details: { memberUserId: user!.id, email, role, reinvite: !!existing },
+        details: {
+          memberUserId: user!.id,
+          email,
+          role,
+          reinvite: !!existing,
+          keepsAdminRole,
+        },
       });
       return row;
     });

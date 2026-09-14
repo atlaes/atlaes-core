@@ -21,7 +21,8 @@ declare module 'hono' {
 /**
  * Resolves the caller's firm from membership and puts it on the context.
  * Without an active membership the portal answers 403 even for a user
- * whose JWT says law_firm (membership was removed after sign-in).
+ * whose JWT says law_firm (membership was removed after sign-in) and for
+ * admins, who only get in when ops added them as a member.
  */
 const firmScope = async (c: Context, next: Next) => {
   const user = c.get('user');
@@ -38,7 +39,7 @@ const firmScope = async (c: Context, next: Next) => {
 
 const lawFirm = new Hono();
 
-lawFirm.use('*', authMiddleware, requireRole('law_firm'), firmScope);
+lawFirm.use('*', authMiddleware, requireRole('law_firm', 'admin'), firmScope);
 
 function fail(c: Context, error: unknown, fallback: string) {
   const message = error instanceof Error ? error.message : fallback;
