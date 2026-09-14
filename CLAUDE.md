@@ -124,10 +124,10 @@ state, a leftover `atlaes-staging-*` bucket and an empty `staging` stack
 - Anything checked or changed in the AWS console for staging (SES
   identities, sandbox status, logs, secrets via `sst secret`) has to be done
   in the CI account.
-- SES sends from `noreply@atlaes.de`; `atlaes.de` is the only sender identity
-  the stack verifies (`resources/email`). While the account is in the SES
-  sandbox, recipients must be verified identities too, or mail is dropped
-  silently while the API still reports success.
+- SES in the CI account has production access with `companypension.de` and
+  `atlaes.de` verified; the backend sends from `noreply@companypension.de`.
+  A send failure is only visible in the backend logs; the API still
+  reports success.
 
 ## Docker
 

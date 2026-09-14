@@ -52,9 +52,9 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
     OPS_NOTIFICATION_EMAIL: process.env.OPS_NOTIFICATION_EMAIL ?? '',
     JWT_SECRET: 'a-proper-32-char-minimum-secret-for-staging-env',
     NODE_ENV: 'production',
-    // Must be an identity SES has verified: the AtlaesEmail resource
-    // verifies the atlaes.de domain, companypension.de is not set up.
-    SES_FROM_EMAIL: 'noreply@atlaes.de',
+    // Both companypension.de and atlaes.de are verified SES identities in
+    // the staging account; the brand address is the sender.
+    SES_FROM_EMAIL: 'noreply@companypension.de',
     STRIPE_SECRET_KEY:
       $app.stage === 'production'
         ? ''
