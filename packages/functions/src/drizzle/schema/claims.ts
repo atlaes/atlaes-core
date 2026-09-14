@@ -111,6 +111,19 @@ export type BavStatementType = (typeof BAV_STATEMENT_TYPES)[number];
 // Who the Abfindung letter is addressed to.
 export type BavAddresseeType = 'employer' | 'provider';
 
+// How a claim is handled after submission, decided manually by ops:
+// 'direct' — CompanyPension prints/mails via the lettershop;
+// 'law_firm' — the package is handed to the partner law firm (Vividius),
+// who submits it themselves. Orthogonal to `status`.
+export const CLAIM_HANDLING_ROUTES = ['direct', 'law_firm'] as const;
+export type ClaimHandlingRoute = (typeof CLAIM_HANDLING_ROUTES)[number];
+
+// Where the Abfindung is paid out (law-firm handling only): the client's
+// own account or the law firm's Anderkonto. Direct handling always pays
+// the client.
+export const CLAIM_PAYOUT_TARGETS = ['client', 'law_firm'] as const;
+export type ClaimPayoutTarget = (typeof CLAIM_PAYOUT_TARGETS)[number];
+
 // Task 15: type of health insurance selected/confirmed on the Health
 // Insurance substep (bAV/private pension type only).
 export type HealthInsuranceType = 'statutory' | 'private' | 'not_sure';
@@ -298,6 +311,19 @@ export const claimsTable = claims.table('claims', {
   submittedAt: timestamp('submitted_at', { withTimezone: true }),
   pdfS3Key: varchar('pdf_s3_key', { length: 500 }),
   lettershopSubmissionId: varchar('lettershop_submission_id', { length: 255 }),
+
+  // Handling route (ops decision; see ClaimHandlingRoute). Submission reads
+  // it: 'direct' goes to the lettershop, 'law_firm' parks the package for
+  // the partner law firm. Set through PUT /api/admin/claims/:id/routing.
+  handlingRoute: varchar('handling_route', { length: 20 }).default('direct'),
+  handlingRouteSetAt: timestamp('handling_route_set_at', {
+    withTimezone: true,
+  }),
+  handlingRouteSetBy: uuid('handling_route_set_by').references(
+    () => users.id
+  ),
+  payoutTarget: varchar('payout_target', { length: 20 }), // 'client' | 'law_firm' (law_firm handling only)
+  lawFirmRef: varchar('law_firm_ref', { length: 100 }), // law firm's file number ("Unser Zeichen")
 
   // Timestamps
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),

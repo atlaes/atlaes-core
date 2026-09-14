@@ -1,5 +1,9 @@
 import apiClient from './api';
 
+export type ClaimHandlingRoute = 'direct' | 'law_firm';
+export type ClaimPayoutTarget = 'client' | 'law_firm';
+export type ClaimPensionType = 'public' | 'private';
+
 export interface ClaimListItem {
   id: string;
   userId: string;
@@ -9,6 +13,9 @@ export interface ClaimListItem {
   applicantName: string | null;
   applicantEmail: string | null;
   paymentStatus: string | null;
+  pensionType: ClaimPensionType | null;
+  handlingRoute: ClaimHandlingRoute;
+  lawFirmRef: string | null;
   submittedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -66,6 +73,38 @@ export interface ClaimDetail {
   paidAt: string | null;
   serviceFee: string | null;
   submittedAt: string | null;
+  pdfS3Key: string | null;
+  lettershopSubmissionId: string | null;
+  // Product + bAV cash-out intake
+  pensionType: ClaimPensionType | null;
+  salutation: string | null;
+  taxId: string | null;
+  healthInsuranceEndDate: string | null;
+  employerName: string | null;
+  employmentEndDate: string | null;
+  employerPersonnelNumber: string | null;
+  bavProviderName: string | null;
+  bavDurchfuehrungsweg: string | null;
+  bavContractReferenceLabel: string | null;
+  bavContractReference: string | null;
+  drvRefundReceived: boolean | null;
+  drvOffice: string | null;
+  drvDecisionDate: string | null;
+  bavStatementType: string | null;
+  bavStatementDate: string | null;
+  bavBenefitForm: string | null;
+  bavBenefitAmount: string | null;
+  bavAddresseeType: string | null;
+  bavRecipientName: string | null;
+  bavRecipientStreet: string | null;
+  bavRecipientPostalCode: string | null;
+  bavRecipientCity: string | null;
+  // Handling route (ops decision)
+  handlingRoute: ClaimHandlingRoute | null;
+  handlingRouteSetAt: string | null;
+  handlingRouteSetBy: string | null;
+  payoutTarget: ClaimPayoutTarget | null;
+  lawFirmRef: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -125,6 +164,8 @@ export async function getStats(): Promise<ClaimStats> {
 
 export async function getClaims(params?: {
   status?: string;
+  handlingRoute?: ClaimHandlingRoute;
+  pensionType?: ClaimPensionType;
   page?: number;
   limit?: number;
 }): Promise<{
@@ -153,6 +194,21 @@ export async function updateClaimStatus(
     status,
     note,
   });
+  return data.claim;
+}
+
+export interface ClaimRoutingInput {
+  handlingRoute: ClaimHandlingRoute;
+  payoutTarget?: ClaimPayoutTarget | null;
+  lawFirmRef?: string | null;
+  note?: string;
+}
+
+export async function setClaimRouting(
+  id: string,
+  input: ClaimRoutingInput
+): Promise<ClaimDetail> {
+  const { data } = await apiClient.put(`/admin/claims/${id}/routing`, input);
   return data.claim;
 }
 

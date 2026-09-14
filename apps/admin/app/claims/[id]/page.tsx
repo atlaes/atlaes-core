@@ -9,7 +9,10 @@ import {
   updateClaimStatus,
   addNote,
   getDocumentDownloadUrl,
+  setClaimRouting,
   ClaimDetailResponse,
+  ClaimHandlingRoute,
+  ClaimPayoutTarget,
 } from '@/lib/admin-api';
 import {
   ArrowLeft,
@@ -23,6 +26,8 @@ import {
   Clock,
   MessageSquare,
   Send,
+  Scale,
+  Briefcase,
 } from 'lucide-react';
 
 function StatusBadge({ status }: { status: string }) {
@@ -75,6 +80,14 @@ export default function ClaimDetailPage() {
   const [statusNote, setStatusNote] = useState('');
   const [newNote, setNewNote] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  // Handling route form (direct vs law firm). Seeded from the claim once
+  // it loads; kept local until Save so a half-edited form never persists.
+  const [routeForm, setRouteForm] = useState<{
+    handlingRoute: ClaimHandlingRoute;
+    payoutTarget: ClaimPayoutTarget;
+    lawFirmRef: string;
+    note: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -102,6 +115,30 @@ export default function ClaimDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['admin-claims'] });
       setSelectedStatus('');
       setStatusNote('');
+    },
+  });
+
+  const routingMutation = useMutation({
+    mutationFn: (input: {
+      handlingRoute: ClaimHandlingRoute;
+      payoutTarget: ClaimPayoutTarget;
+      lawFirmRef: string;
+      note: string;
+    }) =>
+      setClaimRouting(id, {
+        handlingRoute: input.handlingRoute,
+        payoutTarget:
+          input.handlingRoute === 'law_firm' ? input.payoutTarget : null,
+        lawFirmRef:
+          input.handlingRoute === 'law_firm'
+            ? input.lawFirmRef.trim() || null
+            : null,
+        note: input.note.trim() || undefined,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-claim', id] });
+      queryClient.invalidateQueries({ queryKey: ['admin-claims'] });
+      setRouteForm(null);
     },
   });
 
@@ -158,6 +195,17 @@ export default function ClaimDetailPage() {
 
   const { claim, documents, workflow, userInfo } = detailQuery.data;
   const nextStatuses = VALID_TRANSITIONS[claim.status] || [];
+  const currentRoute: ClaimHandlingRoute = claim.handlingRoute ?? 'direct';
+  const isBav = claim.pensionType === 'private';
+  const routeLocked =
+    !!claim.lettershopSubmissionId && currentRoute === 'direct';
+  const openRouteForm = () =>
+    setRouteForm({
+      handlingRoute: currentRoute,
+      payoutTarget: claim.payoutTarget ?? 'client',
+      lawFirmRef: claim.lawFirmRef ?? '',
+      note: '',
+    });
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
@@ -250,6 +298,221 @@ export default function ClaimDetailPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Handling route */}
+      <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <Scale className="h-4 w-4" />
+              Handling
+            </h3>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  isBav
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-sky-100 text-sky-700'
+                }`}
+              >
+                {isBav
+                  ? 'bAV cash-out'
+                  : claim.pensionType === 'public'
+                    ? 'Public refund'
+                    : 'Product not set'}
+              </span>
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  currentRoute === 'law_firm'
+                    ? 'bg-indigo-100 text-indigo-700'
+                    : 'bg-gray-100 text-gray-700'
+                }`}
+              >
+                {currentRoute === 'law_firm'
+                  ? 'Law firm (Vividius)'
+                  : 'Direct via lettershop'}
+              </span>
+              {currentRoute === 'law_firm' && (
+                <span className="text-xs text-gray-500">
+                  Payout to{' '}
+                  {claim.payoutTarget === 'law_firm'
+                    ? 'law firm Anderkonto'
+                    : 'client account'}
+                  {claim.lawFirmRef ? ` · Ref ${claim.lawFirmRef}` : ''}
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-gray-400">
+              {claim.handlingRouteSetAt
+                ? `Set ${formatDate(claim.handlingRouteSetAt)}`
+                : 'Default; not set by ops yet'}
+              {claim.lettershopSubmissionId
+                ? ` · Sent to lettershop (job ${claim.lettershopSubmissionId})`
+                : ''}
+            </p>
+          </div>
+          {!routeForm && (
+            <button
+              onClick={openRouteForm}
+              disabled={routeLocked}
+              title={
+                routeLocked
+                  ? 'Already sent to the lettershop; the route can no longer change'
+                  : undefined
+              }
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Change handling
+            </button>
+          )}
+        </div>
+
+        {routeForm && (
+          <div className="mt-4 space-y-3 border-t border-gray-100 pt-4">
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { key: 'direct', label: 'Direct via lettershop' },
+                  { key: 'law_firm', label: 'Law firm (Vividius)' },
+                ] as { key: ClaimHandlingRoute; label: string }[]
+              ).map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() =>
+                    setRouteForm({ ...routeForm, handlingRoute: opt.key })
+                  }
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                    routeForm.handlingRoute === opt.key
+                      ? 'border-brand-dark bg-brand-dark text-white'
+                      : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {routeForm.handlingRoute === 'law_firm' && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-sm text-gray-600">
+                  <span className="mb-1 block text-xs text-gray-500">
+                    Payout to
+                  </span>
+                  <select
+                    value={routeForm.payoutTarget}
+                    onChange={(e) =>
+                      setRouteForm({
+                        ...routeForm,
+                        payoutTarget: e.target.value as ClaimPayoutTarget,
+                      })
+                    }
+                    className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent"
+                  >
+                    <option value="client">Client account</option>
+                    <option value="law_firm">Law firm Anderkonto</option>
+                  </select>
+                </label>
+                <label className="text-sm text-gray-600">
+                  <span className="mb-1 block text-xs text-gray-500">
+                    Law firm file number (Unser Zeichen)
+                  </span>
+                  <input
+                    type="text"
+                    value={routeForm.lawFirmRef}
+                    onChange={(e) =>
+                      setRouteForm({ ...routeForm, lawFirmRef: e.target.value })
+                    }
+                    placeholder="e.g. 2026/0815-KC"
+                    className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent"
+                  />
+                </label>
+              </div>
+            )}
+            <textarea
+              value={routeForm.note}
+              onChange={(e) =>
+                setRouteForm({ ...routeForm, note: e.target.value })
+              }
+              placeholder="Why this route? (optional, kept in the timeline)"
+              rows={2}
+              className="w-full rounded-lg border border-gray-200 p-2 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => routingMutation.mutate(routeForm)}
+                disabled={routingMutation.isPending}
+                className="rounded-lg bg-brand-dark px-4 py-1.5 text-sm font-medium text-white hover:bg-opacity-90 disabled:opacity-50"
+              >
+                {routingMutation.isPending ? 'Saving...' : 'Save handling'}
+              </button>
+              <button
+                onClick={() => setRouteForm(null)}
+                className="rounded-lg border border-gray-200 px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+            {routingMutation.isError && (
+              <p className="text-sm text-red-600">
+                {(
+                  (routingMutation.error as { response?: { data?: { error?: string } } })
+                    .response?.data?.error ??
+                  (routingMutation.error as Error).message
+                )}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* bAV cash-out intake */}
+      {isBav && (
+        <Section title="Company Pension (bAV) Cash-out" icon={<Briefcase className="h-4 w-4" />}>
+          <InfoGrid>
+            <InfoItem label="Salutation" value={claim.salutation} />
+            <InfoItem label="Employer" value={claim.employerName} />
+            <InfoItem label="Employment Ended" value={claim.employmentEndDate} />
+            <InfoItem label="Personnel No." value={claim.employerPersonnelNumber} />
+            <InfoItem label="Provider" value={claim.bavProviderName} />
+            <InfoItem label="Durchführungsweg" value={claim.bavDurchfuehrungsweg} />
+            <InfoItem
+              label={claim.bavContractReferenceLabel || 'Contract Ref.'}
+              value={claim.bavContractReference}
+            />
+            <InfoItem label="Left Germany" value={claim.moveOutDate} />
+            <InfoItem label="Tax ID" value={claim.taxId} />
+            <InfoItem label="Health Insurance Ended" value={claim.healthInsuranceEndDate} />
+            <InfoItem
+              label="Route"
+              value={
+                claim.drvRefundReceived === true
+                  ? 'A — DRV refund granted (§ 3 Abs. 3)'
+                  : claim.drvRefundReceived === false
+                    ? 'B — small entitlement (§ 3 Abs. 2)'
+                    : null
+              }
+            />
+            <InfoItem label="DRV Office" value={claim.drvOffice} />
+            <InfoItem label="DRV Decision Date" value={claim.drvDecisionDate} />
+            <InfoItem label="Statement" value={claim.bavStatementType} />
+            <InfoItem label="Statement Date" value={claim.bavStatementDate} />
+            <InfoItem label="Benefit Form" value={claim.bavBenefitForm} />
+            <InfoItem
+              label="Benefit Amount"
+              value={claim.bavBenefitAmount ? `€${claim.bavBenefitAmount}` : null}
+            />
+            <InfoItem label="Addressee" value={claim.bavAddresseeType} />
+            <InfoItem label="Recipient" value={claim.bavRecipientName} />
+            <InfoItem
+              label="Recipient Address"
+              value={
+                [claim.bavRecipientStreet, claim.bavRecipientPostalCode, claim.bavRecipientCity]
+                  .filter(Boolean)
+                  .join(', ') || null
+              }
+            />
+          </InfoGrid>
+        </Section>
       )}
 
       {/* Personal Info */}

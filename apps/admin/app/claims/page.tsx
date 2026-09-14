@@ -4,7 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { getStats, getClaims, ClaimStats, ClaimListItem } from '@/lib/admin-api';
+import {
+  getStats,
+  getClaims,
+  ClaimStats,
+  ClaimListItem,
+  ClaimHandlingRoute,
+} from '@/lib/admin-api';
 import {
   BarChart3,
   FileText,
@@ -43,6 +49,43 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+const ROUTE_FILTERS: { key: '' | ClaimHandlingRoute; label: string }[] = [
+  { key: '', label: 'All routes' },
+  { key: 'direct', label: 'Direct (lettershop)' },
+  { key: 'law_firm', label: 'Law firm' },
+];
+
+function RouteBadge({ route }: { route: ClaimHandlingRoute | null }) {
+  const isLawFirm = route === 'law_firm';
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+        isLawFirm ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-700'
+      }`}
+    >
+      {isLawFirm ? 'Law firm' : 'Direct'}
+    </span>
+  );
+}
+
+function ProductBadge({ pensionType }: { pensionType: string | null }) {
+  if (pensionType === 'private') {
+    return (
+      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+        bAV cash-out
+      </span>
+    );
+  }
+  if (pensionType === 'public') {
+    return (
+      <span className="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-700">
+        Public refund
+      </span>
+    );
+  }
+  return <span className="text-xs text-gray-400">—</span>;
+}
+
 function PaymentBadge({ status }: { status: string | null }) {
   if (!status) return <span className="text-sm text-gray-400">—</span>;
 
@@ -75,6 +118,7 @@ export default function ClaimsPage() {
   const { isAuthenticated, isLoading: authLoading, user, logout } = useAuth();
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState('');
+  const [routeFilter, setRouteFilter] = useState<'' | ClaimHandlingRoute>('');
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -90,10 +134,11 @@ export default function ClaimsPage() {
   });
 
   const claimsQuery = useQuery({
-    queryKey: ['admin-claims', statusFilter, page],
+    queryKey: ['admin-claims', statusFilter, routeFilter, page],
     queryFn: () =>
       getClaims({
         status: statusFilter || undefined,
+        handlingRoute: routeFilter || undefined,
         page,
         limit: 20,
       }),
@@ -167,8 +212,9 @@ export default function ClaimsPage() {
         </div>
       )}
 
-      {/* Status Filter Tabs */}
-      <div className="mb-4 flex gap-1 rounded-lg bg-gray-100 p-1">
+      {/* Status Filter Tabs + handling-route filter */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.key}
@@ -190,6 +236,24 @@ export default function ClaimsPage() {
             )}
           </button>
         ))}
+      </div>
+      <label className="flex items-center gap-2 text-sm text-gray-600">
+        <span>Handling</span>
+        <select
+          value={routeFilter}
+          onChange={(e) => {
+            setRouteFilter(e.target.value as '' | ClaimHandlingRoute);
+            setPage(1);
+          }}
+          className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent"
+        >
+          {ROUTE_FILTERS.map((f) => (
+            <option key={f.key} value={f.key}>
+              {f.label}
+            </option>
+          ))}
+        </select>
+      </label>
       </div>
 
       {/* Claims Table */}
@@ -214,6 +278,12 @@ export default function ClaimsPage() {
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Payment
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Product
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Handling
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Submitted
@@ -244,6 +314,17 @@ export default function ClaimsPage() {
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm">
                       <PaymentBadge status={claim.paymentStatus} />
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm">
+                      <ProductBadge pensionType={claim.pensionType} />
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm">
+                      <RouteBadge route={claim.handlingRoute} />
+                      {claim.lawFirmRef && (
+                        <span className="ml-1.5 text-xs text-gray-400">
+                          {claim.lawFirmRef}
+                        </span>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
                       {formatDate(claim.submittedAt)}

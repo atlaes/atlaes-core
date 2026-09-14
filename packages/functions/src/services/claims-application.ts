@@ -15,6 +15,8 @@ import {
   BavStatementType,
   BavBenefitForm,
   BavAddresseeType,
+  ClaimHandlingRoute,
+  ClaimPayoutTarget,
 } from '../drizzle/schema/claims';
 import { validateBavIntake } from './bav-letters/intake-validation';
 import {
@@ -258,6 +260,14 @@ export interface Claim {
 
   // Combined claim PDF
   pdfS3Key: string | null;
+  lettershopSubmissionId: string | null;
+
+  // Handling route (ops decision)
+  handlingRoute: string | null;
+  handlingRouteSetAt: Date | null;
+  handlingRouteSetBy: string | null;
+  payoutTarget: string | null;
+  lawFirmRef: string | null;
 
   // Timestamps
   createdAt: Date | null;
@@ -384,6 +394,12 @@ function mapRowToClaim(row: any): Claim {
     serviceFee: row.serviceFee,
     submittedAt: row.submittedAt,
     pdfS3Key: row.pdfS3Key,
+    lettershopSubmissionId: row.lettershopSubmissionId ?? null,
+    handlingRoute: row.handlingRoute ?? 'direct',
+    handlingRouteSetAt: row.handlingRouteSetAt ?? null,
+    handlingRouteSetBy: row.handlingRouteSetBy ?? null,
+    payoutTarget: row.payoutTarget ?? null,
+    lawFirmRef: row.lawFirmRef ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -1159,6 +1175,19 @@ export class ClaimsApplicationService {
 
       logger.info(`Claim submitted: ${claimId}`);
 
+      // bAV cash-out claims get the Abfindung letter package (services/
+      // bav-letters), not the VBL L203 package below. Package rendering for
+      // bAV is wired in a follow-up; until then nothing is generated or
+      // mailed for them, and ops see the claim in the admin with its
+      // handling route.
+      if (result.pensionType === 'private') {
+        logger.info('bAV claim submitted; letter package generation pending', {
+          claimId,
+          handlingRoute: result.handlingRoute ?? 'direct',
+        });
+        return mapRowToClaim(result);
+      }
+
       // Generate the combined claim PDF after a successful submission.
       // Failure here must NOT roll back or fail the submission — the PDF
       // can be regenerated later via POST /api/claims/:id/generate-pdf.
@@ -1177,9 +1206,17 @@ export class ClaimsApplicationService {
         // as PDF generation above: a lettershop failure must never fail
         // submission. Lazy import avoids a cycle (lettershop.ts imports
         // the claims schema/db, and this module is imported widely).
+        // Claims routed to the law firm are NOT mailed: the package stays
+        // in S3 for the law firm to pick up and submit themselves.
         try {
-          const { LettershopService } = await import('./lettershop');
-          await LettershopService.sendClaimPdf(claimId, bytes, userId);
+          if (result.handlingRoute === 'law_firm') {
+            logger.info('Lettershop skipped: claim is handled by the law firm', {
+              claimId,
+            });
+          } else {
+            const { LettershopService } = await import('./lettershop');
+            await LettershopService.sendClaimPdf(claimId, bytes, userId);
+          }
         } catch (lettershopError) {
           logger.warn('Failed to submit claim PDF to lettershop', {
             claimId,
@@ -1306,6 +1343,8 @@ export class ClaimsApplicationService {
    */
   static async getAllClaims(filters: {
     status?: string;
+    handlingRoute?: string;
+    pensionType?: string;
     page?: number;
     limit?: number;
   }): Promise<{ claims: any[]; total: number; page: number; limit: number }> {
@@ -1314,10 +1353,21 @@ export class ClaimsApplicationService {
       const limit = filters.limit || 20;
       const offset = (page - 1) * limit;
 
-      // Build where clause
-      const whereClause = filters.status
-        ? eq(claimsTable.status, filters.status)
-        : undefined;
+      // Build where clause. handling_route defaults to 'direct' but legacy
+      // rows may hold NULL, so treat NULL as 'direct' when filtering.
+      const conditions = [];
+      if (filters.status) conditions.push(eq(claimsTable.status, filters.status));
+      if (filters.handlingRoute === 'direct') {
+        conditions.push(
+          sql`coalesce(${claimsTable.handlingRoute}, 'direct') = 'direct'`
+        );
+      } else if (filters.handlingRoute) {
+        conditions.push(eq(claimsTable.handlingRoute, filters.handlingRoute));
+      }
+      if (filters.pensionType) {
+        conditions.push(eq(claimsTable.pensionType, filters.pensionType));
+      }
+      const whereClause = conditions.length ? and(...conditions) : undefined;
 
       // Get total count
       const [countResult] = await db
@@ -1338,6 +1388,9 @@ export class ClaimsApplicationService {
           lastName: claimsTable.lastName,
           submittedAt: claimsTable.submittedAt,
           paymentStatus: claimsTable.paymentStatus,
+          pensionType: claimsTable.pensionType,
+          handlingRoute: claimsTable.handlingRoute,
+          lawFirmRef: claimsTable.lawFirmRef,
           createdAt: claimsTable.createdAt,
           updatedAt: claimsTable.updatedAt,
           userEmail: users.email,
@@ -1366,6 +1419,9 @@ export class ClaimsApplicationService {
               : null,
         applicantEmail: row.userEmail,
         paymentStatus: row.paymentStatus,
+        pensionType: row.pensionType,
+        handlingRoute: row.handlingRoute ?? 'direct',
+        lawFirmRef: row.lawFirmRef,
         submittedAt: row.submittedAt,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
@@ -1514,6 +1570,106 @@ export class ClaimsApplicationService {
       return mapRowToClaim(result);
     } catch (error) {
       logger.error('Error updating claim status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Set how a claim is handled after submission (admin only). Orthogonal
+   * to status: allowed in any status, but once the letter has gone to the
+   * lettershop the switch only affects future (re)sends, so that case is
+   * refused to avoid a second physical letter.
+   */
+  static async setHandlingRoute(
+    claimId: string,
+    adminUserId: string,
+    input: {
+      handlingRoute: ClaimHandlingRoute;
+      payoutTarget?: ClaimPayoutTarget | null;
+      lawFirmRef?: string | null;
+      note?: string;
+    }
+  ): Promise<Claim> {
+    try {
+      const claim = await this.getClaimAsAdmin(claimId);
+      if (!claim) {
+        throw new Error('Claim not found');
+      }
+      const previousRoute = claim.handlingRoute ?? 'direct';
+      if (
+        claim.lettershopSubmissionId &&
+        input.handlingRoute === 'law_firm' &&
+        previousRoute !== 'law_firm'
+      ) {
+        throw new Error(
+          'Invalid routing change: this claim was already sent to the lettershop'
+        );
+      }
+
+      // Direct handling always pays the client and has no law-firm file.
+      const payoutTarget =
+        input.handlingRoute === 'law_firm'
+          ? (input.payoutTarget ?? claim.payoutTarget ?? 'client')
+          : null;
+      const lawFirmRef =
+        input.handlingRoute === 'law_firm'
+          ? (input.lawFirmRef?.trim() || claim.lawFirmRef || null)
+          : null;
+      const now = new Date();
+
+      const result = await db.transaction(async (tx: any) => {
+        const [updatedClaim] = await tx
+          .update(claimsTable)
+          .set({
+            handlingRoute: input.handlingRoute,
+            handlingRouteSetAt: now,
+            handlingRouteSetBy: adminUserId,
+            payoutTarget,
+            lawFirmRef,
+            updatedAt: now,
+          })
+          .where(eq(claimsTable.id, claimId))
+          .returning();
+
+        await tx.insert(claimWorkflowStates).values({
+          claimId,
+          state: claim.status,
+          previousState: claim.status,
+          triggeredBy: 'admin',
+          metadata: {
+            adminUserId,
+            action: 'handling_route_update',
+            previousRoute,
+            handlingRoute: input.handlingRoute,
+            payoutTarget,
+            lawFirmRef,
+            note: input.note,
+          },
+        });
+
+        await tx.insert(auditLogs).values({
+          userId: adminUserId,
+          action: 'claim_handling_route_updated',
+          resource: 'claim',
+          resourceId: claimId,
+          details: {
+            previousRoute,
+            handlingRoute: input.handlingRoute,
+            payoutTarget,
+            lawFirmRef,
+            note: input.note,
+          },
+        });
+
+        return updatedClaim;
+      });
+
+      logger.info(
+        `Claim ${claimId} handling route updated: ${previousRoute} -> ${input.handlingRoute} by admin ${adminUserId}`
+      );
+      return mapRowToClaim(result);
+    } catch (error) {
+      logger.error('Error updating claim handling route:', error);
       throw error;
     }
   }

@@ -6,6 +6,10 @@ import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/admin';
 import { validateUuidParams } from '../middleware/validate-uuid';
 import { ClaimsApplicationService } from '../services/claims-application';
+import {
+  CLAIM_HANDLING_ROUTES,
+  CLAIM_PAYOUT_TARGETS,
+} from '../drizzle/schema/claims';
 import { getPresignedUrl } from '../utils/s3';
 
 const admin = new Hono();
@@ -34,11 +38,15 @@ admin.get('/stats', async (c) => {
 admin.get('/claims', async (c) => {
   try {
     const status = c.req.query('status') || undefined;
+    const handlingRoute = c.req.query('handlingRoute') || undefined;
+    const pensionType = c.req.query('pensionType') || undefined;
     const page = parseInt(c.req.query('page') || '1', 10);
     const limit = parseInt(c.req.query('limit') || '20', 10);
 
     const result = await ClaimsApplicationService.getAllClaims({
       status,
+      handlingRoute,
+      pensionType,
       page,
       limit,
     });
@@ -194,6 +202,48 @@ admin.put(
       const message =
         error instanceof Error ? error.message : 'Failed to update status';
       const statusCode = message.includes('Invalid transition') ? 400 : 500;
+      return c.json({ success: false, error: message }, statusCode);
+    }
+  }
+);
+
+// ============================================================
+// Handling Route (direct vs law firm)
+// ============================================================
+
+const updateRoutingSchema = z.object({
+  handlingRoute: z.enum(CLAIM_HANDLING_ROUTES),
+  payoutTarget: z.enum(CLAIM_PAYOUT_TARGETS).nullable().optional(),
+  lawFirmRef: z.string().max(100).nullable().optional(),
+  note: z.string().max(1000).optional(),
+});
+
+admin.put(
+  '/claims/:id/routing',
+  validateUuidParams('id'),
+  zValidator('json', updateRoutingSchema),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const claimId = c.req.param('id');
+      const input = c.req.valid('json');
+
+      const claim = await ClaimsApplicationService.setHandlingRoute(
+        claimId,
+        user.id,
+        input
+      );
+
+      return c.json({ success: true, claim });
+    } catch (error) {
+      logger.error('Admin routing update error:', error);
+      const message =
+        error instanceof Error ? error.message : 'Failed to update routing';
+      const statusCode = message.includes('Invalid routing')
+        ? 400
+        : message === 'Claim not found'
+          ? 404
+          : 500;
       return c.json({ success: false, error: message }, statusCode);
     }
   }
