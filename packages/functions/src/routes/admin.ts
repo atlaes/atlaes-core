@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { logger } from '../utils/logger';
+import { logger, toErrorMeta } from '../utils/logger';
 import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/admin';
 import { validateUuidParams } from '../middleware/validate-uuid';
@@ -43,7 +43,7 @@ admin.get('/overview', async (c) => {
     const overview = await AdminOverviewService.getOverview();
     return c.json({ success: true, ...overview });
   } catch (error) {
-    logger.error('Admin overview error:', error);
+    logger.error('Admin overview error:', toErrorMeta(error));
     return c.json({ success: false, error: 'Failed to load overview' }, 500);
   }
 });

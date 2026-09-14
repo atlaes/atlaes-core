@@ -111,50 +111,49 @@ function toItem(
 export class AdminOverviewService {
   static async getOverview(limit = 8): Promise<AdminOverview> {
     const now = new Date();
-    const base = db
-      .select(ATTENTION_COLUMNS)
-      .from(claimsTable)
-      .leftJoin(users, eq(claimsTable.userId, users.id));
+    // Drizzle builders mutate in place, so each query gets a fresh one.
+    const base = () =>
+      db
+        .select(ATTENTION_COLUMNS)
+        .from(claimsTable)
+        .leftJoin(users, eq(claimsTable.userId, users.id));
 
-    const [submitted, responses, missingPackage, paymentIssues] =
-      await Promise.all([
-        // Submitted and untouched by ops, oldest first.
-        base
-          .where(eq(claimsTable.status, 'submitted'))
-          .orderBy(claimsTable.submittedAt)
-          .limit(limit),
-        // The firm recorded a provider response; ops decide what follows.
-        base
-          .where(
-            and(
-              eq(claimsTable.handlingRoute, 'law_firm'),
-              eq(claimsTable.lawFirmCaseState, 'response_received')
-            )
-          )
-          .orderBy(desc(claimsTable.lawFirmResponseAt))
-          .limit(limit),
-        // bAV claims past draft with no generated package.
-        base
-          .where(
-            and(
-              eq(claimsTable.pensionType, 'private'),
-              sql`${claimsTable.status} in ('submitted', 'processing')`,
-              isNull(claimsTable.pdfS3Key)
-            )
-          )
-          .orderBy(claimsTable.submittedAt)
-          .limit(limit),
-        // Past draft but payment not through.
-        base
-          .where(
-            and(
-              sql`${claimsTable.status} in ('ready', 'submitted', 'processing')`,
-              sql`coalesce(${claimsTable.paymentStatus}, 'pending') in ('failed', 'pending')`
-            )
-          )
-          .orderBy(desc(claimsTable.updatedAt))
-          .limit(limit),
-      ]);
+    // Submitted and untouched by ops, oldest first.
+    const submitted = await base()
+      .where(eq(claimsTable.status, 'submitted'))
+      .orderBy(sql`${claimsTable.submittedAt} asc nulls last`)
+      .limit(limit);
+    // The firm recorded a provider response; ops decide what follows.
+    const responses = await base()
+      .where(
+        and(
+          eq(claimsTable.handlingRoute, 'law_firm'),
+          eq(claimsTable.lawFirmCaseState, 'response_received')
+        )
+      )
+      .orderBy(desc(claimsTable.lawFirmResponseAt))
+      .limit(limit);
+    // bAV claims past draft with no generated package.
+    const missingPackage = await base()
+      .where(
+        and(
+          eq(claimsTable.pensionType, 'private'),
+          sql`${claimsTable.status} in ('submitted', 'processing')`,
+          isNull(claimsTable.pdfS3Key)
+        )
+      )
+      .orderBy(sql`${claimsTable.submittedAt} asc nulls last`)
+      .limit(limit);
+    // Past draft but payment not through.
+    const paymentIssues = await base()
+      .where(
+        and(
+          sql`${claimsTable.status} in ('ready', 'submitted', 'processing')`,
+          sql`coalesce(${claimsTable.paymentStatus}, 'pending') in ('failed', 'pending')`
+        )
+      )
+      .orderBy(desc(claimsTable.updatedAt))
+      .limit(limit);
 
     const activityRows = await db
       .select({
@@ -179,7 +178,7 @@ export class AdminOverviewService {
         submitted: sql<number>`count(*) filter (where ${claimsTable.status} = 'submitted')`,
         processing: sql<number>`count(*) filter (where ${claimsTable.status} = 'processing')`,
         lawFirm: sql<number>`count(*) filter (where ${claimsTable.handlingRoute} = 'law_firm' and ${claimsTable.status} <> 'draft')`,
-        completedThisWeek: sql<number>`count(*) filter (where ${claimsTable.status} = 'completed' and ${claimsTable.updatedAt} >= ${weekAgo})`,
+        completedThisWeek: sql<number>`count(*) filter (where ${claimsTable.status} = 'completed' and ${claimsTable.updatedAt} >= ${weekAgo.toISOString()}::timestamptz)`,
       })
       .from(claimsTable);
 
