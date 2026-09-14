@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/AuthContext';
+import { homeForRole, useAuth } from '@/contexts/AuthContext';
 import {
   getClaimDetail,
   updateClaimStatus,
@@ -12,6 +12,8 @@ import {
   setClaimRouting,
   getPackageDownloadUrl,
   regeneratePackage,
+  getClaimCorrespondence,
+  getCorrespondenceDownloadUrl,
   ClaimDetailResponse,
   ClaimHandlingRoute,
   ClaimPayoutTarget,
@@ -30,7 +32,25 @@ import {
   Send,
   Scale,
   Briefcase,
+  Inbox,
 } from 'lucide-react';
+
+const CASE_STATE_LABELS: Record<string, string> = {
+  new: 'New (not yet downloaded)',
+  downloaded: 'Package downloaded',
+  submitted: 'Sent to provider',
+  response_received: 'Response received',
+  closed: 'Closed by the firm',
+};
+
+const FIRM_EVENT_LABELS: Record<string, string> = {
+  downloaded: 'Package downloaded',
+  submitted: 'Sent to provider',
+  response_received: 'Response received',
+  closed: 'Case closed',
+  reference_set: 'File number set',
+  correspondence_uploaded: 'Correspondence uploaded',
+};
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
@@ -75,7 +95,8 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 
 export default function ClaimDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -92,16 +113,32 @@ export default function ClaimDetailPage() {
   } | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.replace('/');
-    }
-  }, [authLoading, isAuthenticated, router]);
+    if (authLoading) return;
+    if (!isAuthenticated) router.replace('/');
+    else if (!isAdmin) router.replace(homeForRole(user?.role));
+  }, [authLoading, isAuthenticated, isAdmin, user?.role, router]);
 
   const detailQuery = useQuery({
     queryKey: ['admin-claim', id],
     queryFn: () => getClaimDetail(id),
-    enabled: isAuthenticated && !!id,
+    enabled: isAdmin && !!id,
   });
+
+  const isLawFirmClaim = detailQuery.data?.claim.handlingRoute === 'law_firm';
+  const correspondenceQuery = useQuery({
+    queryKey: ['admin-claim-correspondence', id],
+    queryFn: () => getClaimCorrespondence(id),
+    enabled: isAdmin && !!id && isLawFirmClaim,
+  });
+
+  const handleCorrespondenceDownload = async (corrId: string) => {
+    try {
+      const result = await getCorrespondenceDownloadUrl(id, corrId);
+      if (result.downloadUrl) window.open(result.downloadUrl, '_blank');
+    } catch (err) {
+      console.error('Correspondence download failed:', err);
+    }
+  };
 
   const statusMutation = useMutation({
     mutationFn: ({
@@ -179,7 +216,7 @@ export default function ClaimDetailPage() {
     }
   };
 
-  if (authLoading || !isAuthenticated) {
+  if (authLoading || !isAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-accent border-t-transparent" />
@@ -357,10 +394,28 @@ export default function ClaimDetailPage() {
                   {claim.payoutTarget === 'law_firm'
                     ? 'law firm Anderkonto'
                     : 'client account'}
-                  {claim.lawFirmRef ? ` · Ref ${claim.lawFirmRef}` : ''}
+                  {claim.lawFirmRef ? ` · Ref ${claim.lawFirmRef}` : ' · no file number yet'}
                 </span>
               )}
             </div>
+            {currentRoute === 'law_firm' && (
+              <p className="mt-1 text-xs text-indigo-700">
+                Firm case state:{' '}
+                {CASE_STATE_LABELS[claim.lawFirmCaseState ?? 'new'] ??
+                  claim.lawFirmCaseState}
+                {claim.lawFirmSubmittedAt
+                  ? ` · sent ${formatDate(claim.lawFirmSubmittedAt)}${
+                      claim.lawFirmSubmissionChannel
+                        ? ` by ${claim.lawFirmSubmissionChannel}`
+                        : ''
+                    }`
+                  : ''}
+                {claim.lawFirmResponseAt
+                  ? ` · response ${formatDate(claim.lawFirmResponseAt)}`
+                  : ''}
+                {!claim.lawFirmId ? ' · not assigned to a firm (no active firm?)' : ''}
+              </p>
+            )}
             <p className="mt-1 text-xs text-gray-400">
               {claim.handlingRouteSetAt
                 ? `Set ${formatDate(claim.handlingRouteSetAt)}`
@@ -687,6 +742,90 @@ export default function ClaimDetailPage() {
         </Section>
       )}
 
+      {/* Law firm exchange */}
+      {isLawFirmClaim && (
+        <Section title="Law firm exchange" icon={<Inbox className="h-4 w-4" />}>
+          {correspondenceQuery.isLoading ? (
+            <p className="text-sm text-gray-400">Loading…</p>
+          ) : (
+            <>
+              <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+                Correspondence
+              </h4>
+              {(correspondenceQuery.data?.correspondence.length ?? 0) === 0 ? (
+                <p className="mb-4 text-sm text-gray-400">
+                  Nothing exchanged yet.
+                </p>
+              ) : (
+                <div className="mb-4 space-y-2">
+                  {correspondenceQuery.data!.correspondence.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-100 p-3"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {item.document?.fileName ??
+                            (item.direction === 'package_out'
+                              ? 'Letter package generated'
+                              : item.direction === 'copy_out'
+                                ? 'Copy print generated'
+                                : 'Note')}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {item.direction === 'provider_in'
+                            ? `From provider, uploaded by ${item.uploadedBy?.email ?? 'the firm'}`
+                            : item.direction === 'firm_note'
+                              ? 'Firm note'
+                              : 'Outgoing'}
+                          {item.receivedDate ? ` · received ${item.receivedDate}` : ''}
+                          {' · '}
+                          {formatDate(item.createdAt)}
+                        </p>
+                        {item.note && (
+                          <p className="mt-1 text-sm text-gray-600">{item.note}</p>
+                        )}
+                      </div>
+                      {item.document && (
+                        <button
+                          onClick={() => handleCorrespondenceDownload(item.id)}
+                          className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          Download
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+                Case events recorded by the firm
+              </h4>
+              {(correspondenceQuery.data?.events.length ?? 0) === 0 ? (
+                <p className="text-sm text-gray-400">No events yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {correspondenceQuery.data!.events.map((entry) => (
+                    <div key={entry.id} className="border-l-2 border-indigo-200 pl-4">
+                      <p className="text-sm font-medium text-gray-700">
+                        {FIRM_EVENT_LABELS[entry.event] ?? entry.event}
+                        {entry.channel ? ` via ${entry.channel}` : ''}
+                        {entry.date ? ` on ${entry.date}` : ''}
+                      </p>
+                      {entry.note && (
+                        <p className="text-sm text-gray-600">{entry.note}</p>
+                      )}
+                      <p className="text-xs text-gray-400">{formatDate(entry.createdAt)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </Section>
+      )}
+
       {/* Admin Notes */}
       <Section title="Notes & Workflow" icon={<MessageSquare className="h-4 w-4" />}>
         {/* Add note form */}
@@ -721,6 +860,7 @@ export default function ClaimDetailPage() {
           {workflow.map((entry) => {
             const meta = entry.metadata as Record<string, any> | null;
             const isNote = meta?.type === 'admin_note';
+            const isFirmEvent = meta?.type === 'law_firm_event';
             const note = meta?.note;
 
             return (
@@ -738,9 +878,13 @@ export default function ClaimDetailPage() {
                     <span className="text-sm font-medium text-gray-700">
                       {isNote
                         ? 'Admin Note'
-                        : entry.previousState
-                          ? `${entry.previousState} → ${entry.state}`
-                          : entry.state}
+                        : isFirmEvent
+                          ? `Law firm: ${FIRM_EVENT_LABELS[String(meta?.event)] ?? meta?.event}`
+                          : meta?.action === 'handling_route_update'
+                            ? `Handling: ${meta.previousRoute} → ${meta.handlingRoute}`
+                            : entry.previousState
+                              ? `${entry.previousState} → ${entry.state}`
+                              : entry.state}
                     </span>
                     <span className="text-xs text-gray-400">
                       by {entry.triggeredBy || 'system'}

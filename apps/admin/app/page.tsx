@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
+import { homeForRole, useAuth } from '@/contexts/AuthContext';
 
 export default function HomePage() {
-  const { isAuthenticated, isLoading, error, requestMagicLink } = useAuth();
+  const { user, isAuthenticated, isLoading, error, requestMagicLink } =
+    useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
@@ -14,9 +15,9 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.replace('/claims');
+      router.replace(homeForRole(user?.role));
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, user?.role, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,7 +66,7 @@ export default function HomePage() {
               Atlaes Admin
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              Sign in with your admin email
+              Sign in with your ops or partner law firm email
             </p>
           </div>
 
@@ -104,7 +105,7 @@ export default function HomePage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent"
-                placeholder="admin@atlaes.de"
+                placeholder="you@example.com"
               />
               <button
                 type="submit"

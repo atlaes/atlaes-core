@@ -12,6 +12,7 @@ import { downloadFile, uploadFile } from '../../utils/s3';
 import { logger } from '../../utils/logger';
 import { auditLogs, signatures } from '../../drizzle/schema/shared';
 import {
+  claimCorrespondence,
   claimsTable,
   type ClaimDocumentRole,
 } from '../../drizzle/schema/claims';
@@ -189,8 +190,44 @@ export class BavLetterPackageService {
     await db.transaction(async (tx: any) => {
       await tx
         .update(claimsTable)
-        .set({ pdfS3Key: pdfKey, updatedAt: new Date() })
+        .set({
+          pdfS3Key: pdfKey,
+          copyPdfS3Key: copy?.s3Key ?? null,
+          updatedAt: new Date(),
+        })
         .where(eq(claimsTable.id, claimId));
+
+      // Law-firm cases: log the outgoing package (and copy) in the
+      // claim's correspondence so the portal shows what was handed over.
+      if (signer === 'LAW' && claim.lawFirmId) {
+        const outgoing = [
+          {
+            direction: 'package_out',
+            note: `Letter package ${templateId} generated${
+              claim.lawFirmRef ? ` (Unser Zeichen ${claim.lawFirmRef})` : ''
+            }`,
+          },
+          ...(copy
+            ? [
+                {
+                  direction: 'copy_out',
+                  note: `Copy print for ${copy.recipientName} generated`,
+                },
+              ]
+            : []),
+        ];
+        await tx.insert(claimCorrespondence).values(
+          outgoing.map((o) => ({
+            claimId,
+            documentId: null,
+            direction: o.direction,
+            source: 'ops',
+            lawFirmId: claim.lawFirmId,
+            uploadedBy: userId,
+            note: o.note,
+          }))
+        );
+      }
 
       await tx.insert(auditLogs).values({
         userId,

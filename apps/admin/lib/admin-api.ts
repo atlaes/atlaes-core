@@ -1,4 +1,10 @@
 import apiClient from './api';
+import type {
+  CaseEventEntry,
+  CorrespondenceItem,
+  LawFirmMembership,
+  LawFirmSummary,
+} from './law-firm-api';
 
 export type ClaimHandlingRoute = 'direct' | 'law_firm';
 export type ClaimPayoutTarget = 'client' | 'law_firm';
@@ -16,6 +22,7 @@ export interface ClaimListItem {
   pensionType: ClaimPensionType | null;
   handlingRoute: ClaimHandlingRoute;
   lawFirmRef: string | null;
+  lawFirmCaseState: string | null;
   submittedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -105,6 +112,16 @@ export interface ClaimDetail {
   handlingRouteSetBy: string | null;
   payoutTarget: ClaimPayoutTarget | null;
   lawFirmRef: string | null;
+  // Law-firm assignment + the firm's case state (portal)
+  lawFirmId: string | null;
+  lawFirmAssignedAt: string | null;
+  lawFirmCaseState: string | null;
+  lawFirmDownloadedAt: string | null;
+  lawFirmSubmittedAt: string | null;
+  lawFirmSubmissionChannel: string | null;
+  lawFirmResponseAt: string | null;
+  lawFirmClosedAt: string | null;
+  copyPdfS3Key: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -245,4 +262,68 @@ export async function getDocumentDownloadUrl(
     `/admin/claims/${claimId}/documents/${docId}/download`
   );
   return data;
+}
+
+// ============================================================
+// Law firm (ops side)
+// ============================================================
+
+
+export async function getClaimCorrespondence(
+  id: string
+): Promise<{ correspondence: CorrespondenceItem[]; events: CaseEventEntry[] }> {
+  const { data } = await apiClient.get(`/admin/claims/${id}/correspondence`);
+  return data;
+}
+
+export async function getCorrespondenceDownloadUrl(
+  claimId: string,
+  corrId: string
+): Promise<{ downloadUrl: string | null; fileName: string; fileType: string }> {
+  const { data } = await apiClient.get(
+    `/admin/claims/${claimId}/correspondence/${corrId}/download`
+  );
+  return data;
+}
+
+export async function getLawFirms(): Promise<LawFirmSummary[]> {
+  const { data } = await apiClient.get('/admin/law-firms');
+  return data.firms;
+}
+
+export interface LawFirmMemberRow extends LawFirmMembership {
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  invitedBy: string | null;
+}
+
+export async function getLawFirmMembers(
+  firmId: string
+): Promise<{ firm: LawFirmSummary; members: LawFirmMemberRow[] }> {
+  const { data } = await apiClient.get(`/admin/law-firms/${firmId}/members`);
+  return data;
+}
+
+export async function inviteLawFirmMember(
+  firmId: string,
+  input: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    role?: 'member' | 'firm_admin';
+  }
+): Promise<LawFirmMembership & { email: string; magicLinkUrl?: string }> {
+  const { data } = await apiClient.post(
+    `/admin/law-firms/${firmId}/members`,
+    input
+  );
+  return data.member;
+}
+
+export async function removeLawFirmMember(
+  firmId: string,
+  memberId: string
+): Promise<void> {
+  await apiClient.delete(`/admin/law-firms/${firmId}/members/${memberId}`);
 }

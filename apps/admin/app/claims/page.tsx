@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/AuthContext';
+import Link from 'next/link';
+import { homeForRole, useAuth } from '@/contexts/AuthContext';
 import {
   getStats,
   getClaims,
@@ -20,6 +21,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Scale,
 } from 'lucide-react';
 
 const STATUS_TABS = [
@@ -55,15 +57,36 @@ const ROUTE_FILTERS: { key: '' | ClaimHandlingRoute; label: string }[] = [
   { key: 'law_firm', label: 'Law firm' },
 ];
 
-function RouteBadge({ route }: { route: ClaimHandlingRoute | null }) {
+const CASE_STATE_LABELS: Record<string, string> = {
+  new: 'new',
+  downloaded: 'downloaded',
+  submitted: 'sent to provider',
+  response_received: 'response received',
+  closed: 'closed',
+};
+
+function RouteBadge({
+  route,
+  caseState,
+}: {
+  route: ClaimHandlingRoute | null;
+  caseState?: string | null;
+}) {
   const isLawFirm = route === 'law_firm';
   return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-        isLawFirm ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-700'
-      }`}
-    >
-      {isLawFirm ? 'Law firm' : 'Direct'}
+    <span className="inline-flex flex-wrap items-center gap-1">
+      <span
+        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+          isLawFirm ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-700'
+        }`}
+      >
+        {isLawFirm ? 'Assigned to law firm' : 'Direct'}
+      </span>
+      {isLawFirm && caseState && (
+        <span className="text-xs text-gray-500">
+          {CASE_STATE_LABELS[caseState] ?? caseState}
+        </span>
+      )}
     </span>
   );
 }
@@ -121,16 +144,18 @@ export default function ClaimsPage() {
   const [routeFilter, setRouteFilter] = useState<'' | ClaimHandlingRoute>('');
   const [page, setPage] = useState(1);
 
+  const isAdmin = user?.role === 'admin';
+
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.replace('/');
-    }
-  }, [authLoading, isAuthenticated, router]);
+    if (authLoading) return;
+    if (!isAuthenticated) router.replace('/');
+    else if (!isAdmin) router.replace(homeForRole(user?.role));
+  }, [authLoading, isAuthenticated, isAdmin, user?.role, router]);
 
   const statsQuery = useQuery({
     queryKey: ['admin-stats'],
     queryFn: getStats,
-    enabled: isAuthenticated,
+    enabled: isAdmin,
   });
 
   const claimsQuery = useQuery({
@@ -142,10 +167,10 @@ export default function ClaimsPage() {
         page,
         limit: 20,
       }),
-    enabled: isAuthenticated,
+    enabled: isAdmin,
   });
 
-  if (authLoading || !isAuthenticated) {
+  if (authLoading || !isAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-accent border-t-transparent" />
@@ -170,6 +195,13 @@ export default function ClaimsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Link
+            href="/law-firms"
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            <Scale className="h-4 w-4" />
+            Law firms
+          </Link>
           <span className="text-sm text-gray-500">{user?.email}</span>
           <button
             onClick={logout}
@@ -319,7 +351,10 @@ export default function ClaimsPage() {
                       <ProductBadge pensionType={claim.pensionType} />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm">
-                      <RouteBadge route={claim.handlingRoute} />
+                      <RouteBadge
+                        route={claim.handlingRoute}
+                        caseState={claim.lawFirmCaseState}
+                      />
                       {claim.lawFirmRef && (
                         <span className="ml-1.5 text-xs text-gray-400">
                           {claim.lawFirmRef}

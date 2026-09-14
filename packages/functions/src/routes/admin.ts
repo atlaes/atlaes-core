@@ -11,6 +11,8 @@ import {
   CLAIM_PAYOUT_TARGETS,
 } from '../drizzle/schema/claims';
 import { getPresignedUrl } from '../utils/s3';
+import { LawFirmService } from '../services/law-firm';
+import { LAW_FIRM_MEMBER_ROLES } from '../drizzle/schema/shared';
 
 const admin = new Hono();
 
@@ -357,6 +359,139 @@ admin.post(
         },
         500
       );
+    }
+  }
+);
+
+// ============================================================
+// Law firm: correspondence the firm uploaded, case events
+// ============================================================
+
+admin.get(
+  '/claims/:id/correspondence',
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const claimId = c.req.param('id');
+      const [correspondence, events] = await Promise.all([
+        LawFirmService.listCorrespondence(claimId),
+        LawFirmService.listCaseEvents(claimId),
+      ]);
+      return c.json({ success: true, correspondence, events });
+    } catch (error) {
+      logger.error('Admin correspondence list error:', error);
+      return c.json(
+        { success: false, error: 'Failed to get correspondence' },
+        500
+      );
+    }
+  }
+);
+
+admin.get(
+  '/claims/:id/correspondence/:corrId/download',
+  validateUuidParams('id', 'corrId'),
+  async (c) => {
+    try {
+      const result = await LawFirmService.getCorrespondenceDownload(
+        c.req.param('id'),
+        c.req.param('corrId'),
+        null
+      );
+      if (!result) {
+        return c.json({ success: false, error: 'Not found' }, 404);
+      }
+      return c.json({ success: true, ...result });
+    } catch (error) {
+      logger.error('Admin correspondence download error:', error);
+      return c.json(
+        { success: false, error: 'Failed to generate download URL' },
+        500
+      );
+    }
+  }
+);
+
+// ============================================================
+// Law firms and their members (invitation only)
+// ============================================================
+
+admin.get('/law-firms', async (c) => {
+  try {
+    const firms = await LawFirmService.listFirms();
+    return c.json({ success: true, firms });
+  } catch (error) {
+    logger.error('Admin law firms list error:', error);
+    return c.json({ success: false, error: 'Failed to get law firms' }, 500);
+  }
+});
+
+admin.get('/law-firms/:id/members', validateUuidParams('id'), async (c) => {
+  try {
+    const firm = await LawFirmService.getFirm(c.req.param('id'));
+    if (!firm) {
+      return c.json({ success: false, error: 'Law firm not found' }, 404);
+    }
+    const members = await LawFirmService.listMembers(firm.id);
+    return c.json({ success: true, firm, members });
+  } catch (error) {
+    logger.error('Admin law firm members error:', error);
+    return c.json({ success: false, error: 'Failed to get members' }, 500);
+  }
+});
+
+const inviteMemberSchema = z.object({
+  email: z.string().email(),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  role: z.enum(LAW_FIRM_MEMBER_ROLES).optional(),
+});
+
+admin.post(
+  '/law-firms/:id/members',
+  validateUuidParams('id'),
+  zValidator('json', inviteMemberSchema),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const member = await LawFirmService.inviteMember(
+        c.req.param('id'),
+        user.id,
+        c.req.valid('json')
+      );
+      return c.json({ success: true, member }, 201);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to invite member';
+      const status = message.startsWith('Invalid')
+        ? 400
+        : message === 'Law firm not found'
+          ? 404
+          : 500;
+      if (status === 500) logger.error('Admin invite member error:', error);
+      return c.json({ success: false, error: message }, status);
+    }
+  }
+);
+
+admin.delete(
+  '/law-firms/:id/members/:memberId',
+  validateUuidParams('id', 'memberId'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const removed = await LawFirmService.removeMember(
+        c.req.param('id'),
+        c.req.param('memberId'),
+        user.id
+      );
+      if (!removed) {
+        return c.json({ success: false, error: 'Member not found' }, 404);
+      }
+      return c.json({ success: true });
+    } catch (error) {
+      logger.error('Admin remove member error:', error);
+      return c.json({ success: false, error: 'Failed to remove member' }, 500);
     }
   }
 );

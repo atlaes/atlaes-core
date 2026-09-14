@@ -425,13 +425,16 @@ auth.post(
         logger.info(`New user created via magic link: ${user.email}`);
       }
 
-      // Auto-assign admin role for allowed domains
+      // Auto-assign admin role for allowed domains. Invited law-firm
+      // members keep their role even on these domains, or they would be
+      // flipped to admin at first login and lose the portal.
       const ADMIN_DOMAINS = ['atlaes.de', 'alibuas.com'];
       const emailDomain = email.split('@')[1]?.toLowerCase();
       if (
         emailDomain &&
         ADMIN_DOMAINS.includes(emailDomain) &&
-        user.role !== 'admin'
+        user.role !== 'admin' &&
+        user.role !== 'law_firm'
       ) {
         await db
           .update(users)

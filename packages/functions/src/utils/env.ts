@@ -63,6 +63,10 @@ const envSchema = z.object({
   APPLE_PRIVATE_KEY: z.string().optional(), // Private key contents (PEM format)
   // Frontend URL for OAuth callbacks and magic links
   FRONTEND_URL: z.string().optional().default('http://localhost:3000'),
+  // Admin app origin: magic links for admin and law-firm users point here.
+  ADMIN_URL: z.string().optional().default('http://localhost:3003'),
+  // Ops mailbox for law-firm activity (uploads, case events). Unset = log only.
+  OPS_NOTIFICATION_EMAIL: z.string().optional(),
   // SES email
   SES_FROM_EMAIL: z.string().optional().default('noreply@companypension.de'),
   SES_REGION: z.string().optional().default('eu-central-1'),

@@ -73,6 +73,46 @@ export const auditLogs = shared.table('audit_logs', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+// Partner law firms that handle claims routed with handling_route =
+// 'law_firm'. The data model allows many firms; the UI assumes one
+// (Vividius, seeded by migration 0010) for now.
+export const lawFirms = shared.table('law_firms', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  contactEmail: varchar('contact_email', { length: 255 }),
+  // Where "new case" notifications go; falls back to contactEmail.
+  notificationEmail: varchar('notification_email', { length: 255 }),
+  street: varchar('street', { length: 255 }),
+  postalCode: varchar('postal_code', { length: 20 }),
+  city: varchar('city', { length: 100 }),
+  country: varchar('country', { length: 2 }).default('DE'),
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+// Which users belong to which firm. A user belongs to at most one firm
+// (unique user_id); users with a membership carry role = 'law_firm'.
+// Created by ops from the admin only — never by email domain.
+export const LAW_FIRM_MEMBER_ROLES = ['member', 'firm_admin'] as const;
+export type LawFirmMemberRole = (typeof LAW_FIRM_MEMBER_ROLES)[number];
+
+export const lawFirmMembers = shared.table('law_firm_members', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  lawFirmId: uuid('law_firm_id')
+    .notNull()
+    .references(() => lawFirms.id),
+  userId: uuid('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id),
+  role: varchar('role', { length: 20 }).notNull().default('member'),
+  invitedBy: uuid('invited_by').references(() => users.id),
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   profile: one(profiles),
@@ -108,3 +148,21 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const lawFirmsRelations = relations(lawFirms, ({ many }) => ({
+  members: many(lawFirmMembers),
+}));
+
+export const lawFirmMembersRelations = relations(
+  lawFirmMembers,
+  ({ one }) => ({
+    firm: one(lawFirms, {
+      fields: [lawFirmMembers.lawFirmId],
+      references: [lawFirms.id],
+    }),
+    user: one(users, {
+      fields: [lawFirmMembers.userId],
+      references: [users.id],
+    }),
+  })
+);

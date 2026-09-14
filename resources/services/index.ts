@@ -42,6 +42,14 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
       $app.stage === 'production'
         ? 'https://vbl.atlaes.de'
         : 'https://staging.vbl.atlaes.de',
+    // Admin app origin; magic links for admin and law-firm users open here.
+    ADMIN_URL:
+      $app.stage === 'production'
+        ? 'https://admin.atlaes.de'
+        : 'https://staging.admin.atlaes.de',
+    // Ops mailbox for law-firm portal activity (uploads, case events).
+    // Unset = notices are logged only.
+    OPS_NOTIFICATION_EMAIL: process.env.OPS_NOTIFICATION_EMAIL ?? '',
     JWT_SECRET: 'a-proper-32-char-minimum-secret-for-staging-env',
     NODE_ENV: 'production',
     SES_FROM_EMAIL: 'noreply@companypension.de',

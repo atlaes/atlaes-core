@@ -51,10 +51,14 @@ export async function uploadFile(
 }
 
 /**
- * Get a presigned download URL (valid for 1 hour).
+ * Get a presigned download URL (valid for 1 hour by default; pass a
+ * shorter `expiresIn` in seconds for third-party surfaces).
  * Returns null in dev mode if no bucket is configured.
  */
-export async function getPresignedUrl(key: string): Promise<string | null> {
+export async function getPresignedUrl(
+  key: string,
+  expiresIn: number = 3600
+): Promise<string | null> {
   if (!isS3Available) {
     logger.info(`S3 presigned URL skipped (dev mode): ${key}`);
     return null;
@@ -65,7 +69,7 @@ export async function getPresignedUrl(key: string): Promise<string | null> {
       Bucket: BUCKET_NAME,
       Key: key,
     }),
-    { expiresIn: 3600 }
+    { expiresIn }
   );
   return url;
 }

@@ -269,6 +269,17 @@ export interface Claim {
   payoutTarget: string | null;
   lawFirmRef: string | null;
 
+  // Law-firm assignment + the firm's case state (portal)
+  lawFirmId: string | null;
+  lawFirmAssignedAt: Date | null;
+  lawFirmCaseState: string | null;
+  lawFirmDownloadedAt: Date | null;
+  lawFirmSubmittedAt: Date | null;
+  lawFirmSubmissionChannel: string | null;
+  lawFirmResponseAt: Date | null;
+  lawFirmClosedAt: Date | null;
+  copyPdfS3Key: string | null;
+
   // Timestamps
   createdAt: Date | null;
   updatedAt: Date | null;
@@ -400,6 +411,15 @@ function mapRowToClaim(row: any): Claim {
     handlingRouteSetBy: row.handlingRouteSetBy ?? null,
     payoutTarget: row.payoutTarget ?? null,
     lawFirmRef: row.lawFirmRef ?? null,
+    lawFirmId: row.lawFirmId ?? null,
+    lawFirmAssignedAt: row.lawFirmAssignedAt ?? null,
+    lawFirmCaseState: row.lawFirmCaseState ?? null,
+    lawFirmDownloadedAt: row.lawFirmDownloadedAt ?? null,
+    lawFirmSubmittedAt: row.lawFirmSubmittedAt ?? null,
+    lawFirmSubmissionChannel: row.lawFirmSubmissionChannel ?? null,
+    lawFirmResponseAt: row.lawFirmResponseAt ?? null,
+    lawFirmClosedAt: row.lawFirmClosedAt ?? null,
+    copyPdfS3Key: row.copyPdfS3Key ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -1426,6 +1446,7 @@ export class ClaimsApplicationService {
           pensionType: claimsTable.pensionType,
           handlingRoute: claimsTable.handlingRoute,
           lawFirmRef: claimsTable.lawFirmRef,
+          lawFirmCaseState: claimsTable.lawFirmCaseState,
           createdAt: claimsTable.createdAt,
           updatedAt: claimsTable.updatedAt,
           userEmail: users.email,
@@ -1457,6 +1478,10 @@ export class ClaimsApplicationService {
         pensionType: row.pensionType,
         handlingRoute: row.handlingRoute ?? 'direct',
         lawFirmRef: row.lawFirmRef,
+        lawFirmCaseState:
+          (row.handlingRoute ?? 'direct') === 'law_firm'
+            ? (row.lawFirmCaseState ?? 'new')
+            : null,
         submittedAt: row.submittedAt,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
@@ -1702,7 +1727,21 @@ export class ClaimsApplicationService {
       logger.info(
         `Claim ${claimId} handling route updated: ${previousRoute} -> ${input.handlingRoute} by admin ${adminUserId}`
       );
-      return mapRowToClaim(result);
+
+      // Assign to the partner firm (regenerates the LAW package and
+      // notifies the firm) or clear the assignment. Lazy import: the
+      // law-firm service imports this module.
+      const { LawFirmService } = await import('./law-firm');
+      if (input.handlingRoute === 'law_firm' && previousRoute !== 'law_firm') {
+        await LawFirmService.assignClaimToDefaultFirm(claimId, adminUserId);
+      } else if (
+        input.handlingRoute !== 'law_firm' &&
+        previousRoute === 'law_firm'
+      ) {
+        await LawFirmService.unassignClaim(claimId, adminUserId);
+      }
+      const refreshed = await this.getClaimAsAdmin(claimId);
+      return refreshed ?? mapRowToClaim(result);
     } catch (error) {
       logger.error('Error updating claim handling route:', error);
       throw error;

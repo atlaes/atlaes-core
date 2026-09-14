@@ -19,6 +19,7 @@ import withdrawals from './routes/withdrawals';
 import documentsRouter from './routes/documents';
 import signaturesRouter from './routes/signatures';
 import admin from './routes/admin';
+import lawFirm from './routes/law-firm';
 import migrations from './routes/migrations';
 import payments from './routes/payments';
 
@@ -47,6 +48,7 @@ app.route('/api/withdrawals', withdrawals);
 app.route('/api/documents', documentsRouter);
 app.route('/api/signatures', signaturesRouter);
 app.route('/api/admin', admin);
+app.route('/api/law-firm', lawFirm);
 app.route('/api/migrations', migrations);
 app.route('/api/payments', payments);
 

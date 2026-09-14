@@ -1,5 +1,5 @@
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
-import { logger } from '../utils/logger';
+import { logger, toErrorMeta } from '../utils/logger';
 import { env } from '../utils/env';
 
 const REGION = env.SES_REGION;
@@ -459,4 +459,213 @@ export function generateMagicLinkEmailHtml(magicLinkUrl: string): string {
   </table>
 </body>
 </html>`;
+}
+
+// ============================================================
+// Law-firm portal notifications
+// ============================================================
+
+interface BrandedEmail {
+  subject: string;
+  heading: string;
+  paragraphs: string[];
+  cta?: { label: string; url: string };
+  footnote?: string;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Same table layout as the magic link email, parameterised so the portal
+ * notifications look like the rest of the platform's mail.
+ */
+function renderBrandedEmailHtml(email: BrandedEmail): string {
+  const frontendUrl = env.FRONTEND_URL.replace(/\/$/, '');
+  const logoUrl = `${frontendUrl}/companypension-cashouts-refunds.svg`;
+  const paragraphs = email.paragraphs
+    .map(
+      (p) =>
+        `<p style="margin:0 0 16px;font-size:16px;line-height:1.5;color:#3f3f46;">${escapeHtml(p)}</p>`
+    )
+    .join('\n');
+  const cta = email.cta
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 24px;">
+                <tr>
+                  <td style="background-color:#9FE870;border-radius:8px;">
+                    <a href="${email.cta.url}" target="_blank" style="display:inline-block;padding:14px 32px;font-size:16px;font-weight:600;color:#163300;text-decoration:none;">${escapeHtml(email.cta.label)}</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0 0 8px;font-size:13px;color:#a1a1aa;">If the button does not work, copy and paste this link into your browser:</p>
+              <p style="margin:0;font-size:13px;color:#9FE870;word-break:break-all;">${email.cta.url}</p>`
+    : '';
+  const footnote = email.footnote
+    ? `<p style="margin:0 0 8px;font-size:12px;color:#a1a1aa;">${escapeHtml(email.footnote)}</p>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(email.subject)}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+          <tr>
+            <td style="background-color:#163300;padding:24px 32px;border-radius:12px 12px 0 0;">
+              <img src="${logoUrl}" width="244" height="52" alt="CompanyPension Cash-outs &amp; Refunds" style="display:block;border:0;outline:none;text-decoration:none;height:auto;max-width:244px;width:100%;">
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#ffffff;padding:40px 32px;">
+              <h1 style="margin:0 0 16px;font-size:24px;color:#163300;">${escapeHtml(email.heading)}</h1>
+              ${paragraphs}
+              ${cta}
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#fafafa;padding:24px 32px;border-radius:0 0 12px 12px;border-top:1px solid #e4e4e7;">
+              ${footnote}
+              <p style="margin:0 0 8px;font-size:12px;color:#a1a1aa;">CompanyPension is operated by ATLAES GmbH.</p>
+              <p style="margin:0;font-size:12px;color:#a1a1aa;">&copy; ATLAES GmbH</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function renderBrandedEmailText(email: BrandedEmail): string {
+  const lines = [email.heading, '', ...email.paragraphs.flatMap((p) => [p, ''])];
+  if (email.cta) lines.push(`${email.cta.label}: ${email.cta.url}`, '');
+  if (email.footnote) lines.push(email.footnote, '');
+  lines.push('CompanyPension is operated by ATLAES GmbH.', '© ATLAES GmbH');
+  return lines.join('\n');
+}
+
+async function sendBrandedEmail(
+  to: string,
+  email: BrandedEmail,
+  logLabel: string
+): Promise<boolean> {
+  if (!isSesAvailable) {
+    logger.info(`[Email] Would send ${logLabel} email to: ${to}`, {
+      subject: email.subject,
+      cta: email.cta?.url,
+    });
+    return true;
+  }
+  try {
+    await sesClient.send(
+      new SendEmailCommand({
+        Source: `CompanyPension <${FROM_EMAIL}>`,
+        Destination: { ToAddresses: [to] },
+        Message: {
+          Subject: { Data: email.subject, Charset: 'UTF-8' },
+          Body: {
+            Html: { Data: renderBrandedEmailHtml(email), Charset: 'UTF-8' },
+            Text: { Data: renderBrandedEmailText(email), Charset: 'UTF-8' },
+          },
+        },
+      })
+    );
+    logger.info(`${logLabel} email sent to: ${to}`);
+    return true;
+  } catch (error) {
+    logger.error(`Failed to send ${logLabel} email:`, toErrorMeta(error));
+    return false;
+  }
+}
+
+/** Ops invited a person at the partner law firm; carries their first sign-in link. */
+export async function sendLawFirmInviteEmail(
+  to: string,
+  details: { firmName: string; magicLinkUrl: string }
+): Promise<boolean> {
+  return sendBrandedEmail(
+    to,
+    {
+      subject: `Your CompanyPension partner portal access (${details.firmName})`,
+      heading: 'Welcome to the CompanyPension partner portal',
+      paragraphs: [
+        `You have been invited to the CompanyPension partner portal for ${details.firmName}. The portal lists the cases routed to your firm, lets you download the letter package and record what you sent, and takes uploads of the provider's replies.`,
+        'Sign in with the button below. Future sign-ins work the same way: enter your email address on the portal and we send you a fresh link.',
+      ],
+      cta: { label: 'Open the partner portal', url: details.magicLinkUrl },
+      footnote:
+        'This sign-in link expires in 15 minutes; request a new one from the portal login page if needed.',
+    },
+    'law-firm invite'
+  );
+}
+
+/** A claim was routed to the firm; sent to the firm's notification address. */
+export async function sendLawFirmNewCaseEmail(
+  to: string,
+  details: {
+    firmName: string;
+    claimantName: string;
+    claimId: string;
+    caseUrl: string;
+    lawFirmRef: string | null;
+  }
+): Promise<boolean> {
+  const refLine = details.lawFirmRef
+    ? `Your file number on record: ${details.lawFirmRef}.`
+    : 'No file number is on record yet; please enter yours in the portal so the letter shows it.';
+  return sendBrandedEmail(
+    to,
+    {
+      subject: `New case for ${details.firmName}: ${details.claimantName}`,
+      heading: 'A new case has been routed to your firm',
+      paragraphs: [
+        `CompanyPension has assigned the bAV cash-out case of ${details.claimantName} (case ${details.claimId.slice(0, 8)}) to ${details.firmName}. The letter package is ready for download in the partner portal.`,
+        refLine,
+      ],
+      cta: { label: 'Open the case', url: details.caseUrl },
+    },
+    'law-firm new case'
+  );
+}
+
+/**
+ * Ops notice for law-firm activity (case events, uploads). Goes to
+ * OPS_NOTIFICATION_EMAIL; when that is unset the notice is only logged.
+ */
+export async function sendOpsLawFirmActivityEmail(details: {
+  subject: string;
+  summary: string;
+  detailLines: string[];
+  claimUrl: string;
+}): Promise<boolean> {
+  const to = env.OPS_NOTIFICATION_EMAIL;
+  if (!to) {
+    logger.info('[Email] OPS_NOTIFICATION_EMAIL unset; law-firm activity not mailed', {
+      subject: details.subject,
+    });
+    return false;
+  }
+  return sendBrandedEmail(
+    to,
+    {
+      subject: details.subject,
+      heading: details.summary,
+      paragraphs: details.detailLines,
+      cta: { label: 'Open the claim in the admin', url: details.claimUrl },
+    },
+    'ops law-firm activity'
+  );
 }
