@@ -1,0 +1,38 @@
+Postempfangsvollmacht
+
+Angelegenheit: Abfindung der betrieblichen Altersversorgung
+Korrespondenzpartner: {{recipient_name}}, {{recipient_city}}
+[[IF contract_reference]]{{contract_reference_label}}: {{contract_reference}}[[/IF]]
+[[IF employer_personnel_number]]Personalnummer: {{employer_personnel_number}}[[/IF]]
+
+
+{{g:Vollmachtgeber|Vollmachtgeberin}}:
+Name: {{client_full_name}}
+Geburtsdatum, Geburtsort: {{client_dob}}, {{client_birthplace}}
+Anschrift: {{client_address_inline}}
+
+Bevollmächtigte:
+Name: Anna Katharina Charlotte Kliem, geb. Böckers
+Geburtsdatum, Geburtsort: 06.05.1983, Münster (Westfalen)
+Anschrift: Kaskelstraße 46, 10317 Berlin, Deutschland
+E-Mail: assistenz.kliem@gmail.com
+
+
+Hiermit erteile ich, {{client_full_name}}, geboren am {{client_dob}} in {{client_birthplace}}, wohnhaft {{client_address_inline}} (nachfolgend „{{g:Vollmachtgeber|Vollmachtgeberin}}“), Frau Anna Katharina Charlotte Kliem, geb. Böckers, geboren am 06.05.1983 in Münster (Westfalen), wohnhaft Kaskelstraße 46, 10317 Berlin (nachfolgend „Bevollmächtigte“), die Vollmacht, alle an mich gerichtete Post von {{recipient_name}} in der oben bezeichneten Angelegenheit in meinem Namen entgegenzunehmen und zu verwalten.
+
+Umfang der Vollmacht:
+Die Bevollmächtigte ist berechtigt, folgende Handlungen in meinem Namen vorzunehmen:
+
+–  Annahme von Postsendungen: Entgegennahme von Briefen, Paketen und sonstigen Postsendungen, einschließlich Einschreiben und förmlicher Zustellungen.
+–  Unterschrift bei Annahme: Unterzeichnung von Empfangsbestätigungen und Zustellnachweisen.
+–  Verwaltung der Post: Öffnen und Sortieren der Post sowie Weiterleitung an mich.
+–  Abholung von Postsendungen: Abholung von Postsendungen bei der Poststelle oder einem Paketdienst.
+–  Korrespondenz: Führen der notwendigen Korrespondenz im Zusammenhang mit der Verwaltung meiner Post, auch per E-Mail.
+
+Ich bin damit einverstanden, dass Mitteilungen und Rückfragen in dieser Angelegenheit auch per E-Mail an die Bevollmächtigte (assistenz.kliem@gmail.com) gerichtet werden.
+
+Diese Vollmacht gilt ab dem {{pev_start_date}} bis auf Widerruf, längstens bis zum Abschluss des Abfindungsverfahrens einschließlich der Übersendung der Abrechnung und der steuerlichen Bescheinigungen für das Auszahlungsjahr. Anschließend ist die Post wieder unmittelbar an {{g:den Vollmachtgeber|die Vollmachtgeberin}} zuzustellen.
+
+
+{{client_city}}, {{letter_date}}                      {{client_signature}}
+Ort, Datum                                            Unterschrift {{g:Vollmachtgeber|Vollmachtgeberin}}

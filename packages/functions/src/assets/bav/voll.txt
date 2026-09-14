@@ -1,0 +1,43 @@
+Vollmacht
+
+Den
+Vividius Rechtsanwälten
+Vertretungsberechtigte Anwältin: Katja Chudoba
+Gneisenaustr. 115
+10961 Berlin
+
+wird von
+
+{{g:Herrn|Frau}}
+{{client_full_name}},
+geb. am {{client_dob}},
+Pass-Nr.: {{client_passport_number}},
+wohnhaft {{client_address_inline}}
+
+in Sachen
+
+Abfindung der betrieblichen Altersversorgung aus dem Arbeitsverhältnis mit {{employer_name}}[[IF provider_name]] (durchgeführt über {{provider_name}}[[IF contract_reference]], {{contract_reference_label}} {{contract_reference}}[[/IF]])[[/IF]] – Vertretung gegenüber dem ehemaligen Arbeitgeber, dem Versorgungsträger sowie Behörden und Gerichten
+
+Vollmacht erteilt.
+
+Diese Vollmacht erstreckt sich insbesondere auf folgende Befugnisse:
+· Geltendmachung des Abfindungsverlangens nach § 3 Abs. 3 BetrAVG bzw. Beantragung der Abfindung nach § 3 Abs. 2 BetrAVG, Antragstellung – auch auf Formularen des Arbeitgebers oder des Versorgungsträgers – und Vornahme von sonstigen Rechtshandlungen,
+· Abgabe und Entgegennahme von Willenserklärungen, einschließlich Zustimmungs- und Verzichtserklärungen im Zusammenhang mit der Abfindung sowie Erklärungen zur steuerlichen und krankenversicherungsrechtlichen Behandlung der Abfindung,
+· Einholung von Auskünften und Unterlagen beim ehemaligen Arbeitgeber und beim Versorgungsträger (insbesondere Standmitteilungen, Berechnungen, Versorgungsordnung, Versicherungsbedingungen); der ehemalige Arbeitgeber und der Versorgungsträger werden von etwaigen Verschwiegenheitspflichten befreit und ermächtigt, dem Bevollmächtigten Auskünfte zu erteilen und personenbezogene Daten zu übermitteln,
+· Entgegennahme von Geld, insbesondere des Abfindungsbetrages,
+· Entgegennahme von Zustellungen,
+· Einlegung und Rücknahme von Rechtsmitteln sowie Verzicht auf solche,
+· Gerichtliche Vertretung in allen Instanzen, insbesondere vor den Arbeitsgerichten,
+· Beseitigung eines Rechtsstreits durch Vergleich, Verzicht oder Anerkenntnis,
+· Empfangnahme von Zustellungen, die auch an die Partei unmittelbar zulässig sind.
+
+Diese Zustellungen haben an den Bevollmächtigten zu erfolgen. Sämtliche Korrespondenz in dieser Angelegenheit ist an den Bevollmächtigten zu richten.
+
+Mit der Erteilung dieser Vollmacht widerrufe ich sämtliche von mir in dieser Angelegenheit zuvor erteilten Vollmachten.
+
+
+{{client_city}}, den {{letter_date}}
+
+
+{{client_signature}}
+{{client_full_name}}
