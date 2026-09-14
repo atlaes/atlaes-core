@@ -82,16 +82,20 @@ const isStageOrOrchestra = (job: JobData): boolean =>
   job.employmentType === 'Stage / Performing Arts' ||
   job.employmentType === 'Orchestra';
 
-// 2026 small-benefit ("Kleinbetragsrente" / Abfindung) thresholds for the
-// company pension (bAV), per § 3 Abs. 2 BetrAVG. Both are derived from the
-// official 2026 monatliche Bezugsgröße of €3,955 (SVBezGrV 2026):
-//   - monthly pension limit = 1% of the Bezugsgröße = €39.55 / month
-//   - one-off capital limit  = 120% (12/10) of the Bezugsgröße = €4,746
+// 2026 small-benefit ("Kleinstanwartschaft" / Abfindung) thresholds for the
+// company pension (bAV), per § 3 Abs. 2 Satz 1 BetrAVG as amended by the
+// Zweites Betriebsrentenstärkungsgesetz (BRSG II, in force since 22.01.2026).
+// Both are derived from the official 2026 monatliche Bezugsgröße of €3,955
+// (SVBezGrV 2026):
+//   - monthly pension limit = 1.5% of the Bezugsgröße = €59.33 / month
+//   - one-off capital limit  = 180% (18/10) of the Bezugsgröße = €7,119
 // A company-pension benefit AT or BELOW the applicable limit may be paid out
-// as a lump sum (Abfindung); a benefit clearly ABOVE it may not. Statutory
-// values confirmed 2026-07; client sign-off on the numbers still welcome.
-const BAV_MONTHLY_PENSION_THRESHOLD_2026 = 39.55;
-const BAV_CAPITAL_THRESHOLD_2026 = 4746;
+// as a lump sum (Abfindung); a benefit clearly ABOVE it may not. Values match
+// the client's bAV template set v1.0 (07.09.2026) and the marketing pages
+// (company-pension-cash-out, direktversicherung-cash-out, FAQ). Update every
+// January when the Bezugsgröße changes.
+const BAV_MONTHLY_PENSION_THRESHOLD_2026 = 59.33;
+const BAV_CAPITAL_THRESHOLD_2026 = 7119;
 
 // Parse a user- or legacy-entered monetary amount into a number. Defensive by
 // design: the live inputs are digit-stripped, but legacy/pasted values may
