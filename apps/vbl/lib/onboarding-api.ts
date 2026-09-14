@@ -102,6 +102,41 @@ export interface HealthInsuranceExtractionResponse {
   };
 }
 
+// ============================================================
+// DRV refund decision (Erstattungsbescheid) extraction — bAV route A
+// ============================================================
+
+export interface DrvRefundDecisionExtractionResponse {
+  success: boolean;
+  extraction: {
+    details: {
+      drvOffice: string | null;
+      decisionDate: string | null; // YYYY-MM-DD
+      insuranceNumber: string | null;
+      refundAmount: string | null;
+      applicantName: string | null;
+      isRefundDecision: boolean | null;
+    };
+    confidence: Record<string, number>;
+    missingFields: string[];
+    model: string;
+  };
+}
+
+export async function extractDrvRefundDecision(
+  file: File
+): Promise<DrvRefundDecisionExtractionResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const { data } = await apiClient.post(
+    '/vbl/extract-drv-refund-decision',
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  );
+  return data;
+}
+
 export async function extractHealthInsuranceDocument(
   file: File
 ): Promise<HealthInsuranceExtractionResponse> {
@@ -185,6 +220,28 @@ export interface Claim {
   healthInsurancePlaceOfBirth?: string;
   healthInsuranceCountryOfBirth?: string;
   healthInsuranceNumber?: string;
+  // bAV cash-out intake (pensionType = 'private')
+  pensionType?: 'public' | 'private';
+  salutation?: 'herr' | 'frau';
+  taxId?: string;
+  healthInsuranceEndDate?: string;
+  employerName?: string;
+  employmentEndDate?: string;
+  employerPersonnelNumber?: string;
+  bavProviderName?: string;
+  bavDurchfuehrungsweg?: string;
+  bavContractReferenceLabel?: string;
+  bavContractReference?: string;
+  bavProviderFormTitle?: string;
+  drvRefundReceived?: boolean;
+  drvOffice?: string;
+  drvDecisionDate?: string;
+  bavStatementType?: string;
+  bavStatementDate?: string;
+  bavBenefitForm?: 'pension' | 'capital' | 'unknown';
+  bavBenefitAmount?: string;
+  bavAddresseeType?: 'employer' | 'provider';
+  bavRecipientName?: string;
   // Bank
   iban?: string;
   accountHolderName?: string;

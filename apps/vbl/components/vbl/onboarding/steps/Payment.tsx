@@ -3,7 +3,11 @@
 import React, { useState } from 'react';
 import { CreditCard, Check, AlertCircle, ShieldCheck } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { createClaim, createCheckoutSession } from '@/lib/onboarding-api';
+import {
+  createClaim,
+  createCheckoutSession,
+  updateClaim,
+} from '@/lib/onboarding-api';
 import type { OnboardingVariant } from '@/components/vbl/onboarding/onboarding-variant';
 
 interface PaymentProps {
@@ -143,6 +147,17 @@ export const Payment: React.FC<PaymentProps> = ({
         claimId = claimResult.claim.id;
         updateData({ claimId });
         localStorage.setItem('vbl_draft_claimId', claimId);
+        // Tag the product on the claim right away so ops and the letter
+        // generator can tell a bAV cash-out from a public refund even if
+        // the user never gets past payment. Non-blocking: the identity
+        // save repeats it.
+        if (data.pensionType) {
+          try {
+            await updateClaim(claimId, { pensionType: data.pensionType });
+          } catch (tagErr) {
+            console.warn('Could not tag claim pension type:', tagErr);
+          }
+        }
       }
 
       // Create Stripe Checkout Session and redirect

@@ -33,8 +33,10 @@ import type {
   HealthInsuranceType,
   OnboardingAddress,
   OnboardingBankDetails,
+  OnboardingCashOutBasis,
   OnboardingConfirm,
   OnboardingData,
+  OnboardingEmployment,
   OnboardingMembership,
   SubmitDetailsSubStep,
 } from '@/contexts/OnboardingContext';
@@ -194,6 +196,7 @@ export interface PersistedOnboardingIdentity {
   lastName: string;
   dateOfBirth: string;
   gender: 'male' | 'female' | 'other' | '';
+  salutation: 'herr' | 'frau' | '';
   passportNumber: string;
   nationality: string;
   placeOfBirth: string;
@@ -224,7 +227,15 @@ export interface PersistedOnboardingHealthInsurance {
   placeOfBirth: string;
   countryOfBirth: string;
   insuranceNumber: string;
+  endDate: string;
 }
+
+// Serializable subset of OnboardingCashOutBasis — excludes the two File
+// objects; the backend document IDs (strings) are kept.
+export type PersistedOnboardingCashOutBasis = Omit<
+  OnboardingCashOutBasis,
+  'refundDecisionFile' | 'statementFile'
+>;
 
 export interface PersistedOnboardingData {
   pensionType: 'public' | 'private' | '';
@@ -236,6 +247,9 @@ export interface PersistedOnboardingData {
   membership: OnboardingMembership; // includes stageDetails — client-only, no backend column
   address: OnboardingAddress;
   healthInsurance: PersistedOnboardingHealthInsurance;
+  // bAV/private only; optional so blobs written before these existed load.
+  employment?: OnboardingEmployment;
+  cashOutBasis?: PersistedOnboardingCashOutBasis;
   bankDetails: OnboardingBankDetails;
   signature: PersistedOnboardingSignature;
   // Confirm answers/checkboxes are all plain scalars — fully serializable.
@@ -273,6 +287,7 @@ export function toPersistedOnboardingData(
       lastName: data.identity.lastName,
       dateOfBirth: data.identity.dateOfBirth,
       gender: data.identity.gender,
+      salutation: data.identity.salutation,
       passportNumber: data.identity.passportNumber,
       nationality: data.identity.nationality,
       placeOfBirth: data.identity.placeOfBirth,
@@ -292,6 +307,21 @@ export function toPersistedOnboardingData(
       placeOfBirth: data.healthInsurance.placeOfBirth,
       countryOfBirth: data.healthInsurance.countryOfBirth,
       insuranceNumber: data.healthInsurance.insuranceNumber,
+      endDate: data.healthInsurance.endDate,
+    },
+    employment: data.employment,
+    cashOutBasis: {
+      drvRefundReceived: data.cashOutBasis.drvRefundReceived,
+      refundDecisionFileName: data.cashOutBasis.refundDecisionFileName,
+      refundDecisionDocumentId: data.cashOutBasis.refundDecisionDocumentId,
+      drvOffice: data.cashOutBasis.drvOffice,
+      drvDecisionDate: data.cashOutBasis.drvDecisionDate,
+      statementFileName: data.cashOutBasis.statementFileName,
+      statementDocumentId: data.cashOutBasis.statementDocumentId,
+      statementType: data.cashOutBasis.statementType,
+      statementDate: data.cashOutBasis.statementDate,
+      benefitForm: data.cashOutBasis.benefitForm,
+      benefitAmount: data.cashOutBasis.benefitAmount,
     },
     bankDetails: data.bankDetails,
     signature: {

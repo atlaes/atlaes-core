@@ -26,6 +26,9 @@ export interface OnboardingIdentity {
   lastName: string;
   dateOfBirth: string;
   gender: 'male' | 'female' | 'other' | '';
+  // bAV/private only: formal address (Herr/Frau) used in the German
+  // Abfindung letters, which have no third form. Prefilled from gender.
+  salutation: 'herr' | 'frau' | '';
   passportNumber: string;
   nationality: string;
   placeOfBirth: string;
@@ -86,6 +89,98 @@ export interface OnboardingHealthInsurance {
   placeOfBirth: string;
   countryOfBirth: string;
   insuranceNumber: string;
+  // bAV/private only: date the German health insurance ended (ISO). The
+  // letters fall back to the departure date when empty.
+  endDate: string;
+}
+
+// bAV cash-out: the employer that granted the company pension and how the
+// scheme is implemented. Private pension type only. Maps 1:1 onto the
+// employer_* / bav_durchfuehrungsweg / move_out_date / tax_id claim columns.
+export type BavDurchfuehrungsweg =
+  | 'Direktversicherung'
+  | 'Pensionskasse'
+  | 'Pensionsfonds'
+  | 'Direktzusage'
+  | 'Unterstützungskasse'
+  | '';
+
+export interface OnboardingEmployment {
+  employerName: string;
+  employmentEndDate: string; // ISO yyyy-mm-dd
+  personnelNumber: string; // optional
+  durchfuehrungsweg: BavDurchfuehrungsweg;
+  leftGermanyDate: string; // ISO yyyy-mm-dd → moveOutDate
+  taxId: string; // optional German Steuer-ID, 11 digits
+}
+
+// bAV cash-out: legal basis of the Abfindung request. Route A (§ 3 Abs. 3
+// BetrAVG) when the DRV refunded the statutory contributions, route B
+// (§ 3 Abs. 2, small entitlement) otherwise. Private pension type only.
+export const BAV_STATEMENT_TYPES = [
+  'Standmitteilung',
+  'Renteninformation',
+  'Austrittsmitteilung',
+  'Versicherungsschein',
+] as const;
+export type BavStatementType = (typeof BAV_STATEMENT_TYPES)[number] | '';
+export type BavBenefitForm = 'pension' | 'capital' | 'unknown' | '';
+
+export interface OnboardingCashOutBasis {
+  drvRefundReceived: 'yes' | 'no' | '';
+  // Route A — DRV Erstattungsbescheid
+  refundDecisionFile?: File | null;
+  refundDecisionFileName?: string;
+  refundDecisionDocumentId?: string;
+  drvOffice: string;
+  drvDecisionDate: string; // ISO
+  // Route B — latest statement
+  statementFile?: File | null;
+  statementFileName?: string;
+  statementDocumentId?: string;
+  statementType: BavStatementType;
+  statementDate: string; // ISO
+  benefitForm: BavBenefitForm;
+  benefitAmount: string; // as typed; normalized at save
+}
+
+// German Steuer-ID: 11 digits, grouping spaces tolerated.
+export function isValidGermanTaxId(value: string): boolean {
+  return /^(\d\s?){11}$/.test(value.trim());
+}
+
+export function isEmploymentComplete(e: OnboardingEmployment): boolean {
+  return (
+    e.employerName.trim() !== '' &&
+    e.employmentEndDate !== '' &&
+    e.durchfuehrungsweg !== '' &&
+    e.leftGermanyDate !== '' &&
+    (e.taxId.trim() === '' || isValidGermanTaxId(e.taxId))
+  );
+}
+
+export function isCashOutBasisComplete(b: OnboardingCashOutBasis): boolean {
+  if (b.drvRefundReceived === 'yes') {
+    return (
+      !!b.refundDecisionDocumentId &&
+      b.drvOffice.trim() !== '' &&
+      b.drvDecisionDate !== ''
+    );
+  }
+  if (b.drvRefundReceived === 'no') {
+    if (
+      !b.statementDocumentId ||
+      b.statementType === '' ||
+      b.statementDate === '' ||
+      b.benefitForm === ''
+    ) {
+      return false;
+    }
+    if (b.benefitForm === 'unknown') return true;
+    const digits = b.benefitAmount.replace(/[^0-9]/g, '');
+    return digits !== '' && Number(digits) > 0;
+  }
+  return false;
 }
 
 export type BankAccountOption =
@@ -160,6 +255,8 @@ export interface OnboardingData {
   membership: OnboardingMembership;
   address: OnboardingAddress;
   healthInsurance: OnboardingHealthInsurance;
+  employment: OnboardingEmployment; // bAV/private only
+  cashOutBasis: OnboardingCashOutBasis; // bAV/private only
   bankDetails: OnboardingBankDetails;
   signature: OnboardingSignature;
   confirm: OnboardingConfirm;
@@ -180,6 +277,8 @@ export type SubmitDetailsSubStep =
   | 'membership'
   | 'address'
   | 'health-insurance'
+  | 'employment'
+  | 'cash-out-basis'
   | 'bank-details'
   | 'signature'
   | 'review'
@@ -209,6 +308,21 @@ const HEALTH_INSURANCE_SUBSTEP: {
   label: string;
   icon: string;
 } = { id: 'health-insurance', label: 'Health Insurance', icon: 'health' };
+
+// bAV cash-out substeps (private pension type only). Employment sits after
+// Pension Details; Cash-out Basis after Health Insurance, so the route
+// question comes once the user has their documents at hand.
+const EMPLOYMENT_SUBSTEP: {
+  id: SubmitDetailsSubStep;
+  label: string;
+  icon: string;
+} = { id: 'employment', label: 'Employment', icon: 'briefcase' };
+
+const CASH_OUT_BASIS_SUBSTEP: {
+  id: SubmitDetailsSubStep;
+  label: string;
+  icon: string;
+} = { id: 'cash-out-basis', label: 'Cash-out Basis', icon: 'scale' };
 
 // Confirm substep — public (VBL/ZVK) and stage (VddB/VddKO) claims only.
 // Inserted between Review and Signature so the sub-stepper reads
@@ -242,13 +356,19 @@ export function getSubmitDetailsSubsteps(
   pensionType: OnboardingData['pensionType']
 ): typeof SUBMIT_DETAILS_SUBSTEPS {
   if (pensionType === 'private') {
-    const addressIndex = SUBMIT_DETAILS_SUBSTEPS.findIndex(
-      (s) => s.id === 'address'
-    );
+    // bAV/private: Identity → Pension Details → Employment → Address →
+    // Health Insurance → Cash-out Basis → Bank Details → Signature → Review
+    // (Review is the terminal submit step; no Confirm).
     return [
-      ...SUBMIT_DETAILS_SUBSTEPS.slice(0, addressIndex + 1),
+      findSubstep('identity'),
+      findSubstep('membership'),
+      EMPLOYMENT_SUBSTEP,
+      findSubstep('address'),
       HEALTH_INSURANCE_SUBSTEP,
-      ...SUBMIT_DETAILS_SUBSTEPS.slice(addressIndex + 1),
+      CASH_OUT_BASIS_SUBSTEP,
+      findSubstep('bank-details'),
+      findSubstep('signature'),
+      findSubstep('review'),
     ];
   }
 
@@ -288,6 +408,8 @@ interface OnboardingContextType {
   updateStageDetails: (updates: Partial<OnboardingStageDetails>) => void;
   updateAddress: (updates: Partial<OnboardingAddress>) => void;
   updateHealthInsurance: (updates: Partial<OnboardingHealthInsurance>) => void;
+  updateEmployment: (updates: Partial<OnboardingEmployment>) => void;
+  updateCashOutBasis: (updates: Partial<OnboardingCashOutBasis>) => void;
   updateBankDetails: (updates: Partial<OnboardingBankDetails>) => void;
   updateSignature: (updates: Partial<OnboardingSignature>) => void;
   updateConfirm: (updates: Partial<OnboardingConfirm>) => void;
@@ -317,6 +439,7 @@ const initialData: OnboardingData = {
     lastName: '',
     dateOfBirth: '',
     gender: '',
+    salutation: '',
     passportNumber: '',
     nationality: '',
     placeOfBirth: '',
@@ -352,6 +475,24 @@ const initialData: OnboardingData = {
     placeOfBirth: '',
     countryOfBirth: '',
     insuranceNumber: '',
+    endDate: '',
+  },
+  employment: {
+    employerName: '',
+    employmentEndDate: '',
+    personnelNumber: '',
+    durchfuehrungsweg: '',
+    leftGermanyDate: '',
+    taxId: '',
+  },
+  cashOutBasis: {
+    drvRefundReceived: '',
+    drvOffice: '',
+    drvDecisionDate: '',
+    statementType: '',
+    statementDate: '',
+    benefitForm: '',
+    benefitAmount: '',
   },
   bankDetails: {
     accountHolder: '',
@@ -525,6 +666,14 @@ export function OnboardingProvider({
         ...prev.healthInsurance,
         ...persisted.data.healthInsurance,
       },
+      // bAV blocks were added after the first persisted-blob shape shipped;
+      // guard against older blobs that predate them.
+      employment: persisted.data.employment
+        ? { ...prev.employment, ...persisted.data.employment }
+        : prev.employment,
+      cashOutBasis: persisted.data.cashOutBasis
+        ? { ...prev.cashOutBasis, ...persisted.data.cashOutBasis }
+        : prev.cashOutBasis,
       bankDetails: persisted.data.bankDetails,
       signature: { ...prev.signature, ...persisted.data.signature },
       // `confirm` was added after the first persisted-blob shape shipped;
@@ -615,6 +764,26 @@ export function OnboardingProvider({
     []
   );
 
+  const updateEmployment = useCallback(
+    (updates: Partial<OnboardingEmployment>) => {
+      setData((prev) => ({
+        ...prev,
+        employment: { ...prev.employment, ...updates },
+      }));
+    },
+    []
+  );
+
+  const updateCashOutBasis = useCallback(
+    (updates: Partial<OnboardingCashOutBasis>) => {
+      setData((prev) => ({
+        ...prev,
+        cashOutBasis: { ...prev.cashOutBasis, ...updates },
+      }));
+    },
+    []
+  );
+
   const updateBankDetails = useCallback(
     (updates: Partial<OnboardingBankDetails>) => {
       setData((prev) => ({
@@ -690,6 +859,12 @@ export function OnboardingProvider({
           const healthInsuranceOk =
             data.pensionType !== 'private' ||
             isHealthInsuranceComplete(data.healthInsurance);
+          const isPrivate = data.pensionType === 'private';
+          const salutationOk = !isPrivate || data.identity.salutation !== '';
+          const employmentOk =
+            !isPrivate || isEmploymentComplete(data.employment);
+          const cashOutOk =
+            !isPrivate || isCashOutBasisComplete(data.cashOutBasis);
           return (
             data.identity.firstName.trim() !== '' &&
             data.identity.lastName.trim() !== '' &&
@@ -703,6 +878,9 @@ export function OnboardingProvider({
             data.address.city !== '' &&
             data.address.country !== '' &&
             healthInsuranceOk &&
+            salutationOk &&
+            employmentOk &&
+            cashOutOk &&
             (data.bankDetails.iban !== '' ||
               data.bankDetails.accountOption !== 'own_iban') &&
             (!!data.signature.signatureData ||
@@ -726,6 +904,8 @@ export function OnboardingProvider({
             data.identity.dateOfBirth !== '' &&
             isAtLeast18(data.identity.dateOfBirth) &&
             data.identity.gender !== '' &&
+            (data.pensionType !== 'private' ||
+              data.identity.salutation !== '') &&
             data.identity.nationality.trim() !== '' &&
             data.identity.placeOfBirth.trim() !== ''
           );
@@ -761,6 +941,10 @@ export function OnboardingProvider({
           );
         case 'health-insurance':
           return isHealthInsuranceComplete(data.healthInsurance);
+        case 'employment':
+          return isEmploymentComplete(data.employment);
+        case 'cash-out-basis':
+          return isCashOutBasisComplete(data.cashOutBasis);
         case 'bank-details':
           // Own IBAN: just need IBAN
           if (data.bankDetails.accountOption === 'own_iban') {
@@ -832,6 +1016,9 @@ export function OnboardingProvider({
       ...prev,
       claimId: str(claim.id) || prev.claimId,
       paymentCompleted: isPaid,
+      pensionType:
+        (str(claim.pensionType) as OnboardingData['pensionType']) ||
+        prev.pensionType,
       identity: {
         ...prev.identity,
         // Task 6 known limitation: there is no middleName column on the
@@ -851,6 +1038,9 @@ export function OnboardingProvider({
         gender:
           (str(claim.gender) as OnboardingIdentity['gender']) ||
           prev.identity.gender,
+        salutation:
+          (str(claim.salutation) as OnboardingIdentity['salutation']) ||
+          prev.identity.salutation,
         passportNumber: claimOrPrev(
           claim.passportNumber,
           prev.identity.passportNumber
@@ -871,6 +1061,10 @@ export function OnboardingProvider({
       },
       membership: {
         ...prev.membership,
+        pensionProvider: claimOrPrev(
+          claim.bavProviderName,
+          prev.membership.pensionProvider
+        ),
         membershipNumber: claimOrPrev(
           claim.svNummer,
           prev.membership.membershipNumber
@@ -928,6 +1122,69 @@ export function OnboardingProvider({
         // there's nothing to restore from `claim` here; keep whatever is
         // already in memory/session.
         documentId: prev.healthInsurance.documentId,
+        endDate: claimOrPrev(
+          claim.healthInsuranceEndDate,
+          prev.healthInsurance.endDate
+        ),
+      },
+      employment: {
+        ...prev.employment,
+        employerName: claimOrPrev(
+          claim.employerName,
+          prev.employment.employerName
+        ),
+        employmentEndDate: claimOrPrev(
+          claim.employmentEndDate,
+          prev.employment.employmentEndDate
+        ),
+        personnelNumber: claimOrPrev(
+          claim.employerPersonnelNumber,
+          prev.employment.personnelNumber
+        ),
+        durchfuehrungsweg:
+          (str(
+            claim.bavDurchfuehrungsweg
+          ) as OnboardingEmployment['durchfuehrungsweg']) ||
+          prev.employment.durchfuehrungsweg,
+        leftGermanyDate: claimOrPrev(
+          claim.moveOutDate,
+          prev.employment.leftGermanyDate
+        ),
+        taxId: claimOrPrev(claim.taxId, prev.employment.taxId),
+      },
+      cashOutBasis: {
+        ...prev.cashOutBasis,
+        drvRefundReceived:
+          claim.drvRefundReceived === true
+            ? 'yes'
+            : claim.drvRefundReceived === false
+              ? 'no'
+              : prev.cashOutBasis.drvRefundReceived,
+        drvOffice: claimOrPrev(claim.drvOffice, prev.cashOutBasis.drvOffice),
+        drvDecisionDate: claimOrPrev(
+          claim.drvDecisionDate,
+          prev.cashOutBasis.drvDecisionDate
+        ),
+        statementType:
+          (str(
+            claim.bavStatementType
+          ) as OnboardingCashOutBasis['statementType']) ||
+          prev.cashOutBasis.statementType,
+        statementDate: claimOrPrev(
+          claim.bavStatementDate,
+          prev.cashOutBasis.statementDate
+        ),
+        benefitForm:
+          (str(claim.bavBenefitForm) as OnboardingCashOutBasis['benefitForm']) ||
+          prev.cashOutBasis.benefitForm,
+        benefitAmount: claimOrPrev(
+          claim.bavBenefitAmount,
+          prev.cashOutBasis.benefitAmount
+        ),
+        // Document IDs live in claim_documents, not on the claim row; keep
+        // whatever is in memory/session (same rule as health insurance).
+        refundDecisionDocumentId: prev.cashOutBasis.refundDecisionDocumentId,
+        statementDocumentId: prev.cashOutBasis.statementDocumentId,
       },
       bankDetails: {
         ...prev.bankDetails,
@@ -957,18 +1214,23 @@ export function OnboardingProvider({
     setData((prev) => {
       const isPrivate = prev.pensionType === 'private';
       if (isPrivate) {
-        // bAV/private: Address → Health Insurance → Bank → Signature → Review
+        // bAV/private: Identity → Pension Details → Employment → Address →
+        // Health Insurance → Cash-out Basis → Bank → Signature → Review
         // (Review is the terminal submit step; no Confirm substep).
         if (steps.signDocuments) {
           setCurrentSubStep('review');
         } else if (steps.bankDetails) {
           setCurrentSubStep('signature');
-        } else if (steps.healthInsurance) {
+        } else if (steps.cashOutBasis) {
           setCurrentSubStep('bank-details');
+        } else if (steps.healthInsurance) {
+          setCurrentSubStep('cash-out-basis');
         } else if (steps.currentAddress) {
           setCurrentSubStep('health-insurance');
-        } else if (steps.germanSocialInsurance) {
+        } else if (steps.employment) {
           setCurrentSubStep('address');
+        } else if (steps.germanSocialInsurance) {
+          setCurrentSubStep('employment');
         } else if (steps.passportUpload) {
           setCurrentSubStep('membership');
         } else {
@@ -1032,6 +1294,8 @@ export function OnboardingProvider({
         updateStageDetails,
         updateAddress,
         updateHealthInsurance,
+        updateEmployment,
+        updateCashOutBasis,
         updateBankDetails,
         updateSignature,
         updateConfirm,

@@ -33,6 +33,9 @@ import { Identity } from '@/components/vbl/onboarding/steps/Identity';
 import { Membership } from '@/components/vbl/onboarding/steps/Membership';
 import { Address } from '@/components/vbl/onboarding/steps/Address';
 import { HealthInsurance } from '@/components/vbl/onboarding/steps/HealthInsurance';
+import { Employment } from '@/components/vbl/onboarding/steps/Employment';
+import { CashOutBasis } from '@/components/vbl/onboarding/steps/CashOutBasis';
+import { normalizeEuroAmount } from '@/lib/bav-thresholds';
 import { BankDetails } from '@/components/vbl/onboarding/steps/BankDetails';
 import { Signature } from '@/components/vbl/onboarding/steps/Signature';
 import { ReviewSubmit } from '@/components/vbl/onboarding/steps/ReviewSubmit';
@@ -221,6 +224,50 @@ export function GetStartedOnboardingFlow() {
     eligibilityData.privatePensionProviderOther,
     data.membership,
     data.pensionType,
+    updateData,
+  ]);
+
+  // bAV cash-out: carry the eligibility answers (DRV refund received?,
+  // what the statement shows, amount) into the Cash-out Basis substep so
+  // the user does not answer them twice. Only fills empty fields — a value
+  // already restored from the claim or edited on the substep wins.
+  useEffect(() => {
+    if (data.pensionType !== 'private') return;
+    const updates: Partial<typeof data.cashOutBasis> = {};
+    if (
+      data.cashOutBasis.drvRefundReceived === '' &&
+      (eligibilityData.privateStatePensionRefundReceived === 'yes' ||
+        eligibilityData.privateStatePensionRefundReceived === 'no')
+    ) {
+      updates.drvRefundReceived =
+        eligibilityData.privateStatePensionRefundReceived;
+    }
+    if (data.cashOutBasis.benefitForm === '') {
+      if (eligibilityData.privateStatementValueType === 'monthly_pension') {
+        updates.benefitForm = 'pension';
+      } else if (
+        eligibilityData.privateStatementValueType === 'capital_amount'
+      ) {
+        updates.benefitForm = 'capital';
+      } else if (eligibilityData.privateStatementValueType === 'not_found') {
+        updates.benefitForm = 'unknown';
+      }
+    }
+    if (
+      data.cashOutBasis.benefitAmount === '' &&
+      eligibilityData.privateStatementAmount &&
+      eligibilityData.privateStatementValueType !== 'not_found'
+    ) {
+      updates.benefitAmount = eligibilityData.privateStatementAmount;
+    }
+    if (Object.keys(updates).length === 0) return;
+    updateData({ cashOutBasis: { ...data.cashOutBasis, ...updates } });
+  }, [
+    data.pensionType,
+    data.cashOutBasis,
+    eligibilityData.privateStatePensionRefundReceived,
+    eligibilityData.privateStatementValueType,
+    eligibilityData.privateStatementAmount,
     updateData,
   ]);
 
@@ -428,10 +475,15 @@ export function GetStartedOnboardingFlow() {
           const lastName = data.identity.lastName.trim();
           await updateClaim(claimId, {
             claimType: 'own_refund',
+            pensionType: data.pensionType || undefined,
             firstName,
             lastName,
             dateOfBirth: data.identity.dateOfBirth || undefined,
             gender: data.identity.gender || undefined,
+            salutation:
+              data.pensionType === 'private'
+                ? data.identity.salutation || undefined
+                : undefined,
             passportNumber: data.identity.passportNumber || undefined,
             nationality: data.identity.nationality || undefined,
             placeOfBirth: data.identity.placeOfBirth || undefined,
@@ -448,9 +500,47 @@ export function GetStartedOnboardingFlow() {
         case 'membership':
           await updateClaim(claimId, {
             svNummer: data.membership.membershipNumber || undefined,
+            // bAV: the "membership number" is the provider's contract /
+            // policy reference and the provider itself is letter data.
+            ...(data.pensionType === 'private'
+              ? {
+                  pensionType: 'private',
+                  bavProviderName: data.membership.pensionProvider || undefined,
+                  bavContractReference:
+                    data.membership.membershipNumber || undefined,
+                  bavContractReferenceLabel: data.membership.membershipNumber
+                    ? 'Vertrags-Nr.'
+                    : undefined,
+                }
+              : {}),
           });
           await markStepComplete(claimId, 'germanSocialInsurance');
           break;
+        case 'employment': {
+          const e = data.employment;
+          const addresseeType =
+            e.durchfuehrungsweg === 'Direktzusage' ||
+            e.durchfuehrungsweg === 'Unterstützungskasse'
+              ? 'employer'
+              : 'provider';
+          await updateClaim(claimId, {
+            employerName: e.employerName.trim() || undefined,
+            employmentEndDate: e.employmentEndDate || undefined,
+            employerPersonnelNumber: e.personnelNumber.trim() || undefined,
+            bavDurchfuehrungsweg: e.durchfuehrungsweg || undefined,
+            moveOutDate: e.leftGermanyDate || undefined,
+            taxId: e.taxId.trim(),
+            // Default addressee; the recipient address itself comes from the
+            // provider matrix / ops, only the name is known here.
+            bavAddresseeType: addresseeType,
+            bavRecipientName:
+              addresseeType === 'employer'
+                ? e.employerName.trim() || undefined
+                : data.membership.pensionProvider || undefined,
+          });
+          await markStepComplete(claimId, 'employment');
+          break;
+        }
         case 'address':
           await updateClaim(claimId, {
             currentAddressLine1: data.address.streetAndNumber,
@@ -471,11 +561,50 @@ export function GetStartedOnboardingFlow() {
             healthInsurancePlaceOfBirth: hi.placeOfBirth || undefined,
             healthInsuranceCountryOfBirth: hi.countryOfBirth || undefined,
             healthInsuranceNumber: hi.insuranceNumber || undefined,
+            healthInsuranceEndDate: hi.endDate || undefined,
           });
           if (hi.documentId) {
             await attachDocument(claimId, hi.documentId, 'health_insurance');
           }
           await markStepComplete(claimId, 'healthInsurance');
+          break;
+        }
+        case 'cash-out-basis': {
+          const b = data.cashOutBasis;
+          const routeA = b.drvRefundReceived === 'yes';
+          await updateClaim(claimId, {
+            drvRefundReceived: routeA,
+            drvOffice: routeA ? b.drvOffice.trim() || undefined : undefined,
+            drvDecisionDate: routeA
+              ? b.drvDecisionDate || undefined
+              : undefined,
+            bavStatementType: !routeA
+              ? b.statementType || undefined
+              : undefined,
+            bavStatementDate: !routeA
+              ? b.statementDate || undefined
+              : undefined,
+            bavBenefitForm: !routeA ? b.benefitForm || undefined : undefined,
+            bavBenefitAmount:
+              !routeA && b.benefitForm !== 'unknown'
+                ? (normalizeEuroAmount(b.benefitAmount) ?? undefined)
+                : undefined,
+          });
+          if (routeA && b.refundDecisionDocumentId) {
+            await attachDocument(
+              claimId,
+              b.refundDecisionDocumentId,
+              'drv_refund_decision'
+            );
+          }
+          if (!routeA && b.statementDocumentId) {
+            await attachDocument(
+              claimId,
+              b.statementDocumentId,
+              'pension_statement'
+            );
+          }
+          await markStepComplete(claimId, 'cashOutBasis');
           break;
         }
         case 'bank-details':
@@ -754,6 +883,10 @@ export function GetStartedOnboardingFlow() {
         );
       case 'address':
         return <Address onNext={saveAndAdvance} />;
+      case 'employment':
+        return <Employment onNext={saveAndAdvance} />;
+      case 'cash-out-basis':
+        return <CashOutBasis onNext={saveAndAdvance} />;
       case 'health-insurance':
         return (
           <HealthInsurance

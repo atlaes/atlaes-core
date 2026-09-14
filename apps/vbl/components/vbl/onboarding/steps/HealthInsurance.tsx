@@ -18,6 +18,7 @@ import {
   extractHealthInsuranceDocument,
 } from '@/lib/onboarding-api';
 import { COUNTRIES } from '@/lib/countries';
+import { DatePartsInput } from '../DatePartsInput';
 
 interface HealthInsuranceProps {
   onNext: () => void;
@@ -637,6 +638,13 @@ export const HealthInsurance: React.FC<HealthInsuranceProps> = ({
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
           />
         </div>
+
+        <DatePartsInput
+          label="Date your German health insurance ended (optional)"
+          value={data.healthInsurance.endDate}
+          onChange={(value) => updateHealthInsurance({ endDate: value })}
+          helperText="Usually the day you left Germany. Leave empty if you are not sure; we then use your departure date."
+        />
       </div>
 
       {/* Info Banner */}

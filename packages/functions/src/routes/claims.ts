@@ -213,6 +213,8 @@ const validStepNames: ClaimStepName[] = [
   'germanSocialInsurance',
   'lastAddressInGermany',
   'healthInsurance',
+  'employment',
+  'cashOutBasis',
   'bankDetails',
   'signDocuments',
   'identityConfirmationForm',

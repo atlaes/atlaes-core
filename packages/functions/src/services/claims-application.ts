@@ -32,6 +32,9 @@ export interface CompletedSteps {
   currentAddress?: boolean;
   germanSocialInsurance?: boolean;
   lastAddressInGermany?: boolean;
+  healthInsurance?: boolean;
+  employment?: boolean;
+  cashOutBasis?: boolean;
   bankDetails?: boolean;
   signDocuments?: boolean;
   identityConfirmationForm?: boolean;

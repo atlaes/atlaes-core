@@ -13,6 +13,8 @@ import {
   Check,
   ShieldPlus,
   AlertCircle,
+  Briefcase,
+  Scale,
 } from 'lucide-react';
 import {
   useOnboarding,
@@ -121,6 +123,34 @@ const HEALTH_INSURANCE_SECTION: ReviewSection = {
   calculatorIcon: 'health',
 };
 
+// bAV cash-out sections (private pension type only).
+const BAV_EMPLOYMENT_SECTION: ReviewSection = {
+  id: 'bav-employment',
+  title: 'Employment',
+  subStep: 'employment',
+  icon: <Briefcase className="w-5 h-5" />,
+  calculatorIcon: 'briefcase',
+};
+
+const CASH_OUT_BASIS_SECTION: ReviewSection = {
+  id: 'cash-out-basis',
+  title: 'Cash-out basis',
+  subStep: 'cash-out-basis',
+  icon: <Scale className="w-5 h-5" />,
+  calculatorIcon: 'scale',
+};
+
+const SALUTATION_LABELS: Record<string, string> = {
+  herr: 'Herr',
+  frau: 'Frau',
+};
+
+const BENEFIT_FORM_LABELS: Record<string, string> = {
+  pension: 'Monthly pension at retirement age',
+  capital: 'One-off capital payment at retirement age',
+  unknown: 'Only the current value is shown',
+};
+
 const SIGNATURE_SECTION: ReviewSection = {
   id: 'signature',
   title: 'Signature',
@@ -206,7 +236,13 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
   // completed). Don't render it at all in that mode.
   const reviewSections: ReviewSection[] = [
     ...BASE_REVIEW_SECTIONS,
-    ...(isPrivatePensionType ? [HEALTH_INSURANCE_SECTION] : []),
+    ...(isPrivatePensionType
+      ? [
+          BAV_EMPLOYMENT_SECTION,
+          HEALTH_INSURANCE_SECTION,
+          CASH_OUT_BASIS_SECTION,
+        ]
+      : []),
     ...(isStageProvider ? [EMPLOYMENT_DETAILS_SECTION] : []),
     ...(onContinue ? [] : [SIGNATURE_SECTION]),
   ];
@@ -311,6 +347,12 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
               <span className="text-gray-500">Gender:</span>{' '}
               {GENDER_LABELS[data.identity.gender] || 'Not provided'}
             </p>
+            {isPrivatePensionType && (
+              <p className="text-gray-700">
+                <span className="text-gray-500">Salutation:</span>{' '}
+                {SALUTATION_LABELS[data.identity.salutation] || 'Not provided'}
+              </p>
+            )}
             <p className="text-gray-700">
               <span className="text-gray-500">Nationality:</span>{' '}
               {data.identity.nationality || 'Not provided'}
@@ -438,6 +480,105 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
               <span className="text-gray-500">Health insurance number:</span>{' '}
               {hi.insuranceNumber || 'Not provided'}
             </p>
+            <button
+              onClick={() => handleEditSection(section.subStep)}
+              className={editInformationClassName}
+            >
+              Edit information
+            </button>
+          </div>
+        );
+      }
+      case 'bav-employment': {
+        const e = data.employment;
+        return (
+          <div className="space-y-2 text-sm pt-4 pb-2">
+            <p className="text-gray-700">
+              <span className="text-gray-500">Employer:</span>{' '}
+              {e.employerName || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">Employment ended:</span>{' '}
+              {formatDate(e.employmentEndDate) || 'Not provided'}
+            </p>
+            {e.personnelNumber && (
+              <p className="text-gray-700">
+                <span className="text-gray-500">Personnel number:</span>{' '}
+                {e.personnelNumber}
+              </p>
+            )}
+            <p className="text-gray-700">
+              <span className="text-gray-500">Scheme type:</span>{' '}
+              {e.durchfuehrungsweg || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">Left Germany:</span>{' '}
+              {formatDate(e.leftGermanyDate) || 'Not provided'}
+            </p>
+            <p className="text-gray-700">
+              <span className="text-gray-500">German tax ID:</span>{' '}
+              {e.taxId || 'Not provided'}
+            </p>
+            <button
+              onClick={() => handleEditSection(section.subStep)}
+              className={editInformationClassName}
+            >
+              Edit information
+            </button>
+          </div>
+        );
+      }
+      case 'cash-out-basis': {
+        const b = data.cashOutBasis;
+        return (
+          <div className="space-y-2 text-sm pt-4 pb-2">
+            <p className="text-gray-700">
+              <span className="text-gray-500">DRV contributions refunded:</span>{' '}
+              {b.drvRefundReceived === 'yes'
+                ? 'Yes'
+                : b.drvRefundReceived === 'no'
+                  ? 'No'
+                  : 'Not provided'}
+            </p>
+            {b.drvRefundReceived === 'yes' && (
+              <>
+                <p className="text-gray-700">
+                  <span className="text-gray-500">Refund decision:</span>{' '}
+                  {b.refundDecisionFileName || 'Not uploaded'}
+                </p>
+                <p className="text-gray-700">
+                  <span className="text-gray-500">Issuing office:</span>{' '}
+                  {b.drvOffice || 'Not provided'}
+                </p>
+                <p className="text-gray-700">
+                  <span className="text-gray-500">Decision date:</span>{' '}
+                  {formatDate(b.drvDecisionDate) || 'Not provided'}
+                </p>
+              </>
+            )}
+            {b.drvRefundReceived === 'no' && (
+              <>
+                <p className="text-gray-700">
+                  <span className="text-gray-500">Statement:</span>{' '}
+                  {b.statementFileName || 'Not uploaded'}
+                </p>
+                <p className="text-gray-700">
+                  <span className="text-gray-500">Statement type:</span>{' '}
+                  {b.statementType || 'Not provided'}
+                </p>
+                <p className="text-gray-700">
+                  <span className="text-gray-500">Statement date:</span>{' '}
+                  {formatDate(b.statementDate) || 'Not provided'}
+                </p>
+                <p className="text-gray-700">
+                  <span className="text-gray-500">Value shown:</span>{' '}
+                  {BENEFIT_FORM_LABELS[b.benefitForm] || 'Not provided'}
+                  {b.benefitForm !== 'unknown' && b.benefitAmount
+                    ? ` — ${b.benefitAmount} EUR`
+                    : ''}
+                </p>
+              </>
+            )}
             <button
               onClick={() => handleEditSection(section.subStep)}
               className={editInformationClassName}
@@ -765,7 +906,10 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
           onClick={handleSubmit}
           disabled={
             isSubmitting ||
-            (isPrivatePensionType && !isSectionComplete('health-insurance'))
+            (isPrivatePensionType &&
+              (!isSectionComplete('health-insurance') ||
+                !isSectionComplete('employment') ||
+                !isSectionComplete('cash-out-basis')))
           }
           className="w-full py-4 px-6 bg-[#9FE870] text-[#163300] font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-[#8AD860] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >

@@ -23,6 +23,8 @@ export type ClaimStepName =
   | 'germanSocialInsurance'
   | 'lastAddressInGermany'
   | 'healthInsurance'
+  | 'employment' // bAV cash-out
+  | 'cashOutBasis' // bAV cash-out
   | 'bankDetails'
   | 'signDocuments'
   | 'identityConfirmationForm'

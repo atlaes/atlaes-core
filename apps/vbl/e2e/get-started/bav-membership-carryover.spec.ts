@@ -183,6 +183,23 @@ test.describe('bAV membership carry-over (final review fix — CRITICAL 1/2)', (
     await contractNumberInput.fill('BVV-CONTRACT-001');
     await page.getByRole('button', { name: /Continue/i }).click();
 
+    // 4b. Employment — bAV/private-only substep. The Durchführungsweg is
+    // prefilled from the carried-over provider (BVV → Pensionskasse).
+    await expect(
+      page.getByRole('heading', { name: 'Your employment in Germany' })
+    ).toBeVisible({ timeout: 10_000 });
+    await page
+      .getByPlaceholder('e.g. Muster Technologies GmbH')
+      .fill('Beispielbank AG');
+    await page.getByPlaceholder('Day').nth(0).fill('28');
+    await page.locator('select').nth(0).selectOption('2');
+    await page.getByPlaceholder('Year').nth(0).fill('2021');
+    await expect(page.locator('select').nth(1)).toHaveValue('Pensionskasse');
+    await page.getByPlaceholder('Day').nth(1).fill('15');
+    await page.locator('select').nth(2).selectOption('3');
+    await page.getByPlaceholder('Year').nth(1).fill('2021');
+    await page.getByRole('button', { name: /Continue/i }).click();
+
     // 5. Address (shared substep).
     await completeAddress(page);
 
@@ -215,6 +232,30 @@ test.describe('bAV membership carry-over (final review fix — CRITICAL 1/2)', (
         name: 'Confirm your health insurance details',
       })
     ).toBeVisible({ timeout: 30_000 });
+    await page.getByRole('button', { name: /Continue/i }).click();
+
+    // 6b. Cash-out basis — bAV/private-only substep. Route B (no DRV
+    // refund): upload the statement and enter what it shows.
+    await expect(
+      page.getByRole('heading', { name: 'Basis of your cash-out request' })
+    ).toBeVisible({ timeout: 10_000 });
+    await page.getByRole('radio', { name: 'No' }).click();
+    await page.locator('#pension-statement-file').setInputFiles({
+      name: 'standmitteilung.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4\n%EOF'),
+    });
+    await expect(page.getByText('standmitteilung.pdf')).toBeVisible({
+      timeout: 10_000,
+    });
+    await page.locator('select').nth(0).selectOption('Standmitteilung');
+    await page.getByPlaceholder('Day').fill('31');
+    await page.locator('select').nth(1).selectOption('12');
+    await page.getByPlaceholder('Year').fill('2025');
+    await page
+      .getByRole('radio', { name: 'Monthly pension at retirement age' })
+      .check();
+    await page.getByPlaceholder('e.g. 41,20').fill('41,20');
     await page.getByRole('button', { name: /Continue/i }).click();
 
     // 7. Bank details (shared).

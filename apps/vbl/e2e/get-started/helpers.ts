@@ -497,6 +497,14 @@ export async function completeIdentityUpload(page: Page) {
   if ((await genderSelect.inputValue()) === '') {
     await genderSelect.selectOption('male');
   }
+  // bAV/private only: the salutation select follows gender and is prefilled
+  // from it (male → Herr); pick explicitly if it is still empty.
+  if ((await selects.count()) > 2) {
+    const salutationSelect = selects.nth(2);
+    if ((await salutationSelect.inputValue()) === '') {
+      await salutationSelect.selectOption('herr');
+    }
+  }
   const nationalityInput = page.getByPlaceholder('e.g. Australian');
   if ((await nationalityInput.inputValue()) === '') {
     await nationalityInput.fill('Australian');
