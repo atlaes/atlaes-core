@@ -47,70 +47,116 @@ export const LAW_FIRM = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// residence_country: German dative phrase that follows "in" (spec 9.10).
-// Keys are the intake country names. Countries not listed render as the
-// plain German name without article; the caller must map those.
+// Residence country (spec 9.10). `phrase` is the German dative phrase that
+// follows "in" (→ residence_country); `name` is the nominative German name
+// used as the last line of the sender address block. Keys are the intake
+// country names (plus common aliases). Countries not listed: the caller
+// falls back to the intake name (spec: plain name without article).
 // ---------------------------------------------------------------------------
 
-export const RESIDENCE_COUNTRY_PHRASES: Readonly<Record<string, string>> = {
-  USA: 'den USA',
-  'United States': 'den USA',
-  'United States of America': 'den USA',
-  India: 'Indien',
-  'South Korea': 'Südkorea',
-  'Korea, Republic of': 'Südkorea',
-  Japan: 'Japan',
-  Australia: 'Australien',
-  Canada: 'Kanada',
-  Brazil: 'Brasilien',
-  Philippines: 'den Philippinen',
-  Switzerland: 'der Schweiz',
-  Türkiye: 'der Türkei',
-  Turkey: 'der Türkei',
-  'United Kingdom': 'dem Vereinigten Königreich',
-  UK: 'dem Vereinigten Königreich',
-  'United Arab Emirates': 'den Vereinigten Arabischen Emiraten',
-  Singapore: 'Singapur',
-  China: 'China',
-  Mexico: 'Mexiko',
-  'New Zealand': 'Neuseeland',
-  Israel: 'Israel',
-  'South Africa': 'Südafrika',
-  Serbia: 'Serbien',
-  'Bosnia and Herzegovina': 'Bosnien und Herzegowina',
-  Montenegro: 'Montenegro',
-  'North Macedonia': 'Nordmazedonien',
-  Kosovo: 'dem Kosovo',
-  Albania: 'Albanien',
-  Moldova: 'der Republik Moldau',
-  Uruguay: 'Uruguay',
-  Chile: 'Chile',
-  Morocco: 'Marokko',
-  Tunisia: 'Tunesien',
-  Ukraine: 'der Ukraine',
-  Thailand: 'Thailand',
-  Vietnam: 'Vietnam',
-  Indonesia: 'Indonesien',
-  Malaysia: 'Malaysia',
-  Taiwan: 'Taiwan',
-  'Hong Kong': 'Hongkong',
-  Pakistan: 'Pakistan',
-  Nigeria: 'Nigeria',
-  Egypt: 'Ägypten',
-  Argentina: 'Argentinien',
-  Colombia: 'Kolumbien',
+interface CountryEntry {
+  phrase: string;
+  name: string;
+}
+
+const COUNTRIES: Readonly<Record<string, CountryEntry>> = {
+  USA: { phrase: 'den USA', name: 'USA' },
+  'United States': { phrase: 'den USA', name: 'USA' },
+  'United States of America': { phrase: 'den USA', name: 'USA' },
+  India: { phrase: 'Indien', name: 'Indien' },
+  'South Korea': { phrase: 'Südkorea', name: 'Südkorea' },
+  'Korea, Republic of': { phrase: 'Südkorea', name: 'Südkorea' },
+  Japan: { phrase: 'Japan', name: 'Japan' },
+  Australia: { phrase: 'Australien', name: 'Australien' },
+  Canada: { phrase: 'Kanada', name: 'Kanada' },
+  Brazil: { phrase: 'Brasilien', name: 'Brasilien' },
+  Philippines: { phrase: 'den Philippinen', name: 'Philippinen' },
+  Switzerland: { phrase: 'der Schweiz', name: 'Schweiz' },
+  Türkiye: { phrase: 'der Türkei', name: 'Türkei' },
+  Turkey: { phrase: 'der Türkei', name: 'Türkei' },
+  'United Kingdom': {
+    phrase: 'dem Vereinigten Königreich',
+    name: 'Vereinigtes Königreich',
+  },
+  UK: { phrase: 'dem Vereinigten Königreich', name: 'Vereinigtes Königreich' },
+  'United Arab Emirates': {
+    phrase: 'den Vereinigten Arabischen Emiraten',
+    name: 'Vereinigte Arabische Emirate',
+  },
+  Singapore: { phrase: 'Singapur', name: 'Singapur' },
+  China: { phrase: 'China', name: 'China' },
+  Mexico: { phrase: 'Mexiko', name: 'Mexiko' },
+  'New Zealand': { phrase: 'Neuseeland', name: 'Neuseeland' },
+  Israel: { phrase: 'Israel', name: 'Israel' },
+  'South Africa': { phrase: 'Südafrika', name: 'Südafrika' },
+  Serbia: { phrase: 'Serbien', name: 'Serbien' },
+  'Bosnia and Herzegovina': {
+    phrase: 'Bosnien und Herzegowina',
+    name: 'Bosnien und Herzegowina',
+  },
+  Montenegro: { phrase: 'Montenegro', name: 'Montenegro' },
+  'North Macedonia': { phrase: 'Nordmazedonien', name: 'Nordmazedonien' },
+  Kosovo: { phrase: 'dem Kosovo', name: 'Kosovo' },
+  Albania: { phrase: 'Albanien', name: 'Albanien' },
+  Moldova: { phrase: 'der Republik Moldau', name: 'Republik Moldau' },
+  Uruguay: { phrase: 'Uruguay', name: 'Uruguay' },
+  Chile: { phrase: 'Chile', name: 'Chile' },
+  Morocco: { phrase: 'Marokko', name: 'Marokko' },
+  Tunisia: { phrase: 'Tunesien', name: 'Tunesien' },
+  Ukraine: { phrase: 'der Ukraine', name: 'Ukraine' },
+  Thailand: { phrase: 'Thailand', name: 'Thailand' },
+  Vietnam: { phrase: 'Vietnam', name: 'Vietnam' },
+  Indonesia: { phrase: 'Indonesien', name: 'Indonesien' },
+  Malaysia: { phrase: 'Malaysia', name: 'Malaysia' },
+  Taiwan: { phrase: 'Taiwan', name: 'Taiwan' },
+  'Hong Kong': { phrase: 'Hongkong', name: 'Hongkong' },
+  Pakistan: { phrase: 'Pakistan', name: 'Pakistan' },
+  Nigeria: { phrase: 'Nigeria', name: 'Nigeria' },
+  Egypt: { phrase: 'Ägypten', name: 'Ägypten' },
+  Argentina: { phrase: 'Argentinien', name: 'Argentinien' },
+  Colombia: { phrase: 'Kolumbien', name: 'Kolumbien' },
 };
 
-/**
- * Returns the dative phrase for a country name from intake, or null when the
- * country is not in the spec's lookup table (caller decides on a fallback).
- */
-export function residenceCountryPhrase(country: string): string | null {
+function lookupCountry(country: string): CountryEntry | null {
   const key = country.trim();
-  if (RESIDENCE_COUNTRY_PHRASES[key]) return RESIDENCE_COUNTRY_PHRASES[key];
+  if (COUNTRIES[key]) return COUNTRIES[key];
   const lower = key.toLowerCase();
-  for (const [name, phrase] of Object.entries(RESIDENCE_COUNTRY_PHRASES)) {
-    if (name.toLowerCase() === lower) return phrase;
+  for (const [name, entry] of Object.entries(COUNTRIES)) {
+    if (name.toLowerCase() === lower) return entry;
   }
   return null;
 }
+
+/**
+ * Dative phrase for a country name from intake ("den USA", "der Schweiz"),
+ * or null when the country is not in the spec's table.
+ */
+export function residenceCountryPhrase(country: string): string | null {
+  return lookupCountry(country)?.phrase ?? null;
+}
+
+/** Nominative German country name for the address block, or null. */
+export function residenceCountryName(country: string): string | null {
+  return lookupCountry(country)?.name ?? null;
+}
+
+/**
+ * Countries whose postal address puts the locality before the postal code
+ * ("Latham, NY 12110") rather than the German "12110 Latham" order.
+ */
+export const CITY_BEFORE_POSTAL_CODE = new Set([
+  'USA',
+  'United States',
+  'United States of America',
+  'Canada',
+  'Australia',
+  'New Zealand',
+  'United Kingdom',
+  'UK',
+  'Ireland',
+  'India',
+  'Pakistan',
+  'Nigeria',
+  'South Africa',
+  'Hong Kong',
+]);

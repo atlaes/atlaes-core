@@ -51,14 +51,63 @@ export type ClaimStatus =
   | 'completed'
   | 'rejected';
 
-// Document roles for claim documents
-export type ClaimDocumentRole =
-  | 'passport'
-  | 'payslip'
-  | 'abmeldung'
-  | 'bank_statement'
-  | 'certified_id_form'
-  | 'health_insurance';
+// Document roles for claim documents. Single source of truth — the route
+// validators derive their enums from this list.
+export const CLAIM_DOCUMENT_ROLES = [
+  'passport',
+  'payslip',
+  'abmeldung',
+  'bank_statement',
+  'certified_id_form',
+  'health_insurance',
+  // bAV cash-out (private-sector company pension) enclosures, see the
+  // client's "bAV-Abfindung Standardschreiben" spec section 9.8.
+  'drv_refund_decision', // DRV Erstattungsbescheid (§ 210 SGB VI), route A
+  'pension_statement', // Standmitteilung / Renteninformation / Versicherungsschein
+  'provider_form', // provider's own Abfindung application form, signed
+  'employer_consent', // employer's signed consent (e.g. BVV "Zustimmung Arbeitgeber")
+  'employment_end_proof', // Kündigungsbestätigung, Arbeitszeugnis, last payslip
+  'foreign_health_insurance', // insurance card/certificate from residence country
+  'bank_proof', // bank confirmation letter
+] as const;
+export type ClaimDocumentRole = (typeof CLAIM_DOCUMENT_ROLES)[number];
+
+// Which claim product the row belongs to. 'public' = VBL/ZVK/VddB/VddKO
+// refund, 'private' = bAV cash-out (Abfindung). Null on legacy rows.
+export type PensionType = 'public' | 'private';
+
+// Formal address used in German letters. Required for bAV letters (the
+// templates only have Herr/Frau forms); derived from passport gender where
+// that is male/female, otherwise asked explicitly.
+export type Salutation = 'herr' | 'frau';
+
+// bAV implementation vehicle (Durchführungsweg). Drives the addressee
+// (Direktzusage/Unterstützungskasse → employer) and the § 4 Abs. 5 BetrAVG
+// wording in the letters. Stored verbatim as the German term.
+export const BAV_DURCHFUEHRUNGSWEGE = [
+  'Direktversicherung',
+  'Pensionskasse',
+  'Pensionsfonds',
+  'Direktzusage',
+  'Unterstützungskasse',
+] as const;
+export type BavDurchfuehrungsweg = (typeof BAV_DURCHFUEHRUNGSWEGE)[number];
+
+// Route B (§ 3 Abs. 2 BetrAVG): what the statement shows for the value at
+// retirement age. 'unknown' when only the current Deckungskapital is known.
+export type BavBenefitForm = 'pension' | 'capital' | 'unknown';
+
+// Route B statement document type, as named in the letter.
+export const BAV_STATEMENT_TYPES = [
+  'Standmitteilung',
+  'Renteninformation',
+  'Austrittsmitteilung',
+  'Versicherungsschein',
+] as const;
+export type BavStatementType = (typeof BAV_STATEMENT_TYPES)[number];
+
+// Who the Abfindung letter is addressed to.
+export type BavAddresseeType = 'employer' | 'provider';
 
 // Task 15: type of health insurance selected/confirmed on the Health
 // Insurance substep (bAV/private pension type only).
@@ -148,6 +197,61 @@ export const claimsTable = claims.table('claims', {
   }),
   healthInsuranceNumber: varchar('health_insurance_number', { length: 50 }),
 
+  // Product discriminator: 'public' (VBL/ZVK refund) | 'private' (bAV
+  // cash-out). Null on rows created before the column existed.
+  pensionType: varchar('pension_type', { length: 20 }),
+
+  // bAV cash-out intake (pension_type = 'private'). All nullable; the
+  // submission validator enforces what each route needs. Placeholder names
+  // in the client's letter spec are noted per column.
+  salutation: varchar('salutation', { length: 10 }), // 'herr' | 'frau' → client_gender
+  taxId: varchar('tax_id', { length: 20 }), // German Steuer-ID → tax_id
+  healthInsuranceEndDate: date('health_insurance_end_date'), // → de_health_insurance_end_date (falls back to move_out_date)
+
+  // Employment with the German employer that granted the bAV
+  employerName: varchar('employer_name', { length: 255 }), // → employer_name
+  employmentEndDate: date('employment_end_date'), // → employment_end_date
+  employerPersonnelNumber: varchar('employer_personnel_number', {
+    length: 50,
+  }), // → employer_personnel_number
+
+  // The bAV scheme itself
+  bavProviderName: varchar('bav_provider_name', { length: 255 }), // → provider_name (empty for Direktzusage)
+  bavDurchfuehrungsweg: varchar('bav_durchfuehrungsweg', { length: 30 }), // → durchfuehrungsweg
+  bavContractReferenceLabel: varchar('bav_contract_reference_label', {
+    length: 50,
+  }), // → contract_reference_label ("Vertrags-Nr.", "Versicherungsnummer", …)
+  bavContractReference: varchar('bav_contract_reference', { length: 100 }), // → contract_reference
+  bavProviderFormTitle: varchar('bav_provider_form_title', { length: 255 }), // → provider_form_title (with a provider_form document)
+
+  // Route A (§ 3 Abs. 3 BetrAVG): DRV contribution refund already granted
+  drvRefundReceived: boolean('drv_refund_received'), // true → route A, false → route B
+  drvOffice: varchar('drv_office', { length: 255 }), // → drv_office (from Bescheid OCR)
+  drvDecisionDate: date('drv_decision_date'), // → drv_decision_date
+
+  // Route B (§ 3 Abs. 2 BetrAVG): Kleinstanwartschaft per statement
+  bavStatementType: varchar('bav_statement_type', { length: 50 }), // → statement_type
+  bavStatementDate: date('bav_statement_date'), // → statement_date
+  bavBenefitForm: varchar('bav_benefit_form', { length: 10 }), // 'pension' | 'capital' | 'unknown' → benefit_form
+  bavBenefitAmount: decimal('bav_benefit_amount', {
+    precision: 12,
+    scale: 2,
+  }), // → benefit_amount (EUR; monthly for pension, one-off for capital)
+
+  // Letter addressee. Defaults come from the Durchführungsweg / provider
+  // matrix; ops can override per claim.
+  bavAddresseeType: varchar('bav_addressee_type', { length: 20 }), // 'employer' | 'provider' → addressee_type
+  bavRecipientName: varchar('bav_recipient_name', { length: 255 }), // → recipient_name
+  bavRecipientDepartment: varchar('bav_recipient_department', {
+    length: 255,
+  }), // → recipient_department
+  bavRecipientStreet: varchar('bav_recipient_street', { length: 255 }), // → recipient_street
+  bavRecipientPostalCode: varchar('bav_recipient_postal_code', {
+    length: 20,
+  }), // → recipient_postal_code
+  bavRecipientCity: varchar('bav_recipient_city', { length: 100 }), // → recipient_city
+  bavRecipientRef: varchar('bav_recipient_ref', { length: 100 }), // → recipient_ref ("Ihr Zeichen")
+
   // Section 3: Payment Details - Bank Details
   preferredCurrency: varchar('preferred_currency', { length: 10 }), // 'AUD', 'EUR', 'USD', etc.
   accountHolderName: varchar('account_holder_name', { length: 255 }),
@@ -207,7 +311,7 @@ export const claimDocuments = claims.table('claim_documents', {
   documentId: uuid('document_id')
     .notNull()
     .references(() => documents.id),
-  documentRole: varchar('document_role', { length: 50 }).notNull(), // 'passport', 'payslip', 'abmeldung', 'bank_statement', 'certified_id_form', 'health_insurance'
+  documentRole: varchar('document_role', { length: 50 }).notNull(), // one of CLAIM_DOCUMENT_ROLES
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 

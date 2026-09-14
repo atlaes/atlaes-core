@@ -1,3 +1,4 @@
+import type { BavClaimFields } from './intake-validation';
 import type { TemplateContext } from './template-engine';
 
 /**
@@ -128,3 +129,55 @@ Anlagen
 4. Antragsformular „Antrag auf Abfindung einer Rentenanwartschaft“ (ausgefüllt und unterschrieben)
 5. Zustimmungserklärung des ehemaligen Arbeitgebers
 6. Nachweis der Krankenversicherung in den USA`;
+
+/**
+ * The same case as a claim row, i.e. what `buildBavLetterContext` reads.
+ * ISO dates and dot-decimal amounts, as stored by Drizzle.
+ */
+export const MUSTER_2_CLAIM: BavClaimFields = {
+  firstName: 'Emily',
+  lastName: 'Carter',
+  dateOfBirth: '1986-10-03',
+  gender: 'female',
+  placeOfBirth: 'Albany, USA',
+  passportNumber: 'X12345678',
+  currentAddressLine1: '42 Maple Avenue',
+  currentAddressLine2: null,
+  currentCity: 'Latham',
+  currentPostalCode: 'NY 12110',
+  currentCountry: 'USA',
+  moveOutDate: '2021-03-15',
+  salutation: 'frau',
+  taxId: '98 765 432 109',
+  healthInsuranceEndDate: '2021-03-15',
+  employerName: 'Beispielbank AG',
+  employmentEndDate: '2021-02-28',
+  employerPersonnelNumber: null,
+  bavProviderName: 'BVV Versicherungsverein des Bankgewerbes a.G.',
+  bavDurchfuehrungsweg: 'Pensionskasse',
+  bavContractReferenceLabel: 'Vertrags-Nr.',
+  bavContractReference: '1234567-8-9012',
+  bavProviderFormTitle: 'Antrag auf Abfindung einer Rentenanwartschaft',
+  drvRefundReceived: true,
+  drvOffice: 'Deutsche Rentenversicherung Bund',
+  drvDecisionDate: '2026-07-02',
+  bavStatementType: null,
+  bavStatementDate: null,
+  bavBenefitForm: null,
+  bavBenefitAmount: null,
+  bavAddresseeType: 'provider',
+  bavRecipientName: 'BVV Versicherungsverein des Bankgewerbes a.G.',
+  bavRecipientDepartment: '',
+  bavRecipientStreet: 'Straße der Pariser Kommune 8',
+  bavRecipientPostalCode: '10243',
+  bavRecipientCity: 'Berlin',
+  bavRecipientRef: null,
+  accountHolderName: 'Emily Carter',
+  iban: 'BE19905691823912',
+  swiftBic: 'TRWIBEB1XXX',
+  bankName: 'Wise Europe SA',
+  bankStreet: 'Rue du Trône 100',
+  bankCity: 'Brüssel',
+  bankPostalCode: '1050',
+  bankCountry: 'Belgien',
+};

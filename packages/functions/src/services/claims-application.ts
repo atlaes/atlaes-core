@@ -9,7 +9,14 @@ import {
   ClaimStatus,
   ClaimDocumentRole,
   CertifyingAuthority,
+  PensionType,
+  Salutation,
+  BavDurchfuehrungsweg,
+  BavStatementType,
+  BavBenefitForm,
+  BavAddresseeType,
 } from '../drizzle/schema/claims';
+import { validateBavIntake } from './bav-letters/intake-validation';
 import {
   auditLogs,
   documents,
@@ -89,12 +96,45 @@ export interface ClaimBankDetails {
   bankCountry?: string;
 }
 
+// bAV cash-out intake (pensionType = 'private'). Mirrors the bAV column
+// block in drizzle/schema/claims.ts; see the comments there for the letter
+// placeholder each field feeds.
+export interface ClaimBavDetails {
+  pensionType?: PensionType;
+  salutation?: Salutation;
+  taxId?: string;
+  healthInsuranceEndDate?: string;
+  employerName?: string;
+  employmentEndDate?: string;
+  employerPersonnelNumber?: string;
+  bavProviderName?: string;
+  bavDurchfuehrungsweg?: BavDurchfuehrungsweg;
+  bavContractReferenceLabel?: string;
+  bavContractReference?: string;
+  bavProviderFormTitle?: string;
+  drvRefundReceived?: boolean;
+  drvOffice?: string;
+  drvDecisionDate?: string;
+  bavStatementType?: BavStatementType;
+  bavStatementDate?: string;
+  bavBenefitForm?: BavBenefitForm;
+  bavBenefitAmount?: string;
+  bavAddresseeType?: BavAddresseeType;
+  bavRecipientName?: string;
+  bavRecipientDepartment?: string;
+  bavRecipientStreet?: string;
+  bavRecipientPostalCode?: string;
+  bavRecipientCity?: string;
+  bavRecipientRef?: string;
+}
+
 export interface ClaimData
   extends
     ClaimPersonalInfo,
     ClaimCurrentAddress,
     ClaimGermanAddress,
     ClaimHealthInsurance,
+    ClaimBavDetails,
     ClaimBankDetails {
   svNummer?: string;
   certifyingAuthority?: CertifyingAuthority;
@@ -149,6 +189,34 @@ export interface Claim {
   healthInsurancePlaceOfBirth: string | null;
   healthInsuranceCountryOfBirth: string | null;
   healthInsuranceNumber: string | null;
+
+  // Product discriminator + bAV cash-out intake
+  pensionType: string | null;
+  salutation: string | null;
+  taxId: string | null;
+  healthInsuranceEndDate: string | null;
+  employerName: string | null;
+  employmentEndDate: string | null;
+  employerPersonnelNumber: string | null;
+  bavProviderName: string | null;
+  bavDurchfuehrungsweg: string | null;
+  bavContractReferenceLabel: string | null;
+  bavContractReference: string | null;
+  bavProviderFormTitle: string | null;
+  drvRefundReceived: boolean | null;
+  drvOffice: string | null;
+  drvDecisionDate: string | null;
+  bavStatementType: string | null;
+  bavStatementDate: string | null;
+  bavBenefitForm: string | null;
+  bavBenefitAmount: string | null;
+  bavAddresseeType: string | null;
+  bavRecipientName: string | null;
+  bavRecipientDepartment: string | null;
+  bavRecipientStreet: string | null;
+  bavRecipientPostalCode: string | null;
+  bavRecipientCity: string | null;
+  bavRecipientRef: string | null;
 
   // Bank Details
   preferredCurrency: string | null;
@@ -263,6 +331,32 @@ function mapRowToClaim(row: any): Claim {
     healthInsurancePlaceOfBirth: row.healthInsurancePlaceOfBirth,
     healthInsuranceCountryOfBirth: row.healthInsuranceCountryOfBirth,
     healthInsuranceNumber: row.healthInsuranceNumber,
+    pensionType: row.pensionType ?? null,
+    salutation: row.salutation ?? null,
+    taxId: row.taxId ?? null,
+    healthInsuranceEndDate: row.healthInsuranceEndDate ?? null,
+    employerName: row.employerName ?? null,
+    employmentEndDate: row.employmentEndDate ?? null,
+    employerPersonnelNumber: row.employerPersonnelNumber ?? null,
+    bavProviderName: row.bavProviderName ?? null,
+    bavDurchfuehrungsweg: row.bavDurchfuehrungsweg ?? null,
+    bavContractReferenceLabel: row.bavContractReferenceLabel ?? null,
+    bavContractReference: row.bavContractReference ?? null,
+    bavProviderFormTitle: row.bavProviderFormTitle ?? null,
+    drvRefundReceived: row.drvRefundReceived ?? null,
+    drvOffice: row.drvOffice ?? null,
+    drvDecisionDate: row.drvDecisionDate ?? null,
+    bavStatementType: row.bavStatementType ?? null,
+    bavStatementDate: row.bavStatementDate ?? null,
+    bavBenefitForm: row.bavBenefitForm ?? null,
+    bavBenefitAmount: row.bavBenefitAmount ?? null,
+    bavAddresseeType: row.bavAddresseeType ?? null,
+    bavRecipientName: row.bavRecipientName ?? null,
+    bavRecipientDepartment: row.bavRecipientDepartment ?? null,
+    bavRecipientStreet: row.bavRecipientStreet ?? null,
+    bavRecipientPostalCode: row.bavRecipientPostalCode ?? null,
+    bavRecipientCity: row.bavRecipientCity ?? null,
+    bavRecipientRef: row.bavRecipientRef ?? null,
     preferredCurrency: row.preferredCurrency,
     accountHolderName: row.accountHolderName,
     bankName: row.bankName,
@@ -939,6 +1033,17 @@ export class ClaimsApplicationService {
       const docs = await this.getClaimDocuments(claimId, userId);
       const hasPassport = docs.some((d) => d.documentRole === 'passport');
       if (!hasPassport) errors.push('Passport document is required');
+
+      // bAV cash-out checks — what the Abfindung letters need for the
+      // claim's route (A: DRV refund granted, B: Kleinstanwartschaft).
+      if (claim.pensionType === 'private') {
+        errors.push(
+          ...validateBavIntake(
+            claim,
+            docs.map((d) => d.documentRole)
+          )
+        );
+      }
 
       // GPR-specific checks — only for full GPR claims
       if (!isVblClaim) {

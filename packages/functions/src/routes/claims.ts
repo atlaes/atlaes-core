@@ -9,6 +9,9 @@ import {
   ClaimData,
 } from '../services/claims-application';
 import {
+  BAV_DURCHFUEHRUNGSWEGE,
+  BAV_STATEMENT_TYPES,
+  CLAIM_DOCUMENT_ROLES,
   ClaimDocumentRole,
   ClaimStepName,
   ClaimWorkflowState,
@@ -85,6 +88,58 @@ const updateClaimSchema = z.object({
   healthInsuranceCountryOfBirth: z.string().max(100).optional(),
   healthInsuranceNumber: z.string().max(50).optional(),
 
+  // Product discriminator
+  pensionType: z.enum(['public', 'private']).optional(),
+
+  // bAV cash-out intake (pensionType = 'private')
+  salutation: z.enum(['herr', 'frau']).optional(),
+  // German Steuer-ID: 11 digits, spaces between groups tolerated
+  // ("98 765 432 109"). Empty string clears the field.
+  taxId: z
+    .string()
+    .trim()
+    .regex(/^(\d\s?){11}$|^$/, 'Tax ID must be 11 digits')
+    .optional(),
+  healthInsuranceEndDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  employerName: z.string().max(255).optional(),
+  employmentEndDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  employerPersonnelNumber: z.string().max(50).optional(),
+  bavProviderName: z.string().max(255).optional(),
+  bavDurchfuehrungsweg: z.enum(BAV_DURCHFUEHRUNGSWEGE).optional(),
+  bavContractReferenceLabel: z.string().max(50).optional(),
+  bavContractReference: z.string().max(100).optional(),
+  bavProviderFormTitle: z.string().max(255).optional(),
+  drvRefundReceived: z.boolean().optional(),
+  drvOffice: z.string().max(255).optional(),
+  drvDecisionDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  bavStatementType: z.enum(BAV_STATEMENT_TYPES).optional(),
+  bavStatementDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  bavBenefitForm: z.enum(['pension', 'capital', 'unknown']).optional(),
+  // Decimal string in EUR with a dot as decimal separator ("41.20").
+  bavBenefitAmount: z
+    .string()
+    .regex(/^\d{1,10}(\.\d{1,2})?$/, 'Amount must be a decimal like 41.20')
+    .optional(),
+  bavAddresseeType: z.enum(['employer', 'provider']).optional(),
+  bavRecipientName: z.string().max(255).optional(),
+  bavRecipientDepartment: z.string().max(255).optional(),
+  bavRecipientStreet: z.string().max(255).optional(),
+  bavRecipientPostalCode: z.string().max(20).optional(),
+  bavRecipientCity: z.string().max(100).optional(),
+  bavRecipientRef: z.string().max(100).optional(),
+
   // Bank Details
   preferredCurrency: z.string().max(10).optional(),
   accountHolderName: z.string().max(255).optional(),
@@ -118,14 +173,7 @@ const updateClaimSchema = z.object({
 // Add document schema
 const addDocumentSchema = z.object({
   documentId: z.string().uuid(),
-  documentRole: z.enum([
-    'passport',
-    'payslip',
-    'abmeldung',
-    'bank_statement',
-    'certified_id_form',
-    'health_insurance',
-  ]),
+  documentRole: z.enum(CLAIM_DOCUMENT_ROLES),
 });
 
 // Attach signature schema
