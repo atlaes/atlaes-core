@@ -12,7 +12,7 @@ export function isAppRole(role: unknown): role is AppRole {
 }
 
 export function homeForRole(role: AppRole | null | undefined): string {
-  return role === 'law_firm' ? '/portal' : '/claims';
+  return role === 'law_firm' ? '/portal' : '/home';
 }
 
 export interface AdminUser {

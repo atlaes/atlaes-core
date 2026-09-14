@@ -12,6 +12,7 @@ import {
 } from '../drizzle/schema/claims';
 import { getPresignedUrl } from '../utils/s3';
 import { LawFirmService } from '../services/law-firm';
+import { AdminOverviewService } from '../services/admin-overview';
 import { LAW_FIRM_MEMBER_ROLES } from '../drizzle/schema/shared';
 
 const admin = new Hono();
@@ -30,6 +31,20 @@ admin.get('/stats', async (c) => {
   } catch (error) {
     logger.error('Admin stats error:', error);
     return c.json({ success: false, error: 'Failed to get stats' }, 500);
+  }
+});
+
+// ============================================================
+// Ops home: needs attention + recent activity
+// ============================================================
+
+admin.get('/overview', async (c) => {
+  try {
+    const overview = await AdminOverviewService.getOverview();
+    return c.json({ success: true, ...overview });
+  } catch (error) {
+    logger.error('Admin overview error:', error);
+    return c.json({ success: false, error: 'Failed to load overview' }, 500);
   }
 });
 

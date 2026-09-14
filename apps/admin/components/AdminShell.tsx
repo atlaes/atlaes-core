@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { FileText, Scale, LogOut, ExternalLink } from 'lucide-react';
+import { FileText, Scale, LogOut, ExternalLink, Home } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getStats } from '@/lib/admin-api';
@@ -19,6 +19,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const stats = useQuery({ queryKey: ['admin-stats'], queryFn: getStats });
 
   const items = [
+    {
+      href: '/home',
+      label: 'Home',
+      icon: Home,
+      count: undefined,
+      active: pathname.startsWith('/home'),
+    },
     {
       href: '/claims',
       label: 'Claims',
@@ -39,7 +46,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen">
       <aside className="hidden w-56 flex-none flex-col border-r border-gray-200 bg-white md:flex">
         <div className="border-b border-gray-200 px-4 py-4">
-          <Link href="/claims" className="block">
+          <Link href="/home" className="block">
             <span className="block text-sm font-semibold text-brand-dark">
               CompanyPension
             </span>
@@ -97,6 +104,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
             CompanyPension
           </span>
           <nav className="flex gap-3 text-sm">
+            <Link href="/home" className="text-gray-700">
+              Home
+            </Link>
             <Link href="/claims" className="text-gray-700">
               Claims
             </Link>

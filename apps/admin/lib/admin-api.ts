@@ -106,6 +106,14 @@ export interface ClaimDetail {
   bavRecipientStreet: string | null;
   bavRecipientPostalCode: string | null;
   bavRecipientCity: string | null;
+  bavRecipientDepartment: string | null;
+  bavRecipientRef: string | null;
+  bavProviderFormTitle: string | null;
+  // Health insurance (bAV only)
+  healthInsuranceType: string | null;
+  healthInsuranceProviderName: string | null;
+  healthInsuranceProviderAddress: string | null;
+  healthInsuranceNumber: string | null;
   // Handling route (ops decision)
   handlingRoute: ClaimHandlingRoute | null;
   handlingRouteSetAt: string | null;
@@ -329,4 +337,55 @@ export async function removeLawFirmMember(
   memberId: string
 ): Promise<void> {
   await apiClient.delete(`/admin/law-firms/${firmId}/members/${memberId}`);
+}
+
+// ============================================================
+// Ops home
+// ============================================================
+
+export interface AttentionItem {
+  id: string;
+  claimantName: string | null;
+  email: string | null;
+  pensionType: string | null;
+  status: string | null;
+  handlingRoute: string;
+  lawFirmCaseState: string | null;
+  lawFirmRef: string | null;
+  paymentStatus: string | null;
+  submittedAt: string | null;
+  updatedAt: string | null;
+  ageDays: number;
+}
+
+export interface ActivityItem {
+  id: string;
+  claimId: string;
+  claimantName: string | null;
+  state: string;
+  previousState: string | null;
+  triggeredBy: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string | null;
+}
+
+export interface AdminOverview {
+  attention: {
+    submitted: AttentionItem[];
+    responses: AttentionItem[];
+    missingPackage: AttentionItem[];
+    paymentIssues: AttentionItem[];
+  };
+  activity: ActivityItem[];
+  counts: {
+    submitted: number;
+    processing: number;
+    lawFirm: number;
+    completedThisWeek: number;
+  };
+}
+
+export async function getOverview(): Promise<AdminOverview> {
+  const { data } = await apiClient.get('/admin/overview');
+  return data;
 }
