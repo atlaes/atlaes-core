@@ -42,6 +42,15 @@ admin.get('/claims', async (c) => {
     const status = c.req.query('status') || undefined;
     const handlingRoute = c.req.query('handlingRoute') || undefined;
     const pensionType = c.req.query('pensionType') || undefined;
+    const search = (c.req.query('search') || '').slice(0, 100) || undefined;
+    const sortRaw = c.req.query('sort');
+    const sort =
+      sortRaw === 'submittedAt' ||
+      sortRaw === 'updatedAt' ||
+      sortRaw === 'createdAt'
+        ? sortRaw
+        : undefined;
+    const dir = c.req.query('dir') === 'asc' ? 'asc' : 'desc';
     const page = parseInt(c.req.query('page') || '1', 10);
     const limit = parseInt(c.req.query('limit') || '20', 10);
 
@@ -49,6 +58,9 @@ admin.get('/claims', async (c) => {
       status,
       handlingRoute,
       pensionType,
+      search,
+      sort,
+      dir,
       page,
       limit,
     });
@@ -56,10 +68,7 @@ admin.get('/claims', async (c) => {
     return c.json({ success: true, ...result });
   } catch (error) {
     logger.error('Admin claims list error:', error);
-    return c.json(
-      { success: false, error: 'Failed to get claims' },
-      500
-    );
+    return c.json({ success: false, error: 'Failed to get claims' }, 500);
   }
 });
 
@@ -91,10 +100,7 @@ admin.get('/claims/:id', validateUuidParams('id'), async (c) => {
     });
   } catch (error) {
     logger.error('Admin claim detail error:', error);
-    return c.json(
-      { success: false, error: 'Failed to get claim' },
-      500
-    );
+    return c.json({ success: false, error: 'Failed to get claim' }, 500);
   }
 });
 
@@ -111,10 +117,7 @@ admin.get('/claims/:id/documents', validateUuidParams('id'), async (c) => {
     return c.json({ success: true, documents });
   } catch (error) {
     logger.error('Admin claim documents error:', error);
-    return c.json(
-      { success: false, error: 'Failed to get documents' },
-      500
-    );
+    return c.json({ success: false, error: 'Failed to get documents' }, 500);
   }
 });
 
@@ -122,35 +125,36 @@ admin.get('/claims/:id/documents', validateUuidParams('id'), async (c) => {
 // Document Download (pre-signed URL)
 // ============================================================
 
-admin.get('/claims/:id/documents/:docId/download', validateUuidParams('id', 'docId'), async (c) => {
-  try {
-    const documentId = c.req.param('docId');
+admin.get(
+  '/claims/:id/documents/:docId/download',
+  validateUuidParams('id', 'docId'),
+  async (c) => {
+    try {
+      const documentId = c.req.param('docId');
 
-    const doc =
-      await ClaimsApplicationService.getDocumentForDownload(documentId);
-    if (!doc) {
+      const doc =
+        await ClaimsApplicationService.getDocumentForDownload(documentId);
+      if (!doc) {
+        return c.json({ success: false, error: 'Document not found' }, 404);
+      }
+
+      const url = await getPresignedUrl(doc.s3Key);
+
+      return c.json({
+        success: true,
+        downloadUrl: url,
+        fileName: doc.fileName,
+        fileType: doc.fileType,
+      });
+    } catch (error) {
+      logger.error('Admin document download error:', error);
       return c.json(
-        { success: false, error: 'Document not found' },
-        404
+        { success: false, error: 'Failed to generate download URL' },
+        500
       );
     }
-
-    const url = await getPresignedUrl(doc.s3Key);
-
-    return c.json({
-      success: true,
-      downloadUrl: url,
-      fileName: doc.fileName,
-      fileType: doc.fileType,
-    });
-  } catch (error) {
-    logger.error('Admin document download error:', error);
-    return c.json(
-      { success: false, error: 'Failed to generate download URL' },
-      500
-    );
   }
-});
+);
 
 // ============================================================
 // Workflow History
@@ -252,13 +256,15 @@ admin.post(
       }
       if (claim.pensionType !== 'private') {
         return c.json(
-          { success: false, error: 'Only bAV cash-out packages can be regenerated here' },
+          {
+            success: false,
+            error: 'Only bAV cash-out packages can be regenerated here',
+          },
           400
         );
       }
-      const { BavLetterPackageService } = await import(
-        '../services/bav-letters'
-      );
+      const { BavLetterPackageService } =
+        await import('../services/bav-letters');
       const result = await BavLetterPackageService.generateAndStoreForClaim(
         claimId,
         user.id,
@@ -352,10 +358,7 @@ admin.post(
       return c.json(
         {
           success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : 'Failed to add note',
+          error: error instanceof Error ? error.message : 'Failed to add note',
         },
         500
       );
@@ -367,26 +370,22 @@ admin.post(
 // Law firm: correspondence the firm uploaded, case events
 // ============================================================
 
-admin.get(
-  '/claims/:id/correspondence',
-  validateUuidParams('id'),
-  async (c) => {
-    try {
-      const claimId = c.req.param('id');
-      const [correspondence, events] = await Promise.all([
-        LawFirmService.listCorrespondence(claimId),
-        LawFirmService.listCaseEvents(claimId),
-      ]);
-      return c.json({ success: true, correspondence, events });
-    } catch (error) {
-      logger.error('Admin correspondence list error:', error);
-      return c.json(
-        { success: false, error: 'Failed to get correspondence' },
-        500
-      );
-    }
+admin.get('/claims/:id/correspondence', validateUuidParams('id'), async (c) => {
+  try {
+    const claimId = c.req.param('id');
+    const [correspondence, events] = await Promise.all([
+      LawFirmService.listCorrespondence(claimId),
+      LawFirmService.listCaseEvents(claimId),
+    ]);
+    return c.json({ success: true, correspondence, events });
+  } catch (error) {
+    logger.error('Admin correspondence list error:', error);
+    return c.json(
+      { success: false, error: 'Failed to get correspondence' },
+      500
+    );
   }
-);
+});
 
 admin.get(
   '/claims/:id/correspondence/:corrId/download',

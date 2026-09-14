@@ -100,9 +100,24 @@ lawFirm.get('/me', (c) => {
   });
 });
 
+// Counts for the header strip
+lawFirm.get('/summary', async (c) => {
+  try {
+    const { firm } = c.get('firm');
+    const summary = await LawFirmService.getQueueSummary(firm.id);
+    return c.json({ success: true, summary });
+  } catch (error) {
+    return fail(c, error, 'Failed to load summary');
+  }
+});
+
 // Queue
 const listQuerySchema = z.object({
   caseState: z.enum(LAW_FIRM_CASE_STATES).optional(),
+  missingRef: z
+    .enum(['1', 'true'])
+    .optional()
+    .transform((v) => v !== undefined),
   search: z.string().max(100).optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),

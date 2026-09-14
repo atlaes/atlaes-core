@@ -137,7 +137,17 @@ export interface LawFirmMembership {
   userId: string;
   role: LawFirmMemberRole;
   active: boolean;
+  firstSignInAt: Date | null;
   createdAt: Date | null;
+}
+
+export interface FirmQueueSummary {
+  total: number;
+  new: number;
+  missingRef: number;
+  awaitingProvider: number;
+  responseReceived: number;
+  closed: number;
 }
 
 export interface FirmContext {
@@ -213,6 +223,7 @@ function mapMembership(
     userId: row.userId,
     role: row.role as LawFirmMemberRole,
     active: row.active,
+    firstSignInAt: row.firstSignInAt ?? null,
     createdAt: row.createdAt,
   };
 }
@@ -591,12 +602,53 @@ export class LawFirmService {
     }
   }
 
+  /** Stamps the member's first sign-in (called from magic-link verify). */
+  static async markSignedIn(userId: string): Promise<void> {
+    await db
+      .update(lawFirmMembers)
+      .set({ firstSignInAt: new Date(), updatedAt: new Date() })
+      .where(
+        and(
+          eq(lawFirmMembers.userId, userId),
+          sql`${lawFirmMembers.firstSignInAt} IS NULL`
+        )
+      );
+  }
+
   // ---------------- firm-scoped claims ----------------
+
+  /** Counts for the portal's header strip. */
+  static async getQueueSummary(firmId: string): Promise<FirmQueueSummary> {
+    const scope = and(
+      firmClaimScope(firmId),
+      sql`${claimsTable.status} <> 'draft'`
+    );
+    const [row] = await db
+      .select({
+        total: count(),
+        new: sql<number>`count(*) filter (where coalesce(${claimsTable.lawFirmCaseState}, 'new') = 'new')`,
+        missingRef: sql<number>`count(*) filter (where coalesce(${claimsTable.lawFirmRef}, '') = '' and coalesce(${claimsTable.lawFirmCaseState}, 'new') <> 'closed')`,
+        awaitingProvider: sql<number>`count(*) filter (where ${claimsTable.lawFirmCaseState} = 'submitted')`,
+        responseReceived: sql<number>`count(*) filter (where ${claimsTable.lawFirmCaseState} = 'response_received')`,
+        closed: sql<number>`count(*) filter (where ${claimsTable.lawFirmCaseState} = 'closed')`,
+      })
+      .from(claimsTable)
+      .where(scope);
+    return {
+      total: Number(row?.total ?? 0),
+      new: Number(row?.new ?? 0),
+      missingRef: Number(row?.missingRef ?? 0),
+      awaitingProvider: Number(row?.awaitingProvider ?? 0),
+      responseReceived: Number(row?.responseReceived ?? 0),
+      closed: Number(row?.closed ?? 0),
+    };
+  }
 
   static async listClaimsForFirm(
     firmId: string,
     filters: {
       caseState?: string;
+      missingRef?: boolean;
       search?: string;
       page?: number;
       limit?: number;
@@ -621,6 +673,11 @@ export class LawFirmService {
         filters.caseState === 'new'
           ? sql`coalesce(${claimsTable.lawFirmCaseState}, 'new') = 'new'`
           : eq(claimsTable.lawFirmCaseState, filters.caseState)
+      );
+    }
+    if (filters.missingRef) {
+      conditions.push(
+        sql`coalesce(${claimsTable.lawFirmRef}, '') = '' and coalesce(${claimsTable.lawFirmCaseState}, 'new') <> 'closed'`
       );
     }
     const search = filters.search?.trim();

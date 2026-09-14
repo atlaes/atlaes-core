@@ -109,6 +109,8 @@ export const lawFirmMembers = shared.table('law_firm_members', {
   role: varchar('role', { length: 20 }).notNull().default('member'),
   invitedBy: uuid('invited_by').references(() => users.id),
   active: boolean('active').notNull().default(true),
+  // Set on the member's first magic-link sign-in; null = invited, not in yet.
+  firstSignInAt: timestamp('first_sign_in_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });

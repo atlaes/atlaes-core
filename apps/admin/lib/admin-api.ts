@@ -159,6 +159,7 @@ export interface ClaimStats {
   processing: number;
   completed: number;
   rejected: number;
+  lawFirm: number;
 }
 
 export interface ClaimDetailResponse {
@@ -179,10 +180,15 @@ export async function getStats(): Promise<ClaimStats> {
   return data.stats;
 }
 
+export type ClaimSort = 'submittedAt' | 'updatedAt' | 'createdAt';
+
 export async function getClaims(params?: {
   status?: string;
   handlingRoute?: ClaimHandlingRoute;
   pensionType?: ClaimPensionType;
+  search?: string;
+  sort?: ClaimSort;
+  dir?: 'asc' | 'desc';
   page?: number;
   limit?: number;
 }): Promise<{
@@ -195,9 +201,7 @@ export async function getClaims(params?: {
   return data;
 }
 
-export async function getClaimDetail(
-  id: string
-): Promise<ClaimDetailResponse> {
+export async function getClaimDetail(id: string): Promise<ClaimDetailResponse> {
   const { data } = await apiClient.get(`/admin/claims/${id}`);
   return data;
 }
@@ -267,7 +271,6 @@ export async function getDocumentDownloadUrl(
 // ============================================================
 // Law firm (ops side)
 // ============================================================
-
 
 export async function getClaimCorrespondence(
   id: string

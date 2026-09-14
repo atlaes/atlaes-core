@@ -1208,10 +1208,13 @@ export class ClaimsApplicationService {
             userId
           );
           if (handlingRoute === 'law_firm') {
-            logger.info('bAV package stored for the law firm; lettershop skipped', {
-              claimId,
-              templateId: pkg.templateId,
-            });
+            logger.info(
+              'bAV package stored for the law firm; lettershop skipped',
+              {
+                claimId,
+                templateId: pkg.templateId,
+              }
+            );
           } else {
             try {
               const { LettershopService } = await import('./lettershop');
@@ -1237,7 +1240,8 @@ export class ClaimsApplicationService {
         } catch (pkgError) {
           logger.warn('Failed to generate bAV package after submission', {
             claimId,
-            error: pkgError instanceof Error ? pkgError.message : String(pkgError),
+            error:
+              pkgError instanceof Error ? pkgError.message : String(pkgError),
           });
         }
         return mapRowToClaim(result);
@@ -1265,9 +1269,12 @@ export class ClaimsApplicationService {
         // in S3 for the law firm to pick up and submit themselves.
         try {
           if (result.handlingRoute === 'law_firm') {
-            logger.info('Lettershop skipped: claim is handled by the law firm', {
-              claimId,
-            });
+            logger.info(
+              'Lettershop skipped: claim is handled by the law firm',
+              {
+                claimId,
+              }
+            );
           } else {
             const { LettershopService } = await import('./lettershop');
             await LettershopService.sendClaimPdf(claimId, bytes, userId);
@@ -1400,6 +1407,9 @@ export class ClaimsApplicationService {
     status?: string;
     handlingRoute?: string;
     pensionType?: string;
+    search?: string;
+    sort?: 'submittedAt' | 'updatedAt' | 'createdAt';
+    dir?: 'asc' | 'desc';
     page?: number;
     limit?: number;
   }): Promise<{ claims: any[]; total: number; page: number; limit: number }> {
@@ -1407,11 +1417,22 @@ export class ClaimsApplicationService {
       const page = filters.page || 1;
       const limit = filters.limit || 20;
       const offset = (page - 1) * limit;
+      const sortColumn =
+        filters.sort === 'submittedAt'
+          ? claimsTable.submittedAt
+          : filters.sort === 'updatedAt'
+            ? claimsTable.updatedAt
+            : claimsTable.createdAt;
+      const orderBy =
+        filters.dir === 'asc'
+          ? sql`${sortColumn} asc nulls last`
+          : desc(sortColumn);
 
       // Build where clause. handling_route defaults to 'direct' but legacy
       // rows may hold NULL, so treat NULL as 'direct' when filtering.
       const conditions = [];
-      if (filters.status) conditions.push(eq(claimsTable.status, filters.status));
+      if (filters.status)
+        conditions.push(eq(claimsTable.status, filters.status));
       if (filters.handlingRoute === 'direct') {
         conditions.push(
           sql`coalesce(${claimsTable.handlingRoute}, 'direct') = 'direct'`
@@ -1422,12 +1443,26 @@ export class ClaimsApplicationService {
       if (filters.pensionType) {
         conditions.push(eq(claimsTable.pensionType, filters.pensionType));
       }
+      // Search by claimant name, account email or the law firm's file number.
+      const search = filters.search?.trim();
+      if (search) {
+        const pattern = `%${search}%`;
+        conditions.push(
+          sql`(
+            concat(coalesce(${claimsTable.firstName}, ''), ' ', coalesce(${claimsTable.lastName}, '')) ILIKE ${pattern}
+            OR ${users.email} ILIKE ${pattern}
+            OR coalesce(${claimsTable.lawFirmRef}, '') ILIKE ${pattern}
+            OR ${claimsTable.id}::text ILIKE ${pattern}
+          )`
+        );
+      }
       const whereClause = conditions.length ? and(...conditions) : undefined;
 
-      // Get total count
+      // Get total count (joined so the email search applies here too)
       const [countResult] = await db
         .select({ value: count() })
         .from(claimsTable)
+        .leftJoin(users, eq(claimsTable.userId, users.id))
         .where(whereClause);
       const total = countResult?.value || 0;
 
@@ -1457,7 +1492,7 @@ export class ClaimsApplicationService {
         .leftJoin(users, eq(claimsTable.userId, users.id))
         .leftJoin(profiles, eq(profiles.userId, users.id))
         .where(whereClause)
-        .orderBy(desc(claimsTable.createdAt))
+        .orderBy(orderBy)
         .limit(limit)
         .offset(offset);
 
@@ -1519,9 +1554,7 @@ export class ClaimsApplicationService {
   /**
    * Get user info for a claim (admin only)
    */
-  static async getClaimUserInfo(
-    claimId: string
-  ): Promise<{
+  static async getClaimUserInfo(claimId: string): Promise<{
     email: string;
     firstName: string | null;
     lastName: string | null;
@@ -1673,7 +1706,7 @@ export class ClaimsApplicationService {
           : null;
       const lawFirmRef =
         input.handlingRoute === 'law_firm'
-          ? (input.lawFirmRef?.trim() || claim.lawFirmRef || null)
+          ? input.lawFirmRef?.trim() || claim.lawFirmRef || null
           : null;
       const now = new Date();
 
@@ -1884,6 +1917,7 @@ export class ClaimsApplicationService {
         processing: 0,
         completed: 0,
         rejected: 0,
+        lawFirm: 0,
       };
 
       for (const row of result) {
@@ -1891,6 +1925,18 @@ export class ClaimsApplicationService {
         stats[status] = row.value;
         stats.total += row.value;
       }
+
+      // Claims handed to the partner firm (past draft), for the queue tile.
+      const [lawFirmRow] = await db
+        .select({ value: count() })
+        .from(claimsTable)
+        .where(
+          and(
+            eq(claimsTable.handlingRoute, 'law_firm'),
+            sql`${claimsTable.status} <> 'draft'`
+          )
+        );
+      stats.lawFirm = lawFirmRow?.value ?? 0;
 
       return stats;
     } catch (error) {

@@ -1,20 +1,19 @@
 'use client';
 
-import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useMemo, useRef, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft,
   Download,
-  FileText,
-  Inbox,
+  Upload,
   Pencil,
   Send,
-  Upload,
-  User,
+  Inbox,
+  Clock,
+  FileText,
 } from 'lucide-react';
 import {
-  apiErrorMessage,
+  CASE_STAGES,
   CHANNEL_LABELS,
   getFirmCase,
   getFirmCorrespondenceDownload,
@@ -25,44 +24,51 @@ import {
   setFirmReference,
   uploadFirmCorrespondence,
 } from '@/lib/law-firm-api';
-import { CaseStateBadge } from '@/components/CaseStateBadge';
-
-function formatDate(value: string | null | undefined, withTime = false) {
-  if (!value) return '—';
-  return new Date(value).toLocaleDateString('de-DE', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}),
-  });
-}
-
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
+import {
+  Button,
+  ErrorText,
+  Fact,
+  FactGroup,
+  Field,
+  PageHeader,
+  Spinner,
+  Stepper,
+  Table,
+  TableBody,
+  TableHead,
+  Td,
+  Th,
+  formatBytes,
+  formatDate,
+  inputClass,
+} from '@/components/ui';
 
 const EVENT_LABELS: Record<string, string> = {
-  downloaded: 'Package downloaded',
-  submitted: 'Sent to provider',
-  response_received: 'Response received',
-  closed: 'Case closed',
-  reference_set: 'File number set',
-  correspondence_uploaded: 'Correspondence uploaded',
+  downloaded: 'Paket heruntergeladen',
+  submitted: 'Beim Versorgungsträger eingereicht',
+  response_received: 'Antwort erhalten',
+  closed: 'Akte abgeschlossen',
+  reference_set: 'Aktenzeichen eingetragen',
+  correspondence_uploaded: 'Schreiben hochgeladen',
+};
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+type EventForm = {
+  event: LawFirmCaseEvent;
+  date: string;
+  channel: LawFirmSubmissionChannel;
+  note: string;
 };
 
 export default function PortalCasePage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const queryClient = useQueryClient();
+  const uploadRef = useRef<HTMLDivElement>(null);
 
   const [refEditing, setRefEditing] = useState(false);
   const [refValue, setRefValue] = useState('');
-  const [eventForm, setEventForm] = useState<{
-    event: LawFirmCaseEvent;
-    date: string;
-    channel: LawFirmSubmissionChannel;
-    note: string;
-  } | null>(null);
+  const [eventForm, setEventForm] = useState<EventForm | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadNote, setUploadNote] = useState('');
   const [uploadDate, setUploadDate] = useState(todayIso());
@@ -77,30 +83,29 @@ export default function PortalCasePage() {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['firm-case', id] });
     queryClient.invalidateQueries({ queryKey: ['firm-claims'] });
+    queryClient.invalidateQueries({ queryKey: ['firm-summary'] });
   };
 
   const refMutation = useMutation({
-    mutationFn: (value: string) => setFirmReference(id, value),
+    mutationFn: (v: string) => setFirmReference(id, v),
     onSuccess: () => {
       setRefEditing(false);
       invalidate();
     },
   });
-
   const eventMutation = useMutation({
-    mutationFn: (input: NonNullable<typeof eventForm>) =>
+    mutationFn: (f: EventForm) =>
       recordFirmEvent(id, {
-        event: input.event,
-        date: input.date || null,
-        channel: input.event === 'submitted' ? input.channel : null,
-        note: input.note.trim() || null,
+        event: f.event,
+        date: f.date || null,
+        channel: f.event === 'submitted' ? f.channel : null,
+        note: f.note.trim() || null,
       }),
     onSuccess: () => {
       setEventForm(null);
       invalidate();
     },
   });
-
   const uploadMutation = useMutation({
     mutationFn: (file: File) =>
       uploadFirmCorrespondence(id, file, {
@@ -115,647 +120,733 @@ export default function PortalCasePage() {
     },
   });
 
-  const openDownload = async (kind: 'package' | 'copy') => {
+  const open = async (fn: () => Promise<{ downloadUrl: string | null }>) => {
     setDownloadError(null);
     try {
-      const result = await getFirmDownload(id, kind);
-      if (result.downloadUrl) {
-        window.open(result.downloadUrl, '_blank', 'noopener');
+      const r = await fn();
+      if (r.downloadUrl) {
+        window.open(r.downloadUrl, '_blank', 'noopener');
         invalidate();
-      } else {
-        setDownloadError('Download is not available in this environment.');
-      }
-    } catch (error) {
-      setDownloadError(apiErrorMessage(error, 'Download failed'));
+      } else
+        setDownloadError('In dieser Umgebung ist kein Download verfügbar.');
+    } catch (e) {
+      setDownloadError((e as Error).message || 'Download fehlgeschlagen');
     }
   };
 
-  const openCorrespondence = async (corrId: string) => {
-    setDownloadError(null);
-    try {
-      const result = await getFirmCorrespondenceDownload(id, corrId);
-      if (result.downloadUrl)
-        window.open(result.downloadUrl, '_blank', 'noopener');
-      else setDownloadError('Download is not available in this environment.');
-    } catch (error) {
-      setDownloadError(apiErrorMessage(error, 'Download failed'));
-    }
-  };
-
-  if (caseQuery.isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-accent border-t-transparent" />
-      </div>
+  const activity = useMemo(() => {
+    if (!caseQuery.data) return [];
+    const { events, correspondence } = caseQuery.data;
+    const items = [
+      ...events.map((e) => ({
+        id: e.id,
+        at: e.createdAt ?? '',
+        title: `${EVENT_LABELS[e.event] ?? e.event}${
+          e.channel
+            ? ` (${CHANNEL_LABELS[e.channel as LawFirmSubmissionChannel] ?? e.channel})`
+            : ''
+        }${e.date ? ` am ${formatDate(e.date)}` : ''}`,
+        body: e.note,
+        icon:
+          e.event === 'correspondence_uploaded'
+            ? Inbox
+            : e.event === 'submitted'
+              ? Send
+              : Clock,
+      })),
+      ...correspondence
+        .filter((c) => c.direction !== 'provider_in')
+        .map((c) => ({
+          id: `c-${c.id}`,
+          at: c.createdAt ?? '',
+          title:
+            c.direction === 'package_out'
+              ? 'Anschreiben-Paket von CompanyPension erstellt'
+              : c.direction === 'copy_out'
+                ? 'Kopie für die Gegenseite erstellt'
+                : 'Notiz',
+          body: c.note,
+          icon: FileText,
+        })),
+    ];
+    return items.sort(
+      (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()
     );
-  }
+  }, [caseQuery.data]);
 
+  if (caseQuery.isLoading) return <Spinner full />;
   if (caseQuery.error || !caseQuery.data) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-gray-500">This case is not available.</p>
-        <button
-          onClick={() => router.push('/portal')}
-          className="mt-4 text-sm text-brand-dark underline"
-        >
-          Back to cases
-        </button>
-      </div>
+      <PageHeader
+        title="Akte nicht verfügbar"
+        back={{ href: '/portal', label: 'Akten' }}
+      />
     );
   }
 
-  const { claim, correspondence, events } = caseQuery.data;
+  const { claim, correspondence } = caseQuery.data;
   const { claimant, bav } = claim;
-  const isClosed = claim.caseState === 'closed';
-  const canRespond = ['submitted', 'response_received'].includes(
-    claim.caseState
-  );
+  const state = claim.caseState;
+  const isClosed = state === 'closed';
+  const incoming = correspondence.filter((c) => c.direction === 'provider_in');
 
-  const availableEvents: { key: LawFirmCaseEvent; label: string }[] = isClosed
-    ? []
-    : [
-        { key: 'submitted', label: 'Sent to provider' },
-        ...(canRespond
-          ? [{ key: 'response_received' as const, label: 'Response received' }]
-          : []),
-        { key: 'closed', label: 'Close case' },
-      ];
+  const startEvent = (event: LawFirmCaseEvent) =>
+    setEventForm({ event, date: todayIso(), channel: 'post', note: '' });
+  const scrollToUpload = () =>
+    uploadRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // The one thing to do next, by stage.
+  let next: { text: string; action: React.ReactNode } | null = null;
+  if (isClosed) {
+    next = null;
+  } else if (!claim.lawFirmRef) {
+    next = {
+      text: 'Tragen Sie Ihr Aktenzeichen ein. Das Anschreiben wird damit neu erstellt („Unser Zeichen“).',
+      action: (
+        <Button
+          variant="primary"
+          onClick={() => {
+            setRefValue('');
+            setRefEditing(true);
+          }}
+        >
+          <Pencil className="h-4 w-4" />
+          Aktenzeichen eintragen
+        </Button>
+      ),
+    };
+  } else if (state === 'new') {
+    next = {
+      text: claim.packageReady
+        ? 'Laden Sie das Paket herunter: unterschriftsreifes Anschreiben, Vollmacht und Anlagen.'
+        : 'Das Paket wird von CompanyPension noch erstellt.',
+      action: claim.packageReady ? (
+        <Button
+          variant="primary"
+          onClick={() => open(() => getFirmDownload(id, 'package'))}
+        >
+          <Download className="h-4 w-4" />
+          Paket herunterladen
+        </Button>
+      ) : null,
+    };
+  } else if (state === 'downloaded') {
+    next = {
+      text: 'Sobald das Schreiben beim Versorgungsträger ist, erfassen Sie Datum und Versandweg.',
+      action: (
+        <Button variant="primary" onClick={() => startEvent('submitted')}>
+          <Send className="h-4 w-4" />
+          Einreichung erfassen
+        </Button>
+      ),
+    };
+  } else if (state === 'submitted') {
+    next = {
+      text: 'Wenn die Antwort des Versorgungsträgers eingeht, laden Sie den Scan hoch und erfassen den Eingang.',
+      action: (
+        <div className="flex flex-wrap gap-2">
+          <Button variant="primary" onClick={scrollToUpload}>
+            <Upload className="h-4 w-4" />
+            Antwort hochladen
+          </Button>
+          <Button onClick={() => startEvent('response_received')}>
+            Eingang erfassen
+          </Button>
+        </div>
+      ),
+    };
+  } else if (state === 'response_received') {
+    next = {
+      text: 'Weitere Antworten können Sie hochladen. Ist die Sache erledigt, schließen Sie die Akte.',
+      action: (
+        <div className="flex flex-wrap gap-2">
+          <Button variant="primary" onClick={scrollToUpload}>
+            <Upload className="h-4 w-4" />
+            Weitere Antwort hochladen
+          </Button>
+          <Button onClick={() => startEvent('closed')}>Akte schließen</Button>
+        </div>
+      ),
+    };
+  }
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <button
-        onClick={() => router.push('/portal')}
-        className="mb-3 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to cases
-      </button>
-
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-brand-dark">
-            {claimant.name ?? 'Claimant'}
-          </h1>
-          <p className="text-sm text-gray-500">
-            Case {claim.id.slice(0, 8)} &middot; assigned{' '}
-            {formatDate(claim.assignedAt)}
-            {claim.payoutTarget === 'law_firm' ? ' · payout to Anderkonto' : ''}
-          </p>
-        </div>
-        <CaseStateBadge state={claim.caseState} />
-      </div>
-
-      {/* File number */}
-      <div className="mb-4 rounded-xl border border-gray-200 bg-white p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700">
-              Your file number (Unser Zeichen)
-            </h3>
-            {claim.lawFirmRef ? (
-              <p className="mt-1 text-sm text-gray-900">{claim.lawFirmRef}</p>
-            ) : (
-              <p className="mt-1 text-sm text-amber-700">
-                Not set yet. The letter shows an empty &ldquo;Unser
-                Zeichen&rdquo; until you enter it.
-              </p>
-            )}
-          </div>
-          {!refEditing && !isClosed && (
-            <button
+    <div>
+      <PageHeader
+        back={{ href: '/portal', label: 'Akten' }}
+        title={claimant.name ?? 'Mandant'}
+        subtitle={
+          <>
+            {bav.route ? `Weg ${bav.route} · ` : ''}
+            {claim.lawFirmRef ? `Unser Zeichen ${claim.lawFirmRef} · ` : ''}
+            übergeben {formatDate(claim.assignedAt)}
+            {claim.payoutTarget === 'law_firm'
+              ? ' · Auszahlung auf Anderkonto'
+              : ''}
+          </>
+        }
+        actions={
+          !isClosed && !refEditing && claim.lawFirmRef ? (
+            <Button
+              size="sm"
+              variant="ghost"
               onClick={() => {
                 setRefValue(claim.lawFirmRef ?? '');
                 setRefEditing(true);
               }}
-              className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
             >
               <Pencil className="h-3.5 w-3.5" />
-              {claim.lawFirmRef ? 'Edit' : 'Enter'}
-            </button>
-          )}
-        </div>
-        {refEditing && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (refValue.trim()) refMutation.mutate(refValue.trim());
-            }}
-            className="mt-3 flex flex-wrap gap-2"
-          >
-            <input
-              value={refValue}
-              onChange={(e) => setRefValue(e.target.value)}
-              placeholder="e.g. 2026/0815-KC"
-              maxLength={100}
-              className="flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent"
-            />
-            <button
-              type="submit"
-              disabled={refMutation.isPending || !refValue.trim()}
-              className="rounded-lg bg-brand-dark px-4 py-1.5 text-sm font-medium text-white hover:bg-opacity-90 disabled:opacity-50"
-            >
-              {refMutation.isPending ? 'Saving…' : 'Save and regenerate letter'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setRefEditing(false)}
-              className="rounded-lg border border-gray-200 px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            {refMutation.isError && (
-              <p className="w-full text-sm text-red-600">
-                {apiErrorMessage(refMutation.error, 'Could not save')}
-              </p>
-            )}
-          </form>
-        )}
+              Aktenzeichen ändern
+            </Button>
+          ) : null
+        }
+      />
+
+      <div className="mb-4">
+        <Stepper steps={CASE_STAGES} current={state} />
       </div>
 
-      {/* Claimant and route */}
-      <Section title="Claimant and route" icon={<User className="h-4 w-4" />}>
-        <InfoGrid>
-          <InfoItem label="Name" value={claimant.name} />
-          <InfoItem
-            label="Salutation"
-            value={
-              claimant.salutation === 'herr'
-                ? 'Herr'
-                : claimant.salutation === 'frau'
-                  ? 'Frau'
-                  : null
-            }
-          />
-          <InfoItem
-            label="Date of birth"
-            value={formatDate(claimant.dateOfBirth)}
-          />
-          <InfoItem label="Nationality" value={claimant.nationality} />
-          <InfoItem label="Email" value={claimant.email} />
-          <InfoItem label="Tax ID" value={claimant.taxId} />
-          <InfoItem
-            label="Address"
-            value={
-              [
-                claimant.address.line1,
-                claimant.address.line2,
-                [claimant.address.postalCode, claimant.address.city]
-                  .filter(Boolean)
-                  .join(' '),
-                claimant.address.country,
-              ]
-                .filter(Boolean)
-                .join(', ') || null
-            }
-          />
-          <InfoItem
-            label="Last German address"
-            value={
-              [
-                claimant.germanAddress.street,
-                [claimant.germanAddress.postalCode, claimant.germanAddress.city]
-                  .filter(Boolean)
-                  .join(' '),
-              ]
-                .filter(Boolean)
-                .join(', ') || null
-            }
-          />
-          <InfoItem
-            label="Left Germany"
-            value={formatDate(claimant.germanAddress.moveOutDate)}
-          />
-          <InfoItem label="Account holder" value={claimant.accountHolderName} />
-          <InfoItem label="IBAN" value={claimant.ibanMasked} />
-        </InfoGrid>
-        <div className="mt-4 border-t border-gray-100 pt-4">
-          <InfoGrid>
-            <InfoItem
-              label="Route"
-              value={
-                bav.route === 'A'
-                  ? 'A — DRV refund granted (§ 3 Abs. 3 BetrAVG)'
-                  : bav.route === 'B'
-                    ? 'B — small entitlement (§ 3 Abs. 2 BetrAVG)'
-                    : null
-              }
-            />
-            <InfoItem label="Employer" value={bav.employerName} />
-            <InfoItem
-              label="Employment ended"
-              value={formatDate(bav.employmentEndDate)}
-            />
-            <InfoItem label="Provider" value={bav.providerName} />
-            <InfoItem label="Durchführungsweg" value={bav.durchfuehrungsweg} />
-            <InfoItem
-              label={bav.contractReferenceLabel || 'Contract ref.'}
-              value={bav.contractReference}
-            />
-            {bav.route === 'A' && (
-              <>
-                <InfoItem label="DRV office" value={bav.drvOffice} />
-                <InfoItem
-                  label="DRV decision"
-                  value={formatDate(bav.drvDecisionDate)}
-                />
-              </>
-            )}
-            {bav.route === 'B' && (
-              <>
-                <InfoItem label="Statement" value={bav.statementType} />
-                <InfoItem
-                  label="Statement date"
-                  value={formatDate(bav.statementDate)}
-                />
-                <InfoItem
-                  label="Benefit"
-                  value={
-                    bav.benefitAmount
-                      ? `€${bav.benefitAmount} (${bav.benefitForm ?? 'unknown'})`
-                      : null
-                  }
-                />
-              </>
-            )}
-            <InfoItem
-              label="Addressee"
-              value={
-                bav.recipient.name
-                  ? `${bav.addresseeType === 'employer' ? 'Employer' : 'Provider'}: ${bav.recipient.name}${bav.recipient.department ? `, ${bav.recipient.department}` : ''}`
-                  : null
-              }
-            />
-            <InfoItem
-              label="Addressee address"
-              value={
-                [
-                  bav.recipient.street,
-                  [bav.recipient.postalCode, bav.recipient.city]
-                    .filter(Boolean)
-                    .join(' '),
-                ]
-                  .filter(Boolean)
-                  .join(', ') || null
-              }
-            />
-            <InfoItem label="Their reference" value={bav.recipient.ref} />
-          </InfoGrid>
-        </div>
-      </Section>
+      {refEditing && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (refValue.trim()) refMutation.mutate(refValue.trim());
+          }}
+          className="mb-4 flex flex-wrap items-end gap-2 rounded-lg border border-gray-200 bg-white p-4"
+        >
+          <div className="min-w-[220px] flex-1">
+            <Field label="Unser Zeichen" htmlFor="ref-input">
+              <input
+                id="ref-input"
+                value={refValue}
+                onChange={(e) => setRefValue(e.target.value)}
+                maxLength={100}
+                placeholder="z. B. 2026/0815-KC"
+                className={inputClass}
+                autoFocus
+              />
+            </Field>
+          </div>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={refMutation.isPending || !refValue.trim()}
+          >
+            {refMutation.isPending
+              ? 'Speichern…'
+              : 'Speichern und Anschreiben neu erstellen'}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setRefEditing(false)}
+          >
+            Abbrechen
+          </Button>
+          {refMutation.isError && (
+            <div className="w-full">
+              <ErrorText
+                error={refMutation.error}
+                fallback="Konnte nicht gespeichert werden"
+              />
+            </div>
+          )}
+        </form>
+      )}
 
-      {/* Downloads */}
-      <Section title="Downloads" icon={<FileText className="h-4 w-4" />}>
-        {claim.packageReady ? (
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => openDownload('package')}
-              className="flex items-center gap-1.5 rounded-lg bg-brand-dark px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90"
-            >
-              <Download className="h-4 w-4" />
-              Letter package (PDF)
-            </button>
-            {claim.copyReady && (
-              <button
-                onClick={() => openDownload('copy')}
-                className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                <Download className="h-4 w-4" />
-                Copy print for the other party
-              </button>
+      {next && !refEditing && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-brand-accent bg-white px-4 py-3 shadow-sm">
+          <p className="text-sm text-gray-800">
+            <span className="font-medium text-brand-dark">
+              Nächster Schritt:
+            </span>{' '}
+            {next.text}
+          </p>
+          {next.action}
+        </div>
+      )}
+      {isClosed && (
+        <div className="mb-6 rounded-lg bg-gray-100 px-4 py-3 text-sm text-gray-600">
+          Diese Akte ist abgeschlossen
+          {claim.closedAt ? ` (${formatDate(claim.closedAt)})` : ''}. Änderungen
+          sind nicht mehr möglich.
+        </div>
+      )}
+
+      {eventForm && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            eventMutation.mutate(eventForm);
+          }}
+          className="mb-6 space-y-3 rounded-lg border border-gray-200 bg-white p-4"
+        >
+          <h3 className="text-sm font-semibold text-brand-dark">
+            {EVENT_LABELS[eventForm.event]}
+          </h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Datum" htmlFor="event-date">
+              <input
+                id="event-date"
+                type="date"
+                value={eventForm.date}
+                max={todayIso()}
+                onChange={(e) =>
+                  setEventForm({ ...eventForm, date: e.target.value })
+                }
+                className={inputClass}
+              />
+            </Field>
+            {eventForm.event === 'submitted' && (
+              <Field label="Versandweg" htmlFor="event-channel">
+                <select
+                  id="event-channel"
+                  value={eventForm.channel}
+                  onChange={(e) =>
+                    setEventForm({
+                      ...eventForm,
+                      channel: e.target.value as LawFirmSubmissionChannel,
+                    })
+                  }
+                  className={inputClass}
+                >
+                  {(
+                    Object.keys(CHANNEL_LABELS) as LawFirmSubmissionChannel[]
+                  ).map((k) => (
+                    <option key={k} value={k}>
+                      {CHANNEL_LABELS[k]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
             )}
           </div>
-        ) : (
-          <p className="text-sm text-gray-500">
-            The package has not been generated yet. CompanyPension ops will
-            regenerate it.
-          </p>
-        )}
-        <p className="mt-2 text-xs text-gray-400">
-          Links are valid for 15 minutes. The package holds the unsigned letter,
-          the client&rsquo;s Vollmacht and the enclosures; your firm prints,
-          signs and sends it.
-          {claim.downloadedAt
-            ? ` First downloaded ${formatDate(claim.downloadedAt, true)}.`
-            : ''}
-        </p>
-        {downloadError && (
-          <p className="mt-2 text-sm text-red-600">{downloadError}</p>
-        )}
-      </Section>
+          <Field
+            label="Hinweis an CompanyPension (optional)"
+            htmlFor="event-note"
+          >
+            <textarea
+              id="event-note"
+              value={eventForm.note}
+              onChange={(e) =>
+                setEventForm({ ...eventForm, note: e.target.value })
+              }
+              rows={2}
+              maxLength={1000}
+              className={inputClass}
+            />
+          </Field>
+          <div className="flex gap-2">
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={eventMutation.isPending}
+            >
+              {eventMutation.isPending ? 'Speichern…' : 'Erfassen'}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setEventForm(null)}
+            >
+              Abbrechen
+            </Button>
+          </div>
+          {eventMutation.isError && (
+            <ErrorText
+              error={eventMutation.error}
+              fallback="Konnte nicht erfasst werden"
+            />
+          )}
+        </form>
+      )}
 
-      {/* Events */}
-      <Section title="Case events" icon={<Send className="h-4 w-4" />}>
-        {availableEvents.length > 0 && (
-          <div className="mb-4">
-            <div className="flex flex-wrap gap-2">
-              {availableEvents.map((opt) => (
-                <button
-                  key={opt.key}
-                  onClick={() =>
-                    setEventForm(
-                      eventForm?.event === opt.key
-                        ? null
-                        : {
-                            event: opt.key,
-                            date: todayIso(),
-                            channel: 'post',
-                            note: '',
-                          }
-                    )
-                  }
-                  className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
-                    eventForm?.event === opt.key
-                      ? 'border-brand-dark bg-brand-dark text-white'
-                      : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            {eventForm && (
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="min-w-0 space-y-8">
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">
+              <Fact label="Mandant" value={claimant.name} />
+              <Fact
+                label="Geburtsdatum"
+                value={formatDate(claimant.dateOfBirth)}
+              />
+              <Fact
+                label="Weg"
+                value={
+                  bav.route === 'A'
+                    ? 'A · DRV-Erstattung liegt vor (§ 3 Abs. 3 BetrAVG)'
+                    : bav.route === 'B'
+                      ? 'B · Kleinstanwartschaft (§ 3 Abs. 2 BetrAVG)'
+                      : null
+                }
+              />
+              <Fact label="Arbeitgeber" value={bav.employerName} />
+              <Fact label="Versorgungsträger" value={bav.providerName} />
+              <Fact label="Durchführungsweg" value={bav.durchfuehrungsweg} />
+              <Fact
+                label={bav.contractReferenceLabel || 'Vertragsnummer'}
+                value={bav.contractReference}
+              />
+              <Fact
+                label="Auszahlung"
+                value={
+                  claim.payoutTarget === 'law_firm'
+                    ? 'Anderkonto der Kanzlei'
+                    : 'Konto des Mandanten'
+                }
+              />
+              <Fact
+                label="Unser Zeichen"
+                value={claim.lawFirmRef ?? 'noch nicht eingetragen'}
+              />
+            </dl>
+          </div>
+
+          <section ref={uploadRef}>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Schreiben des Versorgungsträgers
+            </h2>
+            {!isClosed && (
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  eventMutation.mutate(eventForm);
+                  if (uploadFile) uploadMutation.mutate(uploadFile);
                 }}
-                className="mt-3 space-y-3 rounded-lg bg-gray-50 p-3"
+                className="mb-3 rounded-lg border border-dashed border-gray-300 bg-white p-4"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const f = e.dataTransfer.files?.[0];
+                  if (f) setUploadFile(f);
+                }}
               >
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="text-sm text-gray-600">
-                    <span className="mb-1 block text-xs text-gray-500">
-                      Date
-                    </span>
+                <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
+                  <Field
+                    label="Scan oder weitergeleitete E-Mail (PDF, JPG, PNG, max. 10 MB)"
+                    htmlFor="upload-file"
+                  >
                     <input
-                      type="date"
-                      value={eventForm.date}
-                      max={todayIso()}
+                      id="upload-file"
+                      type="file"
+                      accept="application/pdf,image/jpeg,image/png"
                       onChange={(e) =>
-                        setEventForm({ ...eventForm, date: e.target.value })
+                        setUploadFile(e.target.files?.[0] ?? null)
                       }
-                      className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent"
+                      className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-md file:border file:border-gray-300 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-50"
                     />
-                  </label>
-                  {eventForm.event === 'submitted' && (
-                    <label className="text-sm text-gray-600">
-                      <span className="mb-1 block text-xs text-gray-500">
-                        Channel
+                    {uploadFile && (
+                      <span className="mt-1 block text-xs text-gray-500">
+                        {uploadFile.name} · {formatBytes(uploadFile.size)}
                       </span>
-                      <select
-                        value={eventForm.channel}
-                        onChange={(e) =>
-                          setEventForm({
-                            ...eventForm,
-                            channel: e.target.value as LawFirmSubmissionChannel,
-                          })
-                        }
-                        className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent"
-                      >
-                        {(
-                          Object.keys(
-                            CHANNEL_LABELS
-                          ) as LawFirmSubmissionChannel[]
-                        ).map((k) => (
-                          <option key={k} value={k}>
-                            {CHANNEL_LABELS[k]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                </div>
-                <textarea
-                  value={eventForm.note}
-                  onChange={(e) =>
-                    setEventForm({ ...eventForm, note: e.target.value })
-                  }
-                  placeholder="Note for CompanyPension ops (optional)"
-                  rows={2}
-                  maxLength={1000}
-                  className="w-full rounded-lg border border-gray-200 bg-white p-2 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent"
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={eventMutation.isPending}
-                    className="rounded-lg bg-brand-dark px-4 py-1.5 text-sm font-medium text-white hover:bg-opacity-90 disabled:opacity-50"
-                  >
-                    {eventMutation.isPending ? 'Saving…' : 'Record'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEventForm(null)}
-                    className="rounded-lg border border-gray-200 px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                </div>
-                {eventMutation.isError && (
-                  <p className="text-sm text-red-600">
-                    {apiErrorMessage(
-                      eventMutation.error,
-                      'Could not record the event'
                     )}
-                  </p>
+                  </Field>
+                  <Field label="Eingang am" htmlFor="upload-date">
+                    <input
+                      id="upload-date"
+                      type="date"
+                      value={uploadDate}
+                      max={todayIso()}
+                      onChange={(e) => setUploadDate(e.target.value)}
+                      className={inputClass}
+                    />
+                  </Field>
+                </div>
+                <div className="mt-3">
+                  <Field
+                    label="Kurze Notiz: Was teilt der Versorgungsträger mit?"
+                    htmlFor="upload-note"
+                  >
+                    <textarea
+                      id="upload-note"
+                      value={uploadNote}
+                      onChange={(e) => setUploadNote(e.target.value)}
+                      rows={2}
+                      maxLength={1000}
+                      className={inputClass}
+                    />
+                  </Field>
+                </div>
+                <div className="mt-3 flex items-center gap-3">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    disabled={!uploadFile || uploadMutation.isPending}
+                  >
+                    <Upload className="h-4 w-4" />
+                    {uploadMutation.isPending
+                      ? 'Wird hochgeladen…'
+                      : 'Hochladen'}
+                  </Button>
+                  <span className="text-xs text-gray-400">
+                    CompanyPension wird per E-Mail informiert.
+                  </span>
+                </div>
+                {uploadMutation.isError && (
+                  <div className="mt-2">
+                    <ErrorText
+                      error={uploadMutation.error}
+                      fallback="Upload fehlgeschlagen"
+                    />
+                  </div>
                 )}
               </form>
             )}
-          </div>
-        )}
-        {events.length === 0 ? (
-          <p className="text-sm text-gray-400">No events recorded yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {events.map((entry) => (
-              <div key={entry.id} className="border-l-2 border-gray-200 pl-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700">
-                    {EVENT_LABELS[entry.event] ?? entry.event}
-                  </span>
-                  {entry.channel && (
-                    <span className="text-xs text-gray-500">
-                      via{' '}
-                      {CHANNEL_LABELS[
-                        entry.channel as LawFirmSubmissionChannel
-                      ] ?? entry.channel}
-                    </span>
-                  )}
-                  {entry.date && (
-                    <span className="text-xs text-gray-500">
-                      on {formatDate(entry.date)}
-                    </span>
-                  )}
-                </div>
-                {entry.note && (
-                  <p className="mt-0.5 text-sm text-gray-600">{entry.note}</p>
-                )}
-                <p className="mt-0.5 text-xs text-gray-400">
-                  {formatDate(entry.createdAt, true)}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </Section>
+            {incoming.length === 0 ? (
+              <p className="text-sm text-gray-400">
+                Noch kein Schreiben hochgeladen.
+              </p>
+            ) : (
+              <Table minWidth={560}>
+                <TableHead>
+                  <Th>Datei</Th>
+                  <Th>Eingang</Th>
+                  <Th>Hochgeladen</Th>
+                  <Th align="right"></Th>
+                </TableHead>
+                <TableBody>
+                  {incoming.map((c) => (
+                    <tr key={c.id}>
+                      <Td nowrap={false}>
+                        <div className="text-gray-900">
+                          {c.document?.fileName}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {c.document ? formatBytes(c.document.fileSize) : ''}
+                          {c.note ? ` · ${c.note}` : ''}
+                        </div>
+                      </Td>
+                      <Td className="tabular-nums text-gray-600">
+                        {formatDate(c.receivedDate)}
+                      </Td>
+                      <Td className="tabular-nums text-gray-600">
+                        {formatDate(c.createdAt, true)}
+                      </Td>
+                      <Td align="right">
+                        {c.document && (
+                          <button
+                            className="text-gray-500 hover:text-brand-dark"
+                            onClick={() =>
+                              open(() =>
+                                getFirmCorrespondenceDownload(id, c.id)
+                              )
+                            }
+                            aria-label="Herunterladen"
+                          >
+                            <Download className="h-4 w-4" />
+                          </button>
+                        )}
+                      </Td>
+                    </tr>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </section>
 
-      {/* Correspondence */}
-      <Section
-        title="Correspondence from the provider"
-        icon={<Inbox className="h-4 w-4" />}
-      >
-        {!isClosed && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (uploadFile) uploadMutation.mutate(uploadFile);
-            }}
-            className="mb-4 space-y-3 rounded-lg bg-gray-50 p-3"
-          >
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="text-sm text-gray-600">
-                <span className="mb-1 block text-xs text-gray-500">
-                  Scan or forwarded email (PDF, JPG, PNG, max 10 MB)
-                </span>
-                <input
-                  type="file"
-                  accept="application/pdf,image/jpeg,image/png"
-                  onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
-                  className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-100"
-                />
-              </label>
-              <label className="text-sm text-gray-600">
-                <span className="mb-1 block text-xs text-gray-500">
-                  Received on
-                </span>
-                <input
-                  type="date"
-                  value={uploadDate}
-                  max={todayIso()}
-                  onChange={(e) => setUploadDate(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent"
-                />
-              </label>
-            </div>
-            <textarea
-              value={uploadNote}
-              onChange={(e) => setUploadNote(e.target.value)}
-              placeholder="Short note: what does the provider say or ask for?"
-              rows={2}
-              maxLength={1000}
-              className="w-full rounded-lg border border-gray-200 bg-white p-2 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent"
-            />
-            <div className="flex items-center gap-2">
-              <button
-                type="submit"
-                disabled={!uploadFile || uploadMutation.isPending}
-                className="flex items-center gap-1.5 rounded-lg bg-brand-dark px-4 py-1.5 text-sm font-medium text-white hover:bg-opacity-90 disabled:opacity-50"
-              >
-                <Upload className="h-4 w-4" />
-                {uploadMutation.isPending ? 'Uploading…' : 'Upload'}
-              </button>
-              <span className="text-xs text-gray-400">
-                CompanyPension ops are notified by email.
-              </span>
-            </div>
-            {uploadMutation.isError && (
-              <p className="text-sm text-red-600">
-                {apiErrorMessage(uploadMutation.error, 'Upload failed')}
+          <section>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Verlauf
+            </h2>
+            {activity.length === 0 ? (
+              <p className="text-sm text-gray-400">Noch keine Einträge.</p>
+            ) : (
+              <ol className="relative border-l border-gray-200 pl-5">
+                {activity.map((item) => (
+                  <li key={item.id} className="relative mb-4">
+                    <span className="absolute -left-[27px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white text-gray-400 ring-1 ring-gray-200">
+                      <item.icon className="h-2.5 w-2.5" />
+                    </span>
+                    <p className="text-sm text-gray-900">{item.title}</p>
+                    {item.body && (
+                      <p className="mt-0.5 text-sm text-gray-600">
+                        {item.body}
+                      </p>
+                    )}
+                    <p className="mt-0.5 text-xs text-gray-400">
+                      {formatDate(item.at, true)}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        </div>
+
+        <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Downloads
+            </h3>
+            {claim.packageReady ? (
+              <div className="mt-2 space-y-2">
+                <Button
+                  className="w-full justify-center"
+                  variant={
+                    state === 'new' && claim.lawFirmRef
+                      ? 'primary'
+                      : 'secondary'
+                  }
+                  onClick={() => open(() => getFirmDownload(id, 'package'))}
+                >
+                  <Download className="h-4 w-4" />
+                  Anschreiben-Paket (PDF)
+                </Button>
+                {claim.copyReady && (
+                  <Button
+                    className="w-full justify-center"
+                    onClick={() => open(() => getFirmDownload(id, 'copy'))}
+                  >
+                    <Download className="h-4 w-4" />
+                    Kopie für die Gegenseite
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-gray-500">
+                Das Paket wird von CompanyPension noch erstellt.
               </p>
             )}
-          </form>
-        )}
-        {correspondence.length === 0 ? (
-          <p className="text-sm text-gray-400">Nothing uploaded yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {correspondence.map((item) => (
-              <div
-                key={item.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-100 p-3"
-              >
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    {item.document?.fileName ??
-                      (item.direction === 'package_out'
-                        ? 'Letter package generated'
-                        : item.direction === 'copy_out'
-                          ? 'Copy print generated'
-                          : 'Note')}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {item.direction === 'provider_in'
-                      ? 'From provider'
-                      : item.direction === 'firm_note'
-                        ? 'Firm note'
-                        : 'From CompanyPension'}
-                    {item.receivedDate
-                      ? ` · received ${formatDate(item.receivedDate)}`
-                      : ''}
-                    {' · '}
-                    {formatDate(item.createdAt, true)}
-                  </p>
-                  {item.note && (
-                    <p className="mt-1 text-sm text-gray-600">{item.note}</p>
-                  )}
-                </div>
-                {item.document && (
-                  <button
-                    onClick={() => openCorrespondence(item.id)}
-                    className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    Download
-                  </button>
-                )}
-              </div>
-            ))}
+            <p className="mt-2 text-xs text-gray-400">
+              Links sind 15 Minuten gültig. Das Paket enthält das Anschreiben,
+              die Vollmacht des Mandanten und die Anlagen; Ihre Kanzlei druckt,
+              unterschreibt und versendet.
+              {claim.downloadedAt
+                ? ` Erstmals heruntergeladen ${formatDate(claim.downloadedAt, true)}.`
+                : ''}
+            </p>
+            {downloadError && (
+              <p className="mt-2 text-xs text-red-700">{downloadError}</p>
+            )}
           </div>
-        )}
-      </Section>
-    </div>
-  );
-}
 
-function Section({
-  title,
-  icon,
-  children,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mb-4 rounded-xl border border-gray-200 bg-white p-4">
-      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700">
-        {icon}
-        {title}
-      </h3>
-      {children}
-    </div>
-  );
-}
+          {bav.recipient.name && (
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Empfänger des Schreibens
+              </h3>
+              <p className="mt-2 text-sm text-gray-900">{bav.recipient.name}</p>
+              {bav.recipient.department && (
+                <p className="text-sm text-gray-700">
+                  {bav.recipient.department}
+                </p>
+              )}
+              <p className="text-sm text-gray-700">{bav.recipient.street}</p>
+              <p className="text-sm text-gray-700">
+                {[bav.recipient.postalCode, bav.recipient.city]
+                  .filter(Boolean)
+                  .join(' ')}
+              </p>
+              {bav.recipient.ref && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Ihr Zeichen: {bav.recipient.ref}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-gray-500">
+                {bav.addresseeType === 'employer'
+                  ? 'Arbeitgeber'
+                  : 'Versorgungsträger'}
+              </p>
+            </div>
+          )}
 
-function InfoGrid({ children }: { children: React.ReactNode }) {
-  return (
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">
-      {children}
-    </dl>
-  );
-}
-
-function InfoItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | null | undefined;
-}) {
-  if (!value || value === '—') return null;
-  return (
-    <div>
-      <dt className="text-xs text-gray-500">{label}</dt>
-      <dd className="text-sm text-gray-900">{value}</dd>
+          <div className="space-y-4">
+            <FactGroup title="Mandant">
+              <Fact
+                label="Anrede"
+                value={
+                  claimant.salutation === 'herr'
+                    ? 'Herr'
+                    : claimant.salutation === 'frau'
+                      ? 'Frau'
+                      : null
+                }
+              />
+              <Fact label="Staatsangehörigkeit" value={claimant.nationality} />
+              <Fact label="E-Mail" value={claimant.email} wide />
+              <Fact
+                label="Anschrift"
+                value={
+                  [
+                    claimant.address.line1,
+                    claimant.address.line2,
+                    [claimant.address.postalCode, claimant.address.city]
+                      .filter(Boolean)
+                      .join(' '),
+                    claimant.address.country,
+                  ]
+                    .filter(Boolean)
+                    .join(', ') || null
+                }
+                wide
+              />
+              <Fact
+                label="Letzte Anschrift in Deutschland"
+                value={
+                  [
+                    claimant.germanAddress.street,
+                    [
+                      claimant.germanAddress.postalCode,
+                      claimant.germanAddress.city,
+                    ]
+                      .filter(Boolean)
+                      .join(' '),
+                  ]
+                    .filter(Boolean)
+                    .join(', ') || null
+                }
+                wide
+              />
+              <Fact
+                label="Wegzug"
+                value={formatDate(claimant.germanAddress.moveOutDate)}
+              />
+              <Fact label="Steuer-ID" value={claimant.taxId} />
+              <Fact
+                label="Kontoinhaber"
+                value={claimant.accountHolderName}
+                wide
+              />
+              <Fact label="IBAN" value={claimant.ibanMasked} />
+            </FactGroup>
+            {(bav.route === 'A' || bav.route === 'B') && (
+              <FactGroup
+                title={bav.route === 'A' ? 'DRV-Erstattung' : 'Standmitteilung'}
+              >
+                {bav.route === 'A' ? (
+                  <>
+                    <Fact
+                      label="Rentenversicherungsträger"
+                      value={bav.drvOffice}
+                      wide
+                    />
+                    <Fact
+                      label="Bescheid vom"
+                      value={formatDate(bav.drvDecisionDate)}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Fact label="Dokument" value={bav.statementType} />
+                    <Fact label="Stand" value={formatDate(bav.statementDate)} />
+                    <Fact
+                      label="Leistung"
+                      value={
+                        bav.benefitAmount
+                          ? `€${bav.benefitAmount} (${bav.benefitForm === 'pension' ? 'Rente' : bav.benefitForm === 'capital' ? 'Kapital' : 'unbekannt'})`
+                          : null
+                      }
+                    />
+                  </>
+                )}
+                <Fact
+                  label="Beschäftigungsende"
+                  value={formatDate(bav.employmentEndDate)}
+                />
+              </FactGroup>
+            )}
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

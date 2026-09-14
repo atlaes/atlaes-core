@@ -62,11 +62,12 @@ export default function HomePage() {
       <div className="w-full max-w-md">
         <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
           <div className="mb-6 text-center">
-            <h1 className="text-2xl font-bold text-brand-dark">
-              Atlaes Admin
+            <h1 className="text-2xl font-semibold text-brand-dark">
+              CompanyPension
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              Sign in with your ops or partner law firm email
+              Operations and partner portal. Sign in with your work email; we
+              send you a link.
             </p>
           </div>
 

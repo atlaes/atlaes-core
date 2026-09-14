@@ -444,6 +444,22 @@ auth.post(
         logger.info(`Auto-assigned admin role to ${email}`);
       }
 
+      // Law-firm members: record the first portal sign-in so ops can tell
+      // an invited member from one who is in.
+      if (user.role === 'law_firm' || user.role === 'admin') {
+        try {
+          const { LawFirmService } = await import('../services/law-firm');
+          await LawFirmService.markSignedIn(user.id);
+        } catch (signInError) {
+          logger.warn('Could not stamp law-firm first sign-in', {
+            error:
+              signInError instanceof Error
+                ? signInError.message
+                : String(signInError),
+          });
+        }
+      }
+
       // Generate authentication tokens
       const authTokens = AuthService.generateTokens({
         userId: user.id,

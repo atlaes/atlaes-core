@@ -19,18 +19,18 @@ export type LawFirmCaseEvent =
 export type LawFirmSubmissionChannel = 'post' | 'email' | 'fax' | 'portal';
 
 export const CASE_STATE_LABELS: Record<LawFirmCaseState, string> = {
-  new: 'New',
-  downloaded: 'Downloaded',
-  submitted: 'Sent to provider',
-  response_received: 'Response received',
-  closed: 'Closed',
+  new: 'Neu',
+  downloaded: 'Heruntergeladen',
+  submitted: 'Beim Versorgungsträger',
+  response_received: 'Antwort erhalten',
+  closed: 'Abgeschlossen',
 };
 
 export const CHANNEL_LABELS: Record<LawFirmSubmissionChannel, string> = {
   post: 'Post',
-  email: 'Email',
+  email: 'E-Mail',
   fax: 'Fax',
-  portal: 'Provider portal',
+  portal: 'Portal des Versorgungsträgers',
 };
 
 export interface LawFirmSummary {
@@ -51,8 +51,27 @@ export interface LawFirmMembership {
   userId: string;
   role: 'member' | 'firm_admin';
   active: boolean;
+  firstSignInAt: string | null;
   createdAt: string | null;
 }
+
+export interface FirmQueueSummary {
+  total: number;
+  new: number;
+  missingRef: number;
+  awaitingProvider: number;
+  responseReceived: number;
+  closed: number;
+}
+
+/** Case stages in order, German for the firm. */
+export const CASE_STAGES: { key: LawFirmCaseState; label: string }[] = [
+  { key: 'new', label: 'Neu' },
+  { key: 'downloaded', label: 'Heruntergeladen' },
+  { key: 'submitted', label: 'Eingereicht' },
+  { key: 'response_received', label: 'Antwort erhalten' },
+  { key: 'closed', label: 'Abgeschlossen' },
+];
 
 export interface FirmMe {
   firm: LawFirmSummary;
@@ -177,8 +196,14 @@ export async function getFirmMe(): Promise<FirmMe> {
   return data;
 }
 
+export async function getFirmSummary(): Promise<FirmQueueSummary> {
+  const { data } = await apiClient.get('/law-firm/summary');
+  return data.summary;
+}
+
 export async function getFirmClaims(params?: {
   caseState?: LawFirmCaseState;
+  missingRef?: '1';
   search?: string;
   page?: number;
   limit?: number;

@@ -78,6 +78,13 @@
       "when": 1789358999878,
       "tag": "0010_law_firm_portal",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789366811870,
+      "tag": "0011_law_firm_member_sign_in",
+      "breakpoints": true
     }
   ]
 }
