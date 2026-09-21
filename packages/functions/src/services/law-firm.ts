@@ -13,7 +13,7 @@ import { db } from '../utils/db';
 import { logger } from '../utils/logger';
 import { env } from '../utils/env';
 import { AuthService } from '../utils/auth';
-import { getPresignedUrl, uploadFile } from '../utils/s3';
+import { downloadFile, getPresignedUrl, uploadFile } from '../utils/s3';
 import {
   auditLogs,
   documents,
@@ -25,6 +25,7 @@ import {
 } from '../drizzle/schema/shared';
 import {
   claimCorrespondence,
+  claimDocuments,
   claimsTable,
   claimWorkflowStates,
   type LawFirmCaseEvent,
@@ -38,6 +39,25 @@ import {
 } from './email';
 import { UserService } from './user';
 import { ClaimsApplicationService } from './claims-application';
+import {
+  caseCopyBlock,
+  caseVisibility,
+  downloadGate,
+  isSubmissionOverdue,
+  isValidAktenzeichen,
+  normalizeAktenzeichen,
+  rereleaseUntil,
+  submissionDeadline,
+  submissionPackFileName,
+  type CaseVisibility,
+} from './law-firm-rules';
+import {
+  attachmentAsPdf,
+  drvPackClientFromClaim,
+  submissionPackKey,
+} from './law-firm-pack';
+import { buildSubmissionPack, type PackManifest } from './drv-pack/pack';
+import { resolveCarrier } from './drv-pack/resolve-carrier';
 
 /** Seeded by migration 0010; the single firm the UI assumes for now. */
 export const DEFAULT_LAW_FIRM_ID = '4d7c1a2e-5b3f-4c8a-9e1d-2f6b7a8c9d01';
@@ -234,6 +254,66 @@ export function firmClaimScope(firmId: string) {
     eq(claimsTable.handlingRoute, 'law_firm'),
     eq(claimsTable.lawFirmId, firmId)
   );
+}
+
+/**
+ * What the firm can see: released, and either not yet submitted or inside
+ * an ops re-release window (see `caseVisibility` in law-firm-rules).
+ */
+export function firmVisibleScope(firmId: string) {
+  return and(
+    firmClaimScope(firmId),
+    sql`${claimsTable.lawFirmReleasedAt} is not null`,
+    sql`(${claimsTable.lawFirmSubmittedAt} is null or ${claimsTable.lawFirmRereleasedUntil} > now())`
+  );
+}
+
+type ClaimRow = typeof claimsTable.$inferSelect;
+
+function visibilityOf(claim: ClaimRow, now = new Date()): CaseVisibility {
+  return caseVisibility({
+    releasedAt: claim.lawFirmReleasedAt,
+    firmSubmittedAt: claim.lawFirmSubmittedAt,
+    rereleasedUntil: claim.lawFirmRereleasedUntil,
+    now,
+  });
+}
+
+/** "Copy all" block for the firm's own system (field order = case screen). */
+export function caseCopyBlockFor(claim: ClaimRow): string {
+  return caseCopyBlock([
+    {
+      label: 'Case type',
+      value:
+        claim.pensionType === 'private' ? 'Company pension' : 'Pension refund',
+    },
+    { label: 'Name', value: claimantName(claim) },
+    { label: 'Date of birth', value: claim.dateOfBirth },
+    { label: 'Nationality', value: claim.nationality },
+    {
+      label: 'Address',
+      value: [
+        claim.currentAddressLine1,
+        claim.currentAddressLine2,
+        [claim.currentPostalCode, claim.currentCity].filter(Boolean).join(' '),
+        claim.currentCountry,
+      ]
+        .filter(Boolean)
+        .join(', '),
+    },
+    { label: 'Insurance number (VSNR)', value: claim.vsnr },
+    {
+      label: 'Last German address',
+      value: [
+        claim.germanStreet,
+        [claim.germanPostalCode, claim.germanCity].filter(Boolean).join(' '),
+      ]
+        .filter(Boolean)
+        .join(', '),
+    },
+    { label: 'Left Germany', value: claim.moveOutDate },
+    { label: 'Aktenzeichen', value: claim.lawFirmRef },
+  ]);
 }
 
 function claimantName(row: {
@@ -528,6 +608,10 @@ export class LawFirmService {
         lawFirmId: firm.id,
         lawFirmAssignedAt: now,
         lawFirmCaseState: 'new',
+        // Assignment releases the case to the firm (visible until submitted).
+        lawFirmReleasedAt: now,
+        lawFirmReleasedBy: adminUserId,
+        lawFirmRereleasedUntil: null,
         updatedAt: now,
       })
       .where(eq(claimsTable.id, claimId));
@@ -620,7 +704,7 @@ export class LawFirmService {
   /** Counts for the portal's header strip. */
   static async getQueueSummary(firmId: string): Promise<FirmQueueSummary> {
     const scope = and(
-      firmClaimScope(firmId),
+      firmVisibleScope(firmId),
       sql`${claimsTable.status} <> 'draft'`
     );
     const [row] = await db
@@ -664,8 +748,9 @@ export class LawFirmService {
     const offset = (page - 1) * limit;
 
     const conditions = [
-      firmClaimScope(firmId),
+      firmVisibleScope(firmId),
       // Drafts are the claimant's; the firm sees a case once it is in.
+      // Released-only, hidden once the submission date is saved.
       sql`${claimsTable.status} <> 'draft'`,
     ];
     if (filters.caseState) {
@@ -740,20 +825,41 @@ export class LawFirmService {
     };
   }
 
-  /** Full claim row, only if it is in the firm's scope. */
-  static async getClaimRowForFirm(firmId: string, claimId: string) {
+  /**
+   * Full claim row, only if it is in the firm's scope. `visibleOnly`
+   * additionally applies the release/submission visibility rule (case
+   * screen and downloads); events and correspondence keep the wider scope.
+   */
+  static async getClaimRowForFirm(
+    firmId: string,
+    claimId: string,
+    opts: { visibleOnly?: boolean } = {}
+  ) {
+    const scope = opts.visibleOnly
+      ? firmVisibleScope(firmId)
+      : firmClaimScope(firmId);
     const [row] = await db
       .select()
       .from(claimsTable)
-      .where(and(firmClaimScope(firmId), eq(claimsTable.id, claimId)))
+      .where(and(scope, eq(claimsTable.id, claimId)))
       .limit(1);
     return row ?? null;
   }
 
   /** What the firm sees on the case screen. No bank account beyond a mask. */
   static async getCaseDetailForFirm(firmId: string, claimId: string) {
-    const claim = await this.getClaimRowForFirm(firmId, claimId);
+    const claim = await this.getClaimRowForFirm(firmId, claimId, {
+      visibleOnly: true,
+    });
     if (!claim || claim.status === 'draft') return null;
+    const gate = downloadGate({
+      releasedAt: claim.lawFirmReleasedAt,
+      firmSubmittedAt: claim.lawFirmSubmittedAt,
+      rereleasedUntil: claim.lawFirmRereleasedUntil,
+      lawFirmRef: claim.lawFirmRef,
+    });
+    const drv =
+      claim.pensionType === 'private' ? null : drvPackClientFromClaim(claim);
 
     const [correspondence, events, userInfo] = await Promise.all([
       this.listCorrespondence(claimId),
@@ -778,6 +884,24 @@ export class LawFirmService {
         submittedAt: claim.submittedAt,
         packageReady: !!claim.pdfS3Key,
         copyReady: !!claim.copyPdfS3Key,
+        visibility: visibilityOf(claim),
+        releasedAt: claim.lawFirmReleasedAt,
+        rereleasedUntil: claim.lawFirmRereleasedUntil,
+        submissionDeadline: claim.lawFirmDownloadedAt
+          ? submissionDeadline(claim.lawFirmDownloadedAt)
+          : null,
+        aktenzeichenValid: isValidAktenzeichen(claim.lawFirmRef),
+        download: gate.ok
+          ? { allowed: true as const }
+          : { allowed: false as const, reason: gate.reason },
+        pack: {
+          frozen: !!claim.submissionPackS3Key,
+          generatedAt: claim.submissionPackGeneratedAt,
+          manifest: (claim.submissionPackManifest ??
+            null) as PackManifest | null,
+          missingData: drv?.missing ?? [],
+        },
+        copyBlock: caseCopyBlockFor(claim),
         claimant: {
           name: claimantName(claim),
           salutation: claim.salutation,
@@ -841,11 +965,36 @@ export class LawFirmService {
     firmId: string,
     claimId: string,
     userId: string,
-    kind: 'package' | 'copy'
+    kind: 'package' | 'copy',
+    ip: string | null = null
   ): Promise<{ downloadUrl: string | null; fileName: string } | null> {
-    const claim = await this.getClaimRowForFirm(firmId, claimId);
+    const claim = await this.getClaimRowForFirm(firmId, claimId, {
+      visibleOnly: true,
+    });
     if (!claim || claim.status === 'draft') return null;
-    const key = kind === 'package' ? claim.pdfS3Key : claim.copyPdfS3Key;
+
+    let key: string | null;
+    let fileName: string;
+    if (kind === 'package') {
+      const gate = downloadGate({
+        releasedAt: claim.lawFirmReleasedAt,
+        firmSubmittedAt: claim.lawFirmSubmittedAt,
+        rereleasedUntil: claim.lawFirmRereleasedUntil,
+        lawFirmRef: claim.lawFirmRef,
+      });
+      if (!gate.ok) throw new Error(`Invalid download: ${gate.reason}`);
+      key = await this.ensureSubmissionPack(claim, userId);
+      fileName = submissionPackFileName(
+        claim.lawFirmRef!,
+        claim.lastName,
+        claim.firstName
+      );
+    } else {
+      key = claim.copyPdfS3Key;
+      const name =
+        claimantName(claim)?.replace(/\s+/g, '_') ?? claim.id.slice(0, 8);
+      fileName = `Kopie_${name}.pdf`;
+    }
     if (!key) return null;
 
     const downloadUrl = await getPresignedUrl(
@@ -853,12 +1002,13 @@ export class LawFirmService {
       LAW_FIRM_DOWNLOAD_URL_TTL_SECONDS
     );
 
+    // Every download is logged with user, time and IP (portal brief).
     await db.insert(auditLogs).values({
       userId,
       action: 'law_firm_package_downloaded',
       resource: 'claim',
       resourceId: claimId,
-      details: { firmId, kind, s3Key: key },
+      details: { firmId, kind, s3Key: key, ip, lawFirmRef: claim.lawFirmRef },
     });
 
     if (kind === 'package' && (claim.lawFirmCaseState ?? 'new') === 'new') {
@@ -872,12 +1022,228 @@ export class LawFirmService {
       );
     }
 
-    const name =
-      claimantName(claim)?.replace(/\s+/g, '_') ?? claim.id.slice(0, 8);
-    return {
-      downloadUrl,
-      fileName: `${kind === 'package' ? 'Paket' : 'Kopie'}_${name}.pdf`,
+    return { downloadUrl, fileName };
+  }
+
+  /**
+   * Returns the frozen submission pack key, generating and storing the
+   * pack on first download. bAV cases reuse the existing letter package
+   * (regenerated with the AZ, then frozen under its own key); DRV refund
+   * cases build the DRV pack from the claim data and attached documents.
+   */
+  static async ensureSubmissionPack(
+    claim: ClaimRow,
+    userId: string
+  ): Promise<string | null> {
+    if (claim.submissionPackS3Key) return claim.submissionPackS3Key;
+    const generatedAt = new Date();
+    const key = submissionPackKey(claim.id, generatedAt);
+    let bytes: Uint8Array;
+    let manifest: PackManifest | Record<string, unknown>;
+
+    if (claim.pensionType === 'private') {
+      const { BavLetterPackageService } = await import('./bav-letters');
+      await BavLetterPackageService.generateAndStoreForClaim(claim.id, userId, {
+        asAdmin: true,
+      });
+      const [fresh] = await db
+        .select({ pdfS3Key: claimsTable.pdfS3Key })
+        .from(claimsTable)
+        .where(eq(claimsTable.id, claim.id))
+        .limit(1);
+      if (!fresh?.pdfS3Key) return null;
+      bytes = new Uint8Array(await downloadFile(fresh.pdfS3Key));
+      manifest = { kind: 'bav_letter_package', sourceKey: fresh.pdfS3Key };
+    } else {
+      const mapping = drvPackClientFromClaim(claim);
+      if (!mapping.client) {
+        throw new Error(
+          `Invalid download: case data incomplete for the DRV pack (${mapping.missing.join(', ')})`
+        );
+      }
+      const resolution = resolveCarrier({
+        lastOffice: 'UNKNOWN',
+        vsnr: mapping.client.vsnr,
+        citizenship: mapping.citizenshipIso!,
+        residence: mapping.residenceIso!,
+      });
+      const docs = await this.loadClaimAttachments(claim.id);
+      const pack = await buildSubmissionPack({
+        aktenzeichen: claim.lawFirmRef!,
+        date: generatedAt,
+        client: mapping.client,
+        resolution,
+        payslipPdf: docs.payslip,
+        idCopyPdf: docs.passport,
+        abmeldebestaetigungPdf: docs.abmeldung,
+      });
+      bytes = pack.pdf;
+      manifest = pack.manifest;
+    }
+
+    await uploadFile(key, Buffer.from(bytes), 'application/pdf');
+    await db
+      .update(claimsTable)
+      .set({
+        submissionPackS3Key: key,
+        submissionPackGeneratedAt: generatedAt,
+        submissionPackManifest: manifest,
+        updatedAt: generatedAt,
+      })
+      .where(eq(claimsTable.id, claim.id));
+    return key;
+  }
+
+  /** Passport, payslip and Abmeldung uploads as PDF bytes (images wrapped). */
+  private static async loadClaimAttachments(claimId: string): Promise<{
+    passport: Uint8Array | null;
+    payslip: Uint8Array | null;
+    abmeldung: Uint8Array | null;
+  }> {
+    const rows = await db
+      .select({
+        role: claimDocuments.documentRole,
+        s3Key: documents.s3Key,
+        fileType: documents.fileType,
+        createdAt: claimDocuments.createdAt,
+      })
+      .from(claimDocuments)
+      .innerJoin(documents, eq(documents.id, claimDocuments.documentId))
+      .where(eq(claimDocuments.claimId, claimId))
+      .orderBy(desc(claimDocuments.createdAt));
+    const out = {
+      passport: null as Uint8Array | null,
+      payslip: null as Uint8Array | null,
+      abmeldung: null as Uint8Array | null,
     };
+    for (const role of ['passport', 'payslip', 'abmeldung'] as const) {
+      const row = rows.find((r) => r.role === role);
+      if (!row) continue;
+      try {
+        const raw = new Uint8Array(await downloadFile(row.s3Key));
+        out[role] = await attachmentAsPdf(raw, row.fileType);
+      } catch (error) {
+        logger.warn('Pack attachment unavailable', {
+          claimId,
+          role,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+    return out;
+  }
+
+  /** Ops: (re)release a case to the firm; clears any earlier re-release window. */
+  static async releaseToFirm(
+    claimId: string,
+    adminUserId: string
+  ): Promise<{ releasedAt: Date }> {
+    const claim = await ClaimsApplicationService.getClaimAsAdmin(claimId);
+    if (!claim) throw new Error('Claim not found');
+    if (claim.handlingRoute !== 'law_firm' || !claim.lawFirmId) {
+      throw new Error('Invalid release: the case is not routed to a law firm');
+    }
+    const now = new Date();
+    await db.transaction(async (tx: any) => {
+      await tx
+        .update(claimsTable)
+        .set({
+          lawFirmReleasedAt: now,
+          lawFirmReleasedBy: adminUserId,
+          lawFirmRereleasedUntil: null,
+          updatedAt: now,
+        })
+        .where(eq(claimsTable.id, claimId));
+      await tx.insert(auditLogs).values({
+        userId: adminUserId,
+        action: 'law_firm_case_released',
+        resource: 'claim',
+        resourceId: claimId,
+        details: { firmId: claim.lawFirmId },
+      });
+    });
+    return { releasedAt: now };
+  }
+
+  /** Ops: make a submitted case visible again for 48 hours. */
+  static async rereleaseToFirm(
+    claimId: string,
+    adminUserId: string
+  ): Promise<{ rereleasedUntil: Date }> {
+    const claim = await ClaimsApplicationService.getClaimAsAdmin(claimId);
+    if (!claim) throw new Error('Claim not found');
+    if (!claim.lawFirmReleasedAt) {
+      throw new Error('Invalid re-release: the case was never released');
+    }
+    if (!claim.lawFirmSubmittedAt) {
+      throw new Error(
+        'Invalid re-release: the case is still visible to the firm'
+      );
+    }
+    const now = new Date();
+    const until = rereleaseUntil(now);
+    await db.transaction(async (tx: any) => {
+      await tx
+        .update(claimsTable)
+        .set({ lawFirmRereleasedUntil: until, updatedAt: now })
+        .where(eq(claimsTable.id, claimId));
+      await tx.insert(auditLogs).values({
+        userId: adminUserId,
+        action: 'law_firm_case_rereleased',
+        resource: 'claim',
+        resourceId: claimId,
+        details: { firmId: claim.lawFirmId, until: until.toISOString() },
+      });
+    });
+    return { rereleasedUntil: until };
+  }
+
+  /**
+   * Warns ops once per case when the firm downloaded the pack but saved no
+   * submission date within 7 days. Meant for a daily scheduler; returns the
+   * number of warnings sent.
+   */
+  static async warnOverdueSubmissions(now = new Date()): Promise<number> {
+    const candidates = await db
+      .select()
+      .from(claimsTable)
+      .where(
+        and(
+          eq(claimsTable.handlingRoute, 'law_firm'),
+          sql`${claimsTable.lawFirmDownloadedAt} is not null`,
+          sql`${claimsTable.lawFirmSubmittedAt} is null`,
+          sql`${claimsTable.lawFirmOverdueWarnedAt} is null`
+        )
+      );
+    let sent = 0;
+    for (const claim of candidates) {
+      if (
+        !isSubmissionOverdue({
+          downloadedAt: claim.lawFirmDownloadedAt,
+          firmSubmittedAt: claim.lawFirmSubmittedAt,
+          overdueWarnedAt: claim.lawFirmOverdueWarnedAt,
+          now,
+        })
+      ) {
+        continue;
+      }
+      const name = claimantName(claim) ?? claim.id.slice(0, 8);
+      await sendOpsLawFirmActivityEmail({
+        subject: `Law firm: no submission date for ${name} after 7 days`,
+        summary: `The firm downloaded the pack for ${name} on ${claim.lawFirmDownloadedAt!.toISOString().slice(0, 10)} and has not saved a submission date.`,
+        detailLines: [
+          claim.lawFirmRef ? `AZ ${claim.lawFirmRef}.` : 'No AZ recorded.',
+          'The case stays visible to the firm.',
+        ],
+        claimUrl: adminClaimUrl(claim.id),
+      }).catch(() => false);
+      await db
+        .update(claimsTable)
+        .set({ lawFirmOverdueWarnedAt: now })
+        .where(eq(claimsTable.id, claim.id));
+      sent += 1;
+    }
+    return sent;
   }
 
   /** Firm sets/edits its file number; the bAV letter regenerates with it. */
@@ -887,10 +1253,19 @@ export class LawFirmService {
     userId: string,
     lawFirmRef: string
   ): Promise<{ lawFirmRef: string; regenerated: boolean }> {
-    const claim = await this.getClaimRowForFirm(firmId, claimId);
+    const claim = await this.getClaimRowForFirm(firmId, claimId, {
+      visibleOnly: true,
+    });
     if (!claim || claim.status === 'draft') throw new Error('Claim not found');
-    const ref = lawFirmRef.trim();
-    if (!ref) throw new Error('Invalid reference: file number is empty');
+    const ref = normalizeAktenzeichen(lawFirmRef);
+    if (!ref) {
+      throw new Error('Invalid reference: Aktenzeichen must match 12345-YY');
+    }
+    if (claim.submissionPackS3Key && claim.lawFirmRef !== ref) {
+      throw new Error(
+        `Invalid reference: the submission pack was already generated with AZ ${claim.lawFirmRef}; ask ATLAES to reset it`
+      );
+    }
     const previous = claim.lawFirmRef;
 
     await db.transaction(async (tx: any) => {
@@ -961,8 +1336,8 @@ export class LawFirmService {
     const current = (claim.lawFirmCaseState ?? 'new') as LawFirmCaseState;
     const check = canRecordEvent(current, input.event);
     if (!check.ok) throw new Error(`Invalid event: ${check.reason}`);
-    if (input.event === 'submitted' && !input.channel) {
-      throw new Error('Invalid event: submission channel is required');
+    if (input.event === 'submitted' && !input.date) {
+      throw new Error('Invalid event: submission date is required');
     }
 
     const next = nextCaseState(current, input.event);

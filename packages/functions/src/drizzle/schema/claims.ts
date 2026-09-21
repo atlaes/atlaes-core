@@ -6,6 +6,7 @@ import {
   boolean,
   timestamp,
   jsonb,
+  integer,
   decimal,
   date,
   text,
@@ -407,6 +408,37 @@ export const claimsTable = claims.table(
       withTimezone: true,
     }),
     lawFirmClosedAt: timestamp('law_firm_closed_at', { withTimezone: true }),
+
+    // Release to the firm (platform brief 2026-09-16): the firm sees a case
+    // only between release and the saved submission date; ops can
+    // re-release a submitted case for 48 hours. The overdue warning goes
+    // out once when no submission date exists 7 days after the download.
+    lawFirmReleasedAt: timestamp('law_firm_released_at', {
+      withTimezone: true,
+    }),
+    lawFirmReleasedBy: uuid('law_firm_released_by').references(() => users.id),
+    lawFirmRereleasedUntil: timestamp('law_firm_rereleased_until', {
+      withTimezone: true,
+    }),
+    lawFirmOverdueWarnedAt: timestamp('law_firm_overdue_warned_at', {
+      withTimezone: true,
+    }),
+
+    // DRV refund pack data (V0901/A1310/A1002) not covered by the intake
+    // fields above; collected in the account flow before release.
+    vsnr: varchar('vsnr', { length: 20 }),
+    sex: varchar('sex', { length: 10 }), // 'male' | 'female' | 'none' | 'diverse'
+    birthName: varchar('birth_name', { length: 255 }),
+    phone: varchar('phone', { length: 50 }),
+    germanContributionMonths: integer('german_contribution_months'),
+
+    // Submission pack generated at the firm's first download and frozen as
+    // the submitted version (later client-data corrections do not touch it).
+    submissionPackS3Key: varchar('submission_pack_s3_key', { length: 500 }),
+    submissionPackGeneratedAt: timestamp('submission_pack_generated_at', {
+      withTimezone: true,
+    }),
+    submissionPackManifest: jsonb('submission_pack_manifest'),
 
     // Letter-only copy print for the other party (bAV packages), stored
     // next to pdf_s3_key so the firm can download both.

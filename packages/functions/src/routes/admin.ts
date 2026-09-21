@@ -347,6 +347,68 @@ admin.put(
   }
 );
 
+// Law-firm release / re-release (platform brief 2026-09-16) and the
+// overdue-submission check (call daily from a scheduler).
+admin.post(
+  '/claims/:id/law-firm/release',
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const result = await LawFirmService.releaseToFirm(
+        c.req.param('id'),
+        user.id
+      );
+      return c.json({ success: true, ...result });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to release case';
+      const statusCode = message.startsWith('Invalid')
+        ? 400
+        : message === 'Claim not found'
+          ? 404
+          : 500;
+      if (statusCode === 500) logger.error('Admin release error:', error);
+      return c.json({ success: false, error: message }, statusCode);
+    }
+  }
+);
+
+admin.post(
+  '/claims/:id/law-firm/rerelease',
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const result = await LawFirmService.rereleaseToFirm(
+        c.req.param('id'),
+        user.id
+      );
+      return c.json({ success: true, ...result });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to re-release case';
+      const statusCode = message.startsWith('Invalid')
+        ? 400
+        : message === 'Claim not found'
+          ? 404
+          : 500;
+      if (statusCode === 500) logger.error('Admin re-release error:', error);
+      return c.json({ success: false, error: message }, statusCode);
+    }
+  }
+);
+
+admin.post('/law-firm/overdue-check', async (c) => {
+  try {
+    const sent = await LawFirmService.warnOverdueSubmissions();
+    return c.json({ success: true, warningsSent: sent });
+  } catch (error) {
+    logger.error('Overdue check error:', error);
+    return c.json({ success: false, error: 'Overdue check failed' }, 500);
+  }
+});
+
 // ============================================================
 // Admin Notes
 // ============================================================

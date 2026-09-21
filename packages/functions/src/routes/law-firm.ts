@@ -11,6 +11,7 @@ import {
   LAW_FIRM_SUBMISSION_CHANNELS,
 } from '../drizzle/schema/claims';
 import { LawFirmService, type FirmContext } from '../services/law-firm';
+import { AKTENZEICHEN_PATTERN } from '../services/law-firm-rules';
 
 declare module 'hono' {
   interface ContextVariableMap {
@@ -87,6 +88,10 @@ async function parseJson<T extends z.ZodTypeAny>(
 }
 
 const claimId = (c: Context) => c.req.param('id') as string;
+const clientIp = (c: Context) =>
+  c.req.header('x-forwarded-for')?.split(',')[0].trim() ||
+  c.req.header('x-real-ip') ||
+  null;
 
 // Firm + membership for the signed-in user
 lawFirm.get('/me', (c) => {
@@ -162,7 +167,8 @@ for (const kind of ['package', 'copy'] as const) {
         firm.id,
         claimId(c),
         user.id,
-        kind
+        kind,
+        clientIp(c)
       );
       if (!result) {
         return c.json(
@@ -177,9 +183,12 @@ for (const kind of ['package', 'copy'] as const) {
   });
 }
 
-// File number
+// File number (Aktenzeichen, mandatory pattern 12345-YY)
 const referenceSchema = z.object({
-  lawFirmRef: z.string().min(1).max(100),
+  lawFirmRef: z
+    .string()
+    .trim()
+    .regex(AKTENZEICHEN_PATTERN, 'Aktenzeichen must match 12345-YY'),
 });
 
 lawFirm.put('/claims/:id/reference', validateUuidParams('id'), async (c) => {

@@ -85,6 +85,13 @@
       "when": 1789366811870,
       "tag": "0011_law_firm_member_sign_in",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789952432989,
+      "tag": "0012_law_firm_release_pack",
+      "breakpoints": true
     }
   ]
 }
