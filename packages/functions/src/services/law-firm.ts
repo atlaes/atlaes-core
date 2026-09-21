@@ -1043,9 +1043,17 @@ export class LawFirmService {
 
     if (claim.pensionType === 'private') {
       const { BavLetterPackageService } = await import('./bav-letters');
-      await BavLetterPackageService.generateAndStoreForClaim(claim.id, userId, {
-        asAdmin: true,
-      });
+      try {
+        await BavLetterPackageService.generateAndStoreForClaim(
+          claim.id,
+          userId,
+          { asAdmin: true }
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'package generation failed';
+        throw new Error(`Invalid download: ${message}`);
+      }
       const [fresh] = await db
         .select({ pdfS3Key: claimsTable.pdfS3Key })
         .from(claimsTable)
@@ -1133,12 +1141,22 @@ export class LawFirmService {
     return out;
   }
 
+  /** Raw claim row for ops actions (the admin view omits the release columns). */
+  private static async getClaimRow(claimId: string): Promise<ClaimRow | null> {
+    const [row] = await db
+      .select()
+      .from(claimsTable)
+      .where(eq(claimsTable.id, claimId))
+      .limit(1);
+    return row ?? null;
+  }
+
   /** Ops: (re)release a case to the firm; clears any earlier re-release window. */
   static async releaseToFirm(
     claimId: string,
     adminUserId: string
   ): Promise<{ releasedAt: Date }> {
-    const claim = await ClaimsApplicationService.getClaimAsAdmin(claimId);
+    const claim = await this.getClaimRow(claimId);
     if (!claim) throw new Error('Claim not found');
     if (claim.handlingRoute !== 'law_firm' || !claim.lawFirmId) {
       throw new Error('Invalid release: the case is not routed to a law firm');
@@ -1170,7 +1188,7 @@ export class LawFirmService {
     claimId: string,
     adminUserId: string
   ): Promise<{ rereleasedUntil: Date }> {
-    const claim = await ClaimsApplicationService.getClaimAsAdmin(claimId);
+    const claim = await this.getClaimRow(claimId);
     if (!claim) throw new Error('Claim not found');
     if (!claim.lawFirmReleasedAt) {
       throw new Error('Invalid re-release: the case was never released');
