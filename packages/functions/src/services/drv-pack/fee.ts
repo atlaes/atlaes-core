@@ -39,7 +39,9 @@ export function round2(n: number): number {
 }
 
 /** Amount at or below which the small-refund rule applies. */
-export function smallRefundThreshold(cfg: FeeConfig = DEFAULT_FEE_CONFIG): number {
+export function smallRefundThreshold(
+  cfg: FeeConfig = DEFAULT_FEE_CONFIG
+): number {
   return round2(cfg.lawFirmFeeEur / cfg.rate);
 }
 

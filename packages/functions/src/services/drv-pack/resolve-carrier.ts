@@ -204,13 +204,18 @@ export function resolveCarrier(input: ResolveCarrierInput): CarrierResolution {
     });
   }
   if (prefixEntry && !implausiblePrefix) {
-    return withEntry(prefixEntry.carrier, prefixEntry, 'account_carrier_prefix', {
-      implausiblePrefix,
-      notes: [
-        ...notes,
-        'Routed by the issuing district of the insurance number; the receiving office forwards the file if another carrier is responsible.',
-      ],
-    });
+    return withEntry(
+      prefixEntry.carrier,
+      prefixEntry,
+      'account_carrier_prefix',
+      {
+        implausiblePrefix,
+        notes: [
+          ...notes,
+          'Routed by the issuing district of the insurance number; the receiving office forwards the file if another carrier is responsible.',
+        ],
+      }
+    );
   }
 
   // 6. Unresolved — identification by personal data; ops decides.

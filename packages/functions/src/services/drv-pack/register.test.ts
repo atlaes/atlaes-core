@@ -59,8 +59,12 @@ describe('register — prefix rules (owner rulings 15 Sep 2026)', () => {
       'Abt. Internationales',
       '10704 Berlin',
     ]);
-    expect(mailingEntryForPrefix(23)!.mailingAddress).toEqual(['70429 Stuttgart']);
-    expect(mailingEntryForPrefix(24)!.mailingAddress).toEqual(['76122 Karlsruhe']);
+    expect(mailingEntryForPrefix(23)!.mailingAddress).toEqual([
+      '70429 Stuttgart',
+    ]);
+    expect(mailingEntryForPrefix(24)!.mailingAddress).toEqual([
+      '76122 Karlsruhe',
+    ]);
     expect(mailingEntryForPrefix(18)!.email).toBe('service@drv-nordbayern.de');
     expect(mailingEntryForPrefix(23)!.email).toBe('post@drv-bw.de');
   });
@@ -76,7 +80,9 @@ describe('register — prefix rules (owner rulings 15 Sep 2026)', () => {
 
   it('every register entry has a full carrier name', () => {
     for (const entry of Object.values(PREFIX_REGISTER)) {
-      expect(CARRIER_NAMES[entry.carrier]).toMatch(/^Deutsche Rentenversicherung /);
+      expect(CARRIER_NAMES[entry.carrier]).toMatch(
+        /^Deutsche Rentenversicherung /
+      );
       expect(entry.email).toContain('@');
       expect(entry.mailingAddress.length).toBeGreaterThan(0);
     }

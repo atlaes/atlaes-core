@@ -12,7 +12,10 @@ describe('resolveCarrier — six-rule order', () => {
     });
     expect(r.carrier).toBe('KBS');
     expect(r.rule).toBe('kbs_history');
-    expect(r.entry?.mailingAddress).toEqual(['Rentenversicherung', '45060 Essen']);
+    expect(r.entry?.mailingAddress).toEqual([
+      'Rentenversicherung',
+      '45060 Essen',
+    ]);
   });
 
   it('1b. a KBS-issued number means KBS', () => {
@@ -28,7 +31,12 @@ describe('resolveCarrier — six-rule order', () => {
 
   it('2. Bund last carrier, and Bund prefix when the office is unknown', () => {
     expect(
-      resolveCarrier({ lastOffice: 'BUND', vsnr: null, citizenship: 'US', residence: 'US' }).rule
+      resolveCarrier({
+        lastOffice: 'BUND',
+        vsnr: null,
+        citizenship: 'US',
+        residence: 'US',
+      }).rule
     ).toBe('bund_last_carrier');
     const r = resolveCarrier({
       lastOffice: 'UNKNOWN',
@@ -51,7 +59,10 @@ describe('resolveCarrier — six-rule order', () => {
     expect(r.rule).toBe('citizenship_liaison');
     expect(r.viaLiaison).toBe(true);
     expect(r.liaisonCountryDe).toBe('Australien');
-    expect(r.entry?.mailingAddress).toEqual(['Hauptverwaltung', '26112 Oldenburg']);
+    expect(r.entry?.mailingAddress).toEqual([
+      'Hauptverwaltung',
+      '26112 Oldenburg',
+    ]);
     expect(r.multiConnection).toBe(false);
   });
 

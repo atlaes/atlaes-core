@@ -122,7 +122,12 @@ const BSH = E(
 );
 const WF = E('WF', 'Westfalen', ['48125 Münster'], 'kontakt@drv-westfalen.de');
 const HE = E('HE', 'Hessen', ['60591 Frankfurt am Main'], 'post@drv-hessen.de');
-const RHL = E('RHL', 'Rheinland', ['40194 Düsseldorf'], 'post@drv-rheinland.de');
+const RHL = E(
+  'RHL',
+  'Rheinland',
+  ['40194 Düsseldorf'],
+  'post@drv-rheinland.de'
+);
 const BS = E(
   'BS',
   'Bayern Süd (Landshut)',
@@ -135,8 +140,18 @@ const RLP = E(
   ['Eichendorffstr. 4–6', '67346 Speyer'],
   'service@drv-rlp.de'
 );
-const SL = E('SL', 'Saarland', ['66108 Saarbrücken'], 'service@drv-saarland.de');
-const NB = E('NB', 'Nordbayern', ['95440 Bayreuth'], 'service@drv-nordbayern.de');
+const SL = E(
+  'SL',
+  'Saarland',
+  ['66108 Saarbrücken'],
+  'service@drv-saarland.de'
+);
+const NB = E(
+  'NB',
+  'Nordbayern',
+  ['95440 Bayreuth'],
+  'service@drv-nordbayern.de'
+);
 const SCHW = E('SCHW', 'Schwaben', ['86223 Augsburg'], 'info@drv-schwaben.de');
 const BW_STUTTGART = E(
   'BW',
@@ -210,24 +225,25 @@ export const PREFIX_REGISTER: Readonly<Record<number, MailingEntry>> = {
  * 31 Aug / 15 Sep 2026), Mitteldeutschland = Leipzig (main seat; confirm
  * at the next sweep).
  */
-export const CARRIER_DEFAULT_ENTRY: Readonly<Record<CarrierId, MailingEntry>> = {
-  NORD,
-  MD: MD_LEIPZIG,
-  BSH,
-  WF,
-  HE,
-  RHL,
-  BS,
-  RLP,
-  SL,
-  NB,
-  SCHW,
-  BW: BW_STUTTGART,
-  BB,
-  OLB,
-  KBS,
-  BUND,
-};
+export const CARRIER_DEFAULT_ENTRY: Readonly<Record<CarrierId, MailingEntry>> =
+  {
+    NORD,
+    MD: MD_LEIPZIG,
+    BSH,
+    WF,
+    HE,
+    RHL,
+    BS,
+    RLP,
+    SL,
+    NB,
+    SCHW,
+    BW: BW_STUTTGART,
+    BB,
+    OLB,
+    KBS,
+    BUND,
+  };
 
 /**
  * Country (ISO 3166-1 alpha-2) → specialised regional liaison office
@@ -432,7 +448,9 @@ export function isPlausiblePrefix(prefix: number | null): boolean {
 }
 
 /** Mailing entry for a prefix, or null when the prefix is not registered. */
-export function mailingEntryForPrefix(prefix: number | null): MailingEntry | null {
+export function mailingEntryForPrefix(
+  prefix: number | null
+): MailingEntry | null {
   if (prefix === null) return null;
   const carrier = prefixCarrier(prefix);
   if (!carrier) return null;
