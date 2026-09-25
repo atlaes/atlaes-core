@@ -24,10 +24,15 @@ import {
   type LawFirmMemberRole,
 } from '../drizzle/schema/shared';
 import {
+  caseIdentifier,
+  caseTypeLabel,
   claimCorrespondence,
   claimDocuments,
   claimsTable,
   claimWorkflowStates,
+  isBavCashout,
+  resolveCaseType,
+  type ClaimCaseType,
   type LawFirmCaseEvent,
   type LawFirmCaseState,
   type LawFirmSubmissionChannel,
@@ -180,6 +185,11 @@ export interface FirmClaimListItem {
   claimantName: string | null;
   status: string | null;
   pensionType: string | null;
+  /** Case type and its portal label ("DRV refund" / "Company pension"). */
+  caseType: ClaimCaseType;
+  caseTypeLabel: string;
+  /** VSNR (DRV refund) or contract number (bAV); null for VBL refunds. */
+  caseIdentifier: { label: string; value: string | null } | null;
   bavRoute: 'A' | 'B' | null;
   lawFirmRef: string | null;
   caseState: LawFirmCaseState;
@@ -281,12 +291,12 @@ function visibilityOf(claim: ClaimRow, now = new Date()): CaseVisibility {
 
 /** "Copy all" block for the firm's own system (field order = case screen). */
 export function caseCopyBlockFor(claim: ClaimRow): string {
+  const ident = caseIdentifier(claim);
   return caseCopyBlock([
-    {
-      label: 'Case type',
-      value:
-        claim.pensionType === 'private' ? 'Company pension' : 'Pension refund',
-    },
+    { label: 'Case type', value: caseTypeLabel(resolveCaseType(claim)) },
+    ...(ident && ident.label !== 'VSNR'
+      ? [{ label: ident.label, value: ident.value }]
+      : []),
     { label: 'Name', value: claimantName(claim) },
     { label: 'Date of birth', value: claim.dateOfBirth },
     { label: 'Nationality', value: claim.nationality },
@@ -619,7 +629,7 @@ export class LawFirmService {
     const claim = await ClaimsApplicationService.getClaimAsAdmin(claimId);
     if (!claim) return firm.id;
 
-    if (claim.pensionType === 'private' && claim.status !== 'draft') {
+    if (isBavCashout(claim) && claim.status !== 'draft') {
       try {
         const { BavLetterPackageService } = await import('./bav-letters');
         await BavLetterPackageService.generateAndStoreForClaim(
@@ -669,7 +679,7 @@ export class LawFirmService {
       .where(eq(claimsTable.id, claimId));
 
     const claim = await ClaimsApplicationService.getClaimAsAdmin(claimId);
-    if (claim?.pensionType === 'private' && claim.status !== 'draft') {
+    if (claim && isBavCashout(claim) && claim.status !== 'draft') {
       try {
         const { BavLetterPackageService } = await import('./bav-letters');
         await BavLetterPackageService.generateAndStoreForClaim(
@@ -791,6 +801,10 @@ export class LawFirmService {
         lastName: claimsTable.lastName,
         status: claimsTable.status,
         pensionType: claimsTable.pensionType,
+        caseType: claimsTable.caseType,
+        applicationId: claimsTable.applicationId,
+        vsnr: claimsTable.vsnr,
+        bavContractReference: claimsTable.bavContractReference,
         drvRefundReceived: claimsTable.drvRefundReceived,
         lawFirmRef: claimsTable.lawFirmRef,
         lawFirmCaseState: claimsTable.lawFirmCaseState,
@@ -811,6 +825,9 @@ export class LawFirmService {
         claimantName: claimantName(r),
         status: r.status,
         pensionType: r.pensionType,
+        caseType: resolveCaseType(r),
+        caseTypeLabel: caseTypeLabel(resolveCaseType(r)),
+        caseIdentifier: caseIdentifier(r),
         bavRoute: bavRoute(r.drvRefundReceived),
         lawFirmRef: r.lawFirmRef,
         caseState: (r.lawFirmCaseState ?? 'new') as LawFirmCaseState,
@@ -858,8 +875,7 @@ export class LawFirmService {
       rereleasedUntil: claim.lawFirmRereleasedUntil,
       lawFirmRef: claim.lawFirmRef,
     });
-    const drv =
-      claim.pensionType === 'private' ? null : drvPackClientFromClaim(claim);
+    const drv = isBavCashout(claim) ? null : drvPackClientFromClaim(claim);
 
     const [correspondence, events, userInfo] = await Promise.all([
       this.listCorrespondence(claimId),
@@ -872,6 +888,9 @@ export class LawFirmService {
         id: claim.id,
         status: claim.status,
         pensionType: claim.pensionType,
+        caseType: resolveCaseType(claim),
+        caseTypeLabel: caseTypeLabel(resolveCaseType(claim)),
+        caseIdentifier: caseIdentifier(claim),
         caseState: (claim.lawFirmCaseState ?? 'new') as LawFirmCaseState,
         lawFirmRef: claim.lawFirmRef,
         payoutTarget: claim.payoutTarget,
@@ -1041,7 +1060,7 @@ export class LawFirmService {
     let bytes: Uint8Array;
     let manifest: PackManifest | Record<string, unknown>;
 
-    if (claim.pensionType === 'private') {
+    if (isBavCashout(claim)) {
       const { BavLetterPackageService } = await import('./bav-letters');
       try {
         await BavLetterPackageService.generateAndStoreForClaim(
@@ -1180,6 +1199,14 @@ export class LawFirmService {
         details: { firmId: claim.lawFirmId },
       });
     });
+    // Client-update engine: drafts the "documents ready" mail (T1) and
+    // starts the 7-day posting-date watch. Non-fatal.
+    try {
+      const { ClientUpdatesService } = await import('./client-updates');
+      await ClientUpdatesService.onHandedToLawFirm(claimId, now);
+    } catch (error) {
+      logger.error('Client-update handoff hook failed', { claimId, error });
+    }
     return { releasedAt: now };
   }
 
@@ -1315,7 +1342,7 @@ export class LawFirmService {
     });
 
     let regenerated = false;
-    if (claim.pensionType === 'private') {
+    if (isBavCashout(claim)) {
       try {
         const { BavLetterPackageService } = await import('./bav-letters');
         await BavLetterPackageService.generateAndStoreForClaim(
@@ -1428,6 +1455,20 @@ export class LawFirmService {
       }).catch(() => false);
     }
 
+    // Client-update engine: the law firm's posting date is the one clock
+    // for the update schedule (Rules for Karl). Non-fatal: the event stands
+    // even if the schedule cannot be started.
+    if (input.event === 'submitted' && input.date) {
+      try {
+        const { ClientUpdatesService } = await import('./client-updates');
+        await ClientUpdatesService.onSubmitted(claimId, input.date);
+      } catch (error) {
+        logger.error('Client-update schedule not started on submission', {
+          claimId,
+          error,
+        });
+      }
+    }
     return { caseState: next };
   }
 

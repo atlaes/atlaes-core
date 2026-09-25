@@ -99,6 +99,34 @@
       "when": 1790324244025,
       "tag": "0013_bav_default_route_law_firm",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790324245025,
+      "tag": "0014_claim_case_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790324246025,
+      "tag": "0015_bav_payout_extra_docs_providers",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790324247025,
+      "tag": "0016_gpr_leads",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790324248025,
+      "tag": "0017_client_updates",
+      "breakpoints": true
     }
   ]
 }

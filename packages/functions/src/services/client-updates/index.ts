@@ -510,7 +510,9 @@ export class ClientUpdatesService {
       completedAt: status === 'done' ? new Date().toISOString() : null,
     };
     await this.patchCase(claimId, { nextOfficeAction: action });
-    await this.audit(actor, 'client_updates_office_action', claimId, action);
+    await this.audit(actor, 'client_updates_office_action', claimId, {
+      ...action,
+    });
     if (status === 'done') await this.ensureOfficeAction(claimId);
     return (await this.requireCase(claimId))
       .nextOfficeAction as NextOfficeAction;
@@ -1960,14 +1962,12 @@ export class ClientUpdatesService {
         status: 'completed',
       })
       .returning();
-    await db
-      .insert(clientTaskDocuments)
-      .values({
-        claimId: row.id,
-        customerTaskId,
-        documentId: doc.id,
-        uploadedBy: userId,
-      });
+    await db.insert(clientTaskDocuments).values({
+      claimId: row.id,
+      customerTaskId,
+      documentId: doc.id,
+      uploadedBy: userId,
+    });
     await this.patchCase(row.id, {
       openCustomerTask: {
         ...task,

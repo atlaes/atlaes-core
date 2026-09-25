@@ -73,12 +73,131 @@ export const CLAIM_DOCUMENT_ROLES = [
   'employment_end_proof', // Kündigungsbestätigung, Arbeitszeugnis, last payslip
   'foreign_health_insurance', // insurance card/certificate from residence country
   'bank_proof', // bank confirmation letter
+  // Extra documents ops attach to a bAV claim (client answer item 6); any
+  // number per claim, merged after the standard enclosures in upload order.
+  'bav_extra',
 ] as const;
 export type ClaimDocumentRole = (typeof CLAIM_DOCUMENT_ROLES)[number];
 
+/** Roles that may exist more than once on a claim (no replace-on-upload). */
+export const MULTI_DOCUMENT_ROLES: ReadonlySet<ClaimDocumentRole> =
+  new Set<ClaimDocumentRole>(['bav_extra']);
+
 // Which claim product the row belongs to. 'public' = VBL/ZVK/VddB/VddKO
 // refund, 'private' = bAV cash-out (Abfindung). Null on legacy rows.
+// Kept for backwards compatibility; `case_type` is the discriminator.
 export type PensionType = 'public' | 'private';
+
+// Case type ("one system", client answer item 8): which product a claim
+// is. vbl_refund = VBL/ZVK public-sector refund (VBL app), bav_cashout =
+// bAV Abfindung (VBL app, pension_type 'private'), drv_refund = DRV
+// contribution refund (GPR app, carries application_id).
+export const CLAIM_CASE_TYPES = [
+  'vbl_refund',
+  'bav_cashout',
+  'drv_refund',
+] as const;
+export type ClaimCaseType = (typeof CLAIM_CASE_TYPES)[number];
+
+export const CASE_TYPE_LABELS: Record<ClaimCaseType, string> = {
+  vbl_refund: 'Pension refund',
+  bav_cashout: 'Company pension',
+  drv_refund: 'DRV refund',
+};
+
+/** Case type implied by the legacy pension_type value. */
+export function caseTypeForPensionType(
+  pensionType: string | null | undefined
+): ClaimCaseType {
+  return pensionType === 'private' ? 'bav_cashout' : 'vbl_refund';
+}
+
+/**
+ * Effective case type of a row: the stored value, else the same rule the
+ * 0014 backfill used (application link → DRV, private → bAV, else VBL).
+ */
+export function resolveCaseType(row: {
+  caseType?: string | null;
+  pensionType?: string | null;
+  applicationId?: string | null;
+}): ClaimCaseType {
+  if (
+    row.caseType &&
+    (CLAIM_CASE_TYPES as readonly string[]).includes(row.caseType)
+  ) {
+    return row.caseType as ClaimCaseType;
+  }
+  if (row.pensionType === 'private') return 'bav_cashout';
+  if (row.applicationId) return 'drv_refund';
+  return 'vbl_refund';
+}
+
+/** Hosts of the GPR frontend; a POST /claims from there is a DRV refund. */
+const GPR_ORIGIN_HOSTS = ['germanypensionrefund.com', 'localhost:3002'];
+
+/**
+ * Case type for a new claim. An explicit value wins; an applicationId (GPR
+ * calculator link) means a DRV refund, as does a request from the GPR
+ * frontend; everything else is the VBL app, which starts as vbl_refund and
+ * becomes bav_cashout once pensionType 'private' is saved (see
+ * caseTypeForPensionType).
+ */
+export function deriveCaseTypeOnCreate(input: {
+  caseType?: string | null;
+  applicationId?: string | null;
+  origin?: string | null;
+}): ClaimCaseType {
+  if (
+    input.caseType &&
+    (CLAIM_CASE_TYPES as readonly string[]).includes(input.caseType)
+  ) {
+    return input.caseType as ClaimCaseType;
+  }
+  if (input.applicationId) return 'drv_refund';
+  const origin = (input.origin ?? '').toLowerCase();
+  if (origin && GPR_ORIGIN_HOSTS.some((h) => origin.includes(h))) {
+    return 'drv_refund';
+  }
+  return 'vbl_refund';
+}
+
+export function caseTypeLabel(caseType: string | null | undefined): string {
+  return CASE_TYPE_LABELS[resolveCaseType({ caseType })];
+}
+
+/**
+ * The number the other party knows the case by: VSNR for DRV refunds, the
+ * provider's contract number for bAV cash-outs, nothing for VBL refunds
+ * (the L203 carries the VBL number itself).
+ */
+export function caseIdentifier(row: {
+  caseType?: string | null;
+  pensionType?: string | null;
+  applicationId?: string | null;
+  vsnr?: string | null;
+  bavContractReference?: string | null;
+}): { label: string; value: string | null } | null {
+  switch (resolveCaseType(row)) {
+    case 'drv_refund':
+      return { label: 'VSNR', value: row.vsnr?.trim() || null };
+    case 'bav_cashout':
+      return {
+        label: 'Contract number',
+        value: row.bavContractReference?.trim() || null,
+      };
+    default:
+      return null;
+  }
+}
+
+/** True for bAV cash-out claims (case_type, falling back to pension_type). */
+export function isBavCashout(row: {
+  caseType?: string | null;
+  pensionType?: string | null;
+  applicationId?: string | null;
+}): boolean {
+  return resolveCaseType(row) === 'bav_cashout';
+}
 
 // Formal address used in German letters. Required for bAV letters (the
 // templates only have Herr/Frau forms); derived from passport gender where
@@ -121,14 +240,22 @@ export const CLAIM_HANDLING_ROUTES = ['direct', 'law_firm'] as const;
 
 /**
  * Route a claim takes when ops have not chosen one explicitly (client
- * answer, 15 Sep 2026): every bAV cash-out ('private') goes via the partner
- * law firm; public-sector and stage refunds go direct. A stored
+ * answers, 15 and 25 Sep 2026): bAV cash-outs and DRV refunds go via the
+ * partner law firm; VBL public-sector refunds go direct. A stored
  * handling_route always wins; NULL means "not chosen" and resolves here.
+ * `pensionType` is the legacy fallback for rows without a case_type.
  */
 export function defaultHandlingRoute(
-  pensionType: string | null | undefined
+  caseType: string | null | undefined,
+  pensionType?: string | null
 ): (typeof CLAIM_HANDLING_ROUTES)[number] {
-  return pensionType === 'private' ? 'law_firm' : 'direct';
+  switch (resolveCaseType({ caseType, pensionType })) {
+    case 'bav_cashout':
+    case 'drv_refund':
+      return 'law_firm';
+    default:
+      return 'direct';
+  }
 }
 export type ClaimHandlingRoute = (typeof CLAIM_HANDLING_ROUTES)[number];
 
@@ -282,8 +409,13 @@ export const claimsTable = claims.table(
     ),
     healthInsuranceNumber: varchar('health_insurance_number', { length: 50 }),
 
+    // Case type discriminator (ClaimCaseType). Set on create and kept in
+    // step with pension_type; migration 0014 backfilled existing rows.
+    caseType: varchar('case_type', { length: 20 }),
+
     // Product discriminator: 'public' (VBL/ZVK refund) | 'private' (bAV
-    // cash-out). Null on rows created before the column existed.
+    // cash-out). Null on rows created before the column existed. Kept for
+    // backwards compatibility; case_type is authoritative.
     pensionType: varchar('pension_type', { length: 20 }),
 
     // bAV cash-out intake (pension_type = 'private'). All nullable; the
@@ -389,7 +521,7 @@ export const claimsTable = claims.table(
     // Handling route (ops decision; see ClaimHandlingRoute). Submission reads
     // it: 'direct' goes to the lettershop, 'law_firm' parks the package for
     // the partner law firm. Set through PUT /api/admin/claims/:id/routing.
-    // NULL = not chosen yet → defaultHandlingRoute(pensionType) applies.
+    // NULL = not chosen yet → defaultHandlingRoute(caseType) applies.
     handlingRoute: varchar('handling_route', { length: 20 }),
     handlingRouteSetAt: timestamp('handling_route_set_at', {
       withTimezone: true,
@@ -457,12 +589,56 @@ export const claimsTable = claims.table(
     // next to pdf_s3_key so the firm can download both.
     copyPdfS3Key: varchar('copy_pdf_s3_key', { length: 500 }),
 
+    // bAV cash-out payout on the Anderkonto (client answer item 5): what
+    // arrived, the fee split per drv-pack/fee.ts, and whether the law-firm
+    // fee was deducted or the case goes on the year-end settlement list
+    // (small-refund rule). Recorded by ops via POST /admin/claims/:id/bav-payout.
+    bavPayoutAmount: decimal('bav_payout_amount', { precision: 12, scale: 2 }),
+    bavPayoutValueDate: date('bav_payout_value_date'),
+    bavFeeEur: decimal('bav_fee_eur', { precision: 12, scale: 2 }),
+    bavLawFirmFeeDeducted: boolean('bav_law_firm_fee_deducted'),
+    bavSettlementList: boolean('bav_settlement_list'),
+    bavPayoutRecordedAt: timestamp('bav_payout_recorded_at', {
+      withTimezone: true,
+    }),
+    bavPayoutRecordedBy: uuid('bav_payout_recorded_by').references(
+      () => users.id
+    ),
+
     // Timestamps
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({
     lawFirmIdx: index('claims_law_firm_id_idx').on(table.lawFirmId),
+    caseTypeIdx: index('claims_case_type_idx').on(table.caseType),
+  })
+);
+
+// bAV provider matrix (client answer item 7): where the Abfindung letter
+// for a known provider goes. Matched case-insensitively on `name` against
+// claims.bav_provider_name at submission; ops can still override the
+// recipient fields per claim.
+export const bavProviders = claims.table(
+  'bav_providers',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: varchar('name', { length: 255 }).notNull(),
+    defaultAddresseeType: varchar('default_addressee_type', { length: 20 }), // BavAddresseeType
+    department: varchar('department', { length: 255 }),
+    street: varchar('street', { length: 255 }),
+    postalCode: varchar('postal_code', { length: 20 }),
+    city: varchar('city', { length: 100 }),
+    country: varchar('country', { length: 100 }),
+    requiresBankAddress: boolean('requires_bank_address')
+      .notNull()
+      .default(false),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    nameIdx: index('bav_providers_name_idx').on(table.name),
   })
 );
 

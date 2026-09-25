@@ -6,7 +6,11 @@
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../utils/db';
 import { claimsTable, claimWorkflowStates } from '../drizzle/schema/claims';
-import { defaultHandlingRoute } from '../drizzle/schema/claims';
+import {
+  defaultHandlingRoute,
+  resolveCaseType,
+  type ClaimCaseType,
+} from '../drizzle/schema/claims';
 import { users } from '../drizzle/schema/shared';
 
 export interface AttentionItem {
@@ -14,6 +18,7 @@ export interface AttentionItem {
   claimantName: string | null;
   email: string | null;
   pensionType: string | null;
+  caseType: ClaimCaseType;
   status: string | null;
   handlingRoute: string;
   lawFirmCaseState: string | null;
@@ -58,6 +63,8 @@ const ATTENTION_COLUMNS = {
   lastName: claimsTable.lastName,
   email: users.email,
   pensionType: claimsTable.pensionType,
+  caseType: claimsTable.caseType,
+  applicationId: claimsTable.applicationId,
   status: claimsTable.status,
   handlingRoute: claimsTable.handlingRoute,
   lawFirmCaseState: claimsTable.lawFirmCaseState,
@@ -80,6 +87,8 @@ function toItem(
     lastName: string | null;
     email: string | null;
     pensionType: string | null;
+    caseType?: string | null;
+    applicationId?: string | null;
     status: string | null;
     handlingRoute: string | null;
     lawFirmCaseState: string | null;
@@ -98,8 +107,10 @@ function toItem(
       row.firstName && row.lastName ? `${row.firstName} ${row.lastName}` : null,
     email: row.email,
     pensionType: row.pensionType,
+    caseType: resolveCaseType(row),
     status: row.status,
-    handlingRoute: row.handlingRoute ?? defaultHandlingRoute(row.pensionType),
+    handlingRoute:
+      row.handlingRoute ?? defaultHandlingRoute(resolveCaseType(row)),
     lawFirmCaseState: row.lawFirmCaseState,
     lawFirmRef: row.lawFirmRef,
     paymentStatus: row.paymentStatus,
@@ -138,7 +149,7 @@ export class AdminOverviewService {
     const missingPackage = await base()
       .where(
         and(
-          eq(claimsTable.pensionType, 'private'),
+          eq(claimsTable.caseType, 'bav_cashout'),
           sql`${claimsTable.status} in ('submitted', 'processing')`,
           isNull(claimsTable.pdfS3Key)
         )

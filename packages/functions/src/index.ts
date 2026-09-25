@@ -22,6 +22,9 @@ import admin from './routes/admin';
 import lawFirm from './routes/law-firm';
 import migrations from './routes/migrations';
 import payments from './routes/payments';
+import leads from './routes/leads';
+import account from './routes/account';
+import clientUpdatesAdmin from './routes/client-updates-admin';
 
 // Fail fast before serving traffic if this backend would expose
 // /api/migrations/run with the publicly-known dev token.
@@ -51,6 +54,9 @@ app.route('/api/admin', admin);
 app.route('/api/law-firm', lawFirm);
 app.route('/api/migrations', migrations);
 app.route('/api/payments', payments);
+app.route('/api/leads', leads);
+app.route('/api/account', account);
+app.route('/api/admin/client-updates', clientUpdatesAdmin);
 
 // Root endpoint
 app.get('/', (c) => {

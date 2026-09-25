@@ -11,8 +11,11 @@ import {
 import {
   BAV_DURCHFUEHRUNGSWEGE,
   BAV_STATEMENT_TYPES,
+  CLAIM_CASE_TYPES,
   CLAIM_DOCUMENT_ROLES,
   ClaimDocumentRole,
+  deriveCaseTypeOnCreate,
+  MULTI_DOCUMENT_ROLES,
   ClaimStepName,
   ClaimWorkflowState,
 } from '../drizzle/schema/claims';
@@ -25,9 +28,13 @@ const claims = new Hono();
 // Validation Schemas
 // ============================================================
 
-// Create claim schema
+// Create claim schema. `caseType` is optional: the GPR app passes an
+// applicationId (→ drv_refund) or nothing (→ drv_refund by request origin);
+// the VBL app passes nothing (→ vbl_refund, later bav_cashout when it saves
+// pensionType 'private').
 const createClaimSchema = z.object({
   applicationId: z.string().uuid().optional(),
+  caseType: z.enum(CLAIM_CASE_TYPES).optional(),
 });
 
 // Update claim schema (all fields optional for partial updates)
@@ -170,10 +177,16 @@ const updateClaimSchema = z.object({
   confirmationAuthorizationAccepted: z.boolean().optional(),
 });
 
-// Add document schema
+// Add document schema. Ops-only roles (bav_extra) are attached through
+// the admin API, never by the claimant.
 const addDocumentSchema = z.object({
   documentId: z.string().uuid(),
-  documentRole: z.enum(CLAIM_DOCUMENT_ROLES),
+  documentRole: z
+    .enum(CLAIM_DOCUMENT_ROLES)
+    .refine(
+      (r) => !MULTI_DOCUMENT_ROLES.has(r),
+      'Document role reserved for ops'
+    ),
 });
 
 // Attach signature schema
@@ -247,11 +260,16 @@ claims.post(
   async (c) => {
     try {
       const user = c.get('user');
-      const { applicationId } = c.req.valid('json');
+      const { applicationId, caseType } = c.req.valid('json');
 
       const claim = await ClaimsApplicationService.createClaim(
         user.id,
-        applicationId
+        applicationId,
+        deriveCaseTypeOnCreate({
+          caseType,
+          applicationId,
+          origin: c.req.header('origin') ?? c.req.header('referer'),
+        })
       );
 
       logger.info(`Claim created: ${claim.id} for user: ${user.id}`);
