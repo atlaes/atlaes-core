@@ -118,6 +118,18 @@ export type BavAddresseeType = 'employer' | 'provider';
 // 'law_firm' — the package is handed to the partner law firm (Vividius),
 // who submits it themselves. Orthogonal to `status`.
 export const CLAIM_HANDLING_ROUTES = ['direct', 'law_firm'] as const;
+
+/**
+ * Route a claim takes when ops have not chosen one explicitly (client
+ * answer, 15 Sep 2026): every bAV cash-out ('private') goes via the partner
+ * law firm; public-sector and stage refunds go direct. A stored
+ * handling_route always wins; NULL means "not chosen" and resolves here.
+ */
+export function defaultHandlingRoute(
+  pensionType: string | null | undefined
+): (typeof CLAIM_HANDLING_ROUTES)[number] {
+  return pensionType === 'private' ? 'law_firm' : 'direct';
+}
 export type ClaimHandlingRoute = (typeof CLAIM_HANDLING_ROUTES)[number];
 
 // Where the Abfindung is paid out (law-firm handling only): the client's
@@ -377,7 +389,8 @@ export const claimsTable = claims.table(
     // Handling route (ops decision; see ClaimHandlingRoute). Submission reads
     // it: 'direct' goes to the lettershop, 'law_firm' parks the package for
     // the partner law firm. Set through PUT /api/admin/claims/:id/routing.
-    handlingRoute: varchar('handling_route', { length: 20 }).default('direct'),
+    // NULL = not chosen yet → defaultHandlingRoute(pensionType) applies.
+    handlingRoute: varchar('handling_route', { length: 20 }),
     handlingRouteSetAt: timestamp('handling_route_set_at', {
       withTimezone: true,
     }),

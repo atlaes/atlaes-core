@@ -16,6 +16,7 @@ import {
   BavBenefitForm,
   BavAddresseeType,
   ClaimHandlingRoute,
+  defaultHandlingRoute,
   ClaimPayoutTarget,
 } from '../drizzle/schema/claims';
 import { validateBavIntake } from './bav-letters/intake-validation';
@@ -406,7 +407,7 @@ function mapRowToClaim(row: any): Claim {
     submittedAt: row.submittedAt,
     pdfS3Key: row.pdfS3Key,
     lettershopSubmissionId: row.lettershopSubmissionId ?? null,
-    handlingRoute: row.handlingRoute ?? 'direct',
+    handlingRoute: row.handlingRoute ?? defaultHandlingRoute(row.pensionType),
     handlingRouteSetAt: row.handlingRouteSetAt ?? null,
     handlingRouteSetBy: row.handlingRouteSetBy ?? null,
     payoutTarget: row.payoutTarget ?? null,
@@ -1200,7 +1201,8 @@ export class ClaimsApplicationService {
       // contract: generation or delivery failures are logged, the
       // submission stands, and ops can regenerate from the admin.
       if (result.pensionType === 'private') {
-        const handlingRoute = result.handlingRoute ?? 'direct';
+        const handlingRoute =
+          result.handlingRoute ?? defaultHandlingRoute(result.pensionType);
         try {
           const { BavLetterPackageService } = await import('./bav-letters');
           const pkg = await BavLetterPackageService.generateAndStoreForClaim(
@@ -1268,7 +1270,10 @@ export class ClaimsApplicationService {
         // Claims routed to the law firm are NOT mailed: the package stays
         // in S3 for the law firm to pick up and submit themselves.
         try {
-          if (result.handlingRoute === 'law_firm') {
+          if (
+            (result.handlingRoute ??
+              defaultHandlingRoute(result.pensionType)) === 'law_firm'
+          ) {
             logger.info(
               'Lettershop skipped: claim is handled by the law firm',
               {
@@ -1428,17 +1433,15 @@ export class ClaimsApplicationService {
           ? sql`${sortColumn} asc nulls last`
           : desc(sortColumn);
 
-      // Build where clause. handling_route defaults to 'direct' but legacy
-      // rows may hold NULL, so treat NULL as 'direct' when filtering.
+      // Build where clause. A NULL handling_route means "not chosen", so
+      // filter on the effective route (bAV → law firm, otherwise direct).
       const conditions = [];
       if (filters.status)
         conditions.push(eq(claimsTable.status, filters.status));
-      if (filters.handlingRoute === 'direct') {
+      if (filters.handlingRoute) {
         conditions.push(
-          sql`coalesce(${claimsTable.handlingRoute}, 'direct') = 'direct'`
+          sql`coalesce(${claimsTable.handlingRoute}, case when ${claimsTable.pensionType} = 'private' then 'law_firm' else 'direct' end) = ${filters.handlingRoute}`
         );
-      } else if (filters.handlingRoute) {
-        conditions.push(eq(claimsTable.handlingRoute, filters.handlingRoute));
       }
       if (filters.pensionType) {
         conditions.push(eq(claimsTable.pensionType, filters.pensionType));
@@ -1511,10 +1514,12 @@ export class ClaimsApplicationService {
         applicantEmail: row.userEmail,
         paymentStatus: row.paymentStatus,
         pensionType: row.pensionType,
-        handlingRoute: row.handlingRoute ?? 'direct',
+        handlingRoute:
+          row.handlingRoute ?? defaultHandlingRoute(row.pensionType),
         lawFirmRef: row.lawFirmRef,
         lawFirmCaseState:
-          (row.handlingRoute ?? 'direct') === 'law_firm'
+          (row.handlingRoute ?? defaultHandlingRoute(row.pensionType)) ===
+          'law_firm'
             ? (row.lawFirmCaseState ?? 'new')
             : null,
         submittedAt: row.submittedAt,
@@ -1688,7 +1693,8 @@ export class ClaimsApplicationService {
       if (!claim) {
         throw new Error('Claim not found');
       }
-      const previousRoute = claim.handlingRoute ?? 'direct';
+      const previousRoute =
+        claim.handlingRoute ?? defaultHandlingRoute(claim.pensionType);
       if (
         claim.lettershopSubmissionId &&
         input.handlingRoute === 'law_firm' &&

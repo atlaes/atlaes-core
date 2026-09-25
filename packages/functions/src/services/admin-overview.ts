@@ -6,6 +6,7 @@
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../utils/db';
 import { claimsTable, claimWorkflowStates } from '../drizzle/schema/claims';
+import { defaultHandlingRoute } from '../drizzle/schema/claims';
 import { users } from '../drizzle/schema/shared';
 
 export interface AttentionItem {
@@ -98,7 +99,7 @@ function toItem(
     email: row.email,
     pensionType: row.pensionType,
     status: row.status,
-    handlingRoute: row.handlingRoute ?? 'direct',
+    handlingRoute: row.handlingRoute ?? defaultHandlingRoute(row.pensionType),
     lawFirmCaseState: row.lawFirmCaseState,
     lawFirmRef: row.lawFirmRef,
     paymentStatus: row.paymentStatus,

@@ -92,6 +92,13 @@
       "when": 1789952432989,
       "tag": "0012_law_firm_release_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790324244025,
+      "tag": "0013_bav_default_route_law_firm",
+      "breakpoints": true
     }
   ]
 }
