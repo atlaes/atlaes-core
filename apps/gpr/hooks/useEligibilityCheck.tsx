@@ -5,10 +5,11 @@ import React, {
   useContext,
   useState,
   useCallback,
+  useEffect,
   useMemo,
   ReactNode,
 } from 'react';
-import { GERMANY } from '@/data/countries';
+import { COUNTRIES, GERMANY } from '@/data/countries';
 import apiClient from '@/lib/api';
 import { GPRFormData, JobData } from '@/hooks/useGPRCalculator';
 
@@ -104,6 +105,30 @@ export function EligibilityProvider({
 
   const updateFormData = useCallback((data: Partial<EligibilityFormData>) => {
     setFormData(prev => ({ ...prev, ...data }));
+  }, []);
+
+  // Prefill from the marketing hero card (?citizenship=…&residence=…):
+  // read-only URL support so step-1 answers are never re-asked. Values are
+  // accepted only when they match the country list; when both are present
+  // (and the next step is not the result step) the flow opens on step 1.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const patch: Partial<EligibilityFormData> = {};
+    const citizenship = params.get('citizenship');
+    const residence = params.get('residence');
+    if (citizenship && COUNTRIES.indexOf(citizenship) !== -1) {
+      patch.citizenship = citizenship;
+    }
+    if (residence && COUNTRIES.indexOf(residence) !== -1) {
+      patch.residence = residence;
+    }
+    if (!patch.citizenship && !patch.residence) return;
+    setFormData(prev => ({ ...prev, ...patch }));
+    if (patch.citizenship && patch.residence && flowType !== 'calculator') {
+      setCurrentStep(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkEligibility = useCallback((): EligibilityResult => {

@@ -64,13 +64,13 @@ export const LINKS: Record<string, LinkTarget> = {
     path: '/',
     label: 'Home',
     live: true,
-    note: 'route exists (funnel redirect page until Stream D replaces it)',
+    note: 'marketing homepage: app/(marketing)/page.tsx',
   },
   '/how-it-works': {
     path: '/how-it-works',
     label: 'How It Works',
-    live: false,
-    note: 'Stream D — flip when app/(marketing)/how-it-works exists',
+    live: true,
+    note: 'app/(marketing)/how-it-works/page.tsx',
   },
   '/pricing': {
     path: '/pricing',
