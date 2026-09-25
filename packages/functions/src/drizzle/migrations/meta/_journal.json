@@ -85,6 +85,55 @@
       "when": 1789366811870,
       "tag": "0011_law_firm_member_sign_in",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789952432989,
+      "tag": "0012_law_firm_release_pack",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790324244025,
+      "tag": "0013_bav_default_route_law_firm",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790324245025,
+      "tag": "0014_claim_case_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790324246025,
+      "tag": "0015_bav_payout_extra_docs_providers",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790324247025,
+      "tag": "0016_gpr_leads",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790324248025,
+      "tag": "0017_client_updates",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790324249025,
+      "tag": "0018_claim_attribution",
+      "breakpoints": true
     }
   ]
 }

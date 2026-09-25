@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { Hono } from 'hono';
 import postgres from 'postgres';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from '../drizzle/schema';
 import {
@@ -117,6 +118,8 @@ describe('Law firm portal routes', () => {
   let adminUser: Awaited<ReturnType<typeof makeUser>>;
   let claimant: Awaited<ReturnType<typeof makeUser>>;
   let claimA: typeof claimsTable.$inferSelect;
+  let claimSubmit: Awaited<ReturnType<typeof makeClaim>>;
+  let claimUnreleased: Awaited<ReturnType<typeof makeClaim>>;
   let claimB: typeof claimsTable.$inferSelect;
   let claimDirect: typeof claimsTable.$inferSelect;
 
@@ -143,17 +146,37 @@ describe('Law firm portal routes', () => {
       { lawFirmId: firmB.id, userId: memberB.user.id, role: 'member' },
     ]);
 
+    // Released cases (ops release = visible to the firm until submitted).
     claimA = await makeClaim(claimant.user.id, {
       handlingRoute: 'law_firm',
       lawFirmId: firmA.id,
       lawFirmCaseState: 'new',
       lawFirmAssignedAt: new Date(),
+      lawFirmReleasedAt: new Date(),
+    });
+    claimSubmit = await makeClaim(claimant.user.id, {
+      handlingRoute: 'law_firm',
+      lawFirmId: firmA.id,
+      lawFirmCaseState: 'new',
+      lawFirmAssignedAt: new Date(),
+      lawFirmReleasedAt: new Date(),
+      firstName: 'Sven',
+      lastName: 'Sender',
+    });
+    claimUnreleased = await makeClaim(claimant.user.id, {
+      handlingRoute: 'law_firm',
+      lawFirmId: firmA.id,
+      lawFirmCaseState: 'new',
+      lawFirmAssignedAt: new Date(),
+      firstName: 'Ulla',
+      lastName: 'Unreleased',
     });
     claimB = await makeClaim(claimant.user.id, {
       handlingRoute: 'law_firm',
       lawFirmId: firmB.id,
       lawFirmCaseState: 'new',
       lawFirmAssignedAt: new Date(),
+      lawFirmReleasedAt: new Date(),
       firstName: 'Bruno',
       lastName: 'Bauer',
     });
@@ -225,6 +248,8 @@ describe('Law firm portal routes', () => {
       expect(ids).toContain(claimA.id);
       expect(ids).not.toContain(claimB.id);
       expect(ids).not.toContain(claimDirect.id);
+      // Assigned but not released → not visible to the firm.
+      expect(ids).not.toContain(claimUnreleased.id);
     });
 
     it('searches by name', async () => {
@@ -236,6 +261,15 @@ describe('Law firm portal routes', () => {
       const body = await res.json();
       expect(body.total).toBe(1);
       expect(body.claims[0].claimantName).toBe('Emily Carter');
+    });
+
+    it('hides an unreleased case on detail', async () => {
+      const res = await request(
+        'GET',
+        `/api/law-firm/claims/${claimUnreleased.id}`,
+        memberA.token
+      );
+      expect(res.status).toBe(404);
     });
 
     it('hides another firm’s case and direct claims on detail', async () => {
@@ -283,32 +317,56 @@ describe('Law firm portal routes', () => {
       expect(res.status).toBe(400);
     });
 
-    it('needs a channel for submission, then records it', async () => {
+    it('needs a submission date, then records it and hides the case', async () => {
       const missing = await request(
         'POST',
-        `/api/law-firm/claims/${claimA.id}/events`,
+        `/api/law-firm/claims/${claimSubmit.id}/events`,
         memberA.token,
-        { event: 'submitted', date: '2026-09-10' }
+        { event: 'submitted', channel: 'post' }
       );
       expect(missing.status).toBe(400);
 
       const ok = await request(
         'POST',
-        `/api/law-firm/claims/${claimA.id}/events`,
+        `/api/law-firm/claims/${claimSubmit.id}/events`,
         memberA.token,
-        { event: 'submitted', date: '2026-09-10', channel: 'post' }
+        { event: 'submitted', date: '2026-09-10' }
       );
       expect(ok.status).toBe(200);
       expect((await ok.json()).caseState).toBe('submitted');
 
-      const detail = await (
-        await request('GET', `/api/law-firm/claims/${claimA.id}`, memberA.token)
-      ).json();
-      expect(detail.claim.caseState).toBe('submitted');
-      expect(detail.claim.submissionChannel).toBe('post');
-      expect(detail.events.map((e: { event: string }) => e.event)).toContain(
-        'submitted'
+      // Saving the submission date removes the case from the firm's view.
+      const hidden = await request(
+        'GET',
+        `/api/law-firm/claims/${claimSubmit.id}`,
+        memberA.token
       );
+      expect(hidden.status).toBe(404);
+      const [row] = await testDb
+        .select({
+          caseState: claimsTable.lawFirmCaseState,
+          submittedAt: claimsTable.lawFirmSubmittedAt,
+        })
+        .from(claimsTable)
+        .where(eq(claimsTable.id, claimSubmit.id));
+      expect(row.caseState).toBe('submitted');
+      expect(row.submittedAt).not.toBeNull();
+    });
+
+    it('ops can re-release a submitted case for 48 hours', async () => {
+      const res = await request(
+        'POST',
+        `/api/admin/claims/${claimSubmit.id}/law-firm/rerelease`,
+        adminUser.token
+      );
+      expect(res.status).toBe(200);
+      const detail = await request(
+        'GET',
+        `/api/law-firm/claims/${claimSubmit.id}`,
+        memberA.token
+      );
+      expect(detail.status).toBe(200);
+      expect((await detail.json()).claim.visibility).toBe('rereleased');
     });
 
     it('cannot record events on another firm’s case', async () => {
@@ -323,19 +381,58 @@ describe('Law firm portal routes', () => {
   });
 
   describe('file number', () => {
-    it('sets the reference and keeps it on the claim', async () => {
+    it('refuses the pack download until the Aktenzeichen is saved', async () => {
+      const res = await request(
+        'GET',
+        `/api/law-firm/claims/${claimA.id}/package`,
+        memberA.token
+      );
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toContain('Aktenzeichen');
+    });
+
+    it('rejects a reference outside the 12345-YY pattern', async () => {
       const res = await request(
         'PUT',
         `/api/law-firm/claims/${claimA.id}/reference`,
         memberA.token,
         { lawFirmRef: '2026/0815-KC' }
       );
+      expect(res.status).toBe(400);
+    });
+
+    it('sets the reference and keeps it on the claim', async () => {
+      const res = await request(
+        'PUT',
+        `/api/law-firm/claims/${claimA.id}/reference`,
+        memberA.token,
+        { lawFirmRef: ' 06152-26 ' }
+      );
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body.lawFirmRef).toBe('2026/0815-KC');
+      expect(body.lawFirmRef).toBe('06152-26');
       // Package regeneration needs a signature + passport; the test claim
       // has neither, so the reference is stored but nothing is rendered.
       expect(body.regenerated).toBe(false);
+
+      const detail = await (
+        await request('GET', `/api/law-firm/claims/${claimA.id}`, memberA.token)
+      ).json();
+      expect(detail.claim.lawFirmRef).toBe('06152-26');
+      expect(detail.claim.aktenzeichenValid).toBe(true);
+      expect(detail.claim.download.allowed).toBe(true);
+    });
+
+    it('reports a generation problem as a 400, not a crash', async () => {
+      // Gate passes now, but the bAV package cannot be rendered without a
+      // signature and passport → "Invalid download: …".
+      const res = await request(
+        'GET',
+        `/api/law-firm/claims/${claimA.id}/package`,
+        memberA.token
+      );
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toMatch(/^Invalid download/);
     });
   });
 

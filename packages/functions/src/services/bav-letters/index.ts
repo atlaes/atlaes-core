@@ -14,6 +14,7 @@ import { auditLogs, signatures } from '../../drizzle/schema/shared';
 import {
   claimCorrespondence,
   claimsTable,
+  isBavCashout,
   type ClaimDocumentRole,
 } from '../../drizzle/schema/claims';
 import {
@@ -28,7 +29,7 @@ import {
   assembleBavPackage,
   type BavLetterTemplateId,
   type EnclosureFile,
-  type EnclosureKind,
+  type StandardEnclosureKind,
 } from './package';
 import { renderLetterPdf, SIGNATURE_MARKER } from './render-letter';
 import type { TemplateContext } from './template-engine';
@@ -39,7 +40,7 @@ const NON_PNG_DATA_URL_PREFIX = /^data:image\/(\w+);base64,/i;
 
 /** Claim document roles that become package enclosures, by enclosure kind. */
 const DOCUMENT_ENCLOSURES: Array<{
-  kind: Exclude<EnclosureKind, 'voll' | 'pev'>;
+  kind: StandardEnclosureKind;
   role: ClaimDocumentRole;
 }> = [
   { kind: 'passport', role: 'passport' },
@@ -78,7 +79,7 @@ export class BavLetterPackageService {
       ? await ClaimsApplicationService.getClaimAsAdmin(claimId)
       : await ClaimsApplicationService.getClaim(claimId, userId);
     if (!claim) throw new Error('Claim not found');
-    if (claim.pensionType !== 'private') {
+    if (!isBavCashout(claim)) {
       throw new Error(
         'bAV package requested for a claim that is not a bAV cash-out'
       );
@@ -153,6 +154,7 @@ export class BavLetterPackageService {
 
     const signaturePng = await this.loadSignaturePng(claim.signatureId!);
     const files = await this.downloadEnclosures(latestByRole);
+    const extras = await this.downloadExtras(docs);
 
     const result = await assembleBavPackage({
       templateId,
@@ -161,6 +163,7 @@ export class BavLetterPackageService {
       signaturePng,
       letterheadPdf: letterhead ?? undefined,
       files,
+      extras,
     });
 
     const stamp = Date.now();
@@ -265,14 +268,25 @@ export class BavLetterPackageService {
     };
   }
 
+  /** Ops-attached extra documents (role 'bav_extra'), oldest upload first. */
+  private static async downloadExtras(
+    docs: ClaimDocument[]
+  ): Promise<EnclosureFile[]> {
+    const out: EnclosureFile[] = [];
+    for (const doc of extraDocumentsInOrder(docs)) {
+      const bytes = await downloadFile(doc.document!.s3Key);
+      out.push({
+        bytes: new Uint8Array(bytes),
+        fileType: doc.document!.fileType,
+      });
+    }
+    return out;
+  }
+
   private static async downloadEnclosures(
     latestByRole: Map<ClaimDocumentRole, ClaimDocument>
-  ): Promise<
-    Partial<Record<Exclude<EnclosureKind, 'voll' | 'pev'>, EnclosureFile>>
-  > {
-    const files: Partial<
-      Record<Exclude<EnclosureKind, 'voll' | 'pev'>, EnclosureFile>
-    > = {};
+  ): Promise<Partial<Record<StandardEnclosureKind, EnclosureFile>>> {
+    const files: Partial<Record<StandardEnclosureKind, EnclosureFile>> = {};
     for (const { kind, role } of DOCUMENT_ENCLOSURES) {
       const doc = latestByRole.get(role);
       if (!doc?.document) continue;
@@ -308,13 +322,27 @@ export class BavLetterPackageService {
   }
 }
 
-/** Newest claim document per role (a re-upload replaces the older file). */
+/** Extra documents ('bav_extra') in upload order, oldest first. */
+export function extraDocumentsInOrder(docs: ClaimDocument[]): ClaimDocument[] {
+  return docs
+    .filter((d) => d.documentRole === 'bav_extra' && !!d.document)
+    .sort(
+      (a, b) =>
+        (a.createdAt ? a.createdAt.getTime() : 0) -
+        (b.createdAt ? b.createdAt.getTime() : 0)
+    );
+}
+
+/**
+ * Newest claim document per role (a re-upload replaces the older file).
+ * Extras are excluded: any number of them may exist (see extraDocumentsInOrder).
+ */
 export function latestDocumentsByRole(
   docs: ClaimDocument[]
 ): Map<ClaimDocumentRole, ClaimDocument> {
   const byRole = new Map<ClaimDocumentRole, ClaimDocument>();
   for (const doc of docs) {
-    if (!doc.document) continue;
+    if (!doc.document || doc.documentRole === 'bav_extra') continue;
     const existing = byRole.get(doc.documentRole);
     const t = doc.createdAt ? doc.createdAt.getTime() : 0;
     const te = existing?.createdAt ? existing.createdAt.getTime() : -1;

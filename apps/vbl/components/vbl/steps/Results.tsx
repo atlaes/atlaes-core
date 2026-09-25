@@ -149,7 +149,10 @@ const parseMonetaryAmount = (raw: string | undefined): number | null => {
 // are clearly above the standard thresholds").
 //
 // Decision table (statutoryPensionRefunded):
-//   - "yes"      → appears_unlikely  (already refunded on DRV; unchanged)
+//   - "yes"      → may_be_possible  (client answer, 15 Sep 2026: once the
+//                  statutory DRV refund has happened no threshold applies
+//                  and the cash-out route A is open; the thresholds below
+//                  only bind users WITHOUT a state pension refund)
 //   - "not_sure" → individual_assessment
 //                  (do NOT show the unlikely screen just because the user
 //                   answered "Not sure"; unchanged)
@@ -173,7 +176,7 @@ type PrivateVariant =
   | 'private_appears_unlikely';
 
 const resolvePrivateJobVariant = (job: JobData): PrivateVariant => {
-  if (job.statutoryPensionRefunded === 'yes') return 'private_appears_unlikely';
+  if (job.statutoryPensionRefunded === 'yes') return 'private_may_be_possible';
 
   // "not_sure" (and any non-"no" answer) → manual review, never a rejection.
   if (job.statutoryPensionRefunded !== 'no')

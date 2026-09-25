@@ -7,12 +7,14 @@ import { adminMiddleware } from '../middleware/admin';
 import { validateUuidParams } from '../middleware/validate-uuid';
 import { ClaimsApplicationService } from '../services/claims-application';
 import {
+  CLAIM_CASE_TYPES,
   CLAIM_HANDLING_ROUTES,
   CLAIM_PAYOUT_TARGETS,
 } from '../drizzle/schema/claims';
 import { getPresignedUrl } from '../utils/s3';
 import { LawFirmService } from '../services/law-firm';
 import { AdminOverviewService } from '../services/admin-overview';
+import { BavProviderService } from '../services/bav-letters/providers';
 import { LAW_FIRM_MEMBER_ROLES } from '../drizzle/schema/shared';
 
 const admin = new Hono();
@@ -57,6 +59,12 @@ admin.get('/claims', async (c) => {
     const status = c.req.query('status') || undefined;
     const handlingRoute = c.req.query('handlingRoute') || undefined;
     const pensionType = c.req.query('pensionType') || undefined;
+    const caseTypeRaw = c.req.query('caseType');
+    const caseType = (CLAIM_CASE_TYPES as readonly string[]).includes(
+      caseTypeRaw ?? ''
+    )
+      ? caseTypeRaw
+      : undefined;
     const search = (c.req.query('search') || '').slice(0, 100) || undefined;
     const sortRaw = c.req.query('sort');
     const sort =
@@ -73,6 +81,7 @@ admin.get('/claims', async (c) => {
       status,
       handlingRoute,
       pensionType,
+      caseType,
       search,
       sort,
       dir,
@@ -135,6 +144,66 @@ admin.get('/claims/:id/documents', validateUuidParams('id'), async (c) => {
     return c.json({ success: false, error: 'Failed to get documents' }, 500);
   }
 });
+
+// Extra documents ops attach to a bAV claim (multipart: file, note?). They
+// are merged after the standard enclosures on the next package
+// regeneration (POST /claims/:id/package/regenerate).
+admin.post('/claims/:id/documents', validateUuidParams('id'), async (c) => {
+  try {
+    const user = c.get('user');
+    const form = await c.req.formData();
+    const file = form.get('file');
+    if (!file || !(file instanceof File)) {
+      return c.json({ success: false, error: 'No file provided' }, 400);
+    }
+    const note = form.get('note');
+    const document = await ClaimsApplicationService.attachExtraDocument(
+      c.req.param('id'),
+      user.id,
+      file,
+      typeof note === 'string' ? note.slice(0, 1000) : null
+    );
+    return c.json({ success: true, document }, 201);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to attach document';
+    const statusCode = message.startsWith('Invalid')
+      ? 400
+      : message === 'Claim not found'
+        ? 404
+        : 500;
+    if (statusCode === 500) logger.error('Admin attach document error:', error);
+    return c.json({ success: false, error: message }, statusCode);
+  }
+});
+
+admin.delete(
+  '/claims/:id/documents/:docId',
+  validateUuidParams('id', 'docId'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const removed = await ClaimsApplicationService.removeExtraDocument(
+        c.req.param('id'),
+        c.req.param('docId'),
+        user.id
+      );
+      if (!removed) {
+        return c.json(
+          { success: false, error: 'Extra document not found' },
+          404
+        );
+      }
+      return c.json({ success: true });
+    } catch (error) {
+      logger.error('Admin remove document error:', error);
+      return c.json(
+        { success: false, error: 'Failed to remove document' },
+        500
+      );
+    }
+  }
+);
 
 // ============================================================
 // Document Download (pre-signed URL)
@@ -269,7 +338,7 @@ admin.post(
       if (!claim) {
         return c.json({ success: false, error: 'Claim not found' }, 404);
       }
-      if (claim.pensionType !== 'private') {
+      if (claim.caseType !== 'bav_cashout') {
         return c.json(
           {
             success: false,
@@ -304,6 +373,139 @@ admin.post(
     }
   }
 );
+
+// ============================================================
+// bAV payout on the Anderkonto + fee split (client answer item 5)
+// ============================================================
+
+const bavPayoutSchema = z.object({
+  amountEur: z.number().positive().max(10_000_000),
+  valueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'valueDate: YYYY-MM-DD'),
+});
+
+admin.post(
+  '/claims/:id/bav-payout',
+  validateUuidParams('id'),
+  zValidator('json', bavPayoutSchema),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const result = await ClaimsApplicationService.recordBavPayout(
+        c.req.param('id'),
+        user.id,
+        c.req.valid('json')
+      );
+      return c.json({ success: true, ...result });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to record payout';
+      const statusCode = message.startsWith('Invalid')
+        ? 400
+        : message === 'Claim not found'
+          ? 404
+          : 500;
+      if (statusCode === 500) logger.error('Admin bAV payout error:', error);
+      return c.json({ success: false, error: message }, statusCode);
+    }
+  }
+);
+
+// Year-end settlement list: small-refund cases where no law-firm fee was
+// deducted. `year` defaults to the current year.
+admin.get('/bav/settlement-list', async (c) => {
+  try {
+    const yearRaw = parseInt(c.req.query('year') || '', 10);
+    const year =
+      Number.isInteger(yearRaw) && yearRaw >= 2000 && yearRaw <= 2100
+        ? yearRaw
+        : new Date().getFullYear();
+    const list = await ClaimsApplicationService.getBavSettlementList(year);
+    return c.json({ success: true, ...list });
+  } catch (error) {
+    logger.error('Admin settlement list error:', error);
+    return c.json(
+      { success: false, error: 'Failed to load settlement list' },
+      500
+    );
+  }
+});
+
+// ============================================================
+// bAV provider matrix (client answer item 7)
+// ============================================================
+
+const bavProviderSchema = z.object({
+  name: z.string().trim().min(1).max(255),
+  defaultAddresseeType: z.enum(['employer', 'provider']).nullable().optional(),
+  department: z.string().max(255).nullable().optional(),
+  street: z.string().max(255).nullable().optional(),
+  postalCode: z.string().max(20).nullable().optional(),
+  city: z.string().max(100).nullable().optional(),
+  country: z.string().max(100).nullable().optional(),
+  requiresBankAddress: z.boolean().optional(),
+  notes: z.string().max(2000).nullable().optional(),
+});
+
+function providerError(c: any, error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : fallback;
+  const statusCode = message.startsWith('Invalid') ? 400 : 500;
+  if (statusCode === 500) logger.error(`${fallback}:`, error);
+  return c.json({ success: false, error: message }, statusCode);
+}
+
+admin.get('/bav/providers', async (c) => {
+  try {
+    const providers = await BavProviderService.list();
+    return c.json({ success: true, providers });
+  } catch (error) {
+    return providerError(c, error, 'Failed to list providers');
+  }
+});
+
+admin.post(
+  '/bav/providers',
+  zValidator('json', bavProviderSchema),
+  async (c) => {
+    try {
+      const provider = await BavProviderService.create(c.req.valid('json'));
+      return c.json({ success: true, provider }, 201);
+    } catch (error) {
+      return providerError(c, error, 'Failed to create provider');
+    }
+  }
+);
+
+admin.put(
+  '/bav/providers/:id',
+  validateUuidParams('id'),
+  zValidator('json', bavProviderSchema),
+  async (c) => {
+    try {
+      const provider = await BavProviderService.update(
+        c.req.param('id'),
+        c.req.valid('json')
+      );
+      if (!provider) {
+        return c.json({ success: false, error: 'Provider not found' }, 404);
+      }
+      return c.json({ success: true, provider });
+    } catch (error) {
+      return providerError(c, error, 'Failed to update provider');
+    }
+  }
+);
+
+admin.delete('/bav/providers/:id', validateUuidParams('id'), async (c) => {
+  try {
+    const removed = await BavProviderService.remove(c.req.param('id'));
+    if (!removed) {
+      return c.json({ success: false, error: 'Provider not found' }, 404);
+    }
+    return c.json({ success: true });
+  } catch (error) {
+    return providerError(c, error, 'Failed to delete provider');
+  }
+});
 
 // ============================================================
 // Handling Route (direct vs law firm)
@@ -346,6 +548,68 @@ admin.put(
     }
   }
 );
+
+// Law-firm release / re-release (platform brief 2026-09-16) and the
+// overdue-submission check (call daily from a scheduler).
+admin.post(
+  '/claims/:id/law-firm/release',
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const result = await LawFirmService.releaseToFirm(
+        c.req.param('id'),
+        user.id
+      );
+      return c.json({ success: true, ...result });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to release case';
+      const statusCode = message.startsWith('Invalid')
+        ? 400
+        : message === 'Claim not found'
+          ? 404
+          : 500;
+      if (statusCode === 500) logger.error('Admin release error:', error);
+      return c.json({ success: false, error: message }, statusCode);
+    }
+  }
+);
+
+admin.post(
+  '/claims/:id/law-firm/rerelease',
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const result = await LawFirmService.rereleaseToFirm(
+        c.req.param('id'),
+        user.id
+      );
+      return c.json({ success: true, ...result });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to re-release case';
+      const statusCode = message.startsWith('Invalid')
+        ? 400
+        : message === 'Claim not found'
+          ? 404
+          : 500;
+      if (statusCode === 500) logger.error('Admin re-release error:', error);
+      return c.json({ success: false, error: message }, statusCode);
+    }
+  }
+);
+
+admin.post('/law-firm/overdue-check', async (c) => {
+  try {
+    const sent = await LawFirmService.warnOverdueSubmissions();
+    return c.json({ success: true, warningsSent: sent });
+  } catch (error) {
+    logger.error('Overdue check error:', error);
+    return c.json({ success: false, error: 'Overdue check failed' }, 500);
+  }
+});
 
 // ============================================================
 // Admin Notes
