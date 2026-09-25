@@ -7,7 +7,10 @@
     "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
-    "clean": "rm -rf .next"
+    "clean": "rm -rf .next",
+    "check:content": "node scripts/check-q-markers.mjs",
+    "content:countries": "node scripts/convert-country-pages.mjs",
+    "test": "../../packages/functions/node_modules/.bin/vitest run --root . --config vitest.config.mts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
