@@ -19,7 +19,7 @@ const base: CoverLetterInput = {
   client: { lastName: 'Sharma', firstName: 'Priya' },
   vsnr: '65 120390 S 512',
   anlagen: [
-    'Zahlungserklärung (A1313)',
+    'Zahlungserklärung (A1310)',
     'Lebensbescheinigung',
     'Rückantwort',
     'Kopie des Reisepasses',

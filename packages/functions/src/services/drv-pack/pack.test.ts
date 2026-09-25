@@ -80,7 +80,7 @@ describe('buildSubmissionPack', () => {
       'id',
     ]);
     expect(pack.manifest.anlagen).toEqual([
-      'Zahlungserklärung (A1313)',
+      'Zahlungserklärung (A1310)',
       'Lebensbescheinigung',
       'Rückantwort',
       'Kopie des Reisepasses',
@@ -158,7 +158,7 @@ describe('buildSubmissionPack', () => {
     expect(pack.manifest.replyType).toBe('willenserklaerung');
     expect(pack.manifest.a1002Language).toBe('sp');
     expect(pack.manifest.anlagen).toEqual([
-      'Zahlungserklärung (A1313)',
+      'Zahlungserklärung (A1310)',
       'Lebensbescheinigung',
       'Abmeldebestätigung',
       'Rückantwort',

@@ -36,7 +36,12 @@ export type RepresentativeCapacity =
   | 'Bevollmächtigter';
 
 export interface V0901Defaults {
-  /** Section 4 capacity box. Annotated copy ticks "gesetzlicher Vertreter". */
+  /**
+   * Section 4 capacity box. The annotated copy ticks "gesetzlicher
+   * Vertreter", but the firm acts under a power of attorney, so the
+   * correct capacity is "Bevollmächtigter" (client answers, 15 Sep 2026:
+   * the firm signs and submits V0901 under the PoA).
+   */
   representativeCapacity: RepresentativeCapacity;
   insuranceRecordIssued: boolean; // 5.1
   insuranceRecordCorrect: boolean; // 5.1 (second question)
@@ -52,7 +57,7 @@ export interface V0901Defaults {
 }
 
 export const V0901_ANNOTATED_DEFAULTS: V0901Defaults = {
-  representativeCapacity: 'gesetzlicher Vertreter',
+  representativeCapacity: 'Bevollmächtigter',
   insuranceRecordIssued: true,
   insuranceRecordCorrect: true,
   voluntaryContributions: false,

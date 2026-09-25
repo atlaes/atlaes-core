@@ -9,7 +9,8 @@
  * lawyer (person receiving benefits, X_DAT_4).
  *
  * The client's message and the PoA still call this form "A1313"; the file
- * delivered is A1310 — the cover-letter bullet keeps "(A1313)" until the
+ * delivered is A1310 and the client's own A1310 guide (8 Sep 2026) lists
+ * A1313 as retired — the cover-letter bullet therefore says "(A1310)"; the
  * owner confirms.
  */
 

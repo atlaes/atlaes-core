@@ -73,7 +73,7 @@ describe('V0901', () => {
     expect(selected(doc, 'Q_PAF_Vers_Geschlecht')).toBe('Weiblich');
     expect(selected(doc, 'AW_VV_1')).toBe('ja');
     expect(selected(doc, 'AW_BEITR_AUSL_VT')).toBe('nein');
-    expect(selected(doc, 'AW_EIGENSCHAFT_1')).toBe('gesetzlicher Vertreter');
+    expect(selected(doc, 'AW_EIGENSCHAFT_1')).toBe('Bevollmächtigter');
   });
 
   it('honours default overrides', async () => {

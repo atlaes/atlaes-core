@@ -184,8 +184,10 @@ export async function buildSubmissionPack(
     replyTypeFor(c.citizenshipIso, c.germanContributionMonths);
   const includeLeben = input.includeLebensbescheinigung ?? true;
 
-  // Anlagen in the order of the spec §4.
-  const anlagen: string[] = ['Zahlungserklärung (A1313)'];
+  // Anlagen in the order of the spec §4. The form is A1310: the client's
+  // A1310 guide (v1.3, 8 Sep 2026) lists A1312/A1313/A3863 as retired, so
+  // the enclosure carries the current number.
+  const anlagen: string[] = ['Zahlungserklärung (A1310)'];
   if (includeLeben) anlagen.push('Lebensbescheinigung');
   if (input.abmeldebestaetigungPdf) anlagen.push('Abmeldebestätigung');
   if (replyType !== 'none') anlagen.push('Rückantwort');
