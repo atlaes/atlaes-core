@@ -32,9 +32,26 @@ const claims = new Hono();
 // applicationId (→ drv_refund) or nothing (→ drv_refund by request origin);
 // the VBL app passes nothing (→ vbl_refund, later bav_cashout when it saves
 // pensionType 'private').
+const attributionSchema = z
+  .object({
+    utmSource: z.string().max(200).optional(),
+    utmMedium: z.string().max(200).optional(),
+    utmCampaign: z.string().max(200).optional(),
+    utmTerm: z.string().max(200).optional(),
+    utmContent: z.string().max(200).optional(),
+    gclid: z.string().max(200).optional(),
+    fbclid: z.string().max(200).optional(),
+    via: z.string().max(200).optional(),
+    referrer: z.string().max(2000).optional(),
+    landingPage: z.string().max(2000).optional(),
+    capturedAt: z.string().max(40).optional(),
+  })
+  .strip();
+
 const createClaimSchema = z.object({
   applicationId: z.string().uuid().optional(),
   caseType: z.enum(CLAIM_CASE_TYPES).optional(),
+  attribution: attributionSchema.nullable().optional(),
 });
 
 // Update claim schema (all fields optional for partial updates)
@@ -260,7 +277,7 @@ claims.post(
   async (c) => {
     try {
       const user = c.get('user');
-      const { applicationId, caseType } = c.req.valid('json');
+      const { applicationId, caseType, attribution } = c.req.valid('json');
 
       const claim = await ClaimsApplicationService.createClaim(
         user.id,
@@ -269,7 +286,8 @@ claims.post(
           caseType,
           applicationId,
           origin: c.req.header('origin') ?? c.req.header('referer'),
-        })
+        }),
+        attribution ?? null
       );
 
       logger.info(`Claim created: ${claim.id} for user: ${user.id}`);

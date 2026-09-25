@@ -127,6 +127,13 @@
       "when": 1790324248025,
       "tag": "0017_client_updates",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790324249025,
+      "tag": "0018_claim_attribution",
+      "breakpoints": true
     }
   ]
 }

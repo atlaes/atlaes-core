@@ -412,6 +412,9 @@ export const claimsTable = claims.table(
     // Case type discriminator (ClaimCaseType). Set on create and kept in
     // step with pension_type; migration 0014 backfilled existing rows.
     caseType: varchar('case_type', { length: 20 }),
+    // First-touch marketing attribution captured by the GPR site (utm_*,
+    // gclid, fbclid, via, referrer, landing page); see apps/gpr/lib/attribution.ts.
+    attribution: jsonb('attribution'),
 
     // Product discriminator: 'public' (VBL/ZVK refund) | 'private' (bAV
     // cash-out). Null on rows created before the column existed. Kept for

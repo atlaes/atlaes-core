@@ -509,7 +509,8 @@ export class ClaimsApplicationService {
   static async createClaim(
     userId: string,
     applicationId?: string,
-    caseType?: ClaimCaseType
+    caseType?: ClaimCaseType,
+    attribution?: Record<string, unknown> | null
   ): Promise<Claim> {
     try {
       const resolvedCaseType =
@@ -522,6 +523,7 @@ export class ClaimsApplicationService {
             userId,
             applicationId: applicationId || null,
             caseType: resolvedCaseType,
+            attribution: attribution ?? null,
             status: 'draft',
             workflowState: 'personal_info',
             completedSteps: {},
