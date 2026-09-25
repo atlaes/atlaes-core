@@ -1,9 +1,13 @@
+const path = require('path');
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  // Anchored to this file so the build finds its sources whatever the cwd
+  // (running `next build apps/gpr` from the repo root otherwise scans nothing).
   content: [
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
-    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    path.join(__dirname, 'pages/**/*.{js,ts,jsx,tsx,mdx}'),
+    path.join(__dirname, 'components/**/*.{js,ts,jsx,tsx,mdx}'),
+    path.join(__dirname, 'app/**/*.{js,ts,jsx,tsx,mdx}'),
   ],
   theme: {
     extend: {
