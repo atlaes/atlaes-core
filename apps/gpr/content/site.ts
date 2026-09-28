@@ -128,9 +128,7 @@ export const FOOTER_FORMS: FooterLink[] = [
 
 export const FOOTER_LEGAL: FooterLink[] = [
   { label: 'Legal Notice', href: '/legalnoticedisclaimer' },
-  // Build rule 9: privacy links point at /legalnoticedisclaimer until the
-  // dedicated privacy page exists.
-  { label: 'Privacy Policy', href: '/legalnoticedisclaimer' },
+  { label: 'Privacy Policy', href: '/privacy-policy' },
   { label: 'Data Access & Deletion Request (GDPR)', href: '/data-request' },
 ];
 

@@ -26,13 +26,6 @@ const nextConfig = {
         destination: '/check/3-step',
         permanent: true,
       },
-      // Marketing calculator slug → the existing calculator until the
-      // marketing page is built (temporary on purpose).
-      {
-        source: '/refund-calculator',
-        destination: '/calculator',
-        permanent: false,
-      },
       // The four ex-Yugoslav pages merge into one combined page.
       {
         source: '/bosnia-herzegovina',

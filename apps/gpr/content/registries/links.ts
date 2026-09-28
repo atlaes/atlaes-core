@@ -39,7 +39,7 @@ export const LINKS: Record<string, LinkTarget> = {
     path: '/refund-calculator',
     label: 'Refund Calculator',
     live: true,
-    note: 'redirects to the existing /calculator until the marketing calculator page is built (next.config.js)',
+    note: 'Stream H1 — app/(marketing)/refund-calculator/page.tsx (embeds the calculator)',
   },
   '/check/3-step': {
     path: '/check/3-step',
@@ -75,14 +75,14 @@ export const LINKS: Record<string, LinkTarget> = {
   '/pricing': {
     path: '/pricing',
     label: 'Pricing',
-    live: false,
-    note: 'no route in repo yet',
+    live: true,
+    note: 'Stream H1 — app/(marketing)/pricing/page.tsx',
   },
   '/testimonials': {
     path: '/testimonials',
     label: 'Testimonials',
-    live: false,
-    note: 'no route in repo yet',
+    live: true,
+    note: 'Stream H1 — app/(marketing)/testimonials/page.tsx',
   },
   '/faqs': {
     path: '/faqs',
@@ -93,8 +93,8 @@ export const LINKS: Record<string, LinkTarget> = {
   '/about-us': {
     path: '/about-us',
     label: 'About Us',
-    live: false,
-    note: 'no route in repo yet',
+    live: true,
+    note: 'Stream H1 — app/(marketing)/about-us/page.tsx',
   },
   '/blog': {
     path: '/blog',
@@ -111,8 +111,8 @@ export const LINKS: Record<string, LinkTarget> = {
   '/legalnoticedisclaimer': {
     path: '/legalnoticedisclaimer',
     label: 'Legal Notice',
-    live: false,
-    note: 'no route in repo yet',
+    live: true,
+    note: 'Stream H1 — app/(marketing)/legalnoticedisclaimer/page.tsx',
   },
   '/data-request': {
     path: '/data-request',
@@ -123,8 +123,8 @@ export const LINKS: Record<string, LinkTarget> = {
   '/privacy-policy': {
     path: '/privacy-policy',
     label: 'Privacy Policy',
-    live: false,
-    note: 'build rule 9: privacy links → /legalnoticedisclaimer until this exists',
+    live: true,
+    note: 'Stream H1 — app/(marketing)/privacy-policy/page.tsx',
   },
   // --- guides, downloads, articles (Stream C) ----------------------------
   '/post/how-to-get-a-german-pension-refund': {
