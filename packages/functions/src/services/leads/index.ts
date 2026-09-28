@@ -35,6 +35,7 @@ export interface CreateLeadInput {
   lastContributionMonth?: string | null; // YYYY-MM
   verdict?: string | null;
   verdictTitle?: string | null;
+  message?: string | null;
   citizenship?: string | null;
   residence?: string | null;
   canApplyFrom?: string | null;
@@ -123,6 +124,7 @@ export async function createLead(
       : null,
     verdict: blank(input.verdict),
     verdictTitle: blank(input.verdictTitle),
+    message: blank(input.message),
     citizenship: blank(input.citizenship),
     residence: blank(input.residence),
     canApplyFrom: blank(input.canApplyFrom),
@@ -234,6 +236,7 @@ async function sendClaimLeadTeamNotice(lead: Lead): Promise<boolean> {
     email: lead.email,
     verdict: lead.verdict ?? '',
     verdictTitle: lead.verdictTitle ?? '',
+    message: lead.message ?? '',
     citizenship: lead.citizenship ?? '',
     residence: lead.residence ?? '',
     canApplyFrom: lead.canApplyFrom,

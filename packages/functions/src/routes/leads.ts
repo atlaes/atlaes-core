@@ -43,6 +43,7 @@ export const leadPayloadSchema = z.object({
   // Refund-widget context
   verdict: str(20),
   verdictTitle: str(255),
+  message: str(5000),
   citizenship: str(255),
   residence: str(255),
   canApplyFrom: str(50),
@@ -168,6 +169,7 @@ router.post('/', async (c) => {
         lastContributionMonth,
         verdict: p.verdict,
         verdictTitle: p.verdictTitle,
+        message: p.message,
         citizenship: p.citizenship,
         residence: p.residence,
         canApplyFrom: p.canApplyFrom,

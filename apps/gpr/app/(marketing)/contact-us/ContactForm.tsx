@@ -2,9 +2,8 @@
 
 /**
  * Contact form → `POST /api/leads` (`type: 'claim-lead'`,
- * `placement: 'contact'`). The lead endpoint has no free-text field, so
- * the message travels in `verdictTitle` (255 chars, stored and shown to
- * ops as the lead's context line); the first-touch attribution record is
+ * `placement: 'contact'`). The message travels in the lead's `message`
+ * field (stored and shown to ops); the first-touch attribution record is
  * attached like the other lead forms.
  */
 import { useId, useState, type FormEvent } from 'react';
@@ -13,7 +12,7 @@ import { CONTACT_FORM } from '@/content/pages/contact-us';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 export const LEADS_URL = API_BASE_URL + '/api/leads';
-export const MESSAGE_MAX = 255;
+export const MESSAGE_MAX = 5000;
 
 type Status = 'idle' | 'sending' | 'sent' | 'error' | 'invalid';
 
@@ -34,7 +33,7 @@ export function contactPayload(input: {
     firstName: input.firstName.trim(),
     lastName: input.lastName.trim(),
     email: input.email.trim(),
-    verdictTitle: input.message.trim().slice(0, MESSAGE_MAX),
+    message: input.message.trim().slice(0, MESSAGE_MAX),
     pageReferrer: input.pageReferrer,
     landingPage: a.landingPage,
     referrer: a.referrer,

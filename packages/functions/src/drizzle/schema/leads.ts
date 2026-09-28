@@ -6,6 +6,7 @@ import {
   timestamp,
   uuid,
   varchar,
+  text,
 } from 'drizzle-orm/pg-core';
 import { gpr } from './gpr';
 
@@ -43,6 +44,8 @@ export const leads = gpr.table(
     // Refund-widget context (claim-lead only)
     verdict: varchar('verdict', { length: 20 }), // 'ok' | 'warn' | 'no'
     verdictTitle: varchar('verdict_title', { length: 255 }),
+    // Free-text message (contact form).
+    message: text('message'),
     citizenship: varchar('citizenship', { length: 255 }),
     residence: varchar('residence', { length: 255 }),
     canApplyFrom: varchar('can_apply_from', { length: 50 }),

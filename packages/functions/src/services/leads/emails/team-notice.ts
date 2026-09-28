@@ -63,6 +63,7 @@ export interface ClaimLeadTeamNoticeInput {
   email: string;
   verdict: string;
   verdictTitle: string;
+  message?: string;
   citizenship: string;
   residence: string;
   canApplyFrom: string | null;
@@ -102,6 +103,7 @@ export function renderClaimLeadTeamNotice(input: ClaimLeadTeamNoticeInput): {
     input.verdict +
     ' — ' +
     input.verdictTitle +
+    (input.message ? '\n\nNachricht:\n' + input.message : '') +
     '\n' +
     'Citizenship:   ' +
     input.citizenship +
