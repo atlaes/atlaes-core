@@ -5,6 +5,7 @@ import type {
   CountryPageData,
   CountrySection,
   CountrySectionKind,
+  FaqItem,
   JumpAnchor,
 } from '@/content/types';
 import { Blocks } from '../ui/Blocks';
@@ -43,6 +44,10 @@ const RAIL_LABELS: Record<CountrySectionKind, string> = {
   certification: 'Signatures',
   'dual-citizenship': 'Dual citizenship',
   family: 'Family',
+  cost: 'Fees',
+  timing: 'How long',
+  faq: 'FAQ',
+  reviews: 'Reviews',
   other: 'More',
 };
 
@@ -88,11 +93,21 @@ function CtaRow() {
 function CountrySectionView({
   section,
   index,
+  faq,
 }: {
   section: CountrySection;
   index: number;
+  faq: FaqItem[];
 }) {
   const label = RAIL_LABELS[section.kind];
+  if (section.kind === 'faq') {
+    // August pages: the FAQ H2 sits where the handoff put it.
+    return (
+      <Section id={section.id} index={index} label={label} title={section.h2}>
+        <FaqList items={faq} />
+      </Section>
+    );
+  }
   if (section.kind === 'intake') {
     // "What you need to start" renders as a callout (new-platform intake copy).
     return (
@@ -133,9 +148,17 @@ export function CountryPage({ page }: { page: CountryPageData }) {
     page.trust.indexOf('{{') === 0
       ? t(page.trust.replace(/[{}]/g, '').trim())
       : page.trust;
-  const closeBody = page.close.slice(0, -1);
-  const disclaimer = page.close[page.close.length - 1];
+  const hasDisclaimer = page.closeDisclaimer !== false;
+  const closeBody = hasDisclaimer ? page.close.slice(0, -1) : page.close;
+  const disclaimer = hasDisclaimer
+    ? page.close[page.close.length - 1]
+    : undefined;
+  // August pages carry their own CTA component in the closing section.
+  const closeHasCta = closeBody.some((b) => b.t === 'cta');
+  const faqInPlace = page.sections.some((s) => s.kind === 'faq');
+  const showTrailingFaq = !faqInPlace && page.faq.length > 0;
   const faqIndex = page.sections.length + 1;
+  const closeIndex = showTrailingFaq ? faqIndex + 1 : faqIndex;
 
   return (
     <article className="mk-country">
@@ -162,27 +185,34 @@ export function CountryPage({ page }: { page: CountryPageData }) {
       </header>
 
       {page.sections.map((s, i) => (
-        <CountrySectionView key={s.id} section={s} index={i + 1} />
+        <CountrySectionView
+          key={s.id}
+          section={s}
+          index={i + 1}
+          faq={page.faq}
+        />
       ))}
 
-      <Section
-        id="faq"
-        index={faqIndex}
-        label="FAQ"
-        title="Frequently asked questions"
-      >
-        <FaqList items={page.faq} />
-      </Section>
+      {showTrailingFaq ? (
+        <Section
+          id="faq"
+          index={faqIndex}
+          label="FAQ"
+          title="Frequently asked questions"
+        >
+          <FaqList items={page.faq} />
+        </Section>
+      ) : null}
 
       <Section
         id="ready-to-claim"
-        index={faqIndex + 1}
+        index={closeIndex}
         label="Ready to claim"
-        title="Ready to claim?"
+        title={page.closeTitle || 'Ready to claim?'}
         tone="tint"
       >
         <Blocks blocks={closeBody} />
-        <CtaRow />
+        {closeHasCta ? null : <CtaRow />}
         {disclaimer && disclaimer.t === 'p' ? (
           <Blocks blocks={[{ t: 'note', x: disclaimer.x }]} />
         ) : null}

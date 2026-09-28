@@ -30,7 +30,11 @@ export type Block =
   | { t: 'note'; x: string }
   | { t: 'ul'; items: RichText[] }
   | { t: 'ol'; items: RichText[] }
-  | { t: 'table'; rows: string[][] };
+  | { t: 'table'; rows: string[][] }
+  /** Pill CTA row (handoff "CTA" / "links" components); first item primary. */
+  | { t: 'cta'; items: Array<{ label: string; href: string }> }
+  /** Review wall — the homepage reviews snapshot (`components/marketing/home/Reviews`). */
+  | { t: 'reviews' };
 
 export interface FaqItem {
   q: string;
@@ -56,7 +60,9 @@ export type CountryArchetype =
   /** Residence page: citizenship table instead of "Do I qualify". */
   | 'residence'
   /** Indonesia: citizenship and residence audiences on one page. */
-  | 'hybrid';
+  | 'hybrid'
+  /** August 2026 handoffs (USA, India, Canada, …): sections in handoff order. */
+  | 'august';
 
 export type CountrySectionKind =
   | 'qualify'
@@ -75,6 +81,14 @@ export type CountrySectionKind =
   | 'certification'
   | 'dual-citizenship'
   | 'family'
+  /** August pages: fee section. */
+  | 'cost'
+  /** August pages: processing-time section. */
+  | 'timing'
+  /** August pages: the on-page FAQ H2, rendered in place from `faq`. */
+  | 'faq'
+  /** August pages: reviews / client-story sections. */
+  | 'reviews'
   | 'other';
 
 export interface CountrySection {
@@ -102,9 +116,19 @@ export interface CountryPageData {
   /** Five hero bullets without the leading check mark. */
   bullets: string[];
   sections: CountrySection[];
+  /** Visible FAQ. Empty on August pages without an on-page FAQ section. */
   faq: FaqItem[];
+  /**
+   * FAQPage schema items when they differ from the visible FAQ (August
+   * handoffs word Appendix B separately). Falls back to `faq`.
+   */
+  schemaFaq?: FaqItem[];
   /** "Ready to claim?" paragraphs; the last one is the ID-02 disclaimer. */
   close: Block[];
+  /** Closing H2 when the handoff has its own ("Ready to claim?" otherwise). */
+  closeTitle?: string;
+  /** false = the last close block is ordinary copy, not the ID-02 note. */
+  closeDisclaimer?: boolean;
   /** Jump-menu anchor → section id. Missing anchors are skipped. */
   anchors: Partial<Record<JumpAnchor, string>>;
   schema: {

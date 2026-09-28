@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { countryPageList } from '../content/countries';
+import { GENERATED_COUNTRY_SLUGS } from '../content/registries/countries';
 import { resolveTokens, t } from '../content/tokens';
 import {
   asciiEscapedLength,
@@ -17,9 +18,24 @@ const LIMIT = 7000;
 const Q = '[' + 'Q]';
 
 describe('country page JSON-LD', () => {
-  it('renders all fifteen countries', () => {
-    expect(countryPageList.length).toBe(15);
+  it('renders every generated country in the registry', () => {
+    expect(countryPageList.length).toBeGreaterThanOrEqual(15);
+    expect(countryPageList.map((p) => p.slug).sort()).toEqual(
+      GENERATED_COUNTRY_SLUGS.slice().sort()
+    );
   });
+
+  /** Register means a country schema may cite (M-04 or a cohort row). */
+  const MEANS = [
+    'M-04',
+    'M-05',
+    'M-06',
+    'M-07',
+    'M-09',
+    'M-10',
+    'M-11',
+    'M-21',
+  ];
 
   countryPageList.forEach((page) => {
     it(`${page.slug}: Service + FAQPage under ${LIMIT} chars in every count`, () => {
@@ -34,7 +50,16 @@ describe('country page JSON-LD', () => {
       expect(byteLength(s)).toBeLessThan(LIMIT);
       expect(s.indexOf(Q)).toBe(-1);
       expect(s.indexOf('{{')).toBe(-1);
-      expect(s.indexOf(t('M-04.mean'))).not.toBe(-1);
+      if (page.archetype === 'august') {
+        // August handoffs cite a cohort mean, or M-04 (exact or rounded)
+        const cited = MEANS.map((id) => t(id + '.mean')).concat([
+          t('M-04.meanShort'),
+          t('M-04.meanRounded'),
+        ]);
+        expect(cited.some((v) => s.indexOf(v) !== -1)).toBe(true);
+      } else {
+        expect(s.indexOf(t('M-04.mean'))).not.toBe(-1);
+      }
       const svc = g['@graph'][0] as {
         provider: { '@id': string };
         url: string;
@@ -58,6 +83,16 @@ describe('country page JSON-LD', () => {
       expect(faq.mainEntity.length).toBe(
         p.faq.filter((f) => f.inSchema !== false).length
       );
+    });
+  });
+
+  it('August pages take the FAQPage from Appendix B (schemaFaq)', () => {
+    const august = countryPageList.filter((p) => p.archetype === 'august');
+    expect(august.length).toBeGreaterThan(0);
+    august.forEach((p) => {
+      expect(p.schemaFaq && p.schemaFaq.length).toBeGreaterThan(0);
+      const faq = countryPageGraph(p)['@graph'][1] as { mainEntity: unknown[] };
+      expect(faq.mainEntity.length).toBe((p.schemaFaq || []).length);
     });
   });
 });

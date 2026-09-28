@@ -17,7 +17,8 @@ interface Segment {
 function segment(text: string, spans: Span[] | undefined): Segment[] {
   const placed: Segment[] = [];
   (spans || []).forEach((sp) => {
-    const needle = sp.x;
+    // span text may carry token references too (a link around a figure)
+    const needle = sp.x.indexOf('{{') === -1 ? sp.x : resolveTokens(sp.x);
     if (!needle) return;
     let from = 0;
     let idx = text.indexOf(needle, from);

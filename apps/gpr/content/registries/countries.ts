@@ -5,10 +5,10 @@
  * the moment `live` flips to true).
  *
  * `live` is true only when the page's route exists in this repo. The
- * fifteen September 2026 pages render from `content/countries/<slug>.ts`;
- * the earlier set (USA, India, …), /former-yugoslavia and /other-countries
- * still live on the Wix site and ship dark here until their pages are
- * built.
+ * fifteen September 2026 pages and the seventeen August 2026 pages (USA,
+ * India, …; archetype `august`) render from `content/countries/<slug>.ts`;
+ * /former-yugoslavia and /other-countries still live on the Wix site and
+ * ship dark here until their pages are built.
  */
 import type { CountryArchetype } from '../types';
 
@@ -24,7 +24,7 @@ export interface CountryEntry {
   live: boolean;
   /** Member of the header "Rules by Country" dropdown. */
   inDropdown: boolean;
-  /** Archetype for the pages generated from the September 2026 handoffs. */
+  /** Archetype of the generated page (September 2026 set, or `august`). */
   archetype?: CountryArchetype;
   /**
    * Footer entries that point at a combined page (the four ex-Yugoslav
@@ -37,22 +37,24 @@ export interface CountryEntry {
 }
 
 export const COUNTRIES: CountryEntry[] = [
-  // --- earlier set (Wix live pages; ship dark until built here) ---------
+  // --- August 2026 set (rendered by app/(marketing)/[country]) -----------
   {
     slug: 'albania',
     name: 'Albania',
     demonym: 'Albanian',
     flag: '🇦🇱',
-    live: false,
+    live: true,
     inDropdown: false,
+    archetype: 'august',
   },
   {
     slug: 'australia',
     name: 'Australia',
     demonym: 'Australian',
     flag: '🇦🇺',
-    live: false,
+    live: true,
     inDropdown: true,
+    archetype: 'august',
   },
   {
     slug: 'bosnia-herzegovina',
@@ -69,48 +71,54 @@ export const COUNTRIES: CountryEntry[] = [
     name: 'Brazil',
     demonym: 'Brazilian',
     flag: '🇧🇷',
-    live: false,
+    live: true,
     inDropdown: false,
+    archetype: 'august',
   },
   {
     slug: 'canada',
     name: 'Canada',
     demonym: 'Canadian',
     flag: '🇨🇦',
-    live: false,
+    live: true,
     inDropdown: true,
+    archetype: 'august',
   },
   {
     slug: 'chile',
     name: 'Chile',
     demonym: 'Chilean',
     flag: '🇨🇱',
-    live: false,
+    live: true,
     inDropdown: false,
+    archetype: 'august',
   },
   {
     slug: 'india',
     name: 'India',
     demonym: 'Indian',
     flag: '🇮🇳',
-    live: false,
+    live: true,
     inDropdown: true,
+    archetype: 'august',
   },
   {
     slug: 'israel',
     name: 'Israel',
     demonym: 'Israeli',
     flag: '🇮🇱',
-    live: false,
+    live: true,
     inDropdown: false,
+    archetype: 'august',
   },
   {
     slug: 'japan',
     name: 'Japan',
     demonym: 'Japanese',
     flag: '🇯🇵',
-    live: false,
+    live: true,
     inDropdown: false,
+    archetype: 'august',
   },
   {
     slug: 'kosovo',
@@ -127,8 +135,9 @@ export const COUNTRIES: CountryEntry[] = [
     name: 'Moldova',
     demonym: 'Moldovan',
     flag: '🇲🇩',
-    live: false,
+    live: true,
     inDropdown: false,
+    archetype: 'august',
   },
   {
     slug: 'montenegro',
@@ -145,24 +154,27 @@ export const COUNTRIES: CountryEntry[] = [
     name: 'Morocco',
     demonym: 'Moroccan',
     flag: '🇲🇦',
-    live: false,
+    live: true,
     inDropdown: false,
+    archetype: 'august',
   },
   {
     slug: 'north-macedonia',
     name: 'North Macedonia',
     demonym: 'North Macedonian',
     flag: '🇲🇰',
-    live: false,
+    live: true,
     inDropdown: false,
+    archetype: 'august',
   },
   {
     slug: 'thephilippines',
     name: 'The Philippines',
     demonym: 'Filipino',
     flag: '🇵🇭',
-    live: false,
+    live: true,
     inDropdown: true,
+    archetype: 'august',
   },
   {
     slug: 'serbia',
@@ -179,40 +191,45 @@ export const COUNTRIES: CountryEntry[] = [
     name: 'South Korea',
     demonym: 'South Korean',
     flag: '🇰🇷',
-    live: false,
+    live: true,
     inDropdown: false,
+    archetype: 'august',
   },
   {
     slug: 'tunisia',
     name: 'Tunisia',
     demonym: 'Tunisian',
     flag: '🇹🇳',
-    live: false,
+    live: true,
     inDropdown: false,
+    archetype: 'august',
   },
   {
     slug: 'turkey',
     name: 'Türkiye',
     demonym: 'Turkish',
     flag: '🇹🇷',
-    live: false,
+    live: true,
     inDropdown: false,
+    archetype: 'august',
   },
   {
     slug: 'uruguay',
     name: 'Uruguay',
     demonym: 'Uruguayan',
     flag: '🇺🇾',
-    live: false,
+    live: true,
     inDropdown: false,
+    archetype: 'august',
   },
   {
     slug: 'usa',
     name: 'USA',
     demonym: 'US',
     flag: '🇺🇸',
-    live: false,
+    live: true,
     inDropdown: true,
+    archetype: 'august',
   },
   // --- September 2026 set (rendered by app/(marketing)/[country]) --------
   {
@@ -356,7 +373,7 @@ export const COUNTRIES: CountryEntry[] = [
     name: 'Former Yugoslavia',
     demonym: 'ex-Yugoslav',
     flag: '',
-    live: false,
+    live: true,
     inDropdown: false,
   },
   {
@@ -364,7 +381,7 @@ export const COUNTRIES: CountryEntry[] = [
     name: 'All other countries',
     demonym: '',
     flag: '',
-    live: false,
+    live: true,
     inDropdown: true,
   },
 ];

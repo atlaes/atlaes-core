@@ -166,7 +166,7 @@ export function countryPageGraph(page: CountryPageData): JsonLdGraph {
       audience: { '@type': 'Audience', audienceType: page.schema.audienceType },
       provider: organizationStub(),
     },
-    faqPageNode(url + '#faq', page.faq),
+    faqPageNode(url + '#faq', page.schemaFaq || page.faq),
   ]);
 }
 
