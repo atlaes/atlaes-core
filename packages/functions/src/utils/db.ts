@@ -16,9 +16,19 @@ const connectionString = env.DATABASE_URL;
 const jsonPassthrough = (value: unknown) =>
   typeof value === 'string' ? value : JSON.stringify(value);
 
+// postgres.js only honours custom (de)serialisers declared through `types`;
+// a bare `serializers` option is ignored, which is why the double encoding
+// survived the first attempt at this fix.
+const jsonType = (oid: number) => ({
+  to: oid,
+  from: [oid],
+  serialize: jsonPassthrough,
+  parse: (text: string) => JSON.parse(text),
+});
+
 const client = postgres(connectionString, {
   max: 10,
-  serializers: { 114: jsonPassthrough, 3802: jsonPassthrough },
+  types: { json: jsonType(114), jsonb: jsonType(3802) },
 });
 
 // Create the database instance
