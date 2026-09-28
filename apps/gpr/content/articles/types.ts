@@ -22,7 +22,9 @@ export type ToolKind =
   | 'waiting'
   | 'office-finder'
   | 'assessment'
-  | 'processing-chart';
+  | 'processing-chart'
+  /** German capture box (V0900 guide PDF + Wartefrist reminder opt-in). */
+  | 'capture-v0900';
 
 export type ArticleBlock =
   | ({ t: 'p' } & Rich)

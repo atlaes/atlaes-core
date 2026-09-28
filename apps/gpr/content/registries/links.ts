@@ -87,8 +87,8 @@ export const LINKS: Record<string, LinkTarget> = {
   '/faqs': {
     path: '/faqs',
     label: 'FAQ',
-    live: false,
-    note: 'no route in repo yet',
+    live: true,
+    note: 'app/(marketing)/faqs/page.tsx',
   },
   '/about-us': {
     path: '/about-us',
@@ -99,14 +99,14 @@ export const LINKS: Record<string, LinkTarget> = {
   '/blog': {
     path: '/blog',
     label: 'News',
-    live: false,
-    note: 'no route in repo yet',
+    live: true,
+    note: 'app/(marketing)/blog/page.tsx',
   },
   '/contact-us': {
     path: '/contact-us',
     label: 'Contact Us',
-    live: false,
-    note: 'no route in repo yet',
+    live: true,
+    note: 'app/(marketing)/contact-us/page.tsx',
   },
   '/legalnoticedisclaimer': {
     path: '/legalnoticedisclaimer',
@@ -117,8 +117,8 @@ export const LINKS: Record<string, LinkTarget> = {
   '/data-request': {
     path: '/data-request',
     label: 'Data Access & Deletion Request (GDPR)',
-    live: false,
-    note: 'no route in repo yet',
+    live: true,
+    note: 'app/(marketing)/data-request/page.tsx',
   },
   '/privacy-policy': {
     path: '/privacy-policy',
@@ -208,20 +208,20 @@ export const LINKS: Record<string, LinkTarget> = {
   '/rentenbeitragserstattung': {
     path: '/rentenbeitragserstattung',
     label: 'Rentenbeitragserstattung — German hub',
-    live: false,
-    note: 'DE hub is live on Wix; no route in repo yet',
+    live: true,
+    note: 'app/(marketing)/rentenbeitragserstattung/page.tsx (Stream H4)',
   },
   '/phoebe': {
     path: '/phoebe',
     label: 'Phoebe',
-    live: false,
-    note: 'EN_ONLY partner landing; no route yet',
+    live: true,
+    note: 'EN_ONLY partner landing: app/(marketing)/phoebe/page.tsx (noindex,follow)',
   },
   '/refundsib': {
     path: '/refundsib',
     label: 'Settle in Berlin',
-    live: false,
-    note: 'EN_ONLY partner landing; no route yet',
+    live: true,
+    note: 'EN_ONLY partner landing: app/(marketing)/refundsib/page.tsx (noindex,follow)',
   },
 };
 

@@ -312,6 +312,10 @@ const page: ArticleData = {
       ],
     },
     {
+      t: 'tool',
+      kind: 'office-finder',
+    },
+    {
       t: 'src',
       x: 'Official basis: §§ 126–128a SGB VI · § 127 SGB VI · §§ 129, 130, 136 SGB VI · DRV guidance (GRA) on § 126 · DRV guidance (GRA) on § 128 · DRV liaison-office overview · DRV carrier addresses',
       sp: [

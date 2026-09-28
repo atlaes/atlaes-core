@@ -14,6 +14,9 @@ import { Inline } from '../ui/Inline';
 import { Pill } from '../ui/Pill';
 import { ProcessingTimeChart } from './ProcessingTimeChart';
 import { resolveHref } from './hrefs';
+import { CaptureBox } from '../widgets/CaptureBox';
+import { OfficeFinder } from '../widgets/OfficeFinder';
+import { WaitingPeriodCalculator } from '../widgets/WaitingPeriodCalculator';
 
 /** Spans with tokens resolved and registry hrefs expanded. */
 function spans(sp: Span[]): Span[] {
@@ -28,9 +31,16 @@ function Text({ r, className }: { r: Rich; className?: string }) {
   return <Inline x={r.x} sp={spans(r.sp)} linkClassName={className} />;
 }
 
-/** Tool placeholders from the copy: the platform tools ship as CTAs here. */
+/** Pages that embed the native widget at their placeholder (Stream H4). */
+const WAITING_POST = '/post/german-pension-refund-waiting-period';
+const OFFICE_POST = '/post/which-german-pension-office-handles-your-claim';
+
+/**
+ * Tool placeholders from the copy: the widget pages mount the native
+ * components; everywhere else the platform tools ship as CTAs.
+ */
 const TOOL_CTA: Record<
-  Exclude<ToolKind, 'processing-chart'>,
+  Exclude<ToolKind, 'processing-chart' | 'capture-v0900'>,
   { label: string; href: string }
 > = {
   checker: {
@@ -49,8 +59,27 @@ const TOOL_CTA: Record<
   },
 };
 
-function Tool({ kind, path }: { kind: ToolKind; path: string }) {
+function Tool({
+  kind,
+  path,
+  lang,
+}: {
+  kind: ToolKind;
+  path: string;
+  lang: 'en' | 'de';
+}) {
   if (kind === 'processing-chart') return <ProcessingTimeChart />;
+  if (kind === 'capture-v0900') {
+    return <CaptureBox type="v0900-guide" placement="v0900" as="h3" />;
+  }
+  if (kind === 'waiting' && path === WAITING_POST) {
+    return (
+      <WaitingPeriodCalculator lang={lang} via="waiting-period-guide" as="h3" />
+    );
+  }
+  if (kind === 'office-finder' && path === OFFICE_POST) {
+    return <OfficeFinder as="h3" />;
+  }
   const cta = TOOL_CTA[kind];
   if (cta.href === path) return null;
   return (
@@ -183,7 +212,7 @@ export function ArticleBlocks({
               </p>
             );
           case 'tool':
-            return <Tool key={i} kind={b.kind} path={path} />;
+            return <Tool key={i} kind={b.kind} path={path} lang={lang} />;
           case 'downloads':
             return <Downloads key={i} forms={b.forms} lang={lang} />;
           case 'faq':

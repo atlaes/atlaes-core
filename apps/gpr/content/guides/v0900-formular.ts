@@ -426,6 +426,10 @@ const page: ArticleData = {
       ],
     },
     {
+      t: 'tool',
+      kind: 'capture-v0900',
+    },
+    {
       t: 'faq',
     },
     {
