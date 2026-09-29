@@ -1,4 +1,5 @@
 import apiClient from './api';
+import { getAttribution } from './attribution';
 
 // Types matching backend schema
 export type ClaimType = 'own_refund' | 'surviving_spouse';
@@ -31,7 +32,13 @@ export interface BankDetails {
   bankCountry?: string;
 }
 
-export type ClaimStatus = 'draft' | 'ready' | 'submitted' | 'processing' | 'completed' | 'rejected';
+export type ClaimStatus =
+  | 'draft'
+  | 'ready'
+  | 'submitted'
+  | 'processing'
+  | 'completed'
+  | 'rejected';
 
 export type ClaimWorkflowState =
   | 'personal_info'
@@ -57,7 +64,12 @@ export type ClaimStepName =
   | 'reviewInformation'
   | 'finalConfirmation';
 
-export type ClaimDocumentRole = 'passport' | 'payslip' | 'abmeldung' | 'bank_statement' | 'certified_id_form';
+export type ClaimDocumentRole =
+  | 'passport'
+  | 'payslip'
+  | 'abmeldung'
+  | 'bank_statement'
+  | 'certified_id_form';
 
 export type CertifyingAuthority =
   | 'notary_public'
@@ -303,7 +315,9 @@ function transformDocumentResponse(doc: ClaimDocument): ClaimDocument {
 }
 
 // Flatten nested update request for API
-function flattenUpdateRequest(data: UpdateClaimRequest): UpdateClaimRequestFlat {
+function flattenUpdateRequest(
+  data: UpdateClaimRequest
+): UpdateClaimRequestFlat {
   const flat: UpdateClaimRequestFlat = { ...data };
 
   // Flatten currentAddress
@@ -362,7 +376,10 @@ function flattenUpdateRequest(data: UpdateClaimRequest): UpdateClaimRequestFlat 
 export const claimsApi = {
   // Create a new claim
   async createClaim(data?: CreateClaimRequest): Promise<Claim> {
-    const response = await apiClient.post('/claims', data || {});
+    const response = await apiClient.post('/claims', {
+      ...(data || {}),
+      attribution: getAttribution(),
+    });
     return transformClaimResponse(response.data.claim);
   },
 
@@ -396,9 +413,12 @@ export const claimsApi = {
     stepName: ClaimStepName,
     completed: boolean
   ): Promise<Claim> {
-    const response = await apiClient.put(`/claims/${claimId}/steps/${stepName}`, {
-      completed,
-    });
+    const response = await apiClient.put(
+      `/claims/${claimId}/steps/${stepName}`,
+      {
+        completed,
+      }
+    );
     return transformClaimResponse(response.data.claim);
   },
 
@@ -430,13 +450,18 @@ export const claimsApi = {
     const ocrData = uploadResponse.data.ocr; // OCR data from passport parsing
 
     // Step 2: Attach the document to the claim
-    const attachResponse = await apiClient.post(`/claims/${claimId}/documents`, {
-      documentId,
-      documentRole: role,
-    });
+    const attachResponse = await apiClient.post(
+      `/claims/${claimId}/documents`,
+      {
+        documentId,
+        documentRole: role,
+      }
+    );
 
     return {
-      claimDocument: transformDocumentResponse(attachResponse.data.claimDocument),
+      claimDocument: transformDocumentResponse(
+        attachResponse.data.claimDocument
+      ),
       ocr: ocrData || null,
     };
   },
@@ -453,7 +478,10 @@ export const claimsApi = {
   },
 
   // Attach signature
-  async attachSignature(claimId: string, signatureData: string): Promise<Claim> {
+  async attachSignature(
+    claimId: string,
+    signatureData: string
+  ): Promise<Claim> {
     const response = await apiClient.post(`/claims/${claimId}/signature`, {
       signatureData,
     });
@@ -462,7 +490,9 @@ export const claimsApi = {
 
   // Record identity form download
   async recordIdentityFormDownload(claimId: string): Promise<Claim> {
-    const response = await apiClient.post(`/claims/${claimId}/identity-form-downloaded`);
+    const response = await apiClient.post(
+      `/claims/${claimId}/identity-form-downloaded`
+    );
     return transformClaimResponse(response.data.claim);
   },
 

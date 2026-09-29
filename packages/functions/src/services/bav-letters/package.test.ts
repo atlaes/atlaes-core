@@ -145,6 +145,36 @@ describe('assembleBavPackage', () => {
     }
   });
 
+  it('merges ops extras after the standard enclosures, in the given order', async () => {
+    const statement = await pdfWithPages(1);
+    const result = await assembleBavPackage({
+      templateId: 'B-DIRECT',
+      letterText: 'Brief',
+      powerOfAttorneyText: 'PEV',
+      files: {
+        pension_statement: { bytes: statement, fileType: 'application/pdf' },
+        passport: { bytes: TINY_PNG, fileType: 'image/png' },
+        bank_proof: { bytes: TINY_PNG, fileType: 'image/png' },
+      },
+      extras: [
+        { bytes: await pdfWithPages(3), fileType: 'application/pdf' },
+        { bytes: TINY_PNG, fileType: 'image/png' },
+      ],
+    });
+    expect(result.enclosures).toEqual([
+      'pension_statement',
+      'pev',
+      'passport',
+      'bank_proof',
+      'bav_extra',
+      'bav_extra',
+    ]);
+    const doc = await PDFDocument.load(result.bytes);
+    // letter (1) + statement (1) + PEV (1) + passport (1) + bank (1)
+    // + extras (3 + 1)
+    expect(doc.getPageCount()).toBe(result.letterPageCount + 1 + 1 + 1 + 1 + 4);
+  });
+
   it('rejects an unsupported enclosure file type', async () => {
     await expect(
       assembleBavPackage({

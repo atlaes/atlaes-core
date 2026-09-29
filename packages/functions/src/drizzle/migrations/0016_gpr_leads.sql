@@ -1,0 +1,47 @@
+-- Lead capture (V0900 / Wegzug guide requests, refund-widget leads) and the
+-- month-23 waiting-period reminder; replaces the Apps Script sheet tabs.
+CREATE TABLE IF NOT EXISTS "gpr"."leads" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"type" varchar(30) NOT NULL,
+	"placement" varchar(100),
+	"email" varchar(255) NOT NULL,
+	"first_name" varchar(100),
+	"last_name" varchar(100),
+	"reminder_opt_in" boolean DEFAULT false NOT NULL,
+	"last_contribution_month" varchar(7),
+	"reminder_due_on" date,
+	"reminder_sent_at" timestamp with time zone,
+	"verdict" varchar(20),
+	"verdict_title" varchar(255),
+	"citizenship" varchar(255),
+	"residence" varchar(255),
+	"can_apply_from" varchar(50),
+	"estimate_eur" integer,
+	"income_entered" varchar(50),
+	"widget" varchar(100),
+	"via" varchar(100),
+	"referrer" varchar(2000),
+	"landing_page" varchar(2000),
+	"utm_source" varchar(255),
+	"utm_medium" varchar(255),
+	"utm_campaign" varchar(255),
+	"utm_term" varchar(255),
+	"utm_content" varchar(255),
+	"gclid" varchar(255),
+	"fbclid" varchar(255),
+	"consent_privacy" boolean DEFAULT false NOT NULL,
+	"consent_marketing" boolean DEFAULT false NOT NULL,
+	"delivery_email_sent_at" timestamp with time zone,
+	"team_notice_sent_at" timestamp with time zone,
+	"replied_at" timestamp with time zone,
+	"status" varchar(50),
+	"source" varchar(30) DEFAULT 'api' NOT NULL,
+	"submitted_at" timestamp with time zone,
+	"ip_address" varchar(45),
+	"user_agent" varchar(500),
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "leads_email_idx" ON "gpr"."leads" ("email");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "leads_reminder_due_idx" ON "gpr"."leads" ("reminder_opt_in","reminder_sent_at","reminder_due_on");

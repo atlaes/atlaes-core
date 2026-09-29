@@ -33,7 +33,14 @@ export type EnclosureKind =
   | 'employer_consent'
   | 'employment_end_proof'
   | 'foreign_health_insurance'
-  | 'bank_proof';
+  | 'bank_proof'
+  | 'bav_extra'; // ops-attached extra document, after the standard enclosures
+
+/** Enclosures that map 1:1 to a claim document role. */
+export type StandardEnclosureKind = Exclude<
+  EnclosureKind,
+  'voll' | 'pev' | 'bav_extra'
+>;
 
 /** Enclosure order per letter template, mirroring each template's Anlagen list. */
 export const PACKAGE_ORDER: Record<
@@ -116,7 +123,12 @@ export interface BavPackageInput {
   /** LAW letters only. */
   letterheadPdf?: Uint8Array;
   /** Uploaded documents by enclosure kind (passport + claim document roles). */
-  files: Partial<Record<Exclude<EnclosureKind, 'voll' | 'pev'>, EnclosureFile>>;
+  files: Partial<Record<StandardEnclosureKind, EnclosureFile>>;
+  /**
+   * Extra documents ops attached (role 'bav_extra'), merged after the
+   * standard enclosures in the given (upload) order.
+   */
+  extras?: EnclosureFile[];
 }
 
 export interface BavPackageResult {
@@ -187,8 +199,14 @@ export async function assembleBavPackage(
       });
       continue;
     }
-    const file = input.files[kind]!;
+    const file = input.files[kind as StandardEnclosureKind]!;
     await appendEnclosure(doc, kind, file);
+  }
+
+  // 3. Ops-attached extras, after everything the letter lists.
+  for (const extra of input.extras ?? []) {
+    await appendEnclosure(doc, 'bav_extra', extra);
+    enclosures.push('bav_extra');
   }
 
   return { bytes: await doc.save(), letterPageCount, enclosures };

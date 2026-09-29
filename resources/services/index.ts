@@ -1,4 +1,4 @@
-import { cluster } from '../network';
+import { cluster, vpc } from '../network';
 import { postgres } from '../database';
 import { bucket } from '../storage';
 import { email } from '../email';
@@ -49,6 +49,7 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
         : 'https://staging.admin.atlaes.de',
     // Ops mailbox for law-firm portal activity (uploads, case events).
     // Unset = notices are logged only.
+    GPR_FRONTEND_URL: process.env.GPR_FRONTEND_URL ?? '',
     OPS_NOTIFICATION_EMAIL: process.env.OPS_NOTIFICATION_EMAIL ?? '',
     JWT_SECRET: 'a-proper-32-char-minimum-secret-for-staging-env',
     NODE_ENV: 'production',
@@ -72,6 +73,11 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
     LETTERSHOP_API_KEY: lettershopApiKey.value,
     LETTERSHOP_API_SECRET: lettershopApiSecret.value,
     LETTERSHOP_MODE: 'test',
+    // Lead capture (POST /api/leads): guide PDFs as S3 keys or https URLs,
+    // team notice mailbox. Unset = page link / log only.
+    LEADS_V0900_GUIDE_URL: process.env.LEADS_V0900_GUIDE_URL ?? '',
+    LEADS_WEGZUG_GUIDE_URL: process.env.LEADS_WEGZUG_GUIDE_URL ?? '',
+    LEADS_NOTIFY_EMAIL: process.env.LEADS_NOTIFY_EMAIL ?? '',
   },
   loadBalancer: {
     domain:
@@ -80,5 +86,52 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
       { listen: '80/http', forward: '3001/http' },
       { listen: '443/https', forward: '3001/http' },
     ],
+  },
+});
+
+// Daily waiting-period reminder for guide leads (gpr.leads with reminder
+// opt-in): one e-mail on the 1st of month +23 after the last contribution
+// month, once per lead. 06:00 UTC = 07:00/08:00 Berlin.
+export const leadsReminderCron = new sst.aws.Cron('LeadsReminderCron', {
+  schedule: 'cron(0 6 * * ? *)',
+  function: {
+    handler: 'packages/functions/src/leads-cron.handler.handler',
+    runtime: 'nodejs20.x',
+    timeout: '5 minutes',
+    memory: '512 MB',
+    vpc,
+    link: [postgres, email],
+    environment: {
+      NODE_ENV: 'production',
+      SES_FROM_EMAIL: 'noreply@companypension.de',
+      LEADS_NOTIFY_EMAIL: process.env.LEADS_NOTIFY_EMAIL ?? '',
+    },
+  },
+});
+
+// Daily client-update engine run (Rules for Karl): drafts the scheduled
+// client update ≥ 1 working day before the promised date, opens the
+// senior review at + 6 months, keeps the office action current and mails
+// ops the warnings (update overdue, office action overdue, posting date
+// unconfirmed, funds before decision). 06:30 UTC, after the leads cron.
+export const clientUpdatesCron = new sst.aws.Cron('ClientUpdatesCron', {
+  schedule: 'cron(30 6 * * ? *)',
+  function: {
+    handler: 'packages/functions/src/client-updates-cron.handler.handler',
+    runtime: 'nodejs20.x',
+    timeout: '5 minutes',
+    memory: '512 MB',
+    vpc,
+    link: [postgres, bucket, email],
+    environment: {
+      NODE_ENV: 'production',
+      SES_FROM_EMAIL: 'noreply@companypension.de',
+      OPS_NOTIFICATION_EMAIL: process.env.OPS_NOTIFICATION_EMAIL ?? '',
+      GPR_FRONTEND_URL: process.env.GPR_FRONTEND_URL ?? '',
+      ADMIN_URL:
+        $app.stage === 'production'
+          ? 'https://admin.atlaes.de'
+          : 'https://staging.admin.atlaes.de',
+    },
   },
 });

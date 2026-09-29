@@ -1,6 +1,11 @@
 import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../utils/db';
-import { pendingSessions, applications, calculationLogs, workflowStates } from '../drizzle/schema/gpr';
+import {
+  pendingSessions,
+  applications,
+  calculationLogs,
+  workflowStates,
+} from '../drizzle/schema/gpr';
 import { auditLogs } from '../drizzle/schema/shared';
 import { logger } from '../utils/logger';
 
@@ -90,7 +95,9 @@ export class GPRApplicationService {
    * Save or update a pending session (upsert by email)
    * This is called when user submits email for magic link
    */
-  static async savePendingSession(input: SavePendingSessionInput): Promise<PendingSession> {
+  static async savePendingSession(
+    input: SavePendingSessionInput
+  ): Promise<PendingSession> {
     try {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7); // Expire in 7 days
@@ -104,7 +111,8 @@ export class GPRApplicationService {
         residence: input.eligibilityData?.residence || null,
         lastEmploymentMonth: input.eligibilityData?.lastEmploymentMonth || null,
         lastEmploymentYear: input.eligibilityData?.lastEmploymentYear || null,
-        contributionDuration: input.eligibilityData?.contributionDuration || null,
+        contributionDuration:
+          input.eligibilityData?.contributionDuration || null,
         dateOfBirth: input.eligibilityData?.dateOfBirth || null,
         eligibilityResult: input.eligibilityData?.eligibilityResult || null,
         ipAddress: input.ipAddress || null,
@@ -149,7 +157,8 @@ export class GPRApplicationService {
         calculationResult: session.calculationResult as CalculationResult,
         citizenship: session.citizenship,
         residence: session.residence,
-        eligibilityResult: session.eligibilityResult as EligibilityResult | null,
+        eligibilityResult:
+          session.eligibilityResult as EligibilityResult | null,
         expiresAt: session.expiresAt,
         createdAt: session.createdAt,
       };
@@ -162,7 +171,9 @@ export class GPRApplicationService {
   /**
    * Get pending session by email
    */
-  static async getPendingSession(email: string): Promise<PendingSession | null> {
+  static async getPendingSession(
+    email: string
+  ): Promise<PendingSession | null> {
     try {
       const result = await db
         .select()
@@ -188,7 +199,8 @@ export class GPRApplicationService {
         calculationResult: session.calculationResult as CalculationResult,
         citizenship: session.citizenship,
         residence: session.residence,
-        eligibilityResult: session.eligibilityResult as EligibilityResult | null,
+        eligibilityResult:
+          session.eligibilityResult as EligibilityResult | null,
         expiresAt: session.expiresAt,
         createdAt: session.createdAt,
       };
@@ -202,7 +214,10 @@ export class GPRApplicationService {
    * Migrate pending session to application
    * Called when user verifies magic link
    */
-  static async migrateToApplication(email: string, userId: string): Promise<GPRApplication | null> {
+  static async migrateToApplication(
+    email: string,
+    userId: string
+  ): Promise<GPRApplication | null> {
     try {
       const pendingSession = await this.getPendingSession(email);
 
@@ -220,7 +235,9 @@ export class GPRApplicationService {
           .insert(applications)
           .values({
             userId,
-            status: pendingSession.eligibilityResult?.isEligible ? 'ready' : 'draft',
+            status: pendingSession.eligibilityResult?.isEligible
+              ? 'ready'
+              : 'draft',
             numberOfJobs: pendingSession.numberOfJobs,
             jobs: pendingSession.jobs,
             totalMonthsContributed: calcResult.totalMonthsContributed,
@@ -249,13 +266,19 @@ export class GPRApplicationService {
           state: 'draft',
           previousState: null,
           triggeredBy: 'system',
-          metadata: { source: 'calculator', migratedFromSession: pendingSession.id },
+          metadata: {
+            source: 'calculator',
+            migratedFromSession: pendingSession.id,
+          },
         });
 
-        // Update calculation logs to reference the new application
+        // Re-point calculation logs at the new application and detach them
+        // from the session: gpr.calculation_logs.session_id references
+        // pending_sessions (migration 0004), so the delete below would
+        // otherwise fail with a foreign-key violation.
         await tx
           .update(calculationLogs)
-          .set({ applicationId: newApplication.id })
+          .set({ applicationId: newApplication.id, sessionId: null })
           .where(eq(calculationLogs.sessionId, pendingSession.id));
 
         // Delete the pending session
@@ -279,7 +302,9 @@ export class GPRApplicationService {
         return newApplication;
       });
 
-      logger.info(`Application created for user: ${userId}, application: ${result.id}`);
+      logger.info(
+        `Application created for user: ${userId}, application: ${result.id}`
+      );
 
       return {
         id: result.id,
@@ -341,7 +366,10 @@ export class GPRApplicationService {
   /**
    * Get a single application by ID
    */
-  static async getApplication(applicationId: string, userId: string): Promise<GPRApplication | null> {
+  static async getApplication(
+    applicationId: string,
+    userId: string
+  ): Promise<GPRApplication | null> {
     try {
       const result = await db
         .select()
@@ -449,6 +477,13 @@ export class GPRApplicationService {
    */
   static async cleanupExpiredSessions(): Promise<number> {
     try {
+      // Detach calculation logs first (FK to pending_sessions, no cascade).
+      await db
+        .update(calculationLogs)
+        .set({ sessionId: null })
+        .where(
+          sql`${calculationLogs.sessionId} IN (SELECT id FROM ${pendingSessions} WHERE ${pendingSessions.expiresAt} < NOW())`
+        );
       const result = await db
         .delete(pendingSessions)
         .where(sql`${pendingSessions.expiresAt} < NOW()`)

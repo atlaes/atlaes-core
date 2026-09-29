@@ -1,0 +1,29 @@
+/*
+ * ---- /refund-calculator: embed of the existing calculator ----
+ * `app/gpr-calculator.css` (global) lays the widget out as a full-height
+ * page; inside the marketing section it becomes a bordered card.
+ */
+.mk-calc-embed {
+  margin: 0 0 20px;
+}
+.mk-calc-embed .gpr-calculator {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  display: block;
+}
+.mk-calc-embed .gpr-calculator-container {
+  max-width: none;
+  box-shadow: none;
+  border: 1px solid var(--mk-stroke);
+  border-radius: var(--mk-r-card);
+}
+@media (max-width: 767px) {
+  .mk-calc-embed .gpr-calculator-container {
+    flex-direction: column;
+  }
+  .mk-calc-embed .gpr-sidebar {
+    width: 100%;
+    min-width: 0;
+  }
+}

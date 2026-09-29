@@ -1,0 +1,226 @@
+/*
+ * Native widgets (waiting-period calculator, office finder, capture boxes):
+ * form primitives on top of the marketing tokens, scoped to `.mk`.
+ */
+.mk-widget {
+  border: 1px solid var(--mk-stroke);
+  border-radius: var(--mk-r-card);
+  background: #fff;
+  margin: 8px 0 24px;
+  overflow: hidden;
+}
+.mk-widget-head {
+  background: var(--mk-navy);
+  color: #fff;
+  padding: 18px 20px;
+}
+.mk-widget-head h2,
+.mk-widget-head h3 {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.3;
+  font-weight: 700;
+  color: #fff;
+}
+.mk-widget-head p {
+  margin: 6px 0 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+  opacity: 0.92;
+}
+.mk-widget-body {
+  padding: 20px;
+}
+.mk-widget-foot {
+  padding: 12px 20px 18px;
+  border-top: 1px solid var(--mk-stroke);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--mk-muted);
+}
+.mk-field {
+  margin-bottom: 14px;
+}
+.mk-field > label,
+.mk-field-label {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--mk-ink);
+  margin-bottom: 6px;
+}
+.mk-input,
+.mk-select {
+  width: 100%;
+  border: 1px solid var(--mk-stroke);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--mk-ink);
+  background: #fff;
+}
+.mk-input:focus,
+.mk-select:focus {
+  outline: 2px solid var(--mk-blue);
+  outline-offset: 1px;
+  border-color: var(--mk-navy);
+}
+.mk-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.mk-hint {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--mk-muted);
+  margin-top: 6px;
+}
+.mk-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--mk-ink);
+}
+.mk-check input {
+  margin-top: 4px;
+  flex: 0 0 auto;
+}
+.mk-btn {
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--mk-r-pill);
+  border: 1.5px solid transparent;
+  background: var(--mk-navy);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 12px 22px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.mk-btn:hover {
+  background: var(--mk-blue);
+}
+.mk-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.mk-btn-link {
+  display: inline-block;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-top: 8px;
+  color: var(--mk-navy);
+  font: inherit;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.mk-btn-link:hover {
+  color: var(--mk-blue);
+}
+.mk-error {
+  color: #b00020;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-top: 10px;
+}
+.mk-hp {
+  position: absolute;
+  left: -5000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.mk-verdict {
+  border-radius: 14px;
+  padding: 18px;
+}
+.mk-verdict-ok {
+  background: var(--mk-tint);
+}
+.mk-verdict-warn {
+  background: var(--mk-surface);
+}
+.mk-verdict h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  line-height: 1.3;
+  font-weight: 700;
+  color: var(--mk-ink);
+}
+.mk-verdict p {
+  margin: 0 0 10px;
+}
+.mk-verdict p:last-child {
+  margin-bottom: 0;
+}
+.mk-verdict-big {
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--mk-navy);
+  margin: 4px 0 10px;
+}
+.mk-verdict-address {
+  font-weight: 600;
+  color: var(--mk-ink);
+  margin: 0 0 12px;
+}
+.mk-verdict-notes {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+.mk-verdict-notes li {
+  margin-bottom: 6px;
+}
+.mk-verdict-cta {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--mk-stroke);
+}
+.mk-verdict-cta .mk-pill {
+  width: 100%;
+}
+.mk-widget-done h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: var(--mk-ink);
+}
+.mk-widget-done p {
+  margin: 0;
+}
+.mk-widget .mk-fine {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--mk-muted);
+  margin: 12px 0 0;
+}
+@media (min-width: 720px) {
+  .mk-widget-body {
+    padding: 24px 28px;
+  }
+  .mk-widget-head {
+    padding: 20px 28px;
+  }
+  .mk-widget-foot {
+    padding: 14px 28px 20px;
+  }
+}

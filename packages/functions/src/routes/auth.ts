@@ -337,7 +337,9 @@ auth.post(
       // If GPR session data is provided, save it to pending sessions
       if (gprSessionData) {
         const ipAddress =
-          c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+          c.req.header('x-forwarded-for') ||
+          c.req.header('x-real-ip') ||
+          'unknown';
         const userAgent = c.req.header('user-agent') || 'unknown';
 
         try {
@@ -361,10 +363,7 @@ auth.post(
         callbackUrl && ALLOWED_ORIGINS.includes(callbackUrl)
           ? callbackUrl
           : env.FRONTEND_URL;
-      const baseMagicLinkUrl = AuthService.generateMagicLinkUrl(
-        token,
-        baseUrl
-      );
+      const baseMagicLinkUrl = AuthService.generateMagicLinkUrl(token, baseUrl);
       const magicLinkUrl = redirectUrl
         ? `${baseMagicLinkUrl}&redirect=${encodeURIComponent(redirectUrl)}`
         : baseMagicLinkUrl;
@@ -373,11 +372,12 @@ auth.post(
       await sendMagicLinkEmail(email, magicLinkUrl);
       logger.info(`Magic link for ${email}: ${magicLinkUrl}`);
 
-      // Only include magic link in response during development (for auto-verify)
+      // Only include the magic link in the response outside production:
+      // local dev auto-verifies with it and the test suite extracts the token.
       const response: Record<string, string> = {
         message: 'Magic link sent to your email address.',
       };
-      if (env.NODE_ENV === 'development') {
+      if (env.NODE_ENV === 'development' || env.NODE_ENV === 'test') {
         response.magicLink = magicLinkUrl;
       }
 
@@ -471,9 +471,14 @@ auth.post(
       // Migrate any pending GPR session to application
       let gprApplication = null;
       try {
-        gprApplication = await GPRApplicationService.migrateToApplication(email, user.id);
+        gprApplication = await GPRApplicationService.migrateToApplication(
+          email,
+          user.id
+        );
         if (gprApplication) {
-          logger.info(`GPR session migrated to application ${gprApplication.id} for user ${user.id}`);
+          logger.info(
+            `GPR session migrated to application ${gprApplication.id} for user ${user.id}`
+          );
         }
       } catch (migrationError) {
         logger.error('Failed to migrate GPR session:', migrationError);
@@ -495,11 +500,17 @@ auth.post(
         gprApplication, // Include the migrated application if available
       });
     } catch (error) {
-      if (error instanceof Error && error.message === 'Invalid or expired magic link') {
+      if (
+        error instanceof Error &&
+        error.message === 'Invalid or expired magic link'
+      ) {
         return c.json({ error: 'Invalid or expired magic link' }, 400);
       }
       logger.error('Magic link verification error:', error);
-      return c.json({ error: 'Account creation failed. Please try again.' }, 500);
+      return c.json(
+        { error: 'Account creation failed. Please try again.' },
+        500
+      );
     }
   }
 );

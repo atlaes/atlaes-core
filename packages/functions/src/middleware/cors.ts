@@ -18,6 +18,10 @@ export const corsMiddleware = cors({
       'https://admin.vblrefund.com',
       'https://vbl.atlaes.de',
       'https://atlaes.de',
+      // Germany Pension Refund site (public lead capture, POST /api/leads)
+      'https://www.germanypensionrefund.com',
+      'https://germanypensionrefund.com',
+      'https://de.germanypensionrefund.com',
       // Staging domains
       'https://staging.vbl.atlaes.de',
       'https://staging.atlaes.de',
