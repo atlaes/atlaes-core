@@ -6,18 +6,19 @@ import {
   organizationStub,
 } from '@/lib/jsonld';
 import { resolveTokens, t } from '@/content/tokens';
-import { EXTERNAL } from '@/content/registries/links';
 import type { RulesPageData, RulesSection } from '@/content/pages/types';
 import { Blocks } from '@/components/marketing/ui/Blocks';
-import { Callout } from '@/components/marketing/ui/Callout';
 import { FaqList } from '@/components/marketing/ui/FaqList';
-import { Inline } from '@/components/marketing/ui/Inline';
 import { JsonLd } from '@/components/marketing/ui/JsonLd';
-import { JumpMenu } from '@/components/marketing/ui/JumpMenu';
 import { Pill } from '@/components/marketing/ui/Pill';
-import { Section } from '@/components/marketing/ui/Section';
+import { Section, type SectionTone } from '@/components/marketing/ui/Section';
 import { SmartLink } from '@/components/marketing/ui/SmartLink';
+import {
+  CountryHero,
+  CtaCard,
+} from '@/components/marketing/country/CountryHero';
 import '@/components/marketing/home/home.css';
+import '@/components/marketing/country/country.css';
 
 /** Service + FAQPage, the country-page graph shape (README). */
 function rulesPageGraph(page: RulesPageData) {
@@ -36,27 +37,6 @@ function rulesPageGraph(page: RulesPageData) {
     },
     faqPageNode(url + '#faq', page.faq),
   ]);
-}
-
-/** Trust line with ProvenExpert linked (same as the country template). */
-function TrustLine({ sentence }: { sentence: string }) {
-  const idx = sentence.indexOf('ProvenExpert');
-  return (
-    <p className="mk-trust">
-      <span aria-hidden="true">⭐ </span>
-      {idx === -1 ? (
-        sentence
-      ) : (
-        <>
-          {sentence.slice(0, idx)}
-          <a href={EXTERNAL.provenExpert} target="_blank" rel="noopener">
-            ProvenExpert
-          </a>
-          {sentence.slice(idx + 'ProvenExpert'.length)}
-        </>
-      )}
-    </p>
-  );
 }
 
 export function Crumbs({
@@ -108,41 +88,44 @@ function order(page: RulesPageData): Item[] {
   return out;
 }
 
+/**
+ * Bands alternate #f1f1f1 / white, starting #f1f1f1 after the hero
+ * (Figma 917:5629, 926:12479). Reviews always sit on #f1f1f1 and do not
+ * advance the alternation.
+ */
+function tones(items: Item[]): SectionTone[] {
+  let n = 0;
+  return items.map((it) => {
+    if (it.kind === 'reviews') return 'surface';
+    n += 1;
+    return n % 2 === 1 ? 'surface' : 'plain';
+  });
+}
+
 export function RulesPage({ page }: { page: RulesPageData }) {
   const trust = t(page.trust.replace(/[{}]/g, '').trim());
   const items = order(page);
+  const tone = tones(items);
   return (
     <article className="mk-rules">
       <JsonLd graph={rulesPageGraph(page)} />
       <AttributionCapture />
 
-      <header className="mk-hero">
-        <div className="mk-hero-inner">
-          <div className="mk-hero-copy">
-            <Crumbs items={page.crumbs} />
-            <p className="mk-kicker">›› {page.eyebrow.toUpperCase()}</p>
-            <h1 className="mk-h1">{page.h1}</h1>
-            <Blocks blocks={page.hero} />
-            <div className="mk-cta-row">
-              <Pill href={page.cta.href} size="lg">
-                {page.cta.label}
-              </Pill>
-            </div>
-            <Callout tone="outline" as="p" title={page.glanceLabel}>
-              <TrustLine sentence={trust} />
-              <ul className="mk-bullets">
-                {page.bullets.map((b, i) => (
-                  <li key={i}>
-                    <Inline x={b} />
-                  </li>
-                ))}
-              </ul>
-            </Callout>
-            <JumpMenu items={page.jump} />
-          </div>
-          <div className="mk-hero-aside" aria-hidden="true" />
-        </div>
-      </header>
+      <CountryHero
+        crumbs={page.crumbs}
+        eyebrow={page.eyebrow}
+        h1={page.h1}
+        hero={page.hero}
+        actions={
+          <Pill href={page.cta.href} size="lg">
+            {page.cta.label}
+          </Pill>
+        }
+        glanceLabel={page.glanceLabel}
+        trust={trust}
+        bullets={page.bullets}
+        jump={page.jump}
+      />
 
       {items.map((it, i) => {
         const index = i + 1;
@@ -155,7 +138,7 @@ export function RulesPage({ page }: { page: RulesPageData }) {
               index={index}
               label={s.label}
               title={s.h2}
-              tone={s.tone || 'plain'}
+              tone={tone[i]}
             >
               <Blocks blocks={s.blocks} />
             </Section>
@@ -169,6 +152,7 @@ export function RulesPage({ page }: { page: RulesPageData }) {
               index={index}
               label="FAQ"
               title={page.faqH2}
+              tone={tone[i]}
             >
               <FaqList items={page.faq} />
             </Section>
@@ -203,12 +187,10 @@ export function RulesPage({ page }: { page: RulesPageData }) {
         );
       })}
 
-      <Section
+      <CtaCard
         id="ready-to-claim"
-        index={items.length + 1}
-        label="Ready to claim"
         title={page.closeH2}
-        tone="tint"
+        afterSurface={tone.length > 0 && tone[tone.length - 1] === 'surface'}
       >
         <Blocks blocks={page.close} />
         <div className="mk-cta-row">
@@ -217,7 +199,7 @@ export function RulesPage({ page }: { page: RulesPageData }) {
           </Pill>
         </div>
         <p className="mk-note">{page.disclaimer}</p>
-      </Section>
+      </CtaCard>
     </article>
   );
 }
