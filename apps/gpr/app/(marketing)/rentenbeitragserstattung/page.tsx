@@ -2,13 +2,15 @@ import type { Metadata } from 'next';
 import { AttributionCapture } from '@/lib/attribution';
 import { pageAlternates } from '@/lib/hreflang';
 import { articleGraph, type JsonLdGraph } from '@/lib/jsonld';
+import {
+  ArticleHero,
+  ArticleLayout,
+} from '@/components/marketing/article/ArticlePage';
 import { Blocks } from '@/components/marketing/ui/Blocks';
 import { Callout } from '@/components/marketing/ui/Callout';
 import { Inline } from '@/components/marketing/ui/Inline';
 import { JsonLd } from '@/components/marketing/ui/JsonLd';
-import { JumpMenu } from '@/components/marketing/ui/JumpMenu';
 import { Pill } from '@/components/marketing/ui/Pill';
-import { Section } from '@/components/marketing/ui/Section';
 import { RichFaq } from '@/components/marketing/home/RichFaq';
 import { CaptureBox } from '@/components/marketing/widgets/CaptureBox';
 import { WaitingPeriodCalculator } from '@/components/marketing/widgets/WaitingPeriodCalculator';
@@ -78,94 +80,109 @@ function hubGraph(): JsonLdGraph {
   return g;
 }
 
+/** Hero chrome (Figma 928:11791); the page is laid out as an article. */
+const HUB_CRUMBS = [
+  { label: 'Startseite', href: '/' },
+  { label: 'Rentenbeitragserstattung' },
+];
+const HUB_EYEBROW = 'Ratgeber · Rentenbeitragserstattung';
+
+/**
+ * German hub in the article template (Figma 928:11787): article hero,
+ * 280px rail with "Auf dieser Seite", 760px column with dividers before
+ * the H2s, grey disclaimer callout, embedded widgets, FAQ and sources.
+ */
 export default function RentenbeitragserstattungPage() {
-  const faqIndex = HUB_SECTIONS.length + 1;
+  const toc = [
+    ...HUB_SECTIONS.map((s) => ({ id: s.id, label: s.h2 })),
+    { id: 'faq', label: HUB_FAQ_H2 },
+  ];
   return (
-    <article className="mk-hub" lang="de">
+    <article className="mk-art mk-hub" lang="de">
       <JsonLd graph={hubGraph()} />
       <AttributionCapture />
 
-      <header className="mk-hero">
-        <div className="mk-hero-inner">
-          <div className="mk-hero-copy">
-            <h1 className="mk-h1">{HUB_H1}</h1>
-            <Blocks blocks={HUB_HERO} />
-            <Callout tone="surface" as="p">
-              <p className="mk-p">{HUB_DISCLAIMER}</p>
-            </Callout>
-            <p className="mk-note">{HUB_JUMP_LABEL}:</p>
-            <JumpMenu items={HUB_JUMP} ariaLabel={HUB_JUMP_LABEL} />
-          </div>
-          <div className="mk-hero-aside" aria-hidden="true" />
-        </div>
-      </header>
+      <ArticleHero
+        lang="de"
+        crumbs={HUB_CRUMBS}
+        eyebrow={HUB_EYEBROW}
+        h1={HUB_H1}
+        showReviewer
+        reviewLine={HUB_FOOTER.checked}
+      />
 
-      {HUB_SECTIONS.map((s, i) => (
-        <Section
-          key={s.id}
-          id={s.id}
-          index={i + 1}
-          label={s.label}
-          title={s.h2}
-          tone={i % 2 ? 'surface' : 'plain'}
-        >
-          <Blocks blocks={s.blocks} />
-          {s.id === 'wartefrist' ? (
-            <>
-              <WaitingPeriodCalculator
-                lang="de"
-                via="wartefrist-rechner"
-                as="h3"
-              />
-              <CaptureBox
-                type="wegzug-guide"
-                placement="rentenbeitragserstattung"
-                as="h3"
-              />
-            </>
-          ) : null}
-          {s.id === 'service' ? (
-            <>
-              <p className="mk-p">
-                <Inline x={HUB_TRUST.x} sp={HUB_TRUST.sp} />
-              </p>
-              <div className="mk-cta-row">
-                <Pill href={HUB_CTA.check.href} size="lg" variant="secondary">
-                  {HUB_CTA.check.label}
-                </Pill>
-                <Pill href={HUB_CTA.start.href} size="lg">
-                  {HUB_CTA.start.label}
-                </Pill>
-              </div>
-            </>
-          ) : null}
-        </Section>
-      ))}
+      <ArticleLayout lang="de" rail="Ratgeber" toc={toc}>
+        <Blocks blocks={HUB_HERO} />
+        <Callout tone="surface" as="p">
+          <p className="mk-p">{HUB_DISCLAIMER}</p>
+        </Callout>
+        <nav className="mk-art-jump" aria-label={HUB_JUMP_LABEL}>
+          {HUB_JUMP_LABEL}:{' '}
+          {HUB_JUMP.map((j, i) => (
+            <span key={j.href}>
+              {i ? ' · ' : null}
+              <a href={j.href}>{j.label}</a>
+            </span>
+          ))}
+        </nav>
 
-      <Section
-        id="faq"
-        index={faqIndex}
-        label="FAQ"
-        title={HUB_FAQ_H2}
-        tone="surface"
-      >
+        {HUB_SECTIONS.map((s) => (
+          <HubSection key={s.id} s={s} />
+        ))}
+
+        <h2 id="faq" className="mk-art-h2">
+          {HUB_FAQ_H2}
+        </h2>
         <RichFaq items={HUB_FAQ.map((f) => ({ q: f.q, blocks: f.blocks }))} />
-      </Section>
 
-      <Section id="start" index={faqIndex + 1} label="Start" tone="tint">
         <p className="mk-p">{HUB_CLOSE.text}</p>
-        <div className="mk-cta-row">
+        <div className="mk-cta-row mk-art-cta">
           <Pill href={HUB_CTA.start.href} size="lg">
             {HUB_CTA.start.label}
           </Pill>
-          <Pill href={HUB_CTA.check.href} size="lg" variant="ghost">
+          <Pill href={HUB_CTA.check.href} size="lg" variant="secondary">
             {HUB_CTA.check.label}
           </Pill>
         </div>
-        <p className="mk-note">{HUB_FOOTER.org}</p>
-        <p className="mk-note">{HUB_FOOTER.sources}</p>
-        <p className="mk-note">{HUB_FOOTER.checked}</p>
-      </Section>
+        <p className="mk-art-src">{HUB_FOOTER.org}</p>
+        <p className="mk-art-src">{HUB_FOOTER.sources}</p>
+      </ArticleLayout>
     </article>
+  );
+}
+
+function HubSection({ s }: { s: (typeof HUB_SECTIONS)[number] }) {
+  return (
+    <>
+      <h2 id={s.id} className="mk-art-h2">
+        {s.h2}
+      </h2>
+      <Blocks blocks={s.blocks} />
+      {s.id === 'wartefrist' ? (
+        <>
+          <WaitingPeriodCalculator lang="de" via="wartefrist-rechner" as="h3" />
+          <CaptureBox
+            type="wegzug-guide"
+            placement="rentenbeitragserstattung"
+            as="h3"
+          />
+        </>
+      ) : null}
+      {s.id === 'service' ? (
+        <>
+          <p className="mk-p">
+            <Inline x={HUB_TRUST.x} sp={HUB_TRUST.sp} />
+          </p>
+          <div className="mk-cta-row">
+            <Pill href={HUB_CTA.check.href} size="lg" variant="secondary">
+              {HUB_CTA.check.label}
+            </Pill>
+            <Pill href={HUB_CTA.start.href} size="lg">
+              {HUB_CTA.start.label}
+            </Pill>
+          </div>
+        </>
+      ) : null}
+    </>
   );
 }
