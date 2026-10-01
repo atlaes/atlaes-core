@@ -3,42 +3,45 @@ import type { ReactNode } from 'react';
 import type { AccountStage, AccountStatusKind } from '@/lib/account-api';
 import { STEP_LABELS } from '@/lib/account-api';
 
+function cx(...parts: Array<string | false | null | undefined>): string {
+  return parts.filter(Boolean).join(' ');
+}
+
+/**
+ * Account card (Figma "Card / …"): white, 1px #c6c6c6, r-16, p-24; the
+ * title is the navy 11px uppercase eyebrow. `tone="tint"` is the pale-blue
+ * sidebar card, `size="sm"` the 13px sidebar body.
+ */
 export function Card({
   title,
   children,
   className,
   as = 'h2',
+  tone = 'plain',
+  size = 'md',
 }: {
   title?: string;
   children: ReactNode;
   className?: string;
   as?: 'h2' | 'h3';
+  tone?: 'plain' | 'tint';
+  size?: 'md' | 'sm';
 }) {
   const Heading = as;
   return (
     <section
-      className={
-        'rounded-card border border-brand-stroke/60 bg-white p-5 sm:p-6 ' +
-        (className || '')
-      }
+      className={cx(
+        'acc-card',
+        tone === 'tint' && 'acc-card-tint',
+        size === 'sm' && 'acc-card-sm',
+        className
+      )}
     >
-      {title ? (
-        <Heading className="mb-2 text-[17px] font-bold leading-snug text-brand-ink">
-          {title}
-        </Heading>
-      ) : null}
-      <div className="text-[15px] leading-relaxed text-brand-body">
-        {children}
-      </div>
+      {title ? <Heading className="acc-eyebrow">{title}</Heading> : null}
+      {children}
     </section>
   );
 }
-
-const STATUS_STYLES: Record<AccountStatusKind, string> = {
-  ok: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
-  info: 'bg-brand-tint text-brand-navy ring-brand-pale',
-  warn: 'bg-amber-50 text-amber-800 ring-amber-200',
-};
 
 export function StatusChip({
   kind,
@@ -47,46 +50,42 @@ export function StatusChip({
   kind: AccountStatusKind;
   children: ReactNode;
 }) {
-  return (
-    <span
-      className={
-        'inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ' +
-        STATUS_STYLES[kind]
-      }
-    >
-      {children}
-    </span>
-  );
+  return <span className={'acc-chip acc-chip-' + kind}>{children}</span>;
 }
 
 export function StageChip({ stage }: { stage: AccountStage }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-tint px-3 py-1 text-xs font-bold uppercase tracking-wide text-brand-navy">
-      <span className="h-1.5 w-1.5 rounded-full bg-brand-navy" aria-hidden />
-      {STEP_LABELS[stage]}
-    </span>
-  );
+  return <span className="acc-chip acc-chip-stage">{STEP_LABELS[stage]}</span>;
 }
 
-const BUTTON_BASE =
-  'inline-flex items-center justify-center rounded-full border px-5 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60';
+type ButtonVariant = 'primary' | 'secondary';
+type ButtonSize = 'sm' | 'md' | 'lg';
 
-const BUTTON_VARIANTS = {
-  primary:
-    'border-brand-navy bg-brand-navy text-white hover:bg-brand-blue hover:border-brand-blue',
-  secondary: 'border-brand-navy bg-white text-brand-navy hover:bg-brand-tint',
-};
+function buttonClass(
+  variant: ButtonVariant,
+  size: ButtonSize,
+  className?: string
+): string {
+  return cx(
+    'acc-btn',
+    variant === 'secondary' && 'acc-btn-secondary',
+    size === 'sm' && 'acc-btn-sm',
+    size === 'lg' && 'acc-btn-lg',
+    className
+  );
+}
 
 export function Button({
   children,
   variant = 'primary',
+  size = 'md',
   type = 'button',
   disabled,
   onClick,
   className,
 }: {
   children: ReactNode;
-  variant?: keyof typeof BUTTON_VARIANTS;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
   type?: 'button' | 'submit';
   disabled?: boolean;
   onClick?: () => void;
@@ -97,9 +96,7 @@ export function Button({
       type={type}
       disabled={disabled}
       onClick={onClick}
-      className={
-        BUTTON_BASE + ' ' + BUTTON_VARIANTS[variant] + ' ' + (className || '')
-      }
+      className={buttonClass(variant, size, className)}
     >
       {children}
     </button>
@@ -110,20 +107,17 @@ export function LinkButton({
   href,
   children,
   variant = 'primary',
+  size = 'md',
   className,
 }: {
   href: string;
   children: ReactNode;
-  variant?: keyof typeof BUTTON_VARIANTS;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
   className?: string;
 }) {
   return (
-    <Link
-      href={href}
-      className={
-        BUTTON_BASE + ' ' + BUTTON_VARIANTS[variant] + ' ' + (className || '')
-      }
-    >
+    <Link href={href} className={buttonClass(variant, size, className)}>
       {children}
     </Link>
   );
@@ -139,13 +133,16 @@ export function TextLink({
   className?: string;
 }) {
   return (
-    <Link
-      href={href}
-      className={
-        'font-semibold text-brand-navy underline-offset-2 hover:underline ' +
-        (className || '')
-      }
-    >
+    <Link href={href} className={cx('acc-link', className)}>
+      {children}
+    </Link>
+  );
+}
+
+/** "← Back to your application" link above a page title. */
+export function BackLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link href={href} className="acc-back">
       {children}
     </Link>
   );
@@ -154,24 +151,36 @@ export function TextLink({
 export function PageTitle({
   children,
   lead,
+  chip,
 }: {
   children: ReactNode;
   lead?: ReactNode;
+  chip?: ReactNode;
 }) {
   return (
-    <header className="mb-6">
-      <h1 className="text-[26px] font-bold leading-tight text-brand-ink sm:text-[32px]">
-        {children}
-      </h1>
-      {lead ? (
-        <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-brand-body">
-          {lead}
-        </p>
-      ) : null}
+    <header className="acc-head">
+      {chip}
+      <h1 className="acc-h1">{children}</h1>
+      {lead ? <p className="acc-lead">{lead}</p> : null}
     </header>
   );
 }
 
 export function EmptyLine({ children }: { children: ReactNode }) {
-  return <p className="text-brand-muted">{children}</p>;
+  return <p className="acc-empty">{children}</p>;
+}
+
+/** Page column: 960 (home), 800 (documents), 720 (updates), 640 (tasks). */
+export function Column({
+  width = 960,
+  children,
+}: {
+  width?: 960 | 800 | 720 | 640;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cx('acc-col', width !== 960 && 'acc-col-' + width)}>
+      {children}
+    </div>
+  );
 }

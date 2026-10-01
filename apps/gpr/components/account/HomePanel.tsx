@@ -3,8 +3,15 @@
 import type { AccountCase, AccountOpenTask } from '@/lib/account-api';
 import { t } from '@/content/tokens';
 import { SmartLink } from '@/components/marketing/ui/SmartLink';
-import { formatLongDate } from './format';
-import { Card, LinkButton, StageChip, TextLink } from './primitives';
+import { formatLongDate, formatShortDate } from './format';
+import {
+  Card,
+  Column,
+  LinkButton,
+  PageTitle,
+  StageChip,
+  TextLink,
+} from './primitives';
 import { Stepper } from './Stepper';
 
 export const HOME_COPY = {
@@ -81,19 +88,41 @@ function TaskCard({ task }: { task: AccountOpenTask | null }) {
   }
   const button = taskButton(task);
   return (
-    <Card title={HOME_COPY.anythingToDo.heading} className="border-brand-navy">
-      <p className="text-brand-ink">{task.text}</p>
+    <Card title={HOME_COPY.anythingToDo.heading}>
       {task.dueDate ? (
-        <p className="mt-1 text-sm font-semibold text-brand-navy">
-          Due by {formatLongDate(task.dueDate)}
-        </p>
+        <span className="acc-chip acc-chip-warn acc-chip-due">
+          Due by {formatShortDate(task.dueDate)}
+        </span>
       ) : null}
+      <p>{task.text}</p>
       {button ? (
-        <div className="mt-4">
+        <div className="acc-actions">
           <LinkButton href={button.href}>{button.label}</LinkButton>
         </div>
       ) : null}
     </Card>
+  );
+}
+
+/** Figma "Task banner": amber strip above the header while a task is open. */
+function TaskBanner({ task }: { task: AccountOpenTask }) {
+  const button = taskButton(task);
+  return (
+    <div className="acc-banner" role="status">
+      <div className="acc-banner-text">
+        {task.dueDate ? (
+          <p className="acc-banner-title">
+            Due by {formatLongDate(task.dueDate)}
+          </p>
+        ) : null}
+        <p className="acc-banner-body">{task.text}</p>
+      </div>
+      {button ? (
+        <LinkButton href={button.href} size="sm">
+          {button.label}
+        </LinkButton>
+      ) : null}
+    </div>
   );
 }
 
@@ -103,33 +132,33 @@ export function HomePanel({ data }: { data: AccountCase }) {
   const preparing = data.stage === 'preparing';
   const office = data.pensionOffice || 'the pension office';
   const latest = data.latest.slice(0, LATEST_LIMIT);
+  const task = data.openCustomerTask;
 
   return (
-    <div>
-      <header className="mb-6 sm:mb-8">
-        <StageChip stage={data.stage} />
-        <h1 className="mt-3 text-[26px] font-bold leading-tight text-brand-ink sm:text-[32px]">
-          {preparing ? HOME_COPY.preparingHeading : HOME_COPY.submittedHeading}
-        </h1>
-        {!preparing && data.submissionDate ? (
-          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-brand-body">
-            {HOME_COPY.intro(office, formatLongDate(data.submissionDate))}
-          </p>
-        ) : null}
-      </header>
+    <Column>
+      {task ? <TaskBanner task={task} /> : null}
 
-      <div className="mb-6 rounded-card border border-brand-stroke/60 bg-white p-5 sm:mb-8 sm:p-6">
-        <Stepper steps={data.stepper} />
-      </div>
+      <PageTitle
+        chip={<StageChip stage={data.stage} />}
+        lead={
+          !preparing && data.submissionDate
+            ? HOME_COPY.intro(office, formatLongDate(data.submissionDate))
+            : undefined
+        }
+      >
+        {preparing ? HOME_COPY.preparingHeading : HOME_COPY.submittedHeading}
+      </PageTitle>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-6">
-        <div className="space-y-4">
+      <Stepper steps={data.stepper} />
+
+      <div className="acc-grid">
+        <div className="acc-stack">
           {data.nextClientUpdateDue ? (
             <Card title={HOME_COPY.nextUpdate.heading}>
-              <p className="text-lg font-bold text-brand-ink">
+              <p className="acc-card-big">
                 By {formatLongDate(data.nextClientUpdateDue)}
               </p>
-              <p className="mt-1">
+              <p className="acc-card-muted">
                 {HOME_COPY.nextUpdate.text(
                   formatLongDate(data.nextClientUpdateDue)
                 )}
@@ -137,7 +166,7 @@ export function HomePanel({ data }: { data: AccountCase }) {
             </Card>
           ) : null}
 
-          <TaskCard task={data.openCustomerTask} />
+          <TaskCard task={task} />
 
           {data.nextOfficeAction ? (
             <Card title={HOME_COPY.whatNext.heading}>
@@ -151,22 +180,19 @@ export function HomePanel({ data }: { data: AccountCase }) {
           ) : null}
 
           {latest.length ? (
-            <Card title={HOME_COPY.latest.heading}>
-              <ul className="divide-y divide-brand-stroke/50">
+            <Card title={HOME_COPY.latest.heading} className="acc-card-latest">
+              <ul className="acc-entries">
                 {latest.map((entry, i) => (
-                  <li key={entry.date + i} className="py-2.5 first:pt-0">
-                    <span className="mr-2 font-semibold text-brand-ink">
-                      {formatLongDate(entry.date)}
+                  <li key={entry.date + i} className="acc-entry">
+                    <span className="acc-entry-date">
+                      {formatShortDate(entry.date)}
                     </span>
-                    <span className="text-brand-muted" aria-hidden>
-                      ·{' '}
-                    </span>
-                    <span>{entry.text}</span>
+                    <span className="acc-entry-text">{entry.text}</span>
                   </li>
                 ))}
               </ul>
-              <p className="mt-3">
-                <TextLink href="/account/updates">
+              <p>
+                <TextLink href="/account/updates" className="acc-link-sm">
                   {HOME_COPY.latest.all} →
                 </TextLink>
               </p>
@@ -174,39 +200,39 @@ export function HomePanel({ data }: { data: AccountCase }) {
           ) : null}
         </div>
 
-        <aside className="space-y-4">
-          <Card title={HOME_COPY.howLong.heading} as="h3">
+        <aside className="acc-stack">
+          <Card title={HOME_COPY.howLong.heading} as="h3" tone="tint" size="sm">
             <p>
-              {t('TM-01.sentence')} {HOME_COPY.howLong.escrow}{' '}
+              {t('TM-01.sentence')} {HOME_COPY.howLong.escrow}
+            </p>
+            <p>
               <SmartLink
                 href={HOME_COPY.howLong.href}
-                className="font-semibold text-brand-navy underline-offset-2 hover:underline"
-                darkClassName="font-semibold text-brand-navy"
+                className="acc-link"
+                darkClassName="acc-link"
               >
                 {HOME_COPY.howLong.link}
               </SmartLink>
             </p>
-            <p className="mt-3">{HOME_COPY.howLong.approved}</p>
+            <p>{HOME_COPY.howLong.approved}</p>
           </Card>
 
-          <Card title={HOME_COPY.howWeKeepYouUpdated.heading} as="h3">
+          <Card title={HOME_COPY.howWeKeepYouUpdated.heading} as="h3" size="sm">
             <p>{HOME_COPY.howWeKeepYouUpdated.text}</p>
           </Card>
 
-          <Card title={HOME_COPY.receivedALetter.heading} as="h3">
+          <Card title={HOME_COPY.receivedALetter.heading} as="h3" size="sm">
             <p>{HOME_COPY.receivedALetter.text}</p>
-            <div className="mt-4">
-              <LinkButton href="/account/letters/new" variant="secondary">
-                {HOME_COPY.receivedALetter.button}
-              </LinkButton>
-            </div>
+            <LinkButton href="/account/letters/new">
+              {HOME_COPY.receivedALetter.button}
+            </LinkButton>
           </Card>
 
-          <Card title={HOME_COPY.questions.heading} as="h3">
+          <Card title={HOME_COPY.questions.heading} as="h3" size="sm">
             <p>{HOME_COPY.questions.text}</p>
           </Card>
         </aside>
       </div>
-    </div>
+    </Column>
   );
 }

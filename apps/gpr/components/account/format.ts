@@ -47,3 +47,10 @@ export function formatFileSize(bytes: number): string {
   }
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
+
+/** `2026-09-25` → `25 Sep 2026` (timeline dates, due chips). */
+export function formatShortDate(iso: string | null | undefined): string {
+  const long = formatLongDate(iso);
+  const m = /^(\d+) (\w+) (\d{4})$/.exec(long);
+  return m ? m[1] + ' ' + m[2].slice(0, 3) + ' ' + m[3] : long;
+}

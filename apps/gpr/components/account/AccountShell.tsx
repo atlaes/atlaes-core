@@ -1,9 +1,11 @@
 'use client';
 
+import './account.css';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { SmartLink } from '@/components/marketing/ui/SmartLink';
 
 const NAV = [
   { href: '/account', label: 'Overview' },
@@ -11,71 +13,71 @@ const NAV = [
   { href: '/account/documents', label: 'Documents' },
 ];
 
+const HELP_HREF = '/contact-us';
+
 function isActive(pathname: string, href: string): boolean {
   if (href === '/account') return pathname === '/account';
   return pathname === href || pathname.indexOf(href + '/') === 0;
 }
 
-/** App shell for `/account/**`: header with nav, 960px column, 16px gutters. */
+/**
+ * App shell for `/account/**` (Figma client screens, section B/D): 72px
+ * white top bar with the two-line wordmark, centre navigation, Help /
+ * Sign out on the right; white canvas. Pages set their own column width.
+ */
 export function AccountShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || '';
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
+
+  const links = NAV.map((item) => (
+    <Link
+      key={item.href}
+      href={item.href}
+      aria-current={isActive(pathname, item.href) ? 'page' : undefined}
+    >
+      {item.label}
+    </Link>
+  ));
 
   return (
-    <div className="min-h-screen bg-brand-surface/50 text-brand-ink">
-      <header className="border-b border-brand-stroke/60 bg-white">
-        <div className="mx-auto flex max-w-[960px] flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
-          <Link
-            href="/account"
-            className="text-[15px] font-bold tracking-tight text-brand-navy"
-          >
-            Germany Pension Refund
-          </Link>
-          <nav
-            aria-label="Account"
-            className="order-3 w-full sm:order-none sm:w-auto"
-          >
-            <ul className="-mx-1 flex gap-1 overflow-x-auto">
-              {NAV.map((item) => {
-                const active = isActive(pathname, item.href);
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      aria-current={active ? 'page' : undefined}
-                      className={
-                        'block whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-semibold ' +
-                        (active
-                          ? 'bg-brand-tint text-brand-navy'
-                          : 'text-brand-body hover:bg-brand-surface hover:text-brand-ink')
-                      }
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-          <div className="flex items-center gap-3 text-sm">
-            {user ? (
-              <span className="hidden max-w-[220px] truncate text-brand-muted md:inline">
-                {user.profile?.firstName
-                  ? user.profile.firstName + ' ' + (user.profile.lastName || '')
-                  : user.email}
+    <div className="acc">
+      <header className="acc-topbar">
+        <div className="acc-topbar-inner">
+          <Link href="/account" className="acc-wordmark">
+            <span>
+              Germany
+              <span className="acc-wordmark-arrows" aria-hidden="true">
+                ››
               </span>
-            ) : null}
-            <button
-              type="button"
-              onClick={logout}
-              className="rounded-full border border-brand-stroke px-3 py-1.5 text-sm font-semibold text-brand-body hover:border-brand-navy hover:text-brand-navy"
-            >
-              Log out
+            </span>
+            <span>Pension Refund</span>
+          </Link>
+          <nav aria-label="Account" className="acc-centre">
+            {links.map((link, i) => (
+              <Fragment key={NAV[i].href}>
+                {i > 0 ? (
+                  <span className="acc-centre-sep" aria-hidden="true">
+                    ·
+                  </span>
+                ) : null}
+                {link}
+              </Fragment>
+            ))}
+          </nav>
+          <div className="acc-right">
+            <SmartLink href={HELP_HREF} className="acc-help">
+              Help
+            </SmartLink>
+            <button type="button" onClick={logout} className="acc-signout">
+              Sign out
             </button>
           </div>
         </div>
+        <nav aria-label="Account" className="acc-subnav">
+          {links}
+        </nav>
       </header>
-      <main id="main" className="mx-auto max-w-[960px] px-4 py-6 sm:py-10">
+      <main id="main" className="acc-main">
         {children}
       </main>
     </div>
