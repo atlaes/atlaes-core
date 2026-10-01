@@ -24,9 +24,11 @@ function dateLabel(iso: string): string {
 }
 
 /**
- * Latest-articles cards. Titles ship dark until the post routes exist
- * (SmartLink); the original publish date is kept and an updated date shown
- * where the sheet gives one.
+ * Latest-articles cards (Figma Article Card 103:65): white card, 1px
+ * #c6c6c6, r-20, pale-blue image slot, Bold 22 title, excerpt, uppercase
+ * date, navy "››". Titles ship dark until the post routes exist
+ * (SmartLink); the original publish date is kept and an updated date
+ * shown where the sheet gives one.
  */
 export function Articles() {
   return (
@@ -34,27 +36,37 @@ export function Articles() {
       <ul className="mk-article-grid">
         {ARTICLES.map((a) => (
           <li key={a.href} className="mk-article">
-            <p className="mk-article-title">
-              <SmartLink href={a.href} className="mk-link" darkClassName="">
-                {a.title}
-              </SmartLink>
-            </p>
-            {a.datePublished ? (
-              <span className="mk-article-date">
-                <time dateTime={a.datePublished}>
-                  {dateLabel(a.datePublished)}
-                </time>
-                {a.dateModified ? (
-                  <>
-                    {' · Updated '}
-                    <time dateTime={a.dateModified}>
-                      {dateLabel(a.dateModified)}
-                    </time>
-                  </>
-                ) : null}
+            <div className="mk-article-image" aria-hidden="true" />
+            <div className="mk-article-content">
+              <p className="mk-article-title">
+                <SmartLink
+                  href={a.href}
+                  className="mk-article-link"
+                  darkClassName=""
+                >
+                  {a.title}
+                </SmartLink>
+              </p>
+              <p className="mk-article-text">{a.description}</p>
+              {a.datePublished ? (
+                <span className="mk-article-date">
+                  <time dateTime={a.datePublished}>
+                    {dateLabel(a.datePublished)}
+                  </time>
+                  {a.dateModified ? (
+                    <>
+                      {' · Updated '}
+                      <time dateTime={a.dateModified}>
+                        {dateLabel(a.dateModified)}
+                      </time>
+                    </>
+                  ) : null}
+                </span>
+              ) : null}
+              <span className="mk-article-arrow" aria-hidden="true">
+                ››
               </span>
-            ) : null}
-            <p className="mk-article-text">{a.description}</p>
+            </div>
           </li>
         ))}
       </ul>

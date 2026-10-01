@@ -1,5 +1,5 @@
 import { countryPageGraph } from '@/lib/jsonld';
-import { EXTERNAL } from '@/content/registries/links';
+import { findCountry } from '@/content/registries/countries';
 import { t } from '@/content/tokens';
 import type {
   CountryPageData,
@@ -12,9 +12,10 @@ import { Blocks } from '../ui/Blocks';
 import { Callout } from '../ui/Callout';
 import { FaqList } from '../ui/FaqList';
 import { JsonLd } from '../ui/JsonLd';
-import { JumpMenu } from '../ui/JumpMenu';
 import { Pill } from '../ui/Pill';
-import { Section } from '../ui/Section';
+import { Section, type SectionTone } from '../ui/Section';
+import { CountryHero, CtaCard } from './CountryHero';
+import './country.css';
 
 /** Jump-menu labels (README build rule 2), in menu order. */
 const JUMP_LABELS: Array<[JumpAnchor, string]> = [
@@ -56,38 +57,22 @@ export const COUNTRY_CTA = {
   secondary: { label: 'Start My Claim', href: '/get-your-refund' },
 } as const;
 
-/** Trust bar: M-15/M-16 sentence with ProvenExpert linked. */
-function TrustBar({ sentence }: { sentence: string }) {
-  const idx = sentence.indexOf('ProvenExpert');
+function CtaPills() {
   return (
-    <p className="mk-trust">
-      <span aria-hidden="true">⭐ </span>
-      {idx === -1 ? (
-        sentence
-      ) : (
-        <>
-          {sentence.slice(0, idx)}
-          <a href={EXTERNAL.provenExpert} target="_blank" rel="noopener">
-            ProvenExpert
-          </a>
-          {sentence.slice(idx + 'ProvenExpert'.length)}
-        </>
-      )}
-    </p>
-  );
-}
-
-function CtaRow() {
-  return (
-    <div className="mk-cta-row">
+    <>
       <Pill href={COUNTRY_CTA.primary.href} size="lg">
         {COUNTRY_CTA.primary.label}
       </Pill>
       <Pill href={COUNTRY_CTA.secondary.href} variant="secondary" size="lg">
         {COUNTRY_CTA.secondary.label}
       </Pill>
-    </div>
+    </>
   );
+}
+
+/** Bands alternate white / #f1f1f1, starting white after the hero. */
+function toneAt(index: number): SectionTone {
+  return index % 2 === 1 ? 'plain' : 'surface';
 }
 
 function CountrySectionView({
@@ -100,25 +85,37 @@ function CountrySectionView({
   faq: FaqItem[];
 }) {
   const label = RAIL_LABELS[section.kind];
+  const tone = toneAt(index);
   if (section.kind === 'faq') {
     // August pages: the FAQ H2 sits where the handoff put it.
     return (
-      <Section id={section.id} index={index} label={label} title={section.h2}>
+      <Section
+        id={section.id}
+        index={index}
+        label={label}
+        title={section.h2}
+        tone={tone}
+      >
         <FaqList items={faq} />
       </Section>
     );
   }
   if (section.kind === 'intake') {
-    // "What you need to start" renders as a callout (new-platform intake copy).
+    // "What you need to start": outline callout (Figma 1058:10776).
     return (
-      <Section id={section.id} index={index} label={label} title={section.h2}>
-        <Callout tone="tint" as="p">
+      <Section
+        id={section.id}
+        index={index}
+        label={label}
+        title={section.h2}
+        tone={tone}
+      >
+        <Callout tone="outline" as="p">
           <Blocks blocks={section.blocks} />
         </Callout>
       </Section>
     );
   }
-  const tone = section.kind === 'service' ? 'surface' : 'plain';
   return (
     <Section
       id={section.id}
@@ -158,31 +155,29 @@ export function CountryPage({ page }: { page: CountryPageData }) {
   const faqInPlace = page.sections.some((s) => s.kind === 'faq');
   const showTrailingFaq = !faqInPlace && page.faq.length > 0;
   const faqIndex = page.sections.length + 1;
-  const closeIndex = showTrailingFaq ? faqIndex + 1 : faqIndex;
+  const lastIndex = showTrailingFaq ? faqIndex : page.sections.length;
+  const country = findCountry(page.slug);
+  const crumbs = [
+    { label: 'Home', href: '/' },
+    { label: 'Rules by country', href: '/other-countries' },
+    { label: country ? country.name : page.h1, href: '/' + page.slug },
+  ];
 
   return (
     <article className="mk-country">
       <JsonLd graph={countryPageGraph(page)} />
 
-      <header className="mk-hero">
-        <div className="mk-hero-inner">
-          <div className="mk-hero-copy">
-            <h1 className="mk-h1">{page.h1}</h1>
-            <Blocks blocks={page.hero} />
-            <TrustBar sentence={trust} />
-            <ul className="mk-bullets">
-              {page.bullets.map((b, i) => (
-                <li key={i}>
-                  <Blocks blocks={[{ t: 'p', x: b, sp: [] }]} />
-                </li>
-              ))}
-            </ul>
-            <CtaRow />
-            <JumpMenu items={jump} />
-          </div>
-          <div className="mk-hero-aside" aria-hidden="true" />
-        </div>
-      </header>
+      <CountryHero
+        crumbs={crumbs}
+        eyebrow="Country guide"
+        h1={page.h1}
+        hero={page.hero}
+        actions={<CtaPills />}
+        glanceLabel="At a glance"
+        trust={trust}
+        bullets={page.bullets}
+        jump={jump}
+      />
 
       {page.sections.map((s, i) => (
         <CountrySectionView
@@ -199,24 +194,27 @@ export function CountryPage({ page }: { page: CountryPageData }) {
           index={faqIndex}
           label="FAQ"
           title="Frequently asked questions"
+          tone={toneAt(faqIndex)}
         >
           <FaqList items={page.faq} />
         </Section>
       ) : null}
 
-      <Section
+      <CtaCard
         id="ready-to-claim"
-        index={closeIndex}
-        label="Ready to claim"
         title={page.closeTitle || 'Ready to claim?'}
-        tone="tint"
+        afterSurface={lastIndex > 0 && toneAt(lastIndex) === 'surface'}
       >
         <Blocks blocks={closeBody} />
-        {closeHasCta ? null : <CtaRow />}
+        {closeHasCta ? null : (
+          <div className="mk-cta-row">
+            <CtaPills />
+          </div>
+        )}
         {disclaimer && disclaimer.t === 'p' ? (
           <Blocks blocks={[{ t: 'note', x: disclaimer.x }]} />
         ) : null}
-      </Section>
+      </CtaCard>
     </article>
   );
 }

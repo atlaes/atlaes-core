@@ -1,59 +1,31 @@
-import { Check } from 'lucide-react';
 import type { AccountStep } from '@/lib/account-api';
 
-/** Four-step progress: Preparing · Submitted · Decision · Payout. */
+/**
+ * Four-step progress (Figma "Stepper"): a 4px bar per step — navy when
+ * done or current, #c6c6c6 ahead — with a Semi Bold 13 label and a muted
+ * 12px detail line underneath.
+ */
 export function Stepper({ steps }: { steps: AccountStep[] }) {
   return (
-    <ol
-      className="grid grid-cols-4 gap-2 sm:gap-4"
-      aria-label="Application progress"
-    >
-      {steps.map((step, i) => {
+    <ol className="acc-stepper" aria-label="Application progress">
+      {steps.map((step) => {
         const done = step.state === 'done';
         const current = step.state === 'current';
-        const circle = done
-          ? 'bg-brand-navy text-white border-brand-navy'
-          : current
-            ? 'bg-white text-brand-navy border-brand-navy ring-4 ring-brand-tint'
-            : 'bg-white text-brand-muted border-brand-stroke';
-        const bar = done ? 'bg-brand-navy' : 'bg-brand-stroke/70';
         return (
           <li
             key={step.key}
-            className="min-w-0"
+            className={
+              'acc-step' +
+              (done ? ' acc-step-done' : current ? ' acc-step-current' : '')
+            }
             aria-current={current ? 'step' : undefined}
           >
-            <div className="flex items-center">
-              <span
-                className={
-                  'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold ' +
-                  circle
-                }
-              >
-                {done ? (
-                  <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
-                ) : (
-                  i + 1
-                )}
-              </span>
-              {i < steps.length - 1 ? (
-                <span
-                  className={'ml-2 h-0.5 flex-1 rounded ' + bar}
-                  aria-hidden
-                />
-              ) : null}
-            </div>
-            <p
-              className={
-                'mt-2 truncate text-xs font-bold sm:text-sm ' +
-                (current || done ? 'text-brand-ink' : 'text-brand-muted')
-              }
-            >
+            <span className="acc-step-bar" aria-hidden="true" />
+            <p className="acc-step-label">
+              {done ? <span aria-hidden="true">✓</span> : null}
               {step.label}
             </p>
-            <p className="hidden truncate text-xs text-brand-muted sm:block">
-              {step.detail}
-            </p>
+            <p className="acc-step-detail">{step.detail}</p>
           </li>
         );
       })}

@@ -10,17 +10,9 @@ interface Row {
   sentence: string;
 }
 
-/**
- * Cumulative share of completed refunds reaching escrow by elapsed time —
- * four rows from the token store (M-19, M-13, M-12, M-20; dataset S-14).
- * Single series, one hue; every figure is also visible as text and in the
- * table view, so the chart adds no number of its own.
- */
-export function ProcessingTimeChart() {
-  const dataset = t('S-14.dataset');
-  const calculated = t('M-12.calculatedOn');
-  const meta = tokenMeta('S-14');
-  const rows: Row[] = [
+/** The four chart rows (M-19, M-13, M-12, M-20; dataset S-14). */
+function chartRows(): Row[] {
+  return [
     {
       id: 'median',
       label: `Within ${t('M-19.medianDays')} days`,
@@ -55,6 +47,54 @@ export function ProcessingTimeChart() {
       sentence: t('M-20.sentence'),
     },
   ];
+}
+
+export interface ProcessingStat {
+  id: string;
+  label: string;
+  value: string;
+  foot: string;
+}
+
+/**
+ * Hero stat tiles of the processing-time page (Figma 790:10005): the same
+ * token figures and row wording as the chart, in the Figma order
+ * 90 days · median · 180 days.
+ */
+export function processingStats(): ProcessingStat[] {
+  const rows = chartRows();
+  const by = (id: string) => rows.filter((r) => r.id === id)[0];
+  const d90 = by('d90');
+  const med = by('median');
+  const d180 = by('d180');
+  return [
+    {
+      id: d90.id,
+      label: d90.label,
+      value: d90.value,
+      foot: d90.detail || d90.sub,
+    },
+    {
+      id: med.id,
+      label: med.sub,
+      value: `${t('M-19.medianDays')} days`,
+      foot: med.value,
+    },
+    { id: d180.id, label: d180.label, value: d180.value, foot: d180.sub },
+  ];
+}
+
+/**
+ * Cumulative share of completed refunds reaching escrow by elapsed time —
+ * four rows from the token store (M-19, M-13, M-12, M-20; dataset S-14).
+ * Single series, one hue; every figure is also visible as text and in the
+ * table view, so the chart adds no number of its own.
+ */
+export function ProcessingTimeChart() {
+  const dataset = t('S-14.dataset');
+  const calculated = t('M-12.calculatedOn');
+  const meta = tokenMeta('S-14');
+  const rows = chartRows();
   const title =
     'Cumulative share of completed refunds reaching escrow by elapsed time';
   return (
@@ -63,13 +103,6 @@ export function ProcessingTimeChart() {
         <strong>{title}</strong>
         <span>{t('M-12.sentence')} Individual processing times vary.</span>
       </figcaption>
-      <p className="mk-ptc-caption">
-        Completed refunds only: share of Germany Pension Refund’s{' '}
-        {t('M-12.total')} most recent completed paid refunds (ordered by escrow
-        value date) that had reached the client escrow account, counted in
-        calendar days from documented complete submission to the escrow value
-        date. Dataset {dataset} · calculated {calculated}.
-      </p>
       <ol className="mk-ptc-rows">
         {rows.map((r) => (
           <li key={r.id} className="mk-ptc-row" title={r.sentence}>
@@ -87,6 +120,13 @@ export function ProcessingTimeChart() {
           </li>
         ))}
       </ol>
+      <p className="mk-ptc-caption">
+        Completed refunds only: share of Germany Pension Refund’s{' '}
+        {t('M-12.total')} most recent completed paid refunds (ordered by escrow
+        value date) that had reached the client escrow account, counted in
+        calendar days from documented complete submission to the escrow value
+        date. Dataset {dataset} · calculated {calculated}.
+      </p>
       <details className="mk-ptc-table">
         <summary>View as a table</summary>
         <table className="mk-table">

@@ -5,8 +5,9 @@ import { absoluteUrl, collectionPageGraph } from '@/lib/jsonld';
 import { articles } from '@/content/articles';
 import type { ArticleData } from '@/content/articles/types';
 import { resolveTokens } from '@/content/tokens';
+import { ArticleHero } from '@/components/marketing/article/ArticlePage';
 import { JsonLd } from '@/components/marketing/ui/JsonLd';
-import { Section } from '@/components/marketing/ui/Section';
+import { Rail } from '@/components/marketing/ui/Section';
 import { SmartLink } from '@/components/marketing/ui/SmartLink';
 import '@/components/marketing/home/home.css';
 import {
@@ -17,7 +18,6 @@ import {
   BLOG_PINNED,
   PATH,
 } from '@/content/pages/blog';
-import { Crumbs } from '../other-countries/RulesPage';
 
 export const metadata: Metadata = {
   title: BLOG_META.title,
@@ -81,7 +81,7 @@ function excerpt(p: Post): string {
 export default function BlogRoute() {
   const posts = blogPosts();
   return (
-    <article className="mk-blog">
+    <article className="mk-art mk-blog">
       <JsonLd
         graph={collectionPageGraph({
           path: PATH,
@@ -99,54 +99,60 @@ export default function BlogRoute() {
       />
       <AttributionCapture />
 
-      <header className="mk-hero">
-        <div className="mk-hero-inner">
-          <div className="mk-hero-copy">
-            <Crumbs items={BLOG_HERO.crumbs} />
-            <p className="mk-kicker">›› {BLOG_HERO.eyebrow.toUpperCase()}</p>
-            <h1 className="mk-h1">{BLOG_HERO.h1}</h1>
-          </div>
-          <div className="mk-hero-aside" aria-hidden="true" />
-        </div>
-      </header>
+      <ArticleHero
+        lang="en"
+        crumbs={BLOG_HERO.crumbs.map((c, i) =>
+          i === BLOG_HERO.crumbs.length - 1 ? { label: c.label } : c
+        )}
+        eyebrow={BLOG_HERO.eyebrow}
+        h1={BLOG_HERO.h1}
+      />
 
-      <Section
-        id="all-posts"
-        index={1}
-        label={BLOG_LIST.label}
-        title={BLOG_LIST.h2}
-      >
-        <ul className="mk-article-grid">
-          {posts.map((p) => (
-            <li key={p.slug} className="mk-article">
-              <p className="mk-article-title">
-                <SmartLink
-                  href={p.article.path}
-                  className="mk-link"
-                  darkClassName=""
-                >
-                  {p.article.h1}
-                </SmartLink>
-              </p>
-              <span className="mk-article-date">
-                <time dateTime={p.article.datePublished}>
-                  {dateLabel(p.article.datePublished)}
-                </time>
-                {p.article.dateModified &&
-                p.article.dateModified !== p.article.datePublished ? (
-                  <>
-                    {' · Updated '}
-                    <time dateTime={p.article.dateModified}>
-                      {dateLabel(p.article.dateModified)}
+      {/* All posts band (Figma 927:11397): surface, rail + H2, 3-up cards */}
+      <section id="all-posts" className="mk-blog-list">
+        <div className="mk-blog-list-inner">
+          <div className="mk-articles-head">
+            <Rail index={1} label={BLOG_LIST.label} />
+            <h2 className="mk-h2">{BLOG_LIST.h2}</h2>
+          </div>
+          <ul className="mk-article-grid">
+            {posts.map((p) => (
+              <li key={p.slug} className="mk-article">
+                <div className="mk-article-image" aria-hidden="true" />
+                <div className="mk-article-content">
+                  <h3 className="mk-article-title">
+                    <SmartLink
+                      href={p.article.path}
+                      className="mk-article-link"
+                      darkClassName=""
+                    >
+                      {p.article.h1}
+                    </SmartLink>
+                  </h3>
+                  <p className="mk-article-text">{excerpt(p)}</p>
+                  <span className="mk-article-date">
+                    <time dateTime={p.article.datePublished}>
+                      {dateLabel(p.article.datePublished)}
                     </time>
-                  </>
-                ) : null}
-              </span>
-              <p className="mk-article-text">{excerpt(p)}</p>
-            </li>
-          ))}
-        </ul>
-      </Section>
+                    {p.article.dateModified &&
+                    p.article.dateModified !== p.article.datePublished ? (
+                      <>
+                        {' · Updated '}
+                        <time dateTime={p.article.dateModified}>
+                          {dateLabel(p.article.dateModified)}
+                        </time>
+                      </>
+                    ) : null}
+                  </span>
+                  <span className="mk-article-arrow" aria-hidden="true">
+                    ››
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
     </article>
   );
 }

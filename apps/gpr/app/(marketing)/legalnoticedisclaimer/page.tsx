@@ -9,7 +9,6 @@ import {
   WEBSITE_ID,
 } from '@/lib/jsonld';
 import { Blocks } from '@/components/marketing/ui/Blocks';
-import { Callout } from '@/components/marketing/ui/Callout';
 import { Inline } from '@/components/marketing/ui/Inline';
 import { JsonLd } from '@/components/marketing/ui/JsonLd';
 import { Section } from '@/components/marketing/ui/Section';
@@ -24,6 +23,9 @@ import {
   PATH,
   type LegalReviewItem,
 } from '@/content/pages/legal-notice';
+import { CoreHero } from '../_core/CoreHero';
+import '../_core/core.css';
+import './legal-notice.css';
 
 export const metadata: Metadata = {
   title: LEGAL_META.title,
@@ -68,62 +70,55 @@ function legalGraph() {
 /** A `[LEGAL REVIEW n: …]` item, visible and labelled as pending review. */
 function ReviewNote({ item }: { item: LegalReviewItem }) {
   return (
-    <Callout tone="outline" as="p" title={LEGAL_REVIEW_LABEL}>
-      <p className="mk-p">
-        LEGAL REVIEW {item.n}: {item.text}
-      </p>
-    </Callout>
+    <p className="mk-legal-review">
+      <span className="mk-legal-review-label">{LEGAL_REVIEW_LABEL}</span>
+      LEGAL REVIEW {item.n}: {item.text}
+    </p>
   );
 }
 
 export default function LegalNoticeRoute() {
   const p = LEGAL_PROVIDER;
   return (
-    <article className="mk-legal-notice">
+    <article className="mk-legal-notice mk-core">
       <JsonLd graph={legalGraph()} />
 
-      <header className="mk-hero">
-        <div className="mk-hero-inner">
-          <div className="mk-hero-copy">
-            <h1 className="mk-h1">{LEGAL_H1}</h1>
-          </div>
-        </div>
-      </header>
+      {/* Hero (925:2064): white, breadcrumb, eyebrow, H1 */}
+      <CoreHero
+        crumbs={[{ label: 'Home', href: '/' }, { label: LEGAL_BREADCRUMB_NAME }]}
+        eyebrow="Legal notice · Impressum & disclaimer"
+        title={LEGAL_H1}
+      />
 
       <Section
         id="provider-identification"
         index={1}
-        label="Provider"
+        label="Provider identification"
         title={p.h2}
+        className="mk-legal-section"
       >
         <p className="mk-p">{p.lead}</p>
-        <p className="mk-p">
-          {p.address.map((line, i) => (
-            <span key={line}>
-              {i === 0 ? <strong>{line}</strong> : line}
-              {i < p.address.length - 1 ? <br /> : null}
-            </span>
+        <p className="mk-legal-org">{p.address[0]}</p>
+        <ul className="mk-ul">
+          {p.address.slice(1).map((line) => (
+            <li key={line}>{line}</li>
           ))}
-        </p>
-        <p className="mk-p">
-          {p.contact.map((c, i) => (
-            <span key={c.value}>
+        </ul>
+        <ul className="mk-ul">
+          {p.contact.map((c) => (
+            <li key={c.value}>
               {c.label}
               <a className="mk-link" href={c.href}>
                 {c.value}
               </a>
-              {i < p.contact.length - 1 ? <br /> : null}
-            </span>
+            </li>
           ))}
-        </p>
-        <p className="mk-p">
-          {p.facts.map((line, i) => (
-            <span key={line}>
-              {line}
-              {i < p.facts.length - 1 ? <br /> : null}
-            </span>
+        </ul>
+        <ul className="mk-ul">
+          {p.facts.map((line) => (
+            <li key={line}>{line}</li>
           ))}
-        </p>
+        </ul>
         <Blocks blocks={p.blocks} />
         {p.review.map((item) => (
           <ReviewNote key={item.n} item={item} />
@@ -139,6 +134,7 @@ export default function LegalNoticeRoute() {
         label="Disclaimer"
         title={LEGAL_DISCLAIMER.h2}
         tone="surface"
+        className="mk-legal-section"
       >
         <p className="mk-note">{LEGAL_DISCLAIMER.draftNote}</p>
         {LEGAL_DISCLAIMER.parts.map((part) => (

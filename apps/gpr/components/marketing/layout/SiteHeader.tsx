@@ -4,29 +4,66 @@ import {
   countryHref,
 } from '@/content/registries/countries';
 import { EXTERNAL } from '@/content/registries/links';
-import { HEADER_NAV } from '@/content/site';
+import { HEADER_NAV, type NavItem } from '@/content/site';
 import { t } from '@/content/tokens';
 import { SmartLink } from '../ui/SmartLink';
 
-/** Top bar: M-15/M-16 sentence with ProvenExpert linked. */
+const CTA_LABEL = 'Claim Refund';
+
+/**
+ * Dark trust bar (#181818): M-15/M-16 sentence with ProvenExpert linked,
+ * and a "×" that hides it without client JS (checkbox + label).
+ */
 function TopBar() {
   const sentence = t('M-15.sentence');
   const idx = sentence.indexOf('ProvenExpert');
   const before = idx === -1 ? sentence : sentence.slice(0, idx);
   const after = idx === -1 ? '' : sentence.slice(idx + 'ProvenExpert'.length);
   return (
-    <div className="mk-topbar">
-      <div className="mk-container">
-        <span aria-hidden="true">⭐ </span>
-        {before}
-        {idx !== -1 ? (
-          <a href={EXTERNAL.provenExpert} target="_blank" rel="noopener">
-            ProvenExpert
-          </a>
-        ) : null}
-        {after}
+    <>
+      <input
+        type="checkbox"
+        id="mk-topbar-close"
+        className="mk-topbar-toggle"
+        aria-label="Hide the rating bar"
+      />
+      <div className="mk-topbar">
+        <div className="mk-container mk-topbar-inner">
+          <p className="mk-topbar-text">
+            <span aria-hidden="true">⭐ </span>
+            {before}
+            {idx !== -1 ? (
+              <a href={EXTERNAL.provenExpert} target="_blank" rel="noopener">
+                ProvenExpert
+              </a>
+            ) : null}
+            {after}
+          </p>
+          <label
+            htmlFor="mk-topbar-close"
+            className="mk-topbar-close"
+            aria-hidden="true"
+          >
+            ×
+          </label>
+        </div>
       </div>
-    </div>
+    </>
+  );
+}
+
+/** Two-line wordmark: "Germany ››" / "Pension Refund" (Extra Bold, navy). */
+export function Wordmark() {
+  return (
+    <>
+      <span className="mk-wordmark-row">
+        <span>Germany</span>
+        <span className="mk-wordmark-arrows" aria-hidden="true">
+          ››
+        </span>
+      </span>
+      <span>Pension Refund</span>
+    </>
   );
 }
 
@@ -35,7 +72,10 @@ function CountryDropdown({ label }: { label: string }) {
   return (
     <details className="mk-nav-dd">
       <summary>
-        {label} <span aria-hidden="true">▾</span>
+        {label}{' '}
+        <span className="mk-nav-caret" aria-hidden="true">
+          ▼
+        </span>
       </summary>
       <ul className="mk-nav-dd-list">
         {items.map((c) => (
@@ -58,10 +98,16 @@ function CountryDropdown({ label }: { label: string }) {
   );
 }
 
-function NavList({ className }: { className: string }) {
+function NavList({
+  className,
+  items,
+}: {
+  className: string;
+  items: NavItem[];
+}) {
   return (
     <ul className={className}>
-      {HEADER_NAV.map((item) =>
+      {items.map((item) =>
         item.dropdown === 'countries' ? (
           <li key={item.label}>
             <CountryDropdown label={item.label} />
@@ -70,10 +116,7 @@ function NavList({ className }: { className: string }) {
           <li key={item.label}>
             <SmartLink
               href={item.href}
-              className={
-                'mk-nav-link' +
-                (item.label === 'Claim Refund' ? ' mk-nav-cta' : '')
-              }
+              className="mk-nav-link"
               darkClassName="mk-nav-link mk-dark"
             >
               {item.label}
@@ -86,11 +129,15 @@ function NavList({ className }: { className: string }) {
 }
 
 /**
- * Server-rendered header: top bar, wordmark, main navigation with the
- * "Rules by Country" dropdown. No client JavaScript — the dropdown and the
- * phone menu are `<details>` elements.
+ * Server-rendered header (Global Main Navigation 104:83): dark trust bar,
+ * two-line wordmark, uppercase navigation on one line (≥1360px) with the
+ * "Rules by Country" dropdown, the navy "CLAIM REFUND" pill and a 1px
+ * #f1f1f1 hairline. No client JavaScript — the dropdown and the phone
+ * menu are `<details>` elements.
  */
 export function SiteHeader() {
+  const cta = HEADER_NAV.filter((i) => i.label === CTA_LABEL)[0];
+  const links = HEADER_NAV.filter((i) => i.label !== CTA_LABEL);
   return (
     <header className="mk-header">
       <TopBar />
@@ -100,25 +147,36 @@ export function SiteHeader() {
           className="mk-wordmark"
           aria-label="Germany Pension Refund — home"
         >
-          <span className="mk-wordmark-main">Germany Pension Refund</span>
+          <Wordmark />
         </Link>
         <nav className="mk-nav-desktop" aria-label="Main">
-          <NavList className="mk-nav-list" />
+          <NavList className="mk-nav-list" items={links} />
         </nav>
-        <details className="mk-nav-mobile">
-          <summary aria-label="Open menu">
-            <span className="mk-burger" aria-hidden="true">
-              <i />
-              <i />
-              <i />
-            </span>
-            Menu
-          </summary>
-          <nav aria-label="Main (mobile)">
-            <NavList className="mk-nav-list-mobile" />
-          </nav>
-        </details>
+        <div className="mk-header-actions">
+          {cta ? (
+            <SmartLink
+              href={cta.href}
+              className="mk-nav-cta"
+              darkClassName="mk-nav-cta mk-dark"
+            >
+              {cta.label}
+            </SmartLink>
+          ) : null}
+          <details className="mk-nav-mobile">
+            <summary aria-label="Open menu">
+              <span className="mk-burger" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </span>
+            </summary>
+            <nav className="mk-nav-mobile-panel" aria-label="Main (mobile)">
+              <NavList className="mk-nav-list-mobile" items={links} />
+            </nav>
+          </details>
+        </div>
       </div>
+      <div className="mk-header-rule" />
     </header>
   );
 }

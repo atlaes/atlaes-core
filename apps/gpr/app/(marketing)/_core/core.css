@@ -1,0 +1,716 @@
+/*
+ * Core and utility pages (fidelity pass F4) — shared hero, breadcrumbs,
+ * closing CTA, split sections and stat strip. Figma "Core pages" frames;
+ * tokens from marketing.css. Everything here is prefixed `mk-core-`.
+ */
+
+/* ---- giant "››" glyph ---- */
+.mk-core-deco {
+  position: absolute;
+  z-index: -1;
+  font-size: 520px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -62px;
+  color: var(--mk-blue);
+  opacity: 0.14;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  display: none;
+}
+@media (min-width: 1024px) {
+  .mk-core-deco {
+    display: block;
+  }
+}
+
+/* ================================================================
+ * Hero — breadcrumb, eyebrow, H1, copy + 480 card
+ * ================================================================ */
+.mk-core-hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: #fff;
+  border-bottom: 1px solid var(--mk-surface);
+  color: var(--mk-body);
+}
+.mk-core-hero-tint {
+  background: var(--mk-tint);
+}
+.mk-core-hero-navy {
+  background: var(--mk-navy);
+  border-bottom-color: var(--mk-navy);
+  color: rgba(255, 255, 255, 0.8);
+}
+.mk-core-hero-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-top: 32px;
+  padding-bottom: 48px;
+}
+.mk-core-hero-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px 64px;
+  align-items: center;
+}
+.mk-core-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+.mk-core-hero-copy > * {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.mk-core-hero-aside {
+  min-width: 0;
+}
+.mk-core-hero-copy .mk-p {
+  margin: 0;
+}
+.mk-core-hero-copy div > .mk-p + .mk-p {
+  margin-top: 16px;
+}
+.mk-core-split-side .mk-p {
+  margin: 0;
+}
+.mk-core-deco-hero {
+  right: -142px;
+  top: -120px;
+}
+.mk-core-hero-plain .mk-core-deco-hero {
+  color: var(--mk-navy);
+  opacity: 0.06;
+}
+.mk-core-hero-navy .mk-core-deco-hero {
+  color: #fff;
+  opacity: 0.08;
+}
+@media (min-width: 1024px) {
+  .mk-core-hero-inner {
+    gap: 28px;
+    padding-top: 88px;
+    padding-bottom: 88px;
+  }
+  .mk-core-layout-aside .mk-core-hero-row {
+    grid-template-columns: minmax(0, 1fr) 480px;
+  }
+  .mk-core-layout-half .mk-core-hero-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 48px;
+    align-items: start;
+  }
+  .mk-core-hero-copy {
+    gap: 24px;
+  }
+}
+
+/* breadcrumb */
+.mk-core-crumbs ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--mk-muted);
+}
+.mk-core-crumbs li + li::before {
+  content: '›';
+  margin-right: 8px;
+}
+.mk-core-crumbs a {
+  color: inherit;
+  text-decoration: none;
+}
+.mk-core-crumbs a:hover {
+  color: var(--mk-navy);
+  text-decoration: underline;
+}
+.mk-core-hero-navy .mk-core-crumbs ol,
+.mk-core-hero-navy .mk-core-crumbs a:hover {
+  color: var(--mk-pale);
+}
+
+/* eyebrow "›› LABEL" */
+.mk-core-eyebrow {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--mk-navy);
+}
+.mk-core-hero-navy .mk-core-eyebrow {
+  color: var(--mk-pale);
+}
+
+/* H1: 40 phone → 56 / 60 / 72 */
+.mk-core-h1 {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1.6px;
+  color: var(--mk-ink);
+  overflow-wrap: break-word;
+}
+.mk-core-hero-navy .mk-core-h1 {
+  color: #fff;
+}
+@media (min-width: 768px) {
+  .mk-core-h1 {
+    font-size: 56px;
+    letter-spacing: -2.9px;
+  }
+  .mk-core-h1-60 {
+    font-size: 60px;
+  }
+  .mk-core-h1-72 {
+    font-size: 64px;
+    line-height: 0.95;
+  }
+}
+@media (min-width: 1200px) {
+  .mk-core-h1-72 {
+    font-size: 72px;
+    line-height: 0.92;
+  }
+}
+
+/* hero copy */
+.mk-core-lead {
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--mk-ink);
+}
+.mk-core-hero-navy .mk-core-lead,
+.mk-core-hero-navy .mk-p {
+  color: rgba(255, 255, 255, 0.8);
+}
+.mk-core-hero-navy .mk-link,
+.mk .mk-core-hero-navy a.mk-link {
+  color: var(--mk-pale);
+}
+.mk-core-micro {
+  margin: -8px 0 0;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--mk-muted);
+}
+.mk-core-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  color: var(--mk-navy);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.mk-core-chips li {
+  position: relative;
+  padding-left: 15px;
+}
+.mk-core-chips li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  font-weight: 700;
+}
+.mk-core-badge {
+  align-self: flex-start;
+  margin: 0;
+  padding: 7px 14px;
+  border-radius: var(--mk-r-pill);
+  background: var(--mk-tint);
+  color: var(--mk-navy);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.88px;
+  text-transform: uppercase;
+}
+.mk-core-hero-copy .mk-cta-row {
+  margin: 0;
+}
+
+/* white hero card (480) */
+.mk-core-card {
+  background: #fff;
+  border-radius: 24px;
+  padding: 24px;
+  color: var(--mk-body);
+}
+.mk-core-card-label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.88px;
+  text-transform: uppercase;
+  color: var(--mk-blue);
+}
+@media (min-width: 768px) {
+  .mk-core-card {
+    padding: 28px;
+  }
+}
+
+/* navy hero card (two answers / topics) */
+.mk-core-navy-card {
+  background: var(--mk-navy);
+  border-radius: 24px;
+  padding: 8px;
+  color: var(--mk-pale);
+}
+.mk-core-navy-card .mk-core-card-label {
+  color: var(--mk-pale);
+  padding: 20px 20px 8px;
+}
+
+/* ================================================================
+ * Light stat strip (About 993:5242, Calculator 993:4927)
+ * ================================================================ */
+.mk-core-stats {
+  list-style: none;
+  margin: 0;
+  padding: 28px 0 0;
+  border-top: 1px solid var(--mk-stroke);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+.mk-core-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 24px 4px 20px;
+  border-left: 1px solid var(--mk-blue);
+}
+.mk-core-stat-figure {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.64px;
+  color: var(--mk-navy);
+}
+.mk-core-stat-caption {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--mk-body);
+}
+.mk-core-stat-caption a {
+  color: var(--mk-navy);
+}
+@media (min-width: 768px) {
+  .mk-core-stats {
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    gap: 0;
+  }
+  .mk-core-stat-figure {
+    font-size: 32px;
+  }
+}
+
+/* ================================================================
+ * Closing CTA (about-cta-variation-3) — dark, centred
+ * ================================================================ */
+.mk-core-cta {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  padding: var(--mk-section-py) 0;
+  text-align: center;
+}
+.mk-core-cta-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+}
+.mk-core-cta-h {
+  margin: 0;
+  max-width: 840px;
+  color: var(--mk-surface);
+}
+.mk-core-cta-body {
+  max-width: 910px;
+}
+.mk-core-cta-body > * {
+  margin: 0;
+}
+.mk-core-cta-body > * + * {
+  margin-top: 16px;
+}
+.mk-core-cta-body .mk-p {
+  color: #fff;
+}
+.mk .mk-core-cta-body a,
+.mk-core-cta-body .mk-link {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.mk-core-cta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+.mk-core-cta-note {
+  margin: 0;
+  max-width: 734px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.5);
+}
+.mk-core-deco-cta-l {
+  left: -116px;
+  top: 67px;
+}
+.mk-core-deco-cta-r {
+  left: calc(50% + 455px);
+  top: -228px;
+}
+
+/* ================================================================
+ * Split-screen section (480 + 736) + deco
+ * ================================================================ */
+.mk-core-split,
+.mk-core-has-deco {
+  overflow: hidden;
+  isolation: isolate;
+}
+.mk-core-split-main {
+  min-width: 0;
+}
+.mk-core-split-main > :last-child {
+  margin-bottom: 0;
+}
+.mk-core-deco-split {
+  left: -89px;
+  bottom: -180px;
+}
+.mk-tone-navy .mk-core-deco,
+.mk-tone-dark .mk-core-deco {
+  opacity: 0.14;
+}
+
+/* numbered circle used by cards */
+.mk-core-num {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  background: var(--mk-tint);
+  color: var(--mk-navy);
+}
+
+/* ================================================================
+ * Numbered rows (rules 01/02/03) and dark numbered cards
+ * ================================================================ */
+.mk-core-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--mk-stroke);
+}
+.mk-core-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px 40px;
+  padding: 28px 0;
+  border-bottom: 1px solid var(--mk-stroke);
+}
+.mk-core-row-title {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin: 0;
+}
+.mk-core-row-n {
+  flex: 0 0 auto;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--mk-blue);
+}
+.mk-core-row-h {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.3px;
+  color: var(--mk-ink);
+}
+.mk-core-row-body > :last-child {
+  margin-bottom: 0;
+}
+@media (min-width: 900px) {
+  .mk-core-row {
+    grid-template-columns: 300px minmax(0, 1fr);
+    padding: 32px 0;
+    align-items: start;
+  }
+}
+
+.mk-core-dark-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.mk-core-dark-card {
+  background: #242424;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--mk-r-card);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  color: var(--mk-on-dark);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.mk-core-dark-card > * {
+  margin: 0;
+}
+.mk-core-dark-n {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--mk-blue);
+}
+.mk-core-dark-card strong {
+  color: #fff;
+}
+.mk-core-foot {
+  margin: 0;
+  padding: 24px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.mk-core-foot strong {
+  color: #fff;
+}
+@media (min-width: 900px) {
+  .mk-core-dark-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mk-core-dark-card {
+    padding: 32px;
+  }
+  .mk-core-foot {
+    padding: 24px;
+  }
+}
+
+/* white tiles with a Bold 22 title (what to expect) */
+.mk-core-tiles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.mk-core-tile {
+  background: #fff;
+  border: 1px solid var(--mk-stroke);
+  border-radius: var(--mk-r-card);
+  padding: 24px;
+}
+.mk-core-tile-h {
+  margin: 0 0 12px;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.3px;
+  color: var(--mk-ink);
+}
+.mk-core-tile .mk-p {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--mk-ink);
+  margin: 0;
+}
+@media (min-width: 768px) {
+  .mk-core-tile {
+    padding: 32px;
+  }
+}
+
+/* partner hero notice cards (service notice / who we are) */
+.mk-core-notes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 8px;
+}
+.mk-core-note-card {
+  background: var(--mk-surface);
+  border: 1px solid #e1dcd3;
+  border-radius: var(--mk-r-card);
+  padding: 24px;
+}
+.mk-core-note-card > * {
+  margin: 0;
+}
+.mk-core-note-card .mk-label {
+  margin-bottom: 12px;
+}
+.mk-core-note-card .mk-p {
+  color: var(--mk-ink);
+}
+.mk-core-note-card + .mk-core-note-card .mk-p {
+  color: var(--mk-body);
+}
+.mk-core-note-card .mk-p + .mk-p {
+  margin-top: 12px;
+}
+@media (min-width: 900px) {
+  .mk-core-notes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mk-core-note-card + .mk-core-note-card {
+    padding: 32px;
+  }
+}
+
+/* section header stack (rail, H2, intro) */
+.mk-core-head {
+  gap: 24px;
+}
+.mk-core-head > .mk-p {
+  margin: 0;
+  color: var(--mk-ink);
+}
+.mk-core-muted {
+  margin: 0;
+  color: var(--mk-muted);
+}
+.mk-core-w960 {
+  margin: 0;
+  max-width: 960px;
+}
+.mk-core-hero-stack .mk-core-hero-copy,
+.mk-core-layout-stack .mk-core-hero-copy {
+  max-width: 826px;
+}
+
+/* partner pages: navy step-1 intake card (993:5286) around FlowCard */
+.mk-core-intake {
+  background: var(--mk-navy);
+  border-radius: 24px;
+  padding: 28px 20px 24px;
+  color: var(--mk-pale);
+}
+.mk-core-intake > p {
+  margin: 0;
+}
+.mk-core-intake-step {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.88px;
+  color: var(--mk-pale);
+}
+.mk-core-intake-hint {
+  margin-top: 4px !important;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--mk-pale);
+}
+.mk .mk-core-intake .mk-flow-card {
+  background: transparent;
+  padding: 8px 0 12px;
+  color: #fff;
+}
+.mk-core-intake .mk-flow-title {
+  color: #fff;
+}
+.mk-core-intake .mk-flow-sub,
+.mk-core-intake .mk-flow-micro {
+  color: var(--mk-pale);
+}
+.mk-core-intake .mk-field-label {
+  color: var(--mk-pale);
+}
+.mk-core-intake .mk-input {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.mk-core-intake .mk-field-error {
+  color: #ffd2cf;
+}
+.mk .mk-core-intake .mk-pill-primary {
+  background: #fff;
+  color: var(--mk-navy);
+}
+.mk .mk-core-intake .mk-pill-primary:hover {
+  background: var(--mk-tint);
+}
+.mk-core-intake-after {
+  margin: 16px 0 0;
+  color: var(--mk-ink);
+}
+@media (min-width: 768px) {
+  .mk-core-intake {
+    padding: 36px 36px 32px;
+  }
+}
+.mk-core-lead-wrap .mk-p {
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--mk-ink);
+}
+.mk-core-foot .mk-p {
+  margin: 0;
+  color: #fff;
+}
+.mk-core-w960 .mk-p {
+  margin-bottom: 0;
+}
+
+/* H2 inside a wrapper of a stacked section keeps its 32px gap */
+.mk-hs-stack > div > .mk-h2 {
+  margin-bottom: 32px;
+}
+/* links inside white cards on the navy hero stay navy */
+.mk .mk-core-hero-navy .mk-core-card a.mk-link {
+  color: var(--mk-navy);
+}
+/* disc bullets for plain lists on utility pages */
+.mk-core .mk-ul {
+  list-style: disc;
+}
+.mk-core .mk-ol {
+  list-style: decimal;
+}
+.mk-core .mk-ul li::marker {
+  color: var(--mk-body);
+}
+.mk-hs-stack .mk-split > div > .mk-h2 {
+  margin-bottom: 32px;
+}

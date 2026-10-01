@@ -2,12 +2,15 @@
 
 import type { AccountDocument, AccountDocumentGroup } from '@/lib/account-api';
 import { AccountStateView } from '@/components/account/AccountStates';
+import { fileBadge } from '@/components/account/Dropzone';
+import { HOME_COPY } from '@/components/account/HomePanel';
 import {
-  Card,
+  BackLink,
+  Column,
   EmptyLine,
+  LinkButton,
   PageTitle,
   StatusChip,
-  TextLink,
 } from '@/components/account/primitives';
 import { useAccountView } from '@/components/account/useAccountView';
 
@@ -18,25 +21,34 @@ const GROUPS: Array<{ key: AccountDocumentGroup; title: string }> = [
   { key: 'letters', title: 'Letters from the pension office' },
 ];
 
+function docBadge(doc: AccountDocument): string {
+  const source = doc.url || doc.description || doc.name;
+  const clean = source.split('?')[0].split(' · ')[0];
+  return /\.(pdf|jpe?g|png)$/i.test(clean) ? fileBadge(clean) : 'PDF';
+}
+
 function DocumentRow({ doc }: { doc: AccountDocument }) {
   return (
-    <li className="flex flex-wrap items-start gap-x-4 gap-y-1 py-3 first:pt-0">
-      <div className="min-w-0 flex-1">
-        <p className="font-semibold text-brand-ink">{doc.name}</p>
+    <li className="acc-row">
+      <span className="acc-row-icon" aria-hidden="true">
+        {docBadge(doc)}
+      </span>
+      <div className="acc-row-box">
+        <p className="acc-row-name">{doc.name}</p>
         {doc.description ? (
-          <p className="truncate text-sm text-brand-muted">{doc.description}</p>
+          <p className="acc-row-desc">{doc.description}</p>
         ) : null}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="acc-row-meta">
         <StatusChip kind={doc.statusKind}>{doc.status}</StatusChip>
         {doc.url ? (
           <a
             href={doc.url}
             target="_blank"
             rel="noopener"
-            className="text-sm font-semibold text-brand-navy underline-offset-2 hover:underline"
+            className="acc-row-action"
           >
-            Open
+            Open →
           </a>
         ) : null}
       </div>
@@ -51,37 +63,47 @@ export default function AccountDocumentsPage() {
   const docs = view.data.documents;
 
   return (
-    <div>
-      <p className="mb-3 text-sm">
-        <TextLink href="/account">← Back to your application</TextLink>
-      </p>
+    <Column width={800}>
+      <BackLink href="/account">← Back to your application</BackLink>
       <PageTitle>Your documents</PageTitle>
 
-      <div className="space-y-4">
-        {GROUPS.map((group) => {
-          const items = docs.filter((d) => d.group === group.key);
-          return (
-            <Card key={group.key} title={group.title}>
-              {items.length ? (
-                <ul className="divide-y divide-brand-stroke/50">
-                  {items.map((doc, i) => (
-                    <DocumentRow key={(doc.id || doc.name) + i} doc={doc} />
-                  ))}
-                </ul>
-              ) : (
-                <EmptyLine>Nothing here yet.</EmptyLine>
-              )}
-              {group.key === 'letters' ? (
-                <p className="mt-3 text-sm">
-                  <TextLink href="/account/letters/new">
-                    Upload a letter →
-                  </TextLink>
-                </p>
+      {GROUPS.map((group) => {
+        const items = docs.filter((d) => d.group === group.key);
+        const letters = group.key === 'letters';
+        return (
+          <section key={group.key} className="acc-group">
+            <h2 className="acc-eyebrow">{group.title}</h2>
+            <ul className="acc-list">
+              {items.map((doc, i) => (
+                <DocumentRow key={(doc.id || doc.name) + i} doc={doc} />
+              ))}
+              {!items.length ? (
+                <li className="acc-row">
+                  <EmptyLine>Nothing here yet.</EmptyLine>
+                </li>
               ) : null}
-            </Card>
-          );
-        })}
-      </div>
-    </div>
+              {letters ? (
+                <li className="acc-row acc-row-add">
+                  <span className="acc-row-icon" aria-hidden="true">
+                    +
+                  </span>
+                  <div className="acc-row-box">
+                    <p className="acc-row-name">
+                      {HOME_COPY.receivedALetter.heading}
+                    </p>
+                    <p className="acc-row-desc">
+                      {HOME_COPY.receivedALetter.text}
+                    </p>
+                  </div>
+                  <LinkButton href="/account/letters/new" size="sm">
+                    {HOME_COPY.receivedALetter.button}
+                  </LinkButton>
+                </li>
+              ) : null}
+            </ul>
+          </section>
+        );
+      })}
+    </Column>
   );
 }

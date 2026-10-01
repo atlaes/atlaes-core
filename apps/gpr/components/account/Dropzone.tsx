@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useRef, useState } from 'react';
-import { FileText, Upload, X } from 'lucide-react';
 import { formatFileSize } from './format';
 
 const ACCEPT = '.pdf,.jpg,.jpeg,.png';
@@ -90,16 +89,13 @@ export function Dropzone({
           if (!disabled) addFiles(e.dataTransfer.files);
         }}
         className={
-          'flex cursor-pointer flex-col items-center justify-center rounded-card border-2 border-dashed px-4 py-8 text-center transition-colors ' +
-          (dragging
-            ? 'border-brand-navy bg-brand-tint'
-            : 'border-brand-stroke bg-brand-surface/60 hover:border-brand-blue') +
-          (disabled ? ' cursor-not-allowed opacity-60' : '')
+          'acc-drop' +
+          (dragging ? ' acc-drop-active' : '') +
+          (disabled ? ' acc-drop-disabled' : '')
         }
       >
-        <Upload className="mb-2 h-6 w-6 text-brand-navy" aria-hidden />
-        <p className="text-sm font-semibold text-brand-ink">{label}</p>
-        <p className="mt-1 text-xs text-brand-muted">
+        <p className="acc-drop-title">{label}</p>
+        <p className="acc-drop-hint">
           PDF, JPG or PNG · up to {MAX_MB}MB{multiple ? ' each' : ''}
         </p>
         <input
@@ -109,7 +105,7 @@ export function Dropzone({
           accept={ACCEPT}
           multiple={multiple}
           disabled={disabled}
-          className="sr-only"
+          className="acc-sr-only"
           onChange={(e) => {
             addFiles(e.target.files);
             e.target.value = '';
@@ -118,36 +114,30 @@ export function Dropzone({
       </div>
 
       {error ? (
-        <p role="alert" className="mt-2 text-sm text-red-700">
+        <p role="alert" className="acc-error" style={{ marginTop: 8 }}>
           {error}
         </p>
       ) : null}
 
       {files.length ? (
-        <ul className="mt-3 space-y-2">
+        <ul className="acc-files">
           {files.map((f, i) => (
-            <li
-              key={f.name + i}
-              className="flex items-center gap-3 rounded-xl border border-brand-stroke/60 bg-white px-3 py-2 text-sm"
-            >
-              <FileText
-                className="h-4 w-4 shrink-0 text-brand-navy"
-                aria-hidden
-              />
-              <span className="min-w-0 flex-1 truncate text-brand-ink">
-                {f.name}
+            <li key={f.name + i} className="acc-file">
+              <span className="acc-row-icon" aria-hidden="true">
+                {fileBadge(f.name)}
               </span>
-              <span className="shrink-0 text-xs text-brand-muted">
-                {formatFileSize(f.size)}
+              <span className="acc-file-box">
+                <span className="acc-file-name">{f.name}</span>
+                <span className="acc-file-size">{formatFileSize(f.size)}</span>
               </span>
               {!disabled ? (
                 <button
                   type="button"
                   onClick={() => remove(i)}
-                  className="shrink-0 rounded-full p-1 text-brand-muted hover:bg-brand-surface hover:text-brand-ink"
+                  className="acc-file-remove"
                   aria-label={'Remove ' + f.name}
                 >
-                  <X className="h-4 w-4" aria-hidden />
+                  Remove
                 </button>
               ) : null}
             </li>
@@ -156,4 +146,11 @@ export function Dropzone({
       ) : null}
     </div>
   );
+}
+
+/** "PDF" / "JPG" / "PNG" badge text for a file row. */
+export function fileBadge(name: string): string {
+  const ext = (name.split('.').pop() || '').toUpperCase();
+  if (ext === 'JPEG') return 'JPG';
+  return ext && ext.length <= 4 ? ext : 'FILE';
 }
