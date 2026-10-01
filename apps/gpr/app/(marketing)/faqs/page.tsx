@@ -12,7 +12,6 @@ import {
 } from '@/lib/jsonld';
 import { Inline } from '@/components/marketing/ui/Inline';
 import { JsonLd } from '@/components/marketing/ui/JsonLd';
-import { JumpMenu } from '@/components/marketing/ui/JumpMenu';
 import { Pill } from '@/components/marketing/ui/Pill';
 import { Section } from '@/components/marketing/ui/Section';
 import { RichFaq } from '@/components/marketing/home/RichFaq';
@@ -25,7 +24,9 @@ import {
   FAQS_TOPICS,
   PATH,
 } from '@/content/pages/faqs';
-import { Crumbs } from '../other-countries/RulesPage';
+import { CoreCta, CoreHero } from '../_core/CoreHero';
+import '../_core/core.css';
+import './faqs.css';
 
 export const metadata: Metadata = {
   title: FAQS_META.title,
@@ -70,36 +71,46 @@ function faqsGraph() {
 
 export default function FaqsRoute() {
   return (
-    <article className="mk-faqs">
+    <article className="mk-faqs mk-core">
       <JsonLd graph={faqsGraph()} />
       <AttributionCapture />
 
-      <header className="mk-hero">
-        <div className="mk-hero-inner">
-          <div className="mk-hero-copy">
-            <Crumbs items={FAQS_HERO.crumbs} />
-            <p className="mk-kicker">›› {FAQS_HERO.eyebrow.toUpperCase()}</p>
-            <h1 className="mk-h1">{FAQS_HERO.h1}</h1>
-            <p className="mk-p">{FAQS_HERO.lead}</p>
-            <p className="mk-p">
-              <Inline x={FAQS_HERO.guide.x} sp={FAQS_HERO.guide.sp} />
-            </p>
-            <div className="mk-cta-row">
-              <Pill href={FAQS_HERO.cta.href} size="lg">
-                {FAQS_HERO.cta.label}
-              </Pill>
-            </div>
-            <JumpMenu
-              ariaLabel={FAQS_HERO.jumpLabel}
-              items={FAQS_TOPICS.map((tp) => ({
-                href: '#' + tp.id,
-                label: tp.label + ' · ' + tp.items.length + ' questions',
-              }))}
-            />
-          </div>
-          <div className="mk-hero-aside" aria-hidden="true" />
+      {/* Hero (945:5584): white, navy "Jump to a topic" card */}
+      <CoreHero
+        crumbs={FAQS_HERO.crumbs}
+        eyebrow={FAQS_HERO.eyebrow}
+        eyebrowAbove
+        title={FAQS_HERO.h1}
+        className="mk-faqs-hero"
+        aside={
+          <nav
+            className="mk-core-navy-card mk-faqs-topics"
+            aria-label={FAQS_HERO.jumpLabel}
+          >
+            <p className="mk-core-card-label">{FAQS_HERO.jumpLabel}</p>
+            <ul>
+              {FAQS_TOPICS.map((tp) => (
+                <li key={tp.id}>
+                  <a href={'#' + tp.id}>
+                    <span className="mk-faqs-topic-t">{tp.label}</span>
+                    <span className="mk-faqs-topic-n">
+                      {tp.items.length} questions
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        }
+      >
+        <p className="mk-core-lead">{FAQS_HERO.lead}</p>
+        <p className="mk-p">
+          <Inline x={FAQS_HERO.guide.x} sp={FAQS_HERO.guide.sp} />
+        </p>
+        <div className="mk-cta-row">
+          <Pill href={FAQS_HERO.cta.href}>{FAQS_HERO.cta.label}</Pill>
         </div>
-      </header>
+      </CoreHero>
 
       {FAQS_TOPICS.map((tp, i) => (
         <Section
@@ -109,24 +120,22 @@ export default function FaqsRoute() {
           label={tp.label}
           title={tp.h2}
           tone={i % 2 ? 'surface' : 'plain'}
+          className="mk-faqs-topic"
         >
           <RichFaq items={tp.items} />
         </Section>
       ))}
 
-      <Section
+      {/* Closing CTA (945:5656) */}
+      <CoreCta
         id="ready-to-claim"
-        index={FAQS_TOPICS.length + 1}
-        label="Get started"
         title={FAQS_CLOSE.h2}
-        tone="tint"
-      >
-        <div className="mk-cta-row">
+        cta={
           <Pill href={FAQS_CLOSE.cta.href} size="lg">
             {FAQS_CLOSE.cta.label}
           </Pill>
-        </div>
-      </Section>
+        }
+      />
     </article>
   );
 }

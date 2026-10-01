@@ -20,6 +20,9 @@ import {
   PRIVACY_TITLE,
   type PrivacyBlock,
 } from '@/content/pages/privacy-policy';
+import { CoreHero } from '../_core/CoreHero';
+import '../_core/core.css';
+import './privacy-policy.css';
 
 export const metadata: Metadata = {
   title: PRIVACY_META.title,
@@ -127,18 +130,22 @@ function PrivacyBlocks({ blocks }: { blocks: PrivacyBlock[] }) {
 
 export default function PrivacyPolicyRoute() {
   return (
-    <article className="mk-privacy-policy">
+    <article className="mk-privacy-policy mk-core">
       <JsonLd graph={privacyGraph()} />
 
-      <header className="mk-hero">
-        <div className="mk-hero-inner">
-          <div className="mk-hero-copy">
-            <h1 className="mk-h1">{PRIVACY_TITLE}</h1>
-          </div>
-        </div>
-      </header>
+      {/* Hero (926:2217): white, breadcrumb, eyebrow, H1 */}
+      <CoreHero
+        crumbs={[{ label: 'Home', href: '/' }, { label: 'Privacy Policy' }]}
+        eyebrow="Privacy policy · GDPR"
+        title={PRIVACY_TITLE}
+      />
 
-      <Section id="privacy-policy" index={1} label="Privacy policy">
+      <Section
+        id="privacy-policy"
+        index={1}
+        label="Privacy policy"
+        className="mk-privacy-section"
+      >
         <JumpMenu
           items={PRIVACY_SECTIONS.map((s) => ({
             href: '#' + s.id,

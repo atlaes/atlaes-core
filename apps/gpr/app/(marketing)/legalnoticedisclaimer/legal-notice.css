@@ -1,0 +1,33 @@
+/* ---- /legalnoticedisclaimer (Figma 925:2064) ---- */
+.mk-legal-section .mk-p,
+.mk-legal-section .mk-ul {
+  font-size: 15px;
+}
+.mk-legal-section .mk-ul {
+  margin-bottom: 20px;
+}
+.mk-legal-section .mk-ul li {
+  margin-bottom: 2px;
+}
+.mk-legal-org {
+  margin: 0 0 16px;
+  font-weight: 700;
+  color: var(--mk-ink);
+}
+.mk-legal-section .mk-h3 {
+  margin-top: 28px;
+}
+.mk-legal-review {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--mk-muted);
+}
+.mk-legal-review-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--mk-muted);
+}

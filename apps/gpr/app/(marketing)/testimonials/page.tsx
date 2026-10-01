@@ -10,13 +10,14 @@ import {
   WEBSITE_ID,
 } from '@/lib/jsonld';
 import { REVIEWS, reviewDateLabel } from '@/content/reviews';
-import { resolveTokens } from '@/content/tokens';
+import { resolveTokens, t } from '@/content/tokens';
 import { Blocks } from '@/components/marketing/ui/Blocks';
 import { Inline } from '@/components/marketing/ui/Inline';
 import { JsonLd } from '@/components/marketing/ui/JsonLd';
 import { Pill } from '@/components/marketing/ui/Pill';
-import { Section } from '@/components/marketing/ui/Section';
 import '@/components/marketing/home/home.css';
+import { CoreCta, CoreHero, CoreRail } from '../_core/CoreHero';
+import '../_core/core.css';
 import './testimonials.css';
 import {
   AWARDS,
@@ -72,99 +73,127 @@ function testimonialsGraph() {
   ]);
 }
 
-/** Award badges: only title/year pairs with a retained certificate. */
-function AwardBadges() {
+/** "Top Service Provider · Top Recommendation 2024 and 2025" from AWARDS. */
+function awardsLine(): string {
+  const titles = AWARDS.map((a) => a.title);
+  const years: string[] = [];
+  AWARDS.forEach((a) =>
+    a.years.forEach((y) => {
+      if (years.indexOf(y) === -1) years.push(y);
+    })
+  );
+  return titles.join(' · ') + ' ' + years.join(' and ');
+}
+
+/** Rating card (765:9463): score, stars, exact sentence, awards, link. */
+function RatingCard() {
+  const score = t('M-15.ratingExact').split('/')[0];
   return (
-    <ul className="mk-badges" aria-label="ProvenExpert awards">
-      {AWARDS.map((a) =>
-        a.years.map((y) => (
-          <li key={a.title + y} className="mk-badge">
-            <span className="mk-badge-title">{a.title}</span>
-            <span className="mk-badge-year">{y}</span>
-          </li>
-        ))
-      )}
-    </ul>
+    <div className="mk-core-card mk-testi-card">
+      <span className="mk-testi-quote" aria-hidden="true">
+        ››
+      </span>
+      <div className="mk-testi-score">
+        <span className="mk-testi-figure" aria-hidden="true">
+          {score}
+        </span>
+        <span className="mk-testi-stars" aria-hidden="true">
+          ★★★★★
+        </span>
+      </div>
+      <p className="mk-testi-sentence">
+        {resolveTokens(TESTIMONIALS_SEAL.sentence)}
+      </p>
+      <p className="mk-testi-awards">{awardsLine()}</p>
+      <a
+        href={TESTIMONIALS_SEAL.href}
+        className="mk-link mk-testi-link"
+        target="_blank"
+        rel="noopener"
+      >
+        {TESTIMONIALS_SEAL.linkLabel}
+      </a>
+    </div>
   );
 }
 
 export default function TestimonialsRoute() {
   return (
-    <article className="mk-testimonials">
+    <article className="mk-testimonials mk-core">
       <JsonLd graph={testimonialsGraph()} />
       <AttributionCapture />
 
-      <header className="mk-hero">
-        <div className="mk-hero-inner">
-          <div className="mk-hero-copy">
-            <h1 className="mk-h1">{TESTIMONIALS_HERO.h1}</h1>
-            <p className="mk-p">{TESTIMONIALS_HERO.intro}</p>
-            <div className="mk-seal">
-              <p className="mk-seal-score">
-                <span aria-hidden="true">⭐ </span>
-                {resolveTokens(TESTIMONIALS_SEAL.sentence)}
-              </p>
-              <a
-                href={TESTIMONIALS_SEAL.href}
-                className="mk-link"
-                target="_blank"
-                rel="noopener"
-              >
-                {TESTIMONIALS_SEAL.linkLabel}
-              </a>
-            </div>
-          </div>
-          <div className="mk-hero-aside" aria-hidden="true" />
-        </div>
-      </header>
-
-      <Section
-        id="what-clients-tell-us"
-        index={1}
-        label="Reviews"
-        title={TESTIMONIALS_WHAT.h2}
+      {/* Hero (765:9458): navy, white rating card */}
+      <CoreHero
+        tone="navy"
+        size={72}
+        crumbs={[
+          { label: 'Home', href: '/' },
+          { label: TESTIMONIALS_BREADCRUMB_NAME },
+        ]}
+        eyebrow="Reviews · What clients say"
+        title={TESTIMONIALS_HERO.h1}
+        className="mk-testi-hero"
+        aside={<RatingCard />}
       >
-        <Blocks blocks={TESTIMONIALS_WHAT.blocks} />
-        <ul className="mk-review-grid">
-          {REVIEWS.map((r) => (
-            <li key={r.sourceUrl} className="mk-review">
-              <div className="mk-review-head">
-                <span aria-hidden="true">{r.flag}</span>
-                <a
-                  href={r.profileUrl}
-                  className="mk-review-name"
-                  target="_blank"
-                  rel="noopener"
-                >
-                  {r.name}
-                </a>
-                <time className="mk-review-date" dateTime={r.date}>
-                  {reviewDateLabel(r.date)}
-                </time>
-              </div>
-              <p className="mk-review-title">{r.title}</p>
-              <p className="mk-review-text">&ldquo;{r.text}&rdquo;</p>
-              <p className="mk-review-src">
-                <a
-                  href={r.sourceUrl}
-                  className="mk-link"
-                  target="_blank"
-                  rel="noopener"
-                >
-                  {r.sourceLabel}
-                </a>
-              </p>
-            </li>
-          ))}
-        </ul>
-      </Section>
+        <p className="mk-core-lead">{TESTIMONIALS_HERO.intro}</p>
+      </CoreHero>
 
-      <Section
+      {/* What clients tell us (765:9467) */}
+      <section id="what-clients-tell-us" className="mk-hs mk-tone-plain">
+        <div className="mk-container mk-hs-stack mk-testi-what">
+          <CoreRail index={1} label="What clients tell us" />
+          <div>
+            <h2 className="mk-h2">{TESTIMONIALS_WHAT.h2}</h2>
+            <Blocks blocks={TESTIMONIALS_WHAT.blocks} />
+          </div>
+          <ul className="mk-review-grid">
+            {REVIEWS.map((r) => (
+              <li key={r.sourceUrl} className="mk-review">
+                <div className="mk-review-head">
+                  <a
+                    href={r.profileUrl}
+                    className="mk-review-name"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    <span aria-hidden="true">{r.flag} </span>
+                    {r.name}
+                  </a>
+                  <time className="mk-review-date" dateTime={r.date}>
+                    {reviewDateLabel(r.date)}
+                  </time>
+                </div>
+                <span className="mk-review-rating" aria-hidden="true">
+                  ★★★★★
+                </span>
+                <p className="mk-review-title">{r.title}</p>
+                <p className="mk-review-text">&ldquo;{r.text}&rdquo;</p>
+                <p className="mk-review-src">
+                  <a
+                    href={r.sourceUrl}
+                    className="mk-review-src-link"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    {r.sourceLabel}
+                  </a>
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* Closing CTA (765:9650) */}
+      <CoreCta
         id="put-your-trust-in-germany-pension-refund-today"
-        index={2}
-        label="Get started"
         title={TESTIMONIALS_TRUST.h2}
-        tone="tint"
+        cta={
+          <Pill href={TESTIMONIALS_TRUST.cta.href} size="lg">
+            {TESTIMONIALS_TRUST.cta.label}
+          </Pill>
+        }
       >
         <p className="mk-p">
           <Inline
@@ -172,13 +201,7 @@ export default function TestimonialsRoute() {
             sp={TESTIMONIALS_TRUST.text.sp}
           />
         </p>
-        <div className="mk-cta-row">
-          <Pill href={TESTIMONIALS_TRUST.cta.href} size="lg">
-            {TESTIMONIALS_TRUST.cta.label}
-          </Pill>
-        </div>
-        <AwardBadges />
-      </Section>
+      </CoreCta>
     </article>
   );
 }

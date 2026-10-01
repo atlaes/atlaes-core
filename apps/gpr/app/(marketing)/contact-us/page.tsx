@@ -11,7 +11,6 @@ import {
 } from '@/lib/jsonld';
 import { JsonLd } from '@/components/marketing/ui/JsonLd';
 import { Pill } from '@/components/marketing/ui/Pill';
-import { Section } from '@/components/marketing/ui/Section';
 import '@/components/marketing/home/home.css';
 import {
   CONTACT_ADDRESS,
@@ -21,7 +20,9 @@ import {
   CONTACT_SCHEMA,
   PATH,
 } from '@/content/pages/contact-us';
-import { Crumbs } from '../other-countries/RulesPage';
+import { CoreCta, CoreHero, CoreRail } from '../_core/CoreHero';
+import '../_core/core.css';
+import './contact-us.css';
 import { ContactForm } from './ContactForm';
 
 export const metadata: Metadata = {
@@ -67,66 +68,64 @@ function contactGraph() {
 
 export default function ContactRoute() {
   return (
-    <article className="mk-contact">
+    <article className="mk-contact mk-core">
       <JsonLd graph={contactGraph()} />
       <AttributionCapture />
 
-      <header className="mk-hero">
-        <div className="mk-hero-inner">
-          <div className="mk-hero-copy">
-            <Crumbs items={CONTACT_HERO.crumbs} />
-            <p className="mk-kicker">›› {CONTACT_HERO.eyebrow.toUpperCase()}</p>
-            <h1 className="mk-h1">{CONTACT_HERO.h1}</h1>
-            <p className="mk-p">{CONTACT_HERO.lead}</p>
-          </div>
-          <div className="mk-hero-aside" aria-hidden="true" />
-        </div>
-      </header>
+      {/* Hero (967:5903): white, breadcrumb, eyebrow, H1, lead */}
+      <CoreHero
+        crumbs={CONTACT_HERO.crumbs}
+        eyebrow={CONTACT_HERO.eyebrow}
+        title={CONTACT_HERO.h1}
+        className="mk-contact-hero"
+      >
+        <p className="mk-core-lead">{CONTACT_HERO.lead}</p>
+      </CoreHero>
 
-      <Section id="mail-address" index={1} label="Mail address">
-        <div className="grid gap-8 lg:grid-cols-2">
-          <div>
-            <p className="mk-p">{CONTACT_ADDRESS.question}</p>
+      {/* Mail address + form: blue panel / white form, full bleed */}
+      <section id="mail-address" className="mk-contact-split">
+        <div className="mk-contact-panel">
+          <div className="mk-contact-panel-inner">
+            <CoreRail index={1} label="Mail address" />
+            <p className="mk-contact-question">{CONTACT_ADDRESS.question}</p>
             <p className="mk-p">{CONTACT_ADDRESS.reply}</p>
-            <h2 className="mk-h3">{CONTACT_ADDRESS.label}</h2>
-            <address className="mk-p not-italic">
-              {CONTACT_ADDRESS.lines.map((l) => (
-                <span key={l} className="block">
-                  {l}
-                </span>
-              ))}
-              <a
-                href={'tel:' + CONTACT_ADDRESS.phone.replace(/\s+/g, '')}
-                className="mk-link block"
-              >
-                {CONTACT_ADDRESS.phone}
-              </a>
-              <a
-                href={'mailto:' + CONTACT_ADDRESS.email}
-                className="mk-link block"
-              >
-                {CONTACT_ADDRESS.email}
-              </a>
-            </address>
+            <div className="mk-contact-address">
+              <h2 className="mk-contact-label">{CONTACT_ADDRESS.label}</h2>
+              <address>
+                {CONTACT_ADDRESS.lines.map((l, i) => (
+                  <span key={l} className={i === 0 ? 'mk-contact-org' : ''}>
+                    {l}
+                  </span>
+                ))}
+                <a
+                  href={'tel:' + CONTACT_ADDRESS.phone.replace(/\s+/g, '')}
+                >
+                  {CONTACT_ADDRESS.phone}
+                </a>
+                <a href={'mailto:' + CONTACT_ADDRESS.email}>
+                  {CONTACT_ADDRESS.email}
+                </a>
+              </address>
+            </div>
           </div>
+        </div>
+        <div className="mk-contact-formcol">
           <ContactForm />
         </div>
-      </Section>
+      </section>
 
-      <Section
+      {/* Schedule a call: dark centred CTA */}
+      <CoreCta
         id="schedule-a-call"
-        index={2}
-        label="Schedule a call"
         title={CONTACT_CALL.h2}
-        tone="tint"
-      >
-        <p className="mk-p">{CONTACT_CALL.text}</p>
-        <div className="mk-cta-row">
+        cta={
           <Pill href={CONTACT_CALL.cta.href} size="lg">
             {CONTACT_CALL.cta.label}
           </Pill>
-        </div>
-      </Section>
+        }
+      >
+        <p className="mk-p">{CONTACT_CALL.text}</p>
+      </CoreCta>
     </article>
   );
 }

@@ -1,0 +1,190 @@
+/* ---- /how-it-works (Figma 854:3434) ---- */
+
+/* hero: four-step preview card (1001:5174) */
+.mk-hiw-preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.mk-hiw-preview-list li {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+}
+.mk-hiw-preview-list li + li {
+  border-top: 1px solid var(--mk-stroke);
+}
+.mk-hiw-preview-list li:first-child .mk-core-num {
+  background: var(--mk-navy);
+  color: #fff;
+}
+.mk-hiw-preview-list li:last-child {
+  padding-bottom: 0;
+}
+.mk-hiw-preview-t {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--mk-ink);
+}
+
+/* steps (854:3458): rail 280 + timeline */
+.mk-hiw-steps-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px 64px;
+  align-items: start;
+}
+.mk-hiw-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.mk-hiw-step {
+  position: relative;
+  display: flex;
+  gap: 16px;
+  padding-bottom: 48px;
+}
+.mk-hiw-step:last-child {
+  padding-bottom: 0;
+}
+.mk-hiw-step::before {
+  content: '';
+  position: absolute;
+  left: 19px;
+  top: 40px;
+  bottom: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--mk-tint);
+}
+.mk-hiw-step:last-child::before {
+  display: none;
+}
+.mk-hiw-node {
+  position: relative;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--mk-blue);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 6px 8px rgba(0, 38, 145, 0.1));
+}
+.mk-hiw-step-body {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.mk-hiw-step-body .mk-h2 {
+  margin-bottom: 16px;
+}
+.mk-hiw-step-body .mk-p:first-of-type {
+  color: var(--mk-ink);
+}
+.mk-hiw-step-body .mk-bullets {
+  margin: 0 0 16px 8px;
+  gap: 10px;
+}
+.mk-hiw-step-body > :last-child {
+  margin-bottom: 0;
+}
+@media (min-width: 1024px) {
+  .mk-hiw-steps-grid {
+    grid-template-columns: 280px minmax(0, 896px);
+  }
+  .mk-hiw-steps-grid > .mk-rail {
+    padding-top: 16px;
+  }
+  .mk-hiw-step {
+    gap: 24px;
+    padding-bottom: 104px;
+  }
+  .mk-hiw-step::before {
+    left: 23px;
+    top: 48px;
+  }
+  .mk-hiw-node {
+    flex-basis: 48px;
+    width: 48px;
+    height: 48px;
+    font-size: 14px;
+  }
+  .mk-hiw-step-body .mk-h2 {
+    padding-top: 4px;
+  }
+}
+
+/* fee (854:3508): blue card left, copy right */
+.mk-hiw-fee {
+  gap: 40px;
+}
+.mk-hiw-fee-head {
+  gap: 16px;
+}
+.mk-hiw-fee-card {
+  background: var(--mk-blue);
+  border: 1px solid #d9e2f0;
+  border-radius: var(--mk-r-card);
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  min-height: 225px;
+}
+.mk-hiw-fee-figure {
+  margin: 0;
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 0.92;
+  letter-spacing: -2.9px;
+  color: #fff;
+}
+.mk-hiw-fee-text {
+  margin: 0;
+  max-width: 445px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--mk-tint);
+}
+.mk-hiw-fee-copy .mk-p {
+  margin-bottom: 24px;
+}
+.mk-hiw-fee-copy .mk-p:last-child {
+  margin: 8px 0 0;
+  font-weight: 700;
+}
+@media (min-width: 768px) {
+  .mk-hiw-fee {
+    gap: 56px;
+  }
+  .mk-hiw-fee-figure {
+    font-size: 72px;
+  }
+}
+
+/* takeover (854:3527): dark band, 760 lead */
+.mk-hiw-takeover .mk-p:first-of-type {
+  max-width: 760px;
+  font-size: 18px;
+  line-height: 1.5;
+  color: #fff;
+  margin-bottom: 24px;
+}
+.mk-hiw-takeover .mk-p:last-child {
+  font-weight: 700;
+}
+.mk-hiw-takeover-deco {
+  left: -89px;
+  top: 63px;
+}

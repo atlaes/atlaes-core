@@ -14,9 +14,15 @@ import { Blocks } from '@/components/marketing/ui/Blocks';
 import { Inline } from '@/components/marketing/ui/Inline';
 import { JsonLd } from '@/components/marketing/ui/JsonLd';
 import { Pill } from '@/components/marketing/ui/Pill';
-import { Section } from '@/components/marketing/ui/Section';
 import { RichFaq } from '@/components/marketing/home/RichFaq';
+import type { Block, RichText } from '@/content/types';
 import '@/components/marketing/home/home.css';
+import {
+  CoreHero,
+  CoreRail,
+  CoreSplit,
+} from '../_core/CoreHero';
+import '../_core/core.css';
 import './pricing.css';
 import {
   PATH,
@@ -83,92 +89,182 @@ function pricingGraph() {
   ]);
 }
 
+type Card = (typeof PRICING_PLANS.cards)[number];
+
+function listItems(blocks: Block[]): RichText[] {
+  const ul = blocks.find((b) => b.t === 'ul');
+  return ul && ul.t === 'ul' ? ul.items : [];
+}
+
+/** Bold lead of a list item ("9.75% of your refund"). */
+function boldOf(it: RichText | undefined): string {
+  const b = it && it.sp ? it.sp.find((sp) => sp.k === 'b') : undefined;
+  return b ? b.x : '';
+}
+
+/** "€50 add-on, including VAT" → ["€50", "add-on, including VAT"]. */
+function splitFigure(x: string): [string, string] {
+  const i = x.indexOf(' ');
+  return i > 0 && /[0-9€%]/.test(x.slice(0, i))
+    ? [x.slice(0, i), x.slice(i + 1)]
+    : [x, ''];
+}
+
+/** Price line of a plan card: the featured card shows its fee figure. */
+function cardFigure(c: Card): [string, string] {
+  if (c.featured) {
+    const lead = boldOf(listItems(c.blocks)[0]).replace(/^[^:]*:\s*/, '');
+    if (lead) return splitFigure(lead);
+  }
+  return splitFigure(c.badge);
+}
+
 export default function PricingRoute() {
+  const core = PRICING_PLANS.cards.find((c) => c.featured);
+  const coreItems = core ? listItems(core.blocks) : [];
+  const [fee, feeOf] = core ? cardFigure(core) : ['', ''];
+  const lead = PRICING_FEE_BUYS.blocks.slice(0, 1);
+  const cols = PRICING_FEE_BUYS.blocks.slice(1);
+  const half = Math.ceil(cols.length / 2);
   return (
-    <article className="mk-pricing">
+    <article className="mk-pricing mk-core">
       <JsonLd graph={pricingGraph()} />
       <AttributionCapture />
 
-      <header className="mk-hero">
-        <div className="mk-hero-inner">
-          <div className="mk-hero-copy">
-            <h1 className="mk-h1">{PRICING_HERO.h1}</h1>
-            <p className="mk-tagline">{PRICING_HERO.tagline}</p>
-            <p className="mk-p">{PRICING_HERO.intro}</p>
-            <div className="mk-cta-row">
-              <Pill href={PRICING_HERO.cta.href} size="lg">
-                {PRICING_HERO.cta.label}
-              </Pill>
+      {/* Hero (256:337): navy, white fee card */}
+      <CoreHero
+        tone="navy"
+        size={60}
+        crumbs={[{ label: 'Home', href: '/' }, { label: 'Pricing' }]}
+        eyebrow="Pricing"
+        title={PRICING_HERO.h1}
+        aside={
+          core ? (
+            <div className="mk-core-card mk-price-hero-card" aria-hidden="true">
+              <p className="mk-core-card-label">{core.badge}</p>
+              <p className="mk-price-hero-fee">
+                <span className="mk-price-hero-figure">{fee}</span>
+                <span className="mk-price-hero-of">{feeOf}</span>
+              </p>
+              <p className="mk-price-hero-cap">{boldOf(coreItems[1])}</p>
+              <ul className="mk-price-hero-checks">
+                {coreItems.slice(2, 5).map((it) => (
+                  <li key={it.x}>{it.x}</li>
+                ))}
+              </ul>
+            </div>
+          ) : undefined
+        }
+      >
+        <p className="mk-core-lead">{PRICING_HERO.tagline}</p>
+        <p className="mk-core-lead">{PRICING_HERO.intro}</p>
+        <div className="mk-cta-row">
+          <Pill href={PRICING_HERO.cta.href} variant="inverse">
+            {PRICING_HERO.cta.label}
+          </Pill>
+        </div>
+      </CoreHero>
+
+      {/* Plans (708:10191): three cards, core card navy + chip */}
+      <section id="our-pricing-plans" className="mk-hs mk-tone-surface">
+        <div className="mk-container mk-hs-stack mk-price-plans">
+          <div className="mk-hs-stack mk-price-plans-head">
+            <CoreRail index={1} label="Pricing plans" />
+            <div>
+              <h2 className="mk-h2">{PRICING_PLANS.h2}</h2>
+              <p className="mk-p">{PRICING_PLANS.intro}</p>
             </div>
           </div>
-          <div className="mk-hero-aside" aria-hidden="true" />
-        </div>
-      </header>
-
-      <Section
-        id="our-pricing-plans"
-        index={1}
-        label="Pricing plans"
-        title={PRICING_PLANS.h2}
-      >
-        <p className="mk-p">{PRICING_PLANS.intro}</p>
-        <ul className="mk-price-grid">
-          {PRICING_PLANS.cards.map((c) => (
-            <li
-              key={c.id}
-              id={c.id}
-              className={
-                'mk-price-card' + (c.featured ? ' mk-price-card-featured' : '')
-              }
-            >
-              <p className="mk-price-badge">{c.badge}</p>
-              <h3 className="mk-price-title">{c.title}</h3>
-              <Blocks blocks={c.blocks} />
-              <div className="mk-cta-row mk-price-cta">
-                <Pill
-                  href={c.button.href}
-                  variant={c.featured ? 'primary' : 'secondary'}
+          <ul className="mk-price-grid">
+            {PRICING_PLANS.cards.map((c) => {
+              const [fig, figOf] = cardFigure(c);
+              return (
+                <li
+                  key={c.id}
+                  id={c.id}
+                  className={
+                    'mk-price-card' +
+                    (c.featured ? ' mk-price-card-featured mk-tone-navy' : '')
+                  }
                 >
-                  {c.button.label}
-                </Pill>
-              </div>
-            </li>
-          ))}
-        </ul>
-        <p className="mk-p">{PRICING_PLANS.after}</p>
-      </Section>
+                  {c.featured ? (
+                    <p className="mk-price-chip">{c.badge}</p>
+                  ) : null}
+                  <div className="mk-price-head">
+                    <h3 className="mk-price-title">{c.title}</h3>
+                    <p className="mk-price-figure">
+                      {fig}
+                      {figOf ? (
+                        <span className="mk-price-figure-of"> {figOf}</span>
+                      ) : null}
+                    </p>
+                  </div>
+                  <div className="mk-price-body">
+                    <Blocks blocks={c.blocks} />
+                  </div>
+                  <Pill
+                    href={c.button.href}
+                    size="sm"
+                    variant={c.featured ? 'inverse' : 'primary'}
+                    className="mk-price-cta"
+                  >
+                    {c.button.label}
+                  </Pill>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mk-price-after">{PRICING_PLANS.after}</p>
+        </div>
+      </section>
 
-      <Section
+      {/* FAQ — split screen (708:10285) */}
+      <CoreSplit
         id="faq"
         index={2}
         label="FAQ"
         title={PRICING_FAQ_H2}
-        tone="surface"
+        deco
+        side={
+          <p className="mk-p">
+            <Inline x={PRICING_FAQ_FOOTER.x} sp={PRICING_FAQ_FOOTER.sp} />
+          </p>
+        }
       >
         <RichFaq items={PRICING_FAQ} />
-        <p className="mk-section-footer">
-          <Inline x={PRICING_FAQ_FOOTER.x} sp={PRICING_FAQ_FOOTER.sp} />
-        </p>
-      </Section>
+      </CoreSplit>
 
-      <Section
+      {/* What the fee buys (721:10417): dark, lead + two columns */}
+      <section
         id="what-the-fee-actually-buys"
-        index={3}
-        label="What you get"
-        title={PRICING_FEE_BUYS.h2}
+        className="mk-hs mk-tone-dark mk-price-buys"
       >
-        <Blocks blocks={PRICING_FEE_BUYS.blocks} />
-      </Section>
+        <div className="mk-container mk-hs-stack">
+          <CoreRail index={3} label="What the fee buys" />
+          <div>
+            <h2 className="mk-h2">{PRICING_FEE_BUYS.h2}</h2>
+            <div className="mk-price-buys-lead">
+              <Blocks blocks={lead} />
+            </div>
+            <div className="mk-two">
+              <div>
+                <Blocks blocks={cols.slice(0, half)} />
+              </div>
+              <div>
+                <Blocks blocks={cols.slice(half)} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <Section
-        id="we-are-here-for-you"
-        index={4}
-        label="Contact"
-        title={PRICING_HERE_FOR_YOU.h2}
-        tone="tint"
-      >
-        <Blocks blocks={PRICING_HERE_FOR_YOU.blocks} />
-      </Section>
+      {/* We are here for you (750:11478): centred */}
+      <section id="we-are-here-for-you" className="mk-hs mk-tone-plain">
+        <div className="mk-container mk-price-here">
+          <h2 className="mk-h2">{PRICING_HERE_FOR_YOU.h2}</h2>
+          <Blocks blocks={PRICING_HERE_FOR_YOU.blocks} />
+        </div>
+      </section>
     </article>
   );
 }

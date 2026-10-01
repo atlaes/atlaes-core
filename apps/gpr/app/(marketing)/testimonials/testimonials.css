@@ -1,45 +1,81 @@
-/* ---- /testimonials: ProvenExpert seal slot and award badges ---- */
-.mk-seal {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 4px;
-  background: #fff;
-  border: 1px solid var(--mk-stroke);
-  border-radius: var(--mk-r-card);
-  padding: 14px 18px;
-  margin: 4px 0 8px;
-  max-width: 100%;
+/* ---- /testimonials (Figma 765:9456) ---- */
+
+/* hero: deco glyph on the left, as in the frame */
+.mk-testi-hero .mk-core-deco-hero {
+  right: auto;
+  left: -99px;
+  top: 27px;
 }
-.mk-seal-score {
-  margin: 0;
-  font-weight: 700;
-  color: var(--mk-ink);
-}
-.mk-seal .mk-link {
-  font-size: 14px;
-}
-.mk-badges {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
+
+/* rating card (765:9463) */
+.mk-testi-card {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.mk-badge {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  background: #fff;
+  flex-direction: column;
+  gap: 8px;
   border: 1px solid var(--mk-stroke);
-  border-radius: var(--mk-r-pill);
-  padding: 7px 14px;
-  font-size: 14px;
+}
+.mk-testi-card > * {
+  margin: 0;
+}
+.mk-testi-quote {
+  margin-bottom: 12px;
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--mk-blue);
+  opacity: 0.3;
+}
+.mk-testi-score {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.mk-testi-figure {
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1.92px;
   color: var(--mk-navy);
 }
-.mk-badge-title {
-  font-weight: 700;
+.mk-testi-stars {
+  font-size: 26px;
+  line-height: 1;
+  color: var(--mk-star);
 }
-.mk-badge-year {
+.mk-testi-sentence {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
   color: var(--mk-body);
+}
+.mk-testi-awards {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.48px;
+  color: var(--mk-navy);
+}
+.mk .mk-testi-link {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mk-navy);
+}
+@media (min-width: 768px) {
+  .mk-testi-card {
+    padding: 32px;
+  }
+  .mk-testi-quote,
+  .mk-testi-figure {
+    font-size: 64px;
+  }
+}
+
+/* what clients tell us */
+.mk-testi-what .mk-p {
+  color: var(--mk-ink);
+}
+.mk-testi-what .mk-review-grid {
+  margin-top: 8px;
 }

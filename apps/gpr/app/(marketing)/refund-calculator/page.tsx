@@ -16,7 +16,21 @@ import { Inline } from '@/components/marketing/ui/Inline';
 import { JsonLd } from '@/components/marketing/ui/JsonLd';
 import { Pill } from '@/components/marketing/ui/Pill';
 import { Section } from '@/components/marketing/ui/Section';
+import { resolveTokens } from '@/content/tokens';
+import type { Block, RichText } from '@/content/types';
+import {
+  STAT_MICROCOPY,
+  STAT_TILES,
+} from '@/components/marketing/home/home-content';
 import { CalculatorEmbed } from './CalculatorEmbed';
+import {
+  CoreCta,
+  CoreHero,
+  CoreRail,
+  CoreSplit,
+  CoreStats,
+} from '../_core/CoreHero';
+import '../_core/core.css';
 import './refund-calculator.css';
 import {
   CALC_CLOSE,
@@ -94,83 +108,159 @@ function calculatorGraph() {
   ]);
 }
 
+/** Ordered how-to steps → [bold lead, rest of the sentence]. */
+function howToSteps(blocks: Block[]): Array<[string, string]> {
+  const ol = blocks.find((b) => b.t === 'ol');
+  const items: RichText[] = ol && ol.t === 'ol' ? ol.items : [];
+  return items.map((it) => {
+    const b = it.sp ? it.sp.find((sp) => sp.k === 'b') : undefined;
+    const lead = b ? b.x : '';
+    const rest =
+      lead && it.x.indexOf(lead) === 0 ? it.x.slice(lead.length) : it.x;
+    return [lead, rest.trim()];
+  });
+}
+
 export default function RefundCalculatorRoute() {
+  const steps = howToSteps(CALC_HOW_TO.blocks);
+  const howAfter = CALC_HOW_TO.blocks.filter((b) => b.t !== 'ol');
   return (
-    <article className="mk-refund-calculator">
+    <article className="mk-refund-calculator mk-core">
       <JsonLd graph={calculatorGraph()} />
       <AttributionCapture />
 
-      <header className="mk-hero">
-        <div className="mk-hero-inner">
-          <div className="mk-hero-copy">
-            <h1 className="mk-h1">{CALC_HERO.h1}</h1>
-            <p className="mk-p">{CALC_HERO.intro}</p>
+      {/* Hero (257:427): white split, navy steps card, stat strip */}
+      <CoreHero
+        size={60}
+        crumbs={[{ label: 'Home', href: '/' }, { label: 'Refund Calculator' }]}
+        eyebrow="Free tool · Refund calculator"
+        title={CALC_HERO.h1}
+        aside={
+          <ol className="mk-core-navy-card mk-calc-answers" aria-hidden="true">
+            {steps.map(([lead], i) => (
+              <li key={lead}>
+                <span className="mk-calc-answer-n">{i + 1}</span>
+                <span className="mk-calc-answer-t">{lead}</span>
+              </li>
+            ))}
+          </ol>
+        }
+        after={
+          <div className="mk-calc-stats">
+            <CoreStats
+              tiles={STAT_TILES.map((tile) => ({
+                figure: resolveTokens(tile.figure),
+                caption: <Inline x={tile.caption.x} sp={tile.caption.sp} />,
+              }))}
+            />
+            <p className="mk-calc-stats-note">
+              <Inline x={STAT_MICROCOPY.x} sp={STAT_MICROCOPY.sp} />
+            </p>
           </div>
-          <div className="mk-hero-aside" aria-hidden="true" />
-        </div>
-      </header>
+        }
+      >
+        <p className="mk-core-lead">{CALC_HERO.intro}</p>
+      </CoreHero>
 
-      <Section id="calculator" index={1} label="Calculator">
-        <div className="mk-calc-embed">
-          <CalculatorEmbed />
+      {/* Calculator (725:11301): the existing widget, container only */}
+      <section id="calculator" className="mk-hs mk-tone-plain mk-calc-widget">
+        <div className="mk-container">
+          <div className="mk-calc-embed">
+            <CalculatorEmbed />
+          </div>
+          <p className="mk-note mk-calc-privacy">{CALC_HERO.privacy}</p>
         </div>
-        <p className="mk-p">{CALC_HERO.privacy}</p>
-      </Section>
+      </section>
 
-      <Section
+      {/* How to use (725:11248): horizontal numbered timeline */}
+      <section
         id="how-to-use-the-calculator"
-        index={2}
-        label="How to use"
-        title={CALC_HOW_TO.h2}
-        tone="surface"
+        className="mk-hs mk-tone-surface mk-calc-how"
       >
-        <Blocks blocks={CALC_HOW_TO.blocks} />
-      </Section>
-
-      <Section
-        id="the-rules-behind-the-verdict"
-        index={3}
-        label="The rules"
-        title={CALC_RULES.h2}
-      >
-        {CALC_RULES.sections.map((s) => (
-          <div key={s.id} id={s.id}>
-            <h3 className="mk-h3">{s.h3}</h3>
-            <Blocks blocks={s.blocks} />
+        <div className="mk-container mk-hs-stack">
+          <div className="mk-hs-stack mk-calc-how-head">
+            <CoreRail index={2} label="How to use" />
+            <h2 className="mk-h2 mk-h2-flush">{CALC_HOW_TO.h2}</h2>
           </div>
-        ))}
-      </Section>
+          <ol className="mk-calc-steps">
+            {steps.map(([lead, rest], i) => (
+              <li key={lead}>
+                <span className="mk-calc-step-n" aria-hidden="true">
+                  {i + 1}
+                </span>
+                <h3 className="mk-calc-step-h">{lead}</h3>
+                <p className="mk-p">{rest}</p>
+              </li>
+            ))}
+          </ol>
+          <div className="mk-calc-how-foot">
+            <Blocks blocks={howAfter} />
+          </div>
+        </div>
+      </section>
+
+      {/* Rules (744:11370): dark, numbered stacked cards */}
+      <section
+        id="the-rules-behind-the-verdict"
+        className="mk-hs mk-tone-dark mk-calc-rules"
+      >
+        <div className="mk-container mk-hs-stack">
+          <div className="mk-hs-stack mk-calc-how-head">
+            <CoreRail index={3} label="Rules" />
+            <h2 className="mk-h2 mk-h2-flush">{CALC_RULES.h2}</h2>
+          </div>
+          <ol className="mk-calc-rule-list">
+            {CALC_RULES.sections.map((r, i) => (
+              <li key={r.id} id={r.id} className="mk-calc-rule">
+                <div className="mk-calc-rule-head">
+                  <span className="mk-calc-rule-n" aria-hidden="true">
+                    0{i + 1}
+                  </span>
+                  <h3 className="mk-calc-rule-h">{r.h3}</h3>
+                </div>
+                <div className="mk-calc-rule-body">
+                  <Blocks blocks={r.blocks} />
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
 
       <Section
         id="what-refunds-actually-look-like"
         index={4}
-        label="Refund amounts"
+        label="What refunds look like"
         title={CALC_REFUNDS.h2}
-        tone="surface"
+        className="mk-calc-refunds"
       >
         <Blocks blocks={CALC_REFUNDS.blocks} />
       </Section>
 
-      <Section id="faq" index={5} label="FAQ" title={CALC_FAQ_H2}>
+      <CoreSplit
+        id="faq"
+        index={5}
+        label="FAQ"
+        title={CALC_FAQ_H2}
+        tone="surface"
+      >
         <FaqList items={CALC_FAQ} />
-      </Section>
+      </CoreSplit>
 
-      <Section
+      {/* Closing CTA (750:11440) */}
+      <CoreCta
         id="claim-your-german-pension-refund-today"
-        index={6}
-        label="Get started"
         title={CALC_CLOSE.h2}
-        tone="tint"
+        cta={
+          <Pill href={CALC_CLOSE.cta.href} size="lg">
+            {CALC_CLOSE.cta.label}
+          </Pill>
+        }
       >
         <p className="mk-p">
           <Inline x={CALC_CLOSE.text.x} sp={CALC_CLOSE.text.sp} />
         </p>
-        <div className="mk-cta-row">
-          <Pill href={CALC_CLOSE.cta.href} size="lg">
-            {CALC_CLOSE.cta.label}
-          </Pill>
-        </div>
-      </Section>
+      </CoreCta>
     </article>
   );
 }

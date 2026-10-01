@@ -98,7 +98,7 @@ export function ContactForm() {
 
   if (status === 'sent') {
     return (
-      <div className="mk-flow-card" role="status">
+      <div className="mk-flow-card mk-contact-form" role="status">
         <p className="mk-flow-title">{CONTACT_FORM.title}</p>
         <p className="mk-p">{CONTACT_FORM.success}</p>
       </div>
@@ -107,7 +107,7 @@ export function ContactForm() {
 
   return (
     <form
-      className="mk-flow-card"
+      className="mk-flow-card mk-contact-form"
       onSubmit={onSubmit}
       noValidate
       aria-labelledby={uid + '-title'}
@@ -115,6 +115,7 @@ export function ContactForm() {
       <p id={uid + '-title'} className="mk-flow-title">
         {CONTACT_FORM.title}
       </p>
+      <div className="mk-contact-names">
       <div className="mk-field">
         <label htmlFor={uid + '-first'} className="mk-field-label">
           {CONTACT_FORM.firstName}
@@ -144,6 +145,7 @@ export function ContactForm() {
           autoComplete="family-name"
           required
         />
+      </div>
       </div>
       <div className="mk-field">
         <label htmlFor={uid + '-email'} className="mk-field-label">
@@ -205,6 +207,9 @@ export function ContactForm() {
         disabled={status === 'sending'}
       >
         {status === 'sending' ? CONTACT_FORM.sending : CONTACT_FORM.submit}
+        <span className="mk-pill-arrow" aria-hidden="true">
+          ››
+        </span>
       </button>
     </form>
   );
