@@ -9,7 +9,9 @@ export interface FaqListProps {
 
 /**
  * FAQ rendered as visible server-side HTML (question heading + answer
- * paragraph). No accordion: every answer is in the delivered HTML.
+ * paragraph). Styled as the Figma FAQ Item (120:246): top rule, Bold 22
+ * question, 32px grey circle glyph drawn in CSS (`.mk-faq-q::after`).
+ * No accordion: every answer is in the delivered HTML.
  */
 export function FaqList({ items, as = 'h3' }: FaqListProps) {
   const Q = as;
