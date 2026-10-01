@@ -51,6 +51,14 @@ jobs:
           AWS_DEFAULT_REGION: eu-central-1
           MINDEE_API: ${{ secrets.MINDEE_API }}
           NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+          # Non-secret settings for the GPR site, lead capture and client
+          # updates (GitHub environment variables; empty = feature logs
+          # instead of sending). See resources/services/index.ts.
+          GPR_FRONTEND_URL: ${{ vars.GPR_FRONTEND_URL }}
+          OPS_NOTIFICATION_EMAIL: ${{ vars.OPS_NOTIFICATION_EMAIL }}
+          LEADS_NOTIFY_EMAIL: ${{ vars.LEADS_NOTIFY_EMAIL }}
+          LEADS_V0900_GUIDE_URL: ${{ vars.LEADS_V0900_GUIDE_URL }}
+          LEADS_WEGZUG_GUIDE_URL: ${{ vars.LEADS_WEGZUG_GUIDE_URL }}
 
       - name: Run database migrations
         env:
