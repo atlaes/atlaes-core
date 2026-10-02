@@ -188,3 +188,50 @@
   left: -89px;
   top: 63px;
 }
+
+/* ---- motion (stream M1): step progress line ----
+ * StepProgress sets [data-progress] on the timeline, --mk-step-p (0…1) and
+ * .is-reached on each step. A navy line draws over the tint connector;
+ * reached nodes turn navy. Off with the switch, no JS or reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  html.js
+    .mk[data-motion='on']
+    .mk-hiw-timeline[data-progress]
+    .mk-hiw-step::after {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 40px;
+    bottom: 0;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--mk-navy);
+    transform-origin: top;
+    transform: scaleY(var(--mk-step-p, 0));
+  }
+  html.js
+    .mk[data-motion='on']
+    .mk-hiw-timeline[data-progress]
+    .mk-hiw-step:last-child::after {
+    display: none;
+  }
+  html.js .mk[data-motion='on'] .mk-hiw-timeline[data-progress] .mk-hiw-node {
+    transition: background-color 300ms ease-out;
+  }
+  html.js
+    .mk[data-motion='on']
+    .mk-hiw-timeline[data-progress]
+    .mk-hiw-step.is-reached
+    .mk-hiw-node {
+    background: var(--mk-navy);
+  }
+  @media (min-width: 1024px) {
+    html.js
+      .mk[data-motion='on']
+      .mk-hiw-timeline[data-progress]
+      .mk-hiw-step::after {
+      left: 23px;
+      top: 48px;
+    }
+  }
+}

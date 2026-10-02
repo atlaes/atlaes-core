@@ -1,4 +1,6 @@
 import { Inline } from '../ui/Inline';
+import { HeroGlyph } from '../motion/HeroGlyph';
+import { HeroGrid } from '../motion/HeroGrid';
 import { FlowCard } from '../intake/FlowCard';
 import { StatRow } from './StatRow';
 import { HERO } from './home-content';
@@ -39,9 +41,8 @@ function TrustLine() {
 export function HomeHero() {
   return (
     <header className="mk-home-hero">
-      <span className="mk-home-hero-deco" aria-hidden="true">
-        ››
-      </span>
+      <HeroGrid />
+      <HeroGlyph className="mk-home-hero-deco" />
       <div className="mk-container mk-home-hero-inner">
         <div className="mk-home-hero-copy">
           <TrustLine />

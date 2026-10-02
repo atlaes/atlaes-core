@@ -1125,3 +1125,297 @@
     align-self: start;
   }
 }
+
+/* ================================================================
+ * motion (stream M1) — start
+ * Every effect is gated by `.mk[data-motion="on"]` (layout, from
+ * NEXT_PUBLIC_GPR_MOTION). Hide-before-reveal additionally needs
+ * `html.js` (set by MotionObserver) and no reduced-motion preference,
+ * so no-JS visitors, crawlers and reduced-motion users get the final
+ * state. Contract: docs/superpowers/specs/motion-m1-notes.md
+ * ================================================================ */
+
+/* sticky children need a non-scrolling root: clip instead of hidden */
+@supports (overflow: clip) {
+  .mk {
+    overflow-x: clip;
+  }
+}
+
+.mk[data-motion='on'] {
+  /* header row 76 + 1px hairline (the trust bar scrolls away) */
+  --mk-header-h: 77px;
+  --mk-reveal-dur: 500ms;
+  --mk-reveal-y: 16px;
+}
+
+/* ---- focus ring (all states, not motion) ---- */
+.mk a.mk-pill:focus-visible,
+.mk .mk-nav-cta:focus-visible,
+.mk .mk-nav-link:focus-visible,
+.mk .mk-nav-dd > summary:focus-visible,
+.mk .mk-nav-mobile > summary:focus-visible,
+.mk .mk-jump a:focus-visible,
+.mk a.mk-link:focus-visible,
+.mk .mk-art-toc a:focus-visible {
+  outline: 2px solid var(--mk-navy);
+  outline-offset: 3px;
+}
+.mk .mk-tone-navy a.mk-pill:focus-visible,
+.mk .mk-tone-dark a.mk-pill:focus-visible,
+.mk .mk-tone-navy a.mk-link:focus-visible,
+.mk .mk-tone-dark a.mk-link:focus-visible,
+.mk .mk-footer a:focus-visible {
+  outline-color: #fff;
+}
+
+/* ---- sticky header + soft shadow after 8px (data-scrolled) ---- */
+.mk[data-motion='on'] .mk-header {
+  position: sticky;
+  top: 0;
+  transition: box-shadow 200ms ease-out;
+}
+.mk[data-motion='on'] .mk-header[data-scrolled] {
+  box-shadow: 0 6px 24px rgba(24, 24, 24, 0.08);
+}
+.mk[data-motion='on']:has(.mk-chero-jumpbar[data-stuck]) .mk-header {
+  box-shadow: none;
+}
+
+/* ---- anchors land below the sticky chrome; smooth scroll ---- */
+.mk[data-motion='on'] [id] {
+  scroll-margin-top: calc(var(--mk-header-h) + 16px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.mk[data-motion='on']) {
+    scroll-behavior: smooth;
+  }
+}
+@media (min-width: 1024px) {
+  .mk[data-motion='on'] .mk-art-rail {
+    top: calc(var(--mk-header-h) + 24px);
+    max-height: calc(100vh - var(--mk-header-h) - 48px);
+  }
+}
+
+/* ---- reveal: [data-reveal] fade-up 16px / 500ms ease-out ----
+ * values: "" (fade up) · "rail" (slide in, chevron 6px) · "off" (never).
+ * [data-reveal-stagger]: children fade up in turn (--reveal-delay). */
+@keyframes mk-reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(var(--mk-reveal-y));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes mk-reveal-rail {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes mk-reveal-chevron {
+  from {
+    transform: translateX(-6px);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes mk-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html.js
+    .mk[data-motion='on']
+    [data-reveal]:not([data-reveal='off']):not([data-reveal='rail']):not(
+      .is-in
+    ),
+  html.js .mk[data-motion='on'] [data-reveal-stagger]:not(.is-in) > * {
+    opacity: 0;
+    transform: translateY(var(--mk-reveal-y));
+  }
+  html.js .mk[data-motion='on'] [data-reveal='rail']:not(.is-in) {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  .mk[data-motion='on']
+    [data-reveal]:not([data-reveal='off']):not([data-reveal='rail']).is-in:not(
+      .is-static
+    ),
+  .mk[data-motion='on'] [data-reveal-stagger].is-in:not(.is-static) > * {
+    animation: mk-reveal-up var(--mk-reveal-dur) ease-out
+      var(--reveal-delay, 0ms) backwards;
+  }
+  .mk[data-motion='on'] [data-reveal='rail'].is-in:not(.is-static) {
+    animation: mk-reveal-rail var(--mk-reveal-dur) ease-out backwards;
+  }
+  .mk[data-motion='on']
+    [data-reveal='rail'].is-in:not(.is-static)
+    .mk-rail-arrows {
+    animation: mk-reveal-chevron 600ms ease-out 120ms backwards;
+  }
+}
+
+/* ---- pills: hover lift 1px + shadow, press .98 ---- */
+.mk[data-motion='on'] a.mk-pill:not(.mk-pill-ghost),
+.mk[data-motion='on'] a.mk-nav-cta {
+  transition:
+    background 150ms,
+    color 150ms,
+    box-shadow 150ms ease-out,
+    transform 150ms ease-out;
+}
+.mk[data-motion='on'] a.mk-pill:not(.mk-pill-ghost):hover,
+.mk[data-motion='on'] a.mk-nav-cta:hover {
+  box-shadow: 0 6px 16px rgba(0, 38, 145, 0.18);
+}
+.mk[data-motion='on'] .mk-tone-dark a.mk-pill:not(.mk-pill-ghost):hover,
+.mk[data-motion='on'] .mk-tone-navy a.mk-pill:not(.mk-pill-ghost):hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+}
+.mk[data-motion='on'] a.mk-pill:not(.mk-pill-ghost):active,
+.mk[data-motion='on'] a.mk-nav-cta:active {
+  box-shadow: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mk[data-motion='on'] a.mk-pill:not(.mk-pill-ghost):hover,
+  .mk[data-motion='on'] a.mk-nav-cta:hover {
+    transform: translateY(-1px);
+  }
+  .mk[data-motion='on'] a.mk-pill:not(.mk-pill-ghost):active,
+  .mk[data-motion='on'] a.mk-nav-cta:active {
+    transform: scale(0.98);
+  }
+}
+
+/* ---- cards: hover lift + stroke darkens ---- */
+.mk[data-motion='on'] .mk-card,
+.mk[data-motion='on'] .mk-article,
+.mk[data-motion='on'] .mk-review,
+.mk[data-motion='on'] .mk-core-tile,
+.mk[data-motion='on'] .mk-criteria-card {
+  transition:
+    border-color 200ms ease-out,
+    box-shadow 200ms ease-out,
+    transform 200ms ease-out;
+}
+.mk[data-motion='on'] .mk-card:hover,
+.mk[data-motion='on'] .mk-article:hover,
+.mk[data-motion='on'] .mk-review:hover,
+.mk[data-motion='on'] .mk-core-tile:hover {
+  border-color: var(--mk-muted);
+  box-shadow: 0 10px 28px rgba(24, 24, 24, 0.07);
+}
+.mk[data-motion='on'] .mk-card-dark:hover,
+.mk[data-motion='on'] .mk-criteria-card:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mk[data-motion='on'] .mk-card:hover,
+  .mk[data-motion='on'] .mk-article:hover,
+  .mk[data-motion='on'] .mk-review:hover,
+  .mk[data-motion='on'] .mk-core-tile:hover,
+  .mk[data-motion='on'] .mk-criteria-card:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* ---- links: underline slides in from the left ---- */
+.mk[data-motion='on'] a.mk-link {
+  text-decoration: none;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 0% 1px;
+}
+.mk[data-motion='on'] a.mk-link:hover {
+  text-decoration: none;
+  background-size: 100% 1px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mk[data-motion='on'] a.mk-link {
+    transition: background-size 200ms ease-out;
+  }
+}
+
+/* ---- FAQ rows (accordion summary): hover tint ---- */
+.mk[data-motion='on'] .mk-faq-item > summary,
+.mk[data-motion='on'] .mk-faq-item > summary .mk-faq-q {
+  transition: color 150ms ease-out;
+}
+.mk[data-motion='on'] .mk-faq-item > summary:hover,
+.mk[data-motion='on'] .mk-faq-item > summary:hover .mk-faq-q {
+  color: var(--mk-navy);
+}
+.mk[data-motion='on'] .mk-tone-dark .mk-faq-item > summary:hover,
+.mk[data-motion='on'] .mk-tone-dark .mk-faq-item > summary:hover .mk-faq-q,
+.mk[data-motion='on'] .mk-tone-navy .mk-faq-item > summary:hover,
+.mk[data-motion='on'] .mk-tone-navy .mk-faq-item > summary:hover .mk-faq-q {
+  color: var(--mk-pale);
+}
+
+/* ---- header dropdown + phone menu: fade + slide 150ms ---- */
+.mk[data-motion='on'] .mk-nav-link,
+.mk[data-motion='on'] .mk-nav-dd > summary,
+.mk[data-motion='on'] .mk-nav-dd-link {
+  transition:
+    background 150ms,
+    color 150ms;
+}
+.mk[data-motion='on'] .mk-nav-caret {
+  display: inline-block;
+}
+.mk[data-motion='on'] .mk-nav-dd[open] .mk-nav-caret {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mk[data-motion='on'] .mk-nav-caret {
+    transition: transform 150ms ease-out;
+  }
+  .mk[data-motion='on'] .mk-nav-dd[open] > .mk-nav-dd-list,
+  .mk[data-motion='on'] .mk-nav-mobile[open] > .mk-nav-mobile-panel {
+    animation: mk-menu-in 150ms ease-out;
+  }
+}
+
+/* ---- jump menu + article TOC: active section (scroll-spy) ---- */
+.mk[data-motion='on'] .mk-jump a {
+  transition:
+    border-color 150ms,
+    color 150ms,
+    background-color 150ms;
+}
+.mk[data-motion='on'] .mk-jump a[aria-current] {
+  border-color: var(--mk-navy);
+  background: var(--mk-tint);
+  color: var(--mk-navy);
+}
+.mk[data-motion='on'] .mk-art-toc a {
+  transition:
+    color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+.mk[data-motion='on'] .mk-art-toc a[aria-current] {
+  border-left-color: var(--mk-navy);
+  box-shadow: inset 1px 0 0 var(--mk-navy);
+  color: var(--mk-navy);
+}
+
+/* motion (stream M1) — end */

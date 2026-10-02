@@ -1,0 +1,72 @@
+/*
+ * Hero motion (stream M3): HeroGlyph draw-on and HeroGrid wave.
+ * Everything animated is gated by `.mk[data-motion="on"]` AND
+ * `prefers-reduced-motion: no-preference`; otherwise the static final
+ * state renders.
+ */
+
+/* ---- HeroGlyph: one-off left-to-right clip reveal ---- */
+@keyframes mk-glyph-draw {
+  from {
+    clip-path: inset(-50% 100% -50% -50%);
+  }
+  to {
+    clip-path: inset(-50% -50% -50% -50%);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* fill-mode backwards: hidden during the delay, unclipped after */
+  .mk[data-motion='on'] .mk-hero-glyph {
+    animation: mk-glyph-draw 900ms cubic-bezier(0.22, 0.61, 0.36, 1) 120ms
+      backwards;
+  }
+}
+
+/* ---- HeroGrid: 96px white grid + diagonal wave ---- */
+.mk-hgrid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  grid-template-columns: repeat(24, 96px);
+  grid-template-rows: repeat(12, 96px);
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+.mk-hgrid-cell {
+  position: relative;
+  display: block;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.mk-hgrid-lit {
+  background-color: rgba(255, 255, 255, 0.035);
+}
+.mk-hgrid-cell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.05);
+  opacity: 0;
+}
+@keyframes mk-hgrid-wave {
+  0% {
+    opacity: 0;
+  }
+  5% {
+    opacity: 1;
+  }
+  12% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mk[data-motion='on'] .mk-hgrid-cell::after {
+    animation: mk-hgrid-wave 10s ease-in-out infinite;
+    animation-delay: var(--d, 0s);
+  }
+}

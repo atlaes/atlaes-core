@@ -14,7 +14,7 @@ import { FaqList } from '../ui/FaqList';
 import { JsonLd } from '../ui/JsonLd';
 import { Pill } from '../ui/Pill';
 import { Section, type SectionTone } from '../ui/Section';
-import { CountryHero, CtaCard } from './CountryHero';
+import { CountryHero, CountryJumpBar, CtaCard } from './CountryHero';
 import './country.css';
 
 /** Jump-menu labels (README build rule 2), in menu order. */
@@ -177,7 +177,9 @@ export function CountryPage({ page }: { page: CountryPageData }) {
         trust={trust}
         bullets={page.bullets}
         jump={jump}
+        jumpOutside={jump.length > 0}
       />
+      {jump.length > 0 ? <CountryJumpBar items={jump} /> : null}
 
       {page.sections.map((s, i) => (
         <CountrySectionView

@@ -145,7 +145,7 @@ export function CoreCta({ id, title, children, cta, note }: CoreCtaProps) {
     >
       <CoreDeco className="mk-core-deco-cta-l" />
       <CoreDeco className="mk-core-deco-cta-r" />
-      <div className="mk-container mk-core-cta-inner">
+      <div className="mk-container mk-core-cta-inner" data-reveal="">
         <h2 id={id + '-h'} className="mk-h2 mk-core-cta-h">
           {title}
         </h2>
@@ -220,7 +220,7 @@ export function CoreSplit({
       {deco ? <CoreDeco className="mk-core-deco-split" /> : null}
       <div className="mk-container mk-split mk-split-480">
         <div className="mk-hs-stack mk-hs-stack-28 mk-core-split-side">
-          <div className="mk-rail" aria-hidden="true">
+          <div className="mk-rail" aria-hidden="true" data-reveal="rail">
             <span className="mk-rail-arrows">››</span>
             <span>
               {n} — {label.toUpperCase()}
@@ -229,7 +229,9 @@ export function CoreSplit({
           <h2 className="mk-h2 mk-h2-flush">{title}</h2>
           {side}
         </div>
-        <div className="mk-core-split-main">{children}</div>
+        <div className="mk-core-split-main" data-reveal="">
+          {children}
+        </div>
       </div>
     </section>
   );
@@ -239,7 +241,7 @@ export function CoreSplit({
 export function CoreRail({ index, label }: { index: number; label: string }) {
   const n = index < 10 ? '0' + index : String(index);
   return (
-    <div className="mk-rail" aria-hidden="true">
+    <div className="mk-rail" aria-hidden="true" data-reveal="rail">
       <span className="mk-rail-arrows">››</span>
       <span>
         {n} — {label.toUpperCase()}

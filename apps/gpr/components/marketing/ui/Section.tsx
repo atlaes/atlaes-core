@@ -14,7 +14,7 @@ export interface RailProps {
 export function Rail({ index, label }: RailProps) {
   const n = index < 10 ? '0' + index : String(index);
   return (
-    <div className="mk-rail" aria-hidden="true">
+    <div className="mk-rail" aria-hidden="true" data-reveal="rail">
       <span className="mk-rail-arrows">››</span>
       <span>
         {n} — {label.toUpperCase()}
@@ -42,6 +42,11 @@ export interface SectionProps {
   /** Heading level for `title`; H2 by default. */
   as?: 'h2' | 'h3';
   className?: string;
+  /**
+   * Fade the body up when it scrolls into view (motion on only; content
+   * is in the HTML either way). Pass `false` for above-the-fold sections.
+   */
+  reveal?: boolean;
 }
 
 /**
@@ -59,6 +64,7 @@ export function Section({
   as = 'h2',
   ruleTop = false,
   className,
+  reveal = true,
 }: SectionProps) {
   const Heading = as;
   return (
@@ -75,7 +81,7 @@ export function Section({
     >
       <div className="mk-section-inner">
         <Rail index={index} label={label} />
-        <div className="mk-body">
+        <div className="mk-body" data-reveal={reveal ? '' : 'off'}>
           {title ? <Heading className="mk-h2">{title}</Heading> : null}
           {children}
         </div>
