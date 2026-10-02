@@ -133,50 +133,54 @@ function NavList({
  * two-line wordmark, uppercase navigation on one line (≥1360px) with the
  * "Rules by Country" dropdown, the navy "CLAIM REFUND" pill and a 1px
  * #f1f1f1 hairline. No client JavaScript — the dropdown and the phone
- * menu are `<details>` elements.
+ * menu are `<details>` elements. The trust bar sits before `<header>` so
+ * that, with motion on, only the header row is sticky (the layout's
+ * MotionObserver adds `data-scrolled` for the soft shadow).
  */
 export function SiteHeader() {
   const cta = HEADER_NAV.filter((i) => i.label === CTA_LABEL)[0];
   const links = HEADER_NAV.filter((i) => i.label !== CTA_LABEL);
   return (
-    <header className="mk-header">
+    <>
       <TopBar />
-      <div className="mk-container mk-header-row">
-        <Link
-          href="/"
-          className="mk-wordmark"
-          aria-label="Germany Pension Refund — home"
-        >
-          <Wordmark />
-        </Link>
-        <nav className="mk-nav-desktop" aria-label="Main">
-          <NavList className="mk-nav-list" items={links} />
-        </nav>
-        <div className="mk-header-actions">
-          {cta ? (
-            <SmartLink
-              href={cta.href}
-              className="mk-nav-cta"
-              darkClassName="mk-nav-cta mk-dark"
-            >
-              {cta.label}
-            </SmartLink>
-          ) : null}
-          <details className="mk-nav-mobile">
-            <summary aria-label="Open menu">
-              <span className="mk-burger" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-              </span>
-            </summary>
-            <nav className="mk-nav-mobile-panel" aria-label="Main (mobile)">
-              <NavList className="mk-nav-list-mobile" items={links} />
-            </nav>
-          </details>
+      <header className="mk-header">
+        <div className="mk-container mk-header-row">
+          <Link
+            href="/"
+            className="mk-wordmark"
+            aria-label="Germany Pension Refund — home"
+          >
+            <Wordmark />
+          </Link>
+          <nav className="mk-nav-desktop" aria-label="Main">
+            <NavList className="mk-nav-list" items={links} />
+          </nav>
+          <div className="mk-header-actions">
+            {cta ? (
+              <SmartLink
+                href={cta.href}
+                className="mk-nav-cta"
+                darkClassName="mk-nav-cta mk-dark"
+              >
+                {cta.label}
+              </SmartLink>
+            ) : null}
+            <details className="mk-nav-mobile">
+              <summary aria-label="Open menu">
+                <span className="mk-burger" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              </summary>
+              <nav className="mk-nav-mobile-panel" aria-label="Main (mobile)">
+                <NavList className="mk-nav-list-mobile" items={links} />
+              </nav>
+            </details>
+          </div>
         </div>
-      </div>
-      <div className="mk-header-rule" />
-    </header>
+        <div className="mk-header-rule" />
+      </header>
+    </>
   );
 }

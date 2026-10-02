@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { ArticleData, Crumb } from '@/content/articles/types';
 import { REVIEWER } from '@/content/site';
 import { resolveTokens } from '@/content/tokens';
+import { HeroGlyph } from '../motion/HeroGlyph';
 import { JsonLd } from '../ui/JsonLd';
 import { Pill } from '../ui/Pill';
 import { Rail } from '../ui/Section';
@@ -62,9 +63,7 @@ export function ArticleHero({
   const named = showReviewer && !(reviewLine && /^(By|Von) /.test(reviewLine));
   return (
     <header className="mk-art-hero">
-      <span className="mk-art-deco" aria-hidden="true">
-        ››
-      </span>
+      <HeroGlyph className="mk-art-deco" />
       <div className="mk-art-hero-inner">
         <nav className="mk-art-crumbs" aria-label={ui.breadcrumb}>
           <ol>

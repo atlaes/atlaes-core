@@ -3,6 +3,7 @@ import { EXTERNAL } from '@/content/registries/links';
 import type { Block } from '@/content/types';
 import { Blocks } from '../ui/Blocks';
 import { Inline } from '../ui/Inline';
+import { HeroGlyph } from '../motion/HeroGlyph';
 import { JumpMenu, type JumpMenuItem } from '../ui/JumpMenu';
 import { SmartLink } from '../ui/SmartLink';
 
@@ -41,6 +42,11 @@ export interface CountryHeroProps {
   /** "At a glance" bullets without the leading check mark. */
   bullets: string[];
   jump: JumpMenuItem[];
+  /**
+   * Leave the jump row and hairline out of the hero; the page renders
+   * `CountryJumpBar` right after it instead (so it can stick on scroll).
+   */
+  jumpOutside?: boolean;
 }
 
 /**
@@ -59,12 +65,11 @@ export function CountryHero({
   trust,
   bullets,
   jump,
+  jumpOutside = false,
 }: CountryHeroProps) {
   return (
     <header className="mk-chero">
-      <span className="mk-chero-deco" aria-hidden="true">
-        ››
-      </span>
+      <HeroGlyph className="mk-chero-deco" />
       <div className="mk-chero-inner">
         <nav aria-label="Breadcrumb" className="mk-chero-crumbs">
           {crumbs.map((c, i) => (
@@ -106,14 +111,37 @@ export function CountryHero({
             </ul>
           </aside>
         </div>
-        {jump.length ? (
+        {jump.length && !jumpOutside ? (
           <div className="mk-chero-jump">
             <JumpMenu items={jump} />
           </div>
         ) : null}
-        <div className="mk-chero-rule" aria-hidden="true" />
+        {jumpOutside ? null : (
+          <div className="mk-chero-rule" aria-hidden="true" />
+        )}
       </div>
     </header>
+  );
+}
+
+/**
+ * The hero's jump-menu row and hairline as siblings of the hero, so the
+ * row can stick under the header while the article scrolls (motion on,
+ * ≥768px; `data-sticky` → ScrollSpy sets `data-stuck`). Static spacing is
+ * identical to the in-hero row: margins outside, a compact padded bar.
+ */
+export function CountryJumpBar({ items }: { items: JumpMenuItem[] }) {
+  return (
+    <>
+      <div className="mk-chero-jumpbar" data-sticky="">
+        <div className="mk-chero-jumpbar-inner">
+          <JumpMenu items={items} />
+        </div>
+      </div>
+      <div className="mk-chero-jumpfoot">
+        <div className="mk-chero-rule" aria-hidden="true" />
+      </div>
+    </>
   );
 }
 

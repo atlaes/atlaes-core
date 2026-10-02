@@ -17,6 +17,7 @@ import { JsonLd } from '@/components/marketing/ui/JsonLd';
 import { Pill } from '@/components/marketing/ui/Pill';
 import { RichFaq } from '@/components/marketing/home/RichFaq';
 import type { Block } from '@/content/types';
+import { StepProgress } from '@/components/marketing/motion/StepProgress';
 import '@/components/marketing/home/home.css';
 import {
   CoreCta,
@@ -131,7 +132,7 @@ export default function HowItWorksRoute() {
 
       {/* Steps (854:3458): rail column + numbered timeline */}
       <section className="mk-hs mk-tone-plain mk-hiw-steps">
-        <div className="mk-container mk-hiw-steps-grid">
+        <div className="mk-container mk-hiw-steps-grid" data-reveal="off">
           <CoreRail index={index++} label="How it works" />
           <ol className="mk-hiw-timeline">
             {steps.map((s, i) => (
@@ -139,7 +140,7 @@ export default function HowItWorksRoute() {
                 <span className="mk-hiw-node" aria-hidden="true">
                   0{i + 1}
                 </span>
-                <div className="mk-hiw-step-body">
+                <div className="mk-hiw-step-body" data-reveal="">
                   <h2 id={s.id} className="mk-h2">
                     {s.h2}
                   </h2>
@@ -158,6 +159,7 @@ export default function HowItWorksRoute() {
               </li>
             ))}
           </ol>
+          <StepProgress />
         </div>
       </section>
 

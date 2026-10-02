@@ -1,10 +1,12 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { apiClient } from '@/lib/api';
 import { getAttribution, type Attribution } from '@/lib/attribution';
 import { SmartLink } from '../ui/SmartLink';
+import { motionAllowed } from '../motion/flag';
 import './widgets.css';
+import './widgets-motion.css';
 
 export type CaptureType = 'v0900-guide' | 'wegzug-guide';
 
@@ -112,6 +114,34 @@ export function CaptureBox({ type, placement, as = 'h2' }: CaptureBoxProps) {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const formHeight = useRef<number | null>(null);
+
+  // Success: the body collapses smoothly from the form's height to the
+  // confirmation's height (only when motion is allowed).
+  useLayoutEffect(() => {
+    const el = bodyRef.current;
+    const from = formHeight.current;
+    formHeight.current = null;
+    if (!done || !el || from === null || !motionAllowed()) return;
+    const to = el.offsetHeight;
+    if (Math.abs(from - to) < 2) return;
+    el.style.height = from + 'px';
+    el.style.overflow = 'hidden';
+    void el.offsetHeight; // commit the start height
+    el.classList.add('is-collapsing');
+    el.style.height = to + 'px';
+    const end = () => {
+      el.classList.remove('is-collapsing');
+      el.style.height = '';
+      el.style.overflow = '';
+    };
+    const timer = window.setTimeout(end, 450);
+    return () => {
+      window.clearTimeout(timer);
+      end();
+    };
+  }, [done]);
 
   const nowYear = new Date().getFullYear();
   const years: number[] = [];
@@ -156,6 +186,7 @@ export function CaptureBox({ type, placement, as = 'h2' }: CaptureBoxProps) {
     };
     try {
       await apiClient.post('/leads', payload);
+      if (bodyRef.current) formHeight.current = bodyRef.current.offsetHeight;
       setDone(true);
     } catch {
       setError(SHARED.sendError);
@@ -173,12 +204,21 @@ export function CaptureBox({ type, placement, as = 'h2' }: CaptureBoxProps) {
       <div className="mk-widget-head">
         <Heading>{c.heading}</Heading>
       </div>
-      <div className="mk-widget-body">
+      <div className="mk-widget-body" ref={bodyRef}>
         {done ? (
           <div
             className="mk-verdict mk-verdict-ok mk-widget-done"
             role="status"
           >
+            <svg
+              className="mk-done-check"
+              viewBox="0 0 40 40"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <circle cx="20" cy="20" r="18" />
+              <path d="M12 20.5l5.5 5.5L28.5 14" />
+            </svg>
             <h3>{c.doneTitle}</h3>
             <p>
               {SHARED.doneBody}

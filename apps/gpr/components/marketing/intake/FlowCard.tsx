@@ -7,11 +7,16 @@
  * `?citizenship=…&residence=…` plus the attribution params, so the funnel
  * prefills the answers and never re-asks them.
  */
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { COUNTRIES } from '@/data/countries';
 import { FUNNEL_ENTRY } from '@/content/registries/links';
 import { handoffAttributionQuery } from '@/lib/attribution';
+import {
+  preliminaryHint,
+  type PreliminaryHint,
+} from '../widgets/preliminary-verdict';
+import './flow-card.css';
 
 export const FLOW_CARD_COPY = {
   heading: 'Check your eligibility',
@@ -54,6 +59,7 @@ function CountryField({
   value,
   onChange,
   invalid,
+  valid,
 }: {
   id: string;
   listId: string;
@@ -61,24 +67,35 @@ function CountryField({
   value: string;
   onChange: (v: string) => void;
   invalid: boolean;
+  valid: boolean;
 }) {
   return (
     <div className="mk-field">
       <label htmlFor={id} className="mk-field-label">
         {label}
       </label>
-      <input
-        id={id}
-        name={id}
-        list={listId}
-        className={'mk-input' + (invalid ? ' mk-input-invalid' : '')}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        autoComplete="off"
-        placeholder="Start typing…"
-        aria-invalid={invalid || undefined}
-        required
-      />
+      <span className={'mk-flow-input' + (valid ? ' is-valid' : '')}>
+        <input
+          id={id}
+          name={id}
+          list={listId}
+          className={'mk-input' + (invalid ? ' mk-input-invalid' : '')}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          autoComplete="off"
+          placeholder="Start typing…"
+          aria-invalid={invalid || undefined}
+          required
+        />
+        <svg
+          className="mk-flow-tick"
+          viewBox="0 0 16 16"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M3.5 8.5l3 3 6-7" />
+        </svg>
+      </span>
     </div>
   );
 }
@@ -95,6 +112,15 @@ export function FlowCard() {
   const residenceMatch = matchCountry(residence);
   const invalidCitizenship = touched && !citizenshipMatch;
   const invalidResidence = touched && !residenceMatch;
+  const ready = Boolean(citizenshipMatch && residenceMatch);
+  const hint: PreliminaryHint | null = ready
+    ? preliminaryHint(citizenshipMatch!, residenceMatch!)
+    : null;
+  const verdict = hint && hint.kind === 'verdict' ? hint.verdict : null;
+  // Keep the last verdict mounted while the hint collapses again.
+  const lastVerdict = useRef(verdict);
+  if (verdict) lastVerdict.current = verdict;
+  const shown = verdict || lastVerdict.current;
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -127,6 +153,7 @@ export function FlowCard() {
         value={citizenship}
         onChange={setCitizenship}
         invalid={invalidCitizenship}
+        valid={Boolean(citizenshipMatch)}
       />
       <CountryField
         id={uid + '-residence'}
@@ -135,13 +162,35 @@ export function FlowCard() {
         value={residence}
         onChange={setResidence}
         invalid={invalidResidence}
+        valid={Boolean(residenceMatch)}
       />
+      {/* Preliminary hint from the country-only verdict rules
+          (lib/eligibility-verdicts.ts), verbatim verdict texts. */}
+      <div
+        className="mk-flow-hint"
+        data-open={verdict ? 'true' : 'false'}
+        aria-live="polite"
+      >
+        <div className="mk-flow-hint-inner" aria-hidden={!verdict || undefined}>
+          {shown ? (
+            <div className={'mk-flow-hint-box is-' + shown.status}>
+              <p className="mk-flow-hint-title">{shown.title}</p>
+              <p className="mk-flow-hint-body">{shown.body}</p>
+            </div>
+          ) : null}
+        </div>
+      </div>
       {invalidCitizenship || invalidResidence ? (
         <p className="mk-field-error" role="alert">
           Please choose a country from the list.
         </p>
       ) : null}
-      <button type="submit" className="mk-pill mk-pill-primary mk-pill-lg">
+      <button
+        type="submit"
+        className={
+          'mk-pill mk-pill-primary mk-pill-lg' + (ready ? ' mk-flow-ready' : '')
+        }
+      >
         {FLOW_CARD_COPY.button}
       </button>
       <p className="mk-flow-micro">{FLOW_CARD_COPY.microcopy}</p>

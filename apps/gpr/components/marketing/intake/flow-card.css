@@ -1,0 +1,132 @@
+/*
+ * Flow card motion (M2): valid-selection ticks, the preliminary verdict
+ * hint (height + fade 200ms) and the ready state of the submit button.
+ * Static rules give the final state; transitions only run inside
+ * `.mk[data-motion="on"]` without `prefers-reduced-motion: reduce`.
+ */
+.mk-flow-input {
+  position: relative;
+  display: block;
+}
+.mk-flow-input.is-valid .mk-input {
+  padding-right: 38px;
+}
+.mk-flow-tick {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 16px;
+  height: 16px;
+  margin-top: -8px;
+  fill: none;
+  stroke: #1f7a3d;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+  opacity: 0;
+}
+.mk-flow-tick path {
+  stroke-dasharray: 16;
+  stroke-dashoffset: 16;
+}
+.mk-flow-input.is-valid .mk-flow-tick {
+  opacity: 1;
+}
+.mk-flow-input.is-valid .mk-flow-tick path {
+  stroke-dashoffset: 0;
+}
+
+/* hint: collapsed grid row when closed, content kept for the collapse */
+.mk-flow-hint {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  margin-top: -18px; /* cancel the card gap while collapsed */
+}
+.mk-flow-hint[data-open='true'] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  margin-top: -6px;
+}
+.mk-flow-hint-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+.mk-flow-hint[data-open='false'] .mk-flow-hint-inner {
+  visibility: hidden;
+}
+.mk-flow-hint-box {
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fbefc7;
+  color: var(--mk-ink);
+}
+.mk-flow-hint-box.is-no {
+  background: #fdecea;
+}
+.mk-flow-hint-box > p {
+  margin: 0;
+}
+.mk-flow-hint-title {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #8a1c14;
+}
+.mk-flow-hint-body {
+  margin-top: 4px !important;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--mk-body);
+}
+
+/* ready: both countries valid */
+.mk-flow-card .mk-pill.mk-flow-ready {
+  box-shadow: 0 0 0 4px var(--mk-tint);
+}
+
+/* navy partner card (core.css .mk-core-intake) */
+.mk-core-intake .mk-flow-tick {
+  stroke: #9fe0b2;
+}
+.mk-core-intake .mk-flow-card .mk-pill.mk-flow-ready {
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.22);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mk[data-motion='on'] .mk-flow-tick {
+    transition: opacity 0.15s ease;
+  }
+  .mk[data-motion='on'] .mk-flow-tick path {
+    transition: stroke-dashoffset 0.25s ease-out 0.05s;
+  }
+  .mk[data-motion='on'] .mk-flow-hint {
+    transition:
+      grid-template-rows 0.2s ease,
+      opacity 0.2s ease,
+      margin-top 0.2s ease;
+  }
+  .mk[data-motion='on'] .mk-flow-hint[data-open='false'] .mk-flow-hint-inner {
+    transition: visibility 0s linear 0.2s;
+  }
+  .mk[data-motion='on'] .mk-flow-card .mk-pill {
+    transition:
+      box-shadow 0.25s ease,
+      background-color 0.15s ease;
+  }
+  .mk[data-motion='on'] .mk-flow-card .mk-pill.mk-flow-ready {
+    animation: mk-flow-ready 0.6s ease-out 1;
+  }
+}
+@keyframes mk-flow-ready {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

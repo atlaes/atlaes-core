@@ -293,3 +293,47 @@
   color: var(--mk-body);
   width: 32%;
 }
+
+/* ---- motion (stream M1): jump bar outside the hero, sticky on scroll ----
+ * Same static spacing as the in-hero row (row → 36/64 → pills → 48/64 →
+ * hairline): margins sit outside the 12px-padded bar so the pinned bar
+ * stays compact. Sticky only with motion on and ≥768px (phone rows wrap). */
+.mk-chero-jumpbar {
+  position: relative;
+  z-index: 15;
+  background: #fff;
+  margin-top: 24px;
+  margin-bottom: 36px;
+}
+.mk-chero-jumpbar-inner,
+.mk-chero-jumpfoot {
+  width: 100%;
+  max-width: var(--mk-container-w);
+  margin: 0 auto;
+  padding: 12px var(--mk-gutter);
+}
+.mk-chero-jumpfoot {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+@media (min-width: 1024px) {
+  .mk-chero-jumpbar {
+    margin-top: 52px;
+    margin-bottom: 52px;
+  }
+}
+@media (min-width: 768px) {
+  .mk[data-motion='on'] .mk-chero-jumpbar {
+    position: sticky;
+    top: var(--mk-header-h);
+    transition: box-shadow 200ms ease-out;
+  }
+  .mk[data-motion='on'] .mk-chero-jumpbar[data-stuck] {
+    box-shadow:
+      0 1px 0 var(--mk-surface),
+      0 8px 20px rgba(24, 24, 24, 0.06);
+  }
+  .mk[data-motion='on'] .mk-country [id] {
+    scroll-margin-top: calc(var(--mk-header-h) + 80px);
+  }
+}

@@ -1,5 +1,6 @@
 import { resolveTokens } from '@/content/tokens';
 import { Inline } from '../ui/Inline';
+import { CountUp } from '../motion/CountUp';
 import { STAT_MICROCOPY, STAT_TILES } from './home-content';
 
 /**
@@ -14,7 +15,9 @@ export function StatRow() {
       <ul className="mk-stat-grid">
         {STAT_TILES.map((tile, i) => (
           <li key={i} className="mk-stat">
-            <span className="mk-stat-figure">{resolveTokens(tile.figure)}</span>
+            <span className="mk-stat-figure">
+              <CountUp text={resolveTokens(tile.figure)} />
+            </span>
             <span className="mk-stat-caption">
               <Inline
                 x={tile.caption.x}

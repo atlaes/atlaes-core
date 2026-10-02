@@ -1,3 +1,5 @@
+import { ScrollSpy } from '../motion/ScrollSpy';
+
 export interface JumpMenuItem {
   href: string;
   label: string;
@@ -6,7 +8,8 @@ export interface JumpMenuItem {
 /**
  * Compact in-page anchor menu (country frame 1057:10772): muted "JUMP TO"
  * label + white pills with a 1px #c6c6c6 stroke. Navigation chrome, not
- * copy; pass `label={null}` to hide the label.
+ * copy; pass `label={null}` to hide the label. With motion on, a small
+ * client ScrollSpy marks the current section's link `aria-current`.
  */
 export function JumpMenu({
   items,
@@ -32,6 +35,7 @@ export function JumpMenu({
           </li>
         ))}
       </ul>
+      <ScrollSpy />
     </nav>
   );
 }
