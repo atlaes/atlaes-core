@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useId, useState, type CSSProperties } from 'react';
 import {
   CARRIERS,
   COUNTRY_OPTIONS,
@@ -15,7 +15,53 @@ import {
   type LastOffice,
   type OfficeFinderResult,
 } from './office-routing';
+import {
+  previewRoute,
+  resultRoute,
+  resultStep,
+  type RouteState,
+} from './office-route';
 import './widgets.css';
+import './widgets-motion.css';
+
+/** Short names of the six rules, in evaluation order (office-routing.ts). */
+const ROUTE_LABELS = [
+  'Knappschaft-Bahn-See',
+  'DRV Bund',
+  'Citizenship liaison office',
+  'Residence liaison office',
+  'Regional carrier',
+  'No match',
+];
+const ROUTE_STEP_MS = 110;
+
+/**
+ * Visual route through the six rules (decorative; the result panel states
+ * the office and the reason). Lights up as answers are given, stops at
+ * the matching rule.
+ */
+function Route({
+  states,
+  mode,
+}: {
+  states: RouteState[];
+  mode: 'preview' | 'result';
+}) {
+  return (
+    <ol className="mk-route" data-mode={mode} aria-hidden="true">
+      {ROUTE_LABELS.map((label, i) => (
+        <li
+          key={label}
+          className={'mk-route-step is-' + states[i]}
+          style={{ '--i': i } as CSSProperties}
+        >
+          <span className="mk-route-dot" />
+          <span className="mk-route-label">{label}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
 
 const T = {
   heading: 'Where do I send my refund application?',
@@ -107,16 +153,34 @@ export function OfficeFinder({ as = 'h2' }: { as?: 'h2' | 'h3' }) {
   const [prefix, setPrefix] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<OfficeFinderResult | null>(null);
+  const [noNumber, setNoNumber] = useState(false);
   const Heading = as;
 
-  function show(r: OfficeFinderResult) {
+  function show(r: OfficeFinderResult, viaNoNumber = false) {
     if (r.kind === 'error') {
       setError(r.message);
       return;
     }
     setError(null);
+    setNoNumber(viaNoNumber);
     setResult(r);
   }
+
+  const parsedPrefix = prefix.trim() === '' ? null : parseInt(prefix, 10);
+  const routeInput = {
+    lastOffice,
+    citizenship,
+    residence,
+    prefix: parsedPrefix,
+  };
+  const step = result ? resultStep(routeInput, result) : null;
+  const routeStates = result
+    ? resultRoute(step, noNumber)
+    : previewRoute(routeInput);
+  const cardDelay = {
+    '--mk-route-delay':
+      ((step === null ? 0 : step + 1) * ROUTE_STEP_MS + 80).toString() + 'ms',
+  } as CSSProperties;
 
   function reset() {
     setLastOffice('');
@@ -125,6 +189,7 @@ export function OfficeFinder({ as = 'h2' }: { as?: 'h2' | 'h3' }) {
     setPrefix('');
     setError(null);
     setResult(null);
+    setNoNumber(false);
   }
 
   const ctaHref = FUNNEL_ENTRY + '?via=office-finder';
@@ -136,6 +201,7 @@ export function OfficeFinder({ as = 'h2' }: { as?: 'h2' | 'h3' }) {
         <p>{T.intro}</p>
       </div>
       <div className="mk-widget-body">
+        <Route states={routeStates} mode={result ? 'result' : 'preview'} />
         {!result ? (
           <form
             noValidate
@@ -146,7 +212,7 @@ export function OfficeFinder({ as = 'h2' }: { as?: 'h2' | 'h3' }) {
                   lastOffice: lastOffice as LastOffice,
                   citizenship,
                   residence,
-                  prefix: prefix.trim() === '' ? null : parseInt(prefix, 10),
+                  prefix: parsedPrefix,
                 })
               );
             }}
@@ -204,7 +270,7 @@ export function OfficeFinder({ as = 'h2' }: { as?: 'h2' | 'h3' }) {
                   type="button"
                   className="mk-btn-link"
                   onClick={() =>
-                    show(resolveWithoutNumber(citizenship, residence))
+                    show(resolveWithoutNumber(citizenship, residence), true)
                   }
                 >
                   {T.noNumber}
@@ -221,7 +287,11 @@ export function OfficeFinder({ as = 'h2' }: { as?: 'h2' | 'h3' }) {
             ) : null}
           </form>
         ) : result.kind === 'office' ? (
-          <div className="mk-verdict mk-verdict-ok" role="status">
+          <div
+            className="mk-verdict mk-verdict-ok mk-route-card"
+            role="status"
+            style={cardDelay}
+          >
             <h3>{T.resultTitle}</h3>
             <p className="mk-verdict-big">{result.name}</p>
             <p className="mk-verdict-address">{result.address}</p>
@@ -243,7 +313,11 @@ export function OfficeFinder({ as = 'h2' }: { as?: 'h2' | 'h3' }) {
             </button>
           </div>
         ) : (
-          <div className="mk-verdict mk-verdict-warn" role="status">
+          <div
+            className="mk-verdict mk-verdict-warn mk-route-card"
+            role="status"
+            style={cardDelay}
+          >
             <h3>{T.noMatchTitle}</h3>
             <p>{result.message}</p>
             <button type="button" className="mk-btn-link" onClick={reset}>

@@ -1,4 +1,6 @@
+import type { CSSProperties } from 'react';
 import { t, tokenMeta } from '@/content/tokens';
+import { RevealBars } from '../widgets/RevealBars';
 
 interface Row {
   id: string;
@@ -103,15 +105,19 @@ export function ProcessingTimeChart() {
         <strong>{title}</strong>
         <span>{t('M-12.sentence')} Individual processing times vary.</span>
       </figcaption>
-      <ol className="mk-ptc-rows">
-        {rows.map((r) => (
+      <RevealBars className="mk-ptc-rows">
+        {rows.map((r, i) => (
           <li key={r.id} className="mk-ptc-row" title={r.sentence}>
             <span className="mk-ptc-label">
               {r.label}
               <small>{r.sub}</small>
             </span>
             <span className="mk-ptc-track" aria-hidden="true">
-              <span className="mk-ptc-fill" style={{ width: r.pct + '%' }} />
+              <span
+                className="mk-ptc-fill"
+                data-bar=""
+                style={{ width: r.pct + '%', '--i': i } as CSSProperties}
+              />
             </span>
             <span className="mk-ptc-value">
               {r.value}
@@ -119,7 +125,7 @@ export function ProcessingTimeChart() {
             </span>
           </li>
         ))}
-      </ol>
+      </RevealBars>
       <p className="mk-ptc-caption">
         Completed refunds only: share of Germany Pension Refund’s{' '}
         {t('M-12.total')} most recent completed paid refunds (ordered by escrow
