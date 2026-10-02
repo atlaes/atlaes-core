@@ -6,5 +6,6 @@ export { Section, Rail } from './Section';
 export { Callout } from './Callout';
 export { Pill } from './Pill';
 export { FaqList } from './FaqList';
+export { FaqItem } from './FaqItem';
 export { JsonLd } from './JsonLd';
 export { JumpMenu } from './JumpMenu';

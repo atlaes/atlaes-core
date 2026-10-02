@@ -1,0 +1,36 @@
+/* FAQ rows as native disclosures — see FaqItem.tsx.
+ * Builds on the .mk-faq / .mk-faq-q rules in marketing.css. */
+.mk-faq-item > .mk-faq-summary {
+  display: block;
+  list-style: none;
+  cursor: pointer;
+  padding-right: 0;
+}
+.mk-faq-item > .mk-faq-summary::-webkit-details-marker {
+  display: none;
+}
+.mk-faq-item > .mk-faq-summary:focus-visible {
+  outline: 2px solid var(--mk-navy);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.mk-faq-item:not([open]) {
+  padding-bottom: 8px;
+}
+.mk-faq-item:not([open]) .mk-faq-q::after {
+  content: '+';
+}
+.mk-faq-item > .mk-faq-summary:hover .mk-faq-q::after {
+  background: var(--mk-tint);
+}
+.mk-faq-body > :last-child {
+  margin-bottom: 0;
+}
+@media (min-width: 768px) {
+  .mk-faq-item > .mk-faq-summary {
+    padding-right: 0;
+  }
+  .mk-faq-body {
+    padding-right: 64px;
+  }
+}
