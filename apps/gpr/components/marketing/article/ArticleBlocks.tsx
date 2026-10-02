@@ -10,6 +10,7 @@ import type { Span } from '@/content/types';
 import { Callout } from '../ui/Callout';
 import { DataTable } from '../ui/DataTable';
 import { FaqList } from '../ui/FaqList';
+import { FaqItem } from '../ui/FaqItem';
 import { Inline } from '../ui/Inline';
 import { Pill } from '../ui/Pill';
 import { ProcessingTimeChart } from './ProcessingTimeChart';
@@ -236,7 +237,7 @@ export function ArticleBlocks({
 /**
  * FAQ section. Plain single-paragraph answers go through the shared
  * `FaqList`; answers with links or several paragraphs render the same
- * markup with the rich blocks.
+ * disclosure rows with the rich blocks.
  */
 export function ArticleFaq({
   items,
@@ -260,14 +261,17 @@ export function ArticleFaq({
       {rich ? (
         <div className="mk-faq">
           {items.map((f, i) => (
-            <div key={i} className="mk-faq-item">
-              <h3 className="mk-faq-q">{resolveTokens(f.q)}</h3>
+            <FaqItem
+              key={i}
+              defaultOpen={i === 0}
+              question={resolveTokens(f.q)}
+            >
               {f.blocks && f.blocks.length ? (
                 <ArticleBlocks blocks={f.blocks} path={path} lang={lang} />
               ) : (
                 <p className="mk-faq-a">{resolveTokens(f.a)}</p>
               )}
-            </div>
+            </FaqItem>
           ))}
         </div>
       ) : (
