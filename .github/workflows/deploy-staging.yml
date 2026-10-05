@@ -51,6 +51,7 @@ jobs:
           AWS_DEFAULT_REGION: eu-central-1
           MINDEE_API: ${{ secrets.MINDEE_API }}
           NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+          TOTP_ENCRYPTION_KEY: ${{ secrets.TOTP_ENCRYPTION_KEY }}
           # Non-secret settings for the GPR site, lead capture and client
           # updates (GitHub environment variables; empty = feature logs
           # instead of sending). See resources/services/index.ts.
@@ -59,6 +60,9 @@ jobs:
           LEADS_NOTIFY_EMAIL: ${{ vars.LEADS_NOTIFY_EMAIL }}
           LEADS_V0900_GUIDE_URL: ${{ vars.LEADS_V0900_GUIDE_URL }}
           LEADS_WEGZUG_GUIDE_URL: ${{ vars.LEADS_WEGZUG_GUIDE_URL }}
+          # Staging e2e test login (secret header for the Playwright suite in
+          # .github/workflows/e2e-staging.yml). Unset = the test login is off.
+          E2E_LOGIN_SECRET: ${{ secrets.E2E_LOGIN_SECRET }}
 
       - name: Run database migrations
         env:
