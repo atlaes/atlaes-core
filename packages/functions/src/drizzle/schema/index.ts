@@ -5,4 +5,6 @@ export * from './gpr';
 export * from './claims';
 export * from './leads';
 export * from './client-updates';
+export * from './payout';
 export * from './two-factor';
+export * from './payout-queue';
