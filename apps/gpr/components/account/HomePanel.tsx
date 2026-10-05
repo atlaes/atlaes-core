@@ -13,6 +13,7 @@ import {
   TextLink,
 } from './primitives';
 import { Stepper } from './Stepper';
+import { PayoutTaskBanners } from './payout/PayoutTaskBanners';
 
 export const HOME_COPY = {
   submittedHeading: 'Your application has been submitted',
@@ -137,6 +138,7 @@ export function HomePanel({ data }: { data: AccountCase }) {
   return (
     <Column>
       {task ? <TaskBanner task={task} /> : null}
+      <PayoutTaskBanners />
 
       <PageTitle
         chip={<StageChip stage={data.stage} />}

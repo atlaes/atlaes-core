@@ -10,6 +10,7 @@ import { env, assertMigrationTokenConfigured } from './utils/env';
 // Import routes
 import health from './routes/health';
 import auth from './routes/auth';
+import authTwoFactor from './routes/auth-2fa';
 import users from './routes/users';
 import vbl from './routes/vbl';
 import vblPendingCalculatorSessions from './routes/vbl-pending-calculator-sessions';
@@ -20,11 +21,14 @@ import documentsRouter from './routes/documents';
 import signaturesRouter from './routes/signatures';
 import admin from './routes/admin';
 import lawFirm from './routes/law-firm';
+import lawFirmPayouts, { adminPayouts } from './routes/law-firm-payouts';
 import migrations from './routes/migrations';
 import payments from './routes/payments';
 import leads from './routes/leads';
 import account from './routes/account';
 import clientUpdatesAdmin from './routes/client-updates-admin';
+import payout from './routes/payout';
+import payoutAdmin from './routes/payout-admin';
 
 // Fail fast before serving traffic if this backend would expose
 // /api/migrations/run with the publicly-known dev token.
@@ -41,6 +45,7 @@ app.use('*', errorHandler);
 
 // Routes
 app.route('/api/health', health);
+app.route('/api/auth/2fa', authTwoFactor);
 app.route('/api/auth', auth);
 app.route('/api/users', users);
 app.route('/api/vbl/pending-calculator-sessions', vblPendingCalculatorSessions);
@@ -51,12 +56,16 @@ app.route('/api/withdrawals', withdrawals);
 app.route('/api/documents', documentsRouter);
 app.route('/api/signatures', signaturesRouter);
 app.route('/api/admin', admin);
+app.route('/api/law-firm/payouts', lawFirmPayouts);
 app.route('/api/law-firm', lawFirm);
+app.route('/api/admin/payouts', adminPayouts);
 app.route('/api/migrations', migrations);
 app.route('/api/payments', payments);
 app.route('/api/leads', leads);
 app.route('/api/account', account);
 app.route('/api/admin/client-updates', clientUpdatesAdmin);
+app.route('/api/account/payout', payout);
+app.route('/api/admin/payout', payoutAdmin);
 
 // Root endpoint
 app.get('/', (c) => {

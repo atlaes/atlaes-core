@@ -73,6 +73,17 @@ export const CASE_STAGES: { key: LawFirmCaseState; label: string }[] = [
   { key: 'closed', label: 'Abgeschlossen' },
 ];
 
+export type LawFirmClaimCaseType = 'drv_refund' | 'vbl_refund' | 'bav_cashout';
+
+/** Frozen submission pack manifest (DRV pack; bAV packs may differ). */
+export interface FirmPackManifest {
+  aktenzeichen?: string;
+  generatedAt?: string;
+  recipient?: { carrierName?: string; mailingAddress?: string[] } | null;
+  documents?: { key: string; label: string; pages: number }[];
+  totalPages?: number;
+}
+
 export interface FirmMe {
   firm: LawFirmSummary;
   membership: LawFirmMembership;
@@ -84,6 +95,10 @@ export interface FirmClaimListItem {
   claimantName: string | null;
   status: string | null;
   pensionType: string | null;
+  /** 'drv_refund' | 'vbl_refund' | 'bav_cashout' (newer API). */
+  caseType?: LawFirmClaimCaseType;
+  caseTypeLabel?: string;
+  caseIdentifier?: { label: string; value: string | null } | null;
   bavRoute: 'A' | 'B' | null;
   lawFirmRef: string | null;
   caseState: LawFirmCaseState;
@@ -137,6 +152,24 @@ export interface FirmCaseDetail {
     submittedAt: string | null;
     packageReady: boolean;
     copyReady: boolean;
+    // Release / AZ gate / frozen pack (platform brief Part 1). Optional so
+    // older API responses still type-check.
+    caseType?: LawFirmClaimCaseType;
+    caseTypeLabel?: string;
+    caseIdentifier?: { label: string; value: string | null } | null;
+    visibility?: 'not_released' | 'visible' | 'submitted' | 'rereleased';
+    releasedAt?: string | null;
+    rereleasedUntil?: string | null;
+    submissionDeadline?: string | null;
+    aktenzeichenValid?: boolean;
+    download?: { allowed: true } | { allowed: false; reason: string };
+    pack?: {
+      frozen: boolean;
+      generatedAt: string | null;
+      manifest: FirmPackManifest | null;
+      missingData: string[];
+    };
+    copyBlock?: string;
     claimant: {
       name: string | null;
       salutation: string | null;

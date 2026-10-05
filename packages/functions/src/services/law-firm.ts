@@ -1028,6 +1028,7 @@ export class LawFirmService {
       resource: 'claim',
       resourceId: claimId,
       details: { firmId, kind, s3Key: key, ip, lawFirmRef: claim.lawFirmRef },
+      ipAddress: ip?.slice(0, 45) ?? null,
     });
 
     if (kind === 'package' && (claim.lawFirmCaseState ?? 'new') === 'new') {
