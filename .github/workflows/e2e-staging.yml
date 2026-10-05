@@ -1,0 +1,126 @@
+name: E2E Staging
+
+# Playwright suite against the deployed staging stack (apps/vbl/e2e-staging).
+# The no-login projects (calculator, eligibility) always run; the account,
+# payment and withdrawal projects need the E2E_LOGIN_SECRET environment
+# secret, which must match the value deploy-staging.yml passes to the
+# backend. See apps/vbl/playwright.staging.config.ts.
+
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Playwright project to run'
+        type: choice
+        default: all
+        options:
+          - all
+          - calculator
+          - eligibility
+          - account
+          - payment
+          - withdrawal
+      grep:
+        description: 'Only run tests whose title matches this pattern (optional)'
+        type: string
+        required: false
+        default: ''
+  # Nightly run, enable once the suite has been stable for a while:
+  # schedule:
+  #   - cron: '0 3 * * *'
+
+concurrency:
+  group: e2e-staging
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      E2E_BASE_URL: https://staging.vbl.atlaes.de
+      E2E_API_URL: https://staging.api.atlaes.de
+      E2E_LOGIN_SECRET: ${{ secrets.E2E_LOGIN_SECRET }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        working-directory: apps/vbl
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run staging suite
+        working-directory: apps/vbl
+        env:
+          PROJECT: ${{ inputs.project }}
+          GREP: ${{ inputs.grep }}
+        run: |
+          ARGS=()
+          if [ -n "$PROJECT" ] && [ "$PROJECT" != "all" ]; then
+            ARGS+=(--project "$PROJECT")
+          fi
+          if [ -n "$GREP" ]; then
+            ARGS+=(--grep "$GREP")
+          fi
+          if [ -z "$E2E_LOGIN_SECRET" ]; then
+            echo "::warning::E2E_LOGIN_SECRET is not set; the login projects will be skipped."
+          fi
+          pnpm exec playwright test -c playwright.staging.config.ts "${ARGS[@]}"
+
+      # Belt and braces: the specs and the global teardown clean up after
+      # themselves, but a crashed runner would not. Sweep every @e2e.test
+      # account (the endpoint only ever touches that domain).
+      - name: Clean up e2e data on staging
+        if: always()
+        run: |
+          if [ -z "$E2E_LOGIN_SECRET" ]; then
+            echo "No E2E_LOGIN_SECRET, nothing to clean."
+            exit 0
+          fi
+          curl -sS --max-time 120 -X POST "$E2E_API_URL/api/e2e/cleanup" \
+            -H "X-E2E-Secret: $E2E_LOGIN_SECRET" \
+            -H "content-type: application/json" \
+            -d '{"olderThanMinutes":0}'
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-staging
+          path: apps/vbl/playwright-report-staging
+          retention-days: 14
+
+      - name: Upload traces and results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-staging
+          path: apps/vbl/test-results-staging
+          retention-days: 14
