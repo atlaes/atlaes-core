@@ -108,33 +108,18 @@ test('logged-in path: the owner withdraws from their account', async ({
     `/withdraw-contract?claimId=${claimId}&institution=VBL`
   );
 
-  // The page tries to skip identification for logged-in users, but builds
-  // the name from the account profile, which magic-link sign-up leaves
-  // empty (names live on the claim). It then falls back to the form; the
-  // owner can still confirm.
-  const confirmHeading = page.getByRole('heading', {
-    name: 'Confirm contract withdrawal',
-  });
-  const identifyHeading = page.getByRole('heading', {
-    name: 'Withdraw your CompanyPension contract',
-  });
-  await expect(confirmHeading.or(identifyHeading)).toBeVisible();
-  if (await identifyHeading.isVisible()) {
-    test.info().annotations.push({
-      type: 'product-bug',
-      description:
-        'Logged-in withdrawal fell back to the identification form: ' +
-        'user.profile has no name for magic-link users.',
-    });
-    await page.getByLabel('Full name').fill(`${FIRST} ${LAST}`);
-    await page.getByLabel('Email address used for CompanyPension').fill(email);
-    await page.getByLabel('Claim ID').fill(claimId);
-    await page.getByLabel('Pension type or pension institution').fill('VBL');
-    await page
-      .getByRole('button', { name: 'Continue to confirmation' })
-      .click();
-    await expect(confirmHeading).toBeVisible();
-  }
+  // Logged-in owners skip the identification form. Magic-link accounts have
+  // no profile name, so the page must not depend on it: the backend trusts
+  // the signed-in owner and returns the name from the claim.
+  await expect(
+    page.getByRole('heading', { name: 'Confirm contract withdrawal' })
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', {
+      name: 'Withdraw your CompanyPension contract',
+    })
+  ).toHaveCount(0);
+  await expect(page.getByText(`${FIRST} ${LAST}`).first()).toBeVisible();
   await page.getByRole('button', { name: 'Confirm withdrawal' }).click();
   await expect(
     page.getByRole('heading', { name: 'Withdrawal received' })
