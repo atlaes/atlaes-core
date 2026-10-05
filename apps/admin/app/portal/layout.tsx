@@ -46,9 +46,13 @@ export default function PortalLayout({
 
   useEffect(() => {
     if (isLoading) return;
-    if (!isAuthenticated) router.replace('/');
-    else if (!allowed) router.replace(homeForRole(user?.role));
-  }, [isLoading, isAuthenticated, allowed, user?.role, router]);
+    if (!isAuthenticated) {
+      // Portal sign-in ends with the 6-digit code; come back here after.
+      router.replace(
+        `/auth/portal-sign-in?next=${encodeURIComponent(pathname)}`
+      );
+    } else if (!allowed) router.replace(homeForRole(user?.role));
+  }, [isLoading, isAuthenticated, allowed, user?.role, router, pathname]);
 
   const meQuery = useQuery({
     queryKey: ['firm-me'],
@@ -58,6 +62,29 @@ export default function PortalLayout({
   });
 
   if (isLoading || !allowed) return <Spinner full />;
+
+  const meErrorCode = (
+    meQuery.error as { response?: { data?: { code?: string } } } | null
+  )?.response?.data?.code;
+
+  if (meQuery.isError && meErrorCode === 'ip_not_allowed') {
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="mx-auto max-w-md px-4 py-16 text-center">
+          <p className="text-[15px] leading-[1.5] text-[#4b4f58]">
+            Your firm allows portal access only from its office network. Connect
+            from the office, or ask ATLAES to add this network.
+          </p>
+          <button
+            onClick={logout}
+            className="mt-4 text-[14px] font-semibold text-[#002691] hover:underline"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (meQuery.isError) {
     return (
@@ -136,10 +163,7 @@ export default function PortalLayout({
             <span className="hidden text-[#4b4f58] sm:inline">
               {user?.email}
             </span>
-            <button
-              onClick={logout}
-              className="text-[#002691] hover:underline"
-            >
+            <button onClick={logout} className="text-[#002691] hover:underline">
               Sign out
             </button>
           </div>
