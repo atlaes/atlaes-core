@@ -1,247 +1,112 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { FileText, Search } from 'lucide-react';
+import { getFirmClaims } from '@/lib/law-firm-api';
+import { Pagination, Spinner } from '@/components/ui';
 import {
-  CASE_STAGES,
-  CASE_STATE_LABELS,
-  getFirmClaims,
-  getFirmSummary,
-  LawFirmCaseState,
-} from '@/lib/law-firm-api';
-import {
-  Button,
-  EmptyState,
-  PageHeader,
-  Pagination,
-  Spinner,
-  StatTile,
-  Stepper,
-  Table,
-  TableBody,
-  TableHead,
-  Td,
-  Th,
-  formatDate,
-  inputClass,
-} from '@/components/ui';
+  Chip,
+  Note,
+  PortalColumn,
+  apiError,
+  caseIdentifierLabel,
+  caseTypeChip,
+  fmtDay,
+} from '@/components/portal/ui';
 
-type Tile = 'new' | 'missingRef' | 'awaiting' | 'response' | null;
+const PAGE_SIZE = 24;
+const INTRO =
+  'Cases appear here when ATLAES releases them and disappear once you save the submission date.';
 
-export default function PortalQueuePage() {
-  const router = useRouter();
-  const [tile, setTile] = useState<Tile>(null);
-  const [stateFilter, setStateFilter] = useState<'' | LawFirmCaseState>('');
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
+/**
+ * 02 · Released cases (Figma 1031:5127). Only the released batch: no
+ * search, no status view (platform brief Part 1). The API already limits
+ * the list to released, not-yet-submitted (or re-released) cases.
+ */
+export default function PortalReleasedCasesPage() {
   const [page, setPage] = useState(1);
 
-  const summary = useQuery({
-    queryKey: ['firm-summary'],
-    queryFn: getFirmSummary,
-  });
-
-  const caseState: LawFirmCaseState | undefined =
-    tile === 'new'
-      ? 'new'
-      : tile === 'awaiting'
-        ? 'submitted'
-        : tile === 'response'
-          ? 'response_received'
-          : stateFilter || undefined;
-
   const claimsQuery = useQuery({
-    queryKey: ['firm-claims', tile, caseState, search, page],
-    queryFn: () =>
-      getFirmClaims({
-        caseState,
-        missingRef: tile === 'missingRef' ? '1' : undefined,
-        search: search || undefined,
-        page,
-        limit: 25,
-      }),
+    queryKey: ['firm-claims', page],
+    queryFn: () => getFirmClaims({ page, limit: PAGE_SIZE }),
   });
-
-  const pickTile = (t: Tile) => {
-    setTile(tile === t ? null : t);
-    setStateFilter('');
-    setPage(1);
-  };
-
   const data = claimsQuery.data;
-  const s = summary.data;
 
   return (
-    <div>
-      <PageHeader
-        title="Akten"
-        subtitle={
-          s
-            ? `${s.total} Akten von CompanyPension an Ihre Kanzlei übergeben`
-            : 'Von CompanyPension an Ihre Kanzlei übergebene bAV-Abfindungen'
-        }
-      />
-
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile
-          label="Neu"
-          hint="noch nicht heruntergeladen"
-          value={s?.new ?? '–'}
-          active={tile === 'new'}
-          onClick={() => pickTile('new')}
-        />
-        <StatTile
-          label="Aktenzeichen fehlt"
-          hint="bitte eintragen"
-          value={s?.missingRef ?? '–'}
-          active={tile === 'missingRef'}
-          onClick={() => pickTile('missingRef')}
-        />
-        <StatTile
-          label="Beim Versorgungsträger"
-          hint="Antwort ausstehend"
-          value={s?.awaitingProvider ?? '–'}
-          active={tile === 'awaiting'}
-          onClick={() => pickTile('awaiting')}
-        />
-        <StatTile
-          label="Antwort erhalten"
-          hint="Abschluss offen"
-          value={s?.responseReceived ?? '–'}
-          active={tile === 'response'}
-          onClick={() => pickTile('response')}
-        />
-      </div>
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          setSearch(searchInput.trim());
-          setPage(1);
-        }}
-        className="mb-3 flex flex-wrap items-center gap-2"
-      >
-        <div className="relative min-w-[220px] flex-1 sm:max-w-xs">
-          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-          <input
-            id="portal-search"
-            type="search"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Name oder Aktenzeichen"
-            className={`${inputClass} pl-8`}
-          />
-        </div>
-        <Button type="submit">Suchen</Button>
-        <select
-          id="portal-state"
-          value={tile ? '' : stateFilter}
-          disabled={tile !== null}
-          onChange={(e) => {
-            setStateFilter(e.target.value as '' | LawFirmCaseState);
-            setTile(null);
-            setPage(1);
-          }}
-          className={`${inputClass} w-auto`}
-        >
-          <option value="">Alle Stände</option>
-          {CASE_STAGES.map((st) => (
-            <option key={st.key} value={st.key}>
-              {st.label}
-            </option>
-          ))}
-        </select>
-      </form>
+    <PortalColumn>
+      <header className="flex flex-col gap-2.5">
+        <p className="text-[12px] font-bold uppercase leading-[1.4] tracking-[0.96px] text-[#5e8cd9]">
+          Ready for submission
+        </p>
+        <h1 className="text-[32px] font-extrabold leading-[1.15] tracking-[-0.32px] text-[#181818]">
+          Released cases
+        </h1>
+        <p className="text-[15px] leading-[1.5] text-[#4b4f58]">{INTRO}</p>
+      </header>
 
       {claimsQuery.isLoading ? (
         <Spinner full />
+      ) : claimsQuery.isError ? (
+        <Note tone="error">
+          {apiError(claimsQuery.error, 'Cases could not be loaded.')}
+        </Note>
       ) : data && data.claims.length > 0 ? (
         <>
-          <Table minWidth={760}>
-            <TableHead>
-              <Th>Mandant</Th>
-              <Th>Weg</Th>
-              <Th>Aktenzeichen</Th>
-              <Th>Stand</Th>
-              <Th>Paket</Th>
-              <Th>Übergeben</Th>
-              <Th>Aktualisiert</Th>
-            </TableHead>
-            <TableBody>
-              {data.claims.map((claim) => (
-                <tr
-                  key={claim.id}
-                  className="cursor-pointer hover:bg-gray-50"
-                  onClick={() => router.push(`/portal/claims/${claim.id}`)}
-                >
-                  <Td>
-                    <span className="font-medium text-gray-900">
-                      {claim.claimantName || 'Ohne Namen'}
-                    </span>
-                  </Td>
-                  <Td className="text-gray-700">
-                    {claim.bavRoute
-                      ? `Weg ${claim.bavRoute}`
-                      : claim.pensionType === 'public'
-                        ? 'Erstattung'
-                        : '—'}
-                  </Td>
-                  <Td>
-                    {claim.lawFirmRef ? (
-                      <span className="text-gray-900">{claim.lawFirmRef}</span>
-                    ) : claim.caseState === 'closed' ? (
-                      <span className="text-gray-400">—</span>
-                    ) : (
-                      <span className="text-amber-700">fehlt</span>
-                    )}
-                  </Td>
-                  <Td>
-                    <div className="w-36">
-                      <Stepper
-                        steps={CASE_STAGES}
-                        current={claim.caseState}
-                        size="sm"
-                      />
-                      <div className="mt-1 text-xs text-gray-600">
-                        {CASE_STATE_LABELS[claim.caseState]}
+          <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {data.claims.map((claim) => {
+              const chip = caseTypeChip(claim.caseType);
+              const ident = claim.caseIdentifier;
+              return (
+                <li key={claim.id}>
+                  <Link
+                    href={`/portal/claims/${claim.id}`}
+                    className="group flex h-full flex-col items-start gap-4 rounded-[20px] border border-[#c6c6c6] bg-white p-6 transition-colors hover:border-[#002691] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5e8cd9]"
+                  >
+                    <Chip tone={chip.tone}>{chip.label}</Chip>
+                    <p className="text-[20px] font-bold leading-[1.3] text-[#181818]">
+                      {claim.claimantName || 'Name missing'}
+                    </p>
+                    {ident && (
+                      <div className="flex flex-col gap-1 font-semibold leading-[1.4]">
+                        <span className="text-[12px] text-[#8c8c8c]">
+                          {caseIdentifierLabel(ident.label)}
+                        </span>
+                        <span className="text-[15px] text-[#181818]">
+                          {ident.value || '—'}
+                        </span>
                       </div>
-                    </div>
-                  </Td>
-                  <Td className="text-gray-600">
-                    {claim.packageReady ? 'bereit' : 'in Vorbereitung'}
-                  </Td>
-                  <Td className="tabular-nums text-gray-600">
-                    {formatDate(claim.assignedAt)}
-                  </Td>
-                  <Td className="tabular-nums text-gray-600">
-                    {formatDate(claim.updatedAt)}
-                  </Td>
-                </tr>
-              ))}
-            </TableBody>
-          </Table>
-          <Pagination
-            page={data.page}
-            limit={data.limit}
-            total={data.total}
-            onPage={setPage}
-          />
+                    )}
+                    <p className="text-[13px] leading-[1.4] text-[#8c8c8c]">
+                      Released {fmtDay(claim.assignedAt)}
+                    </p>
+                    <span className="mt-auto text-[14px] font-bold leading-[1.4] text-[#002691] group-hover:underline">
+                      Open case →
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          {data.total > data.limit && (
+            <Pagination
+              page={data.page}
+              limit={data.limit}
+              total={data.total}
+              onPage={setPage}
+            />
+          )}
         </>
       ) : (
-        <div className="border-t border-gray-200">
-          <EmptyState
-            icon={<FileText className="h-8 w-8" />}
-            title="Keine Akten"
-            hint={
-              search
-                ? `Nichts gefunden für „${search}“.`
-                : 'Sobald CompanyPension eine Akte an Ihre Kanzlei übergibt, erscheint sie hier.'
-            }
-          />
+        <div className="flex flex-col items-center gap-2 rounded-[20px] border border-dashed border-[#c6c6c6] bg-[#f1f1f1] px-10 py-12 text-center">
+          <p className="text-[16px] font-semibold leading-[1.4] text-[#4b4f58]">
+            No cases released for submission.
+          </p>
+          <p className="max-w-[560px] text-[13px] leading-[1.5] text-[#8c8c8c]">
+            {INTRO}
+          </p>
         </div>
       )}
-    </div>
+    </PortalColumn>
   );
 }
