@@ -1,40 +1,15 @@
 /*
- * Flow card motion (M2): valid-selection ticks, the preliminary verdict
- * hint (height + fade 200ms) and the ready state of the submit button.
- * Static rules give the final state; transitions only run inside
- * `.mk[data-motion="on"]` without `prefers-reduced-motion: reduce`.
+ * Flow card motion (Figma motion board 02 "Flow card instant hint"):
+ * the preliminary verdict hint opens inside the card (height 0fr → 1fr
+ * 240ms out; opacity + 4px rise 200ms out from 60ms; closes 200ms in),
+ * swaps its text with a 150 + 150ms cross-fade, and the button gets its
+ * ready state (one 6px #5e8cd9 halo, arrow nudged 4px right). The button
+ * is never disabled. Static rules give the final state; motion only runs
+ * inside `.mk[data-motion="on"]` without `prefers-reduced-motion: reduce`.
  */
 .mk-flow-input {
   position: relative;
   display: block;
-}
-.mk-flow-input.is-valid .mk-input {
-  padding-right: 38px;
-}
-.mk-flow-tick {
-  position: absolute;
-  top: 50%;
-  right: 12px;
-  width: 16px;
-  height: 16px;
-  margin-top: -8px;
-  fill: none;
-  stroke: #1f7a3d;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  pointer-events: none;
-  opacity: 0;
-}
-.mk-flow-tick path {
-  stroke-dasharray: 16;
-  stroke-dashoffset: 16;
-}
-.mk-flow-input.is-valid .mk-flow-tick {
-  opacity: 1;
-}
-.mk-flow-input.is-valid .mk-flow-tick path {
-  stroke-dashoffset: 0;
 }
 
 /* hint: collapsed grid row when closed, content kept for the collapse */
@@ -81,52 +56,74 @@
   color: var(--mk-body);
 }
 
-/* ready: both countries valid */
-.mk-flow-card .mk-pill.mk-flow-ready {
-  box-shadow: 0 0 0 4px var(--mk-tint);
+/* B: typed value ink (placeholder muted), colour change 150ms standard;
+ * 5E: focused field 1px #c6c6c6 → 2px navy (inset ring keeps the size) */
+.mk[data-motion='on'] .mk-flow-card .mk-input {
+  transition:
+    color var(--mk-motion-instant) var(--mk-motion-ease-standard),
+    border-color var(--mk-motion-instant) var(--mk-motion-ease-out),
+    box-shadow var(--mk-motion-instant) var(--mk-motion-ease-out);
+}
+.mk[data-motion='on'] .mk-flow-card:not(.mk-core-intake *) .mk-input:focus {
+  border-color: var(--mk-navy);
+  box-shadow: inset 0 0 0 1px var(--mk-navy);
 }
 
-/* navy partner card (core.css .mk-core-intake) */
-.mk-core-intake .mk-flow-tick {
-  stroke: #9fe0b2;
+/* C: open (240ms out) / close (200ms in); C′: text cross-fade */
+.mk[data-motion='on'] .mk-flow-hint {
+  transition:
+    grid-template-rows var(--mk-motion-close) var(--mk-motion-ease-in),
+    opacity var(--mk-motion-close) var(--mk-motion-ease-in),
+    margin-top var(--mk-motion-close) var(--mk-motion-ease-in);
 }
-.mk-core-intake .mk-flow-card .mk-pill.mk-flow-ready {
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.22);
+.mk[data-motion='on'] .mk-flow-hint[data-open='true'] {
+  transition:
+    grid-template-rows var(--mk-motion-quick) var(--mk-motion-ease-out),
+    opacity var(--mk-motion-close) var(--mk-motion-ease-out) 60ms,
+    margin-top var(--mk-motion-quick) var(--mk-motion-ease-out);
+}
+.mk[data-motion='on'] .mk-flow-hint[data-open='false'] .mk-flow-hint-inner {
+  transition: visibility 0s linear var(--mk-motion-close);
+}
+.mk[data-motion='on'] .mk-flow-hint-box {
+  transition: opacity var(--mk-motion-instant) var(--mk-motion-ease-standard);
+}
+.mk[data-motion='on'] .mk-flow-hint-inner.is-swapping .mk-flow-hint-box {
+  opacity: 0;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .mk[data-motion='on'] .mk-flow-tick {
-    transition: opacity 0.15s ease;
-  }
-  .mk[data-motion='on'] .mk-flow-tick path {
-    transition: stroke-dashoffset 0.25s ease-out 0.05s;
-  }
-  .mk[data-motion='on'] .mk-flow-hint {
-    transition:
-      grid-template-rows 0.2s ease,
-      opacity 0.2s ease,
-      margin-top 0.2s ease;
-  }
-  .mk[data-motion='on'] .mk-flow-hint[data-open='false'] .mk-flow-hint-inner {
-    transition: visibility 0s linear 0.2s;
-  }
-  .mk[data-motion='on'] .mk-flow-card .mk-pill {
-    transition:
-      box-shadow 0.25s ease,
-      background-color 0.15s ease;
-  }
-  .mk[data-motion='on'] .mk-flow-card .mk-pill.mk-flow-ready {
-    animation: mk-flow-ready 0.6s ease-out 1;
-  }
-}
-@keyframes mk-flow-ready {
+/* D: ready — one halo + arrow 4px right (both from 240ms) */
+@keyframes mk-flow-halo {
   0% {
-    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(94, 140, 217, 0.45);
   }
   40% {
-    transform: scale(1.02);
+    box-shadow: 0 0 0 6px rgba(94, 140, 217, 0.45);
   }
   100% {
-    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(94, 140, 217, 0);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mk[data-motion='on'] .mk-flow-hint-box {
+    transform: none;
+    transition:
+      opacity var(--mk-motion-instant) var(--mk-motion-ease-standard),
+      transform var(--mk-motion-close) var(--mk-motion-ease-out) 60ms;
+  }
+  .mk[data-motion='on'] .mk-flow-hint[data-open='false'] .mk-flow-hint-box {
+    transform: translateY(4px);
+  }
+  .mk[data-motion='on'] .mk-flow-card .mk-pill.mk-flow-ready {
+    animation: mk-flow-halo var(--mk-motion-halo) var(--mk-motion-ease-out)
+      var(--mk-motion-quick) backwards;
+  }
+  .mk[data-motion='on'] .mk-flow-card .mk-pill .mk-pill-arrow {
+    transition: transform var(--mk-motion-instant)
+      var(--mk-motion-ease-standard);
+  }
+  .mk[data-motion='on'] .mk-flow-card .mk-pill.mk-flow-ready.mk-flow-ready .mk-pill-arrow {
+    transform: translateX(4px);
+    transition-delay: var(--mk-motion-quick);
   }
 }

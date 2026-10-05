@@ -4,3 +4,11 @@ export { usePrefersReducedMotion } from './usePrefersReducedMotion';
 export { MotionObserver } from './MotionObserver';
 export { ScrollSpy } from './ScrollSpy';
 export { StepProgress } from './StepProgress';
+export {
+  MOTION,
+  EASE_OUT,
+  EASE_IN_OUT,
+  EASE_STANDARD,
+  cubicBezier,
+  staggerDelay,
+} from './tokens';

@@ -38,8 +38,11 @@ One `'use client'` island, renders nothing. When the switch is on:
    hide the rest — no-JS users and crawlers see everything.
 3. IntersectionObserver (`rootMargin 0 0 -8% 0`) adds `is-in` once; a
    MutationObserver re-scans after client navigation.
-4. Stagger: sets `--reveal-delay` = index × 70ms (capped at 8) on each
-   child of a `[data-reveal-stagger]`.
+4. Stagger: sets `--reveal-delay` = min(index, 3) × 80ms on each child of
+   a `[data-reveal-stagger]` or `[data-reveal="group"]` (group = section
+   body, starts at +80ms after its rail; forms, FAQ, tools and legal
+   notes inside get `data-reveal-skip`). Trigger: ≥ 15 % of the unit in
+   view (Figma 4B/4D). Spec: `motion-spec-from-figma.md`.
 5. Header: `data-scrolled` on `.mk-header` after 8px of scroll (also under
    reduced motion; it is a shadow, not movement).
 
@@ -61,8 +64,9 @@ Under reduced motion it does not add `html.js`, so nothing is ever hidden.
 
 | Hook | Effect |
 | --- | --- |
-| `data-reveal` / `data-reveal=""` | fade up 16px, 500ms ease-out when `.is-in` |
-| `data-reveal="rail"` | rail slides in 12px; its `.mk-rail-arrows` chevron slides 6px (120ms later) |
+| `data-reveal` / `data-reveal=""` | fade up 24px, 480ms out easing when `.is-in` |
+| `data-reveal="group"` | children fade up 24px in turn, +80ms each (section bodies) |
+| `data-reveal="rail"` | rail fades up with its section; chevron slides −8px → 0 + fades in, label fades in 60ms later |
 | `data-reveal="off"` | never hidden, never auto-tagged |
 | `data-reveal-stagger` | children fade up in turn (`--reveal-delay`) |
 | `.is-in` / `.is-static` | set by the observer (static = was on screen at load) |
@@ -70,7 +74,8 @@ Under reduced motion it does not add `html.js`, so nothing is ever hidden.
 | `.mk-header[data-scrolled]` | soft shadow |
 | `[data-sticky][data-stuck]` | set by ScrollSpy while the bar is pinned |
 | `--mk-header-h` (77px) | sticky header height, on `.mk[data-motion='on']` |
-| `--mk-reveal-dur`, `--mk-reveal-y` | 500ms / 16px |
+| `--mk-reveal-dur`, `--mk-reveal-y` | 480ms / 24px |
+| `--mk-motion-*` | Figma motion tokens (durations, easings, stagger); 0ms under reduced motion |
 
 Reveal animations use `animation-fill-mode: backwards`, so after they end
 an element's own `transform` (hover lift) applies again. Don't set a
@@ -112,6 +117,12 @@ reveal on the hero H1 / LCP element.
   `how-it-works.css` (block "motion (stream M1)").
 
 ## Micro-interactions (marketing.css block)
+
+Superseded in detail by `motion-spec-from-figma.md` (Figma board 05): pills
+darken + arrow +3px + navy shadow, press 0.98; only the article card (one
+link) lifts 6px; text links underline 1→2px and turn #5e8cd9; FAQ rows
+tint and open with height/opacity; jump-menu active pill is navy/white.
+The list below is the original M1 description.
 
 - `a.mk-pill` (not ghost/dark) and `.mk-nav-cta`: hover lift 1px + navy
   shadow (black on dark/navy bands), press `scale(.98)`.

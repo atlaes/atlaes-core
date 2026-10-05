@@ -1132,7 +1132,9 @@
  * NEXT_PUBLIC_GPR_MOTION). Hide-before-reveal additionally needs
  * `html.js` (set by MotionObserver) and no reduced-motion preference,
  * so no-JS visitors, crawlers and reduced-motion users get the final
- * state. Contract: docs/superpowers/specs/motion-m1-notes.md
+ * state. Values follow the Figma motion page (1115:5857); spec table:
+ * docs/superpowers/specs/motion-spec-from-figma.md. Contract:
+ * docs/superpowers/specs/motion-m1-notes.md
  * ================================================================ */
 
 /* sticky children need a non-scrolling root: clip instead of hidden */
@@ -1142,38 +1144,111 @@
   }
 }
 
+/* ---- motion tokens (Figma board 00 "Motion tokens") ----
+ * Every motion rule on the site reads these instead of literal values.
+ * Under prefers-reduced-motion every duration is 0ms: colour and focus
+ * changes still happen, instantly (Figma global rule 2). */
 .mk[data-motion='on'] {
   /* header row 76 + 1px hairline (the trust bar scrolls away) */
   --mk-header-h: 77px;
-  --mk-reveal-dur: 500ms;
-  --mk-reveal-y: 16px;
+
+  /* durations */
+  --mk-motion-instant: 150ms; /* hover, focus, colour changes */
+  --mk-motion-quick: 240ms; /* hint reveal, dropdown, FAQ row */
+  --mk-motion-base: 480ms; /* section reveal, chevron slide */
+  --mk-motion-slow: 800ms; /* bars, timeline fill, glyph draw */
+  --mk-motion-count: 1200ms; /* stat counters */
+  /* easings */
+  --mk-motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1); /* arriving */
+  --mk-motion-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1); /* travelling */
+  --mk-motion-ease-standard: cubic-bezier(0.2, 0, 0, 1); /* hover/state */
+  --mk-motion-ease-in: cubic-bezier(0.4, 0, 1, 1); /* closing (rows 02, 5D) */
+  /* stagger: 80ms per item, max 4 items then all at once (JS sets
+   * --reveal-delay from these) */
+  --mk-motion-stagger: 80ms;
+
+  /* row-specific values from the annotation strips */
+  --mk-motion-press: 100ms; /* 5A pressed */
+  --mk-motion-close: 200ms; /* 02 hint close, 5D FAQ close, 02 hint fade */
+  --mk-motion-card: 200ms; /* 5B card hover */
+  --mk-motion-active: 180ms; /* 4A active jump pill */
+  --mk-motion-menu: 160ms; /* 5E chevron + panel open */
+  --mk-motion-menu-close: 120ms; /* 5E close; 3C connector */
+  --mk-motion-cell: 160ms; /* 3A month cell */
+  --mk-motion-cell-step: 30ms; /* 3A per month */
+  --mk-motion-node-step: 120ms; /* 3C per route node, 01 per stat tile */
+  --mk-motion-bar-step: 100ms; /* 3B per bar */
+  --mk-motion-halo: 600ms; /* 02 ready halo, 01 grid fade-in */
+  --mk-motion-fade: 300ms; /* 01 glyph fill */
+  --mk-motion-draw: 900ms; /* 01 glyph outline */
+  --mk-motion-wave: 2400ms; /* 01 grid wave */
+
+  /* reveal (4D): 24px up, base duration, out easing */
+  --mk-reveal-dur: var(--mk-motion-base);
+  --mk-reveal-y: 24px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk[data-motion='on'] {
+    --mk-motion-instant: 0ms;
+    --mk-motion-quick: 0ms;
+    --mk-motion-base: 0ms;
+    --mk-motion-slow: 0ms;
+    --mk-motion-count: 0ms;
+    --mk-motion-press: 0ms;
+    --mk-motion-close: 0ms;
+    --mk-motion-card: 0ms;
+    --mk-motion-active: 0ms;
+    --mk-motion-menu: 0ms;
+    --mk-motion-menu-close: 0ms;
+    --mk-motion-cell: 0ms;
+    --mk-motion-halo: 0ms;
+    --mk-motion-fade: 0ms;
+    --mk-motion-draw: 0ms;
+    --mk-motion-wave: 0ms;
+  }
 }
 
-/* ---- focus ring (all states, not motion) ---- */
-.mk a.mk-pill:focus-visible,
-.mk .mk-nav-cta:focus-visible,
+/* ---- focus ring (all states, not motion) ----
+ * 5A: pills get a 2px white gap + 2px #5e8cd9 ring, instantly.
+ * 5C: text links a 2px #5e8cd9 outline, offset 2, radius 2. */
 .mk .mk-nav-link:focus-visible,
 .mk .mk-nav-dd > summary:focus-visible,
 .mk .mk-nav-mobile > summary:focus-visible,
 .mk .mk-jump a:focus-visible,
-.mk a.mk-link:focus-visible,
 .mk .mk-art-toc a:focus-visible {
   outline: 2px solid var(--mk-navy);
   outline-offset: 3px;
 }
-.mk .mk-tone-navy a.mk-pill:focus-visible,
-.mk .mk-tone-dark a.mk-pill:focus-visible,
+.mk a.mk-pill:focus-visible,
+.mk .mk-pill:focus-visible,
+.mk .mk-nav-cta:focus-visible,
+.mk .mk-article:has(.mk-article-link:focus-visible) {
+  outline: 2px solid var(--mk-blue);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px #fff;
+  transition-duration: 0ms;
+}
+.mk .mk-article-link:focus-visible {
+  outline: none;
+}
+.mk a.mk-link:focus-visible {
+  outline: 2px solid var(--mk-blue);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
 .mk .mk-tone-navy a.mk-link:focus-visible,
 .mk .mk-tone-dark a.mk-link:focus-visible,
 .mk .mk-footer a:focus-visible {
-  outline-color: #fff;
+  outline: 2px solid #fff;
+  outline-offset: 3px;
 }
 
 /* ---- sticky header + soft shadow after 8px (data-scrolled) ---- */
 .mk[data-motion='on'] .mk-header {
   position: sticky;
   top: 0;
-  transition: box-shadow 200ms ease-out;
+  transition: box-shadow var(--mk-motion-instant)
+    var(--mk-motion-ease-standard);
 }
 .mk[data-motion='on'] .mk-header[data-scrolled] {
   box-shadow: 0 6px 24px rgba(24, 24, 24, 0.08);
@@ -1184,7 +1259,7 @@
 
 /* ---- anchors land below the sticky chrome; smooth scroll ---- */
 .mk[data-motion='on'] [id] {
-  scroll-margin-top: calc(var(--mk-header-h) + 16px);
+  scroll-margin-top: calc(var(--mk-header-h) + 24px);
 }
 @media (prefers-reduced-motion: no-preference) {
   html:has(.mk[data-motion='on']) {
@@ -1198,9 +1273,16 @@
   }
 }
 
-/* ---- reveal: [data-reveal] fade-up 16px / 500ms ease-out ----
- * values: "" (fade up) · "rail" (slide in, chevron 6px) · "off" (never).
- * [data-reveal-stagger]: children fade up in turn (--reveal-delay). */
+/* ---- reveal (4D, 4B) ----
+ * [data-reveal]=""     fade up 24px / 480ms / out
+ * [data-reveal]="group" its children fade up in turn (section body:
+ *                      H2 at +80ms, then the blocks; the rail is item 0)
+ * [data-reveal]="rail" rises with the section; chevron slides −8px → 0,
+ *                      label fades in 60ms later
+ * [data-reveal]="off"  never hidden, never auto-tagged
+ * [data-reveal-stagger] children fade up in turn (--reveal-delay)
+ * [data-reveal-skip]   child of a group/stagger that never animates
+ *                      (forms, FAQ, tools, legal notes) */
 @keyframes mk-reveal-up {
   from {
     opacity: 0;
@@ -1211,28 +1293,28 @@
     transform: none;
   }
 }
-@keyframes mk-reveal-rail {
+@keyframes mk-reveal-chevron {
   from {
     opacity: 0;
-    transform: translateX(-12px);
+    transform: translateX(-8px);
   }
   to {
     opacity: 1;
     transform: none;
   }
 }
-@keyframes mk-reveal-chevron {
+@keyframes mk-fade-in {
   from {
-    transform: translateX(-6px);
+    opacity: 0;
   }
   to {
-    transform: none;
+    opacity: 1;
   }
 }
 @keyframes mk-menu-in {
   from {
     opacity: 0;
-    transform: translateY(-6px);
+    transform: translateY(-4px);
   }
   to {
     opacity: 1;
@@ -1242,175 +1324,213 @@
 @media (prefers-reduced-motion: no-preference) {
   html.js
     .mk[data-motion='on']
-    [data-reveal]:not([data-reveal='off']):not([data-reveal='rail']):not(
-      .is-in
-    ),
-  html.js .mk[data-motion='on'] [data-reveal-stagger]:not(.is-in) > * {
+    :is([data-reveal=''], [data-reveal='rail']):not(.is-in),
+  html.js
+    .mk[data-motion='on']
+    :is([data-reveal='group'], [data-reveal-stagger]):not(.is-in)
+    > :not([data-reveal-skip]) {
     opacity: 0;
     transform: translateY(var(--mk-reveal-y));
   }
-  html.js .mk[data-motion='on'] [data-reveal='rail']:not(.is-in) {
-    opacity: 0;
-    transform: translateX(-12px);
-  }
   .mk[data-motion='on']
-    [data-reveal]:not([data-reveal='off']):not([data-reveal='rail']).is-in:not(
-      .is-static
-    ),
-  .mk[data-motion='on'] [data-reveal-stagger].is-in:not(.is-static) > * {
-    animation: mk-reveal-up var(--mk-reveal-dur) ease-out
+    :is([data-reveal=''], [data-reveal='rail']).is-in:not(.is-static),
+  .mk[data-motion='on']
+    :is([data-reveal='group'], [data-reveal-stagger]).is-in:not(.is-static)
+    > :not([data-reveal-skip]) {
+    animation: mk-reveal-up var(--mk-reveal-dur) var(--mk-motion-ease-out)
       var(--reveal-delay, 0ms) backwards;
-  }
-  .mk[data-motion='on'] [data-reveal='rail'].is-in:not(.is-static) {
-    animation: mk-reveal-rail var(--mk-reveal-dur) ease-out backwards;
   }
   .mk[data-motion='on']
     [data-reveal='rail'].is-in:not(.is-static)
     .mk-rail-arrows {
-    animation: mk-reveal-chevron 600ms ease-out 120ms backwards;
+    animation: mk-reveal-chevron var(--mk-motion-base)
+      var(--mk-motion-ease-out) var(--reveal-delay, 0ms) backwards;
+  }
+  .mk[data-motion='on']
+    [data-reveal='rail'].is-in:not(.is-static)
+    > :not(.mk-rail-arrows) {
+    animation: mk-fade-in var(--mk-motion-base) var(--mk-motion-ease-out)
+      calc(var(--reveal-delay, 0ms) + 60ms) backwards;
+  }
+  .mk[data-motion='on'] .mk-rail-arrows {
+    display: inline-block;
+  }
+}
+@media print {
+  html.js .mk [data-reveal],
+  html.js .mk [data-reveal] > *,
+  html.js .mk [data-reveal-stagger] > * {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
   }
 }
 
-/* ---- pills: hover lift 1px + shadow, press .98 ---- */
-.mk[data-motion='on'] a.mk-pill:not(.mk-pill-ghost),
+/* ---- pills (5A): hover darker + arrow nudge + shadow, press .98 ---- */
+.mk[data-motion='on'] :is(a, button).mk-pill:not(.mk-pill-ghost),
 .mk[data-motion='on'] a.mk-nav-cta {
   transition:
-    background 150ms,
-    color 150ms,
-    box-shadow 150ms ease-out,
-    transform 150ms ease-out;
+    background-color var(--mk-motion-instant) var(--mk-motion-ease-standard),
+    color var(--mk-motion-instant) var(--mk-motion-ease-standard),
+    box-shadow var(--mk-motion-instant) var(--mk-motion-ease-standard),
+    transform var(--mk-motion-press) var(--mk-motion-ease-standard);
 }
-.mk[data-motion='on'] a.mk-pill:not(.mk-pill-ghost):hover,
-.mk[data-motion='on'] a.mk-nav-cta:hover {
-  box-shadow: 0 6px 16px rgba(0, 38, 145, 0.18);
+.mk[data-motion='on'] .mk-pill-arrow {
+  display: inline-block;
+  transition: transform var(--mk-motion-instant)
+    var(--mk-motion-ease-standard);
 }
-.mk[data-motion='on'] .mk-tone-dark a.mk-pill:not(.mk-pill-ghost):hover,
-.mk[data-motion='on'] .mk-tone-navy a.mk-pill:not(.mk-pill-ghost):hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+@media (hover: hover) {
+  .mk[data-motion='on'] :is(a, button).mk-pill-primary:hover,
+  .mk[data-motion='on'] a.mk-nav-cta:hover {
+    background-color: #001d73;
+  }
+  .mk[data-motion='on'] :is(a, button).mk-pill:not(.mk-pill-ghost):hover,
+  .mk[data-motion='on'] a.mk-nav-cta:hover {
+    box-shadow: 0 4px 12px rgba(0, 38, 145, 0.25);
+  }
+  .mk[data-motion='on'] .mk-tone-dark :is(a, button).mk-pill:not(.mk-pill-ghost):hover,
+  .mk[data-motion='on'] .mk-tone-navy :is(a, button).mk-pill:not(.mk-pill-ghost):hover,
+  .mk[data-motion='on'] .mk-core-intake :is(a, button).mk-pill:not(.mk-pill-ghost):hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  }
 }
-.mk[data-motion='on'] a.mk-pill:not(.mk-pill-ghost):active,
+.mk[data-motion='on'] :is(a, button).mk-pill-primary:active,
 .mk[data-motion='on'] a.mk-nav-cta:active {
-  box-shadow: none;
+  background-color: #00175c;
+}
+.mk[data-motion='on'] :is(a, button).mk-pill:not(.mk-pill-ghost):active,
+.mk[data-motion='on'] a.mk-nav-cta:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+/* the white primary pill on the navy partner card keeps its own colours */
+.mk[data-motion='on'] .mk-core-intake :is(a, button).mk-pill-primary:hover {
+  background-color: var(--mk-tint);
+}
+.mk[data-motion='on'] .mk-core-intake :is(a, button).mk-pill-primary:active {
+  background-color: var(--mk-pale);
 }
 @media (prefers-reduced-motion: no-preference) {
-  .mk[data-motion='on'] a.mk-pill:not(.mk-pill-ghost):hover,
-  .mk[data-motion='on'] a.mk-nav-cta:hover {
-    transform: translateY(-1px);
+  @media (hover: hover) {
+    .mk[data-motion='on'] :is(a, button).mk-pill:not(.mk-pill-ghost):hover .mk-pill-arrow {
+      transform: translateX(3px);
+    }
   }
-  .mk[data-motion='on'] a.mk-pill:not(.mk-pill-ghost):active,
+  .mk[data-motion='on'] :is(a, button).mk-pill:not(.mk-pill-ghost):active,
   .mk[data-motion='on'] a.mk-nav-cta:active {
     transform: scale(0.98);
   }
 }
 
-/* ---- cards: hover lift + stroke darkens ---- */
-.mk[data-motion='on'] .mk-card,
-.mk[data-motion='on'] .mk-article,
-.mk[data-motion='on'] .mk-review,
-.mk[data-motion='on'] .mk-core-tile,
-.mk[data-motion='on'] .mk-criteria-card {
+/* ---- cards (5B): the article card is one link; lift 6px, navy
+ * shadow, title navy. Other cards are not interactive: no hover. ---- */
+.mk[data-motion='on'] .mk-article {
+  position: relative;
   transition:
-    border-color 200ms ease-out,
-    box-shadow 200ms ease-out,
-    transform 200ms ease-out;
+    box-shadow var(--mk-motion-card) var(--mk-motion-ease-standard),
+    transform var(--mk-motion-card) var(--mk-motion-ease-standard);
 }
-.mk[data-motion='on'] .mk-card:hover,
-.mk[data-motion='on'] .mk-article:hover,
-.mk[data-motion='on'] .mk-review:hover,
-.mk[data-motion='on'] .mk-core-tile:hover {
-  border-color: var(--mk-muted);
-  box-shadow: 0 10px 28px rgba(24, 24, 24, 0.07);
+.mk[data-motion='on'] .mk-article-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
 }
-.mk[data-motion='on'] .mk-card-dark:hover,
-.mk[data-motion='on'] .mk-criteria-card:hover {
-  border-color: rgba(255, 255, 255, 0.28);
-  box-shadow: none;
+.mk[data-motion='on'] .mk-article-title,
+.mk[data-motion='on'] .mk-article-link {
+  transition: color var(--mk-motion-card) var(--mk-motion-ease-standard);
 }
-@media (prefers-reduced-motion: no-preference) {
-  .mk[data-motion='on'] .mk-card:hover,
-  .mk[data-motion='on'] .mk-article:hover,
-  .mk[data-motion='on'] .mk-review:hover,
-  .mk[data-motion='on'] .mk-core-tile:hover,
-  .mk[data-motion='on'] .mk-criteria-card:hover {
-    transform: translateY(-2px);
+@media (hover: hover) {
+  .mk[data-motion='on'] .mk-article:hover {
+    box-shadow: 0 12px 28px rgba(0, 38, 145, 0.14);
+  }
+  .mk[data-motion='on'] .mk-article:hover .mk-article-title,
+  .mk[data-motion='on'] .mk-article:hover .mk-article-link {
+    color: var(--mk-navy);
+    text-decoration: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) and (hover: hover) {
+  .mk[data-motion='on'] .mk-article:hover {
+    transform: translateY(-6px);
   }
 }
 
-/* ---- links: underline slides in from the left ---- */
+/* ---- text links (5C): underline 1px/offset 3 → 2px/offset 4,
+ * navy → #5e8cd9 ---- */
 .mk[data-motion='on'] a.mk-link {
-  text-decoration: none;
-  background-image: linear-gradient(currentColor, currentColor);
-  background-repeat: no-repeat;
-  background-position: 0 100%;
-  background-size: 0% 1px;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition:
+    color var(--mk-motion-instant) var(--mk-motion-ease-standard),
+    text-decoration-thickness var(--mk-motion-instant)
+      var(--mk-motion-ease-standard),
+    text-underline-offset var(--mk-motion-instant)
+      var(--mk-motion-ease-standard);
 }
-.mk[data-motion='on'] a.mk-link:hover {
-  text-decoration: none;
-  background-size: 100% 1px;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .mk[data-motion='on'] a.mk-link {
-    transition: background-size 200ms ease-out;
-  }
-}
-
-/* ---- FAQ rows (accordion summary): hover tint ---- */
-.mk[data-motion='on'] .mk-faq-item > summary,
-.mk[data-motion='on'] .mk-faq-item > summary .mk-faq-q {
-  transition: color 150ms ease-out;
-}
-.mk[data-motion='on'] .mk-faq-item > summary:hover,
-.mk[data-motion='on'] .mk-faq-item > summary:hover .mk-faq-q {
+.mk[data-motion='on'] a.mk-link:visited {
   color: var(--mk-navy);
 }
-.mk[data-motion='on'] .mk-tone-dark .mk-faq-item > summary:hover,
-.mk[data-motion='on'] .mk-tone-dark .mk-faq-item > summary:hover .mk-faq-q,
-.mk[data-motion='on'] .mk-tone-navy .mk-faq-item > summary:hover,
-.mk[data-motion='on'] .mk-tone-navy .mk-faq-item > summary:hover .mk-faq-q {
+.mk[data-motion='on'] .mk-tone-dark a.mk-link:visited,
+.mk[data-motion='on'] .mk-tone-navy a.mk-link:visited {
   color: var(--mk-pale);
 }
+@media (hover: hover) {
+  .mk[data-motion='on'] a.mk-link:hover {
+    color: var(--mk-blue);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
+  }
+  .mk[data-motion='on'] .mk-tone-dark a.mk-link:hover,
+  .mk[data-motion='on'] .mk-tone-navy a.mk-link:hover {
+    color: #fff;
+  }
+}
 
-/* ---- header dropdown + phone menu: fade + slide 150ms ---- */
+/* ---- header dropdown + phone menu (5E timings): panel fades in from
+ * −4px (160ms out), caret turns 160ms, closes 120ms; options highlight
+ * instantly ---- */
 .mk[data-motion='on'] .mk-nav-link,
-.mk[data-motion='on'] .mk-nav-dd > summary,
-.mk[data-motion='on'] .mk-nav-dd-link {
+.mk[data-motion='on'] .mk-nav-dd > summary {
   transition:
-    background 150ms,
-    color 150ms;
+    background-color var(--mk-motion-instant) var(--mk-motion-ease-standard),
+    color var(--mk-motion-instant) var(--mk-motion-ease-standard);
 }
 .mk[data-motion='on'] .mk-nav-caret {
   display: inline-block;
+  transition: transform var(--mk-motion-menu-close)
+    var(--mk-motion-ease-out);
 }
 .mk[data-motion='on'] .mk-nav-dd[open] .mk-nav-caret {
   transform: rotate(180deg);
+  transition-duration: var(--mk-motion-menu);
 }
 @media (prefers-reduced-motion: no-preference) {
-  .mk[data-motion='on'] .mk-nav-caret {
-    transition: transform 150ms ease-out;
-  }
   .mk[data-motion='on'] .mk-nav-dd[open] > .mk-nav-dd-list,
   .mk[data-motion='on'] .mk-nav-mobile[open] > .mk-nav-mobile-panel {
-    animation: mk-menu-in 150ms ease-out;
+    animation: mk-menu-in var(--mk-motion-menu) var(--mk-motion-ease-out);
   }
 }
 
-/* ---- jump menu + article TOC: active section (scroll-spy) ---- */
+/* ---- jump menu (4A): active pill navy / white, 180ms standard;
+ * article TOC: navy rule + navy text ---- */
 .mk[data-motion='on'] .mk-jump a {
   transition:
-    border-color 150ms,
-    color 150ms,
-    background-color 150ms;
+    border-color var(--mk-motion-active) var(--mk-motion-ease-standard),
+    color var(--mk-motion-active) var(--mk-motion-ease-standard),
+    background-color var(--mk-motion-active) var(--mk-motion-ease-standard);
 }
 .mk[data-motion='on'] .mk-jump a[aria-current] {
   border-color: var(--mk-navy);
-  background: var(--mk-tint);
-  color: var(--mk-navy);
+  background-color: var(--mk-navy);
+  color: #fff;
 }
 .mk[data-motion='on'] .mk-art-toc a {
   transition:
-    color 150ms,
-    border-color 150ms,
-    box-shadow 150ms;
+    color var(--mk-motion-instant) var(--mk-motion-ease-standard),
+    border-color var(--mk-motion-instant) var(--mk-motion-ease-standard),
+    box-shadow var(--mk-motion-instant) var(--mk-motion-ease-standard);
 }
 .mk[data-motion='on'] .mk-art-toc a[aria-current] {
   border-left-color: var(--mk-navy);
