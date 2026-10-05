@@ -1,11 +1,14 @@
 /*
- * M2 tool motion: waiting-period timeline, office-finder route, capture
- * success, processing-time bars. Static rules = final state. Motion runs
- * only inside `.mk[data-motion="on"]` and without
- * `prefers-reduced-motion: reduce`.
+ * Tool motion (Figma motion board 03): waiting-period timeline (3A),
+ * processing-time bars (3B), office-finder route (3C), plus the capture
+ * success tick. Static rules = final state. Motion runs only inside
+ * `.mk[data-motion="on"]` and without `prefers-reduced-motion: reduce`;
+ * timings use the --mk-motion-* tokens (marketing.css).
  */
 
-/* ---------- processing-time bars (RevealBars) ---------- */
+/* ---------- 3B processing-time bars (RevealBars) ----------
+ * ≥ 40 % in view: bars scaleX 0 → 1 (800ms out, +100ms per bar), each
+ * value fades in as its bar arrives (240ms standard). */
 [data-bars] [data-bar] {
   transform-origin: left center;
 }
@@ -13,9 +16,18 @@
   .mk[data-motion='on'] [data-bars='armed'] [data-bar] {
     transform: scaleX(0);
   }
+  .mk[data-motion='on'] [data-bars='armed'] [data-bar-value] {
+    opacity: 0;
+  }
   .mk[data-motion='on'] [data-bars='shown'] [data-bar] {
-    transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
-    transition-delay: calc(var(--i, 0) * 80ms);
+    transition: transform var(--mk-motion-slow) var(--mk-motion-ease-out);
+    transition-delay: calc(var(--i, 0) * var(--mk-motion-bar-step));
+  }
+  .mk[data-motion='on'] [data-bars='shown'] [data-bar-value] {
+    transition: opacity var(--mk-motion-quick) var(--mk-motion-ease-standard);
+    transition-delay: calc(
+      var(--mk-motion-slow) + var(--i, 0) * var(--mk-motion-bar-step)
+    );
   }
 }
 
@@ -74,36 +86,47 @@
   color: var(--mk-navy);
   text-align: right;
 }
+/* 3A: passed months fill tint → navy one by one (leading cell light
+ * blue; 160ms out, from 150ms, +30ms per month), then the remaining months
+ * turn pale (240ms standard) and the filing-date marker drops in (−8px,
+ * 240ms out, ≈ 870ms). The verdict text never waits. */
 @media (prefers-reduced-motion: no-preference) {
-  .mk[data-motion='on'] .mk-wt-months li {
-    animation: mkw-wt-fill 0.18s ease-out both;
-    animation-delay: calc(120ms + var(--i, 0) * 24ms);
+  .mk[data-motion='on'] .mk-wt-months li.is-past {
+    animation: mkw-month-fill var(--mk-motion-cell) var(--mk-motion-ease-out)
+      both;
+    animation-delay: calc(150ms + var(--i, 0) * var(--mk-motion-cell-step));
   }
-  .mk[data-motion='on'] .mk-wt-start,
-  .mk[data-motion='on'] .mk-wt-label-start {
-    animation: mkw-fade 0.2s ease-out both;
+  .mk[data-motion='on'] .mk-wt-months li:not(.is-past) {
+    animation: mkw-month-rest var(--mk-motion-quick)
+      var(--mk-motion-ease-standard) both;
+    animation-delay: calc(
+      150ms + var(--mk-wt-n, 0) * var(--mk-motion-cell-step) +
+        var(--mk-motion-cell)
+    );
   }
-  .mk[data-motion='on'] .mk-wt-flag {
-    animation: mkw-pop 0.3s cubic-bezier(0.3, 1.4, 0.5, 1) both;
-    animation-delay: 0.72s;
-  }
+  .mk[data-motion='on'] .mk-wt-flag,
   .mk[data-motion='on'] .mk-wt-label-apply {
-    animation: mkw-fade 0.25s ease-out both;
-    animation-delay: 0.78s;
-  }
-  .mk[data-motion='on'] .mk-widget-waiting .mk-verdict > :not(.mk-wt) {
-    animation: mkw-rise 0.3s ease-out both;
-    animation-delay: 0.9s;
+    animation: mkw-drop var(--mk-motion-quick) var(--mk-motion-ease-out) 870ms
+      both;
   }
 }
-@keyframes mkw-wt-fill {
+@keyframes mkw-month-fill {
+  from {
+    background-color: var(--mk-tint);
+  }
+  50% {
+    background-color: var(--mk-blue);
+  }
+}
+@keyframes mkw-month-rest {
+  from {
+    background-color: var(--mk-tint);
+  }
+}
+@keyframes mkw-drop {
   from {
     opacity: 0;
-    transform: scaleY(0.3);
-  }
-  to {
-    opacity: 1;
-    transform: none;
+    transform: translateY(-8px);
   }
 }
 
@@ -165,30 +188,85 @@
   background: var(--mk-navy);
   box-shadow: 0 0 0 3px var(--mk-tint);
 }
+/* 3C: the recommended-office card keeps a 3px light-blue ring and a soft
+ * navy shadow (final state, also without motion) */
+.mk-route-card.mk-verdict-ok {
+  box-shadow:
+    0 0 0 3px var(--mk-blue),
+    0 8px 24px rgba(0, 38, 145, 0.18);
+}
+.mk-route-card [tabindex='-1']:focus:not(:focus-visible) {
+  outline: none;
+}
+.mk[data-motion='on'] .mk-route-dot,
+.mk[data-motion='on'] .mk-route-step,
+.mk[data-motion='on'] .mk-route-step::after {
+  transition:
+    background-color var(--mk-motion-instant) var(--mk-motion-ease-standard),
+    border-color var(--mk-motion-instant) var(--mk-motion-ease-standard),
+    box-shadow var(--mk-motion-instant) var(--mk-motion-ease-standard),
+    color var(--mk-motion-instant) var(--mk-motion-ease-standard);
+}
+/* on a result the route lights up node by node (150ms standard, from
+ * 100ms, +120ms per node; leading node light blue), each connector draws
+ * down with its node (120ms in-out), then the card ring lands (240ms out,
+ * --mk-route-delay ≈ 720ms) */
 @media (prefers-reduced-motion: no-preference) {
-  .mk[data-motion='on'] .mk-route-dot,
-  .mk[data-motion='on'] .mk-route-step,
-  .mk[data-motion='on'] .mk-route-step::after {
-    transition:
-      background-color 0.2s ease,
-      border-color 0.2s ease,
-      box-shadow 0.2s ease,
-      color 0.2s ease;
+  .mk[data-motion='on'] .mk-route[data-mode='result'] :is(.is-passed, .is-match) {
+    animation: mkw-node-label var(--mk-motion-instant)
+      var(--mk-motion-ease-standard) both;
+    animation-delay: calc(100ms + var(--i, 0) * var(--mk-motion-node-step));
   }
-  /* on a result the route replays step by step, then the card slides in */
-  .mk[data-motion='on'] .mk-route[data-mode='result'] .is-passed .mk-route-dot,
-  .mk[data-motion='on'] .mk-route[data-mode='result'] .is-match .mk-route-dot {
-    animation: mkw-pop 0.28s ease-out both;
-    animation-delay: calc(var(--i, 0) * 110ms);
+  .mk[data-motion='on']
+    .mk-route[data-mode='result']
+    :is(.is-passed, .is-match)
+    .mk-route-dot {
+    animation: mkw-node-dot var(--mk-motion-instant)
+      var(--mk-motion-ease-standard) both;
+    animation-delay: calc(100ms + var(--i, 0) * var(--mk-motion-node-step));
   }
-  .mk[data-motion='on'] .mk-route[data-mode='result'] .is-passed,
-  .mk[data-motion='on'] .mk-route[data-mode='result'] .is-match {
-    animation: mkw-fade 0.28s ease-out both;
-    animation-delay: calc(var(--i, 0) * 110ms);
+  .mk[data-motion='on']
+    .mk-route[data-mode='result']
+    .is-passed:not(:last-child)::after {
+    transform-origin: top;
+    animation: mkw-connector var(--mk-motion-menu-close)
+      var(--mk-motion-ease-in-out) both;
+    animation-delay: calc(100ms + var(--i, 0) * var(--mk-motion-node-step));
   }
-  .mk[data-motion='on'] .mk-route-card {
-    animation: mkw-slide 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-    animation-delay: var(--mk-route-delay, 0ms);
+  .mk[data-motion='on'] .mk-route-card.mk-verdict-ok {
+    animation: mkw-ring var(--mk-motion-quick) var(--mk-motion-ease-out)
+      var(--mk-route-delay, 0ms) backwards;
+  }
+}
+@keyframes mkw-node-label {
+  from {
+    color: var(--mk-muted);
+  }
+  50% {
+    color: var(--mk-blue);
+  }
+}
+@keyframes mkw-node-dot {
+  from {
+    border-color: var(--mk-stroke);
+    background-color: #fff;
+  }
+  50% {
+    border-color: var(--mk-blue);
+    background-color: var(--mk-blue);
+  }
+}
+@keyframes mkw-connector {
+  from {
+    transform: scaleY(0);
+    background-color: var(--mk-stroke);
+  }
+}
+@keyframes mkw-ring {
+  from {
+    box-shadow:
+      0 0 0 0 rgba(94, 140, 217, 0),
+      0 0 0 rgba(0, 38, 145, 0);
   }
 }
 
@@ -211,20 +289,21 @@
   stroke-dashoffset: 0;
 }
 .mk-widget-body.is-collapsing {
-  transition: height 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition: height var(--mk-motion-quick, 240ms)
+    var(--mk-motion-ease-out, ease-out);
 }
 @media (prefers-reduced-motion: no-preference) {
   .mk[data-motion='on'] .mk-done-check circle {
-    animation: mkw-draw-circle 0.45s ease-out both;
-    animation-delay: 0.15s;
+    animation: mkw-draw-circle var(--mk-motion-base)
+      var(--mk-motion-ease-in-out) 150ms both;
   }
   .mk[data-motion='on'] .mk-done-check path {
-    animation: mkw-draw-tick 0.3s ease-out both;
-    animation-delay: 0.5s;
+    animation: mkw-draw-tick var(--mk-motion-quick) var(--mk-motion-ease-out)
+      600ms both;
   }
   .mk[data-motion='on'] .mk-widget-done > :not(.mk-done-check) {
-    animation: mkw-fade 0.3s ease-out both;
-    animation-delay: 0.25s;
+    animation: mkw-fade var(--mk-motion-quick) var(--mk-motion-ease-out) 240ms
+      both;
   }
 }
 @keyframes mkw-draw-circle {
@@ -242,23 +321,5 @@
 @keyframes mkw-fade {
   from {
     opacity: 0;
-  }
-}
-@keyframes mkw-rise {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-}
-@keyframes mkw-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.4);
-  }
-}
-@keyframes mkw-slide {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
   }
 }

@@ -24,7 +24,10 @@ function Timeline({ t }: { t: WaitingTimeline }) {
     <div className="mk-wt" aria-hidden="true">
       <div className="mk-wt-bar">
         <span className="mk-wt-start" />
-        <ol className="mk-wt-months">
+        <ol
+          className="mk-wt-months"
+          style={{ '--mk-wt-n': t.elapsedCount } as CSSProperties}
+        >
           {t.months.map((m, i) => (
             <li
               key={m.year * 12 + m.month}

@@ -26,7 +26,8 @@ export function StepProgress({
     let ticking = false;
     const update = () => {
       ticking = false;
-      const line = window.innerHeight * 0.55;
+      // reading line 40 % from the top, as the jump menu (Figma 4A/4C)
+      const line = window.innerHeight * 0.4;
       steps.forEach((li, i) => {
         const r = li.getBoundingClientRect();
         // the connector runs from this node to the next one

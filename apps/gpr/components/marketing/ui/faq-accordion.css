@@ -34,3 +34,82 @@
     padding-right: 64px;
   }
 }
+
+/* ---- motion (Figma motion board 05, 5D FAQ row) ----
+ * Hover (pointer devices): row tints #f1f1f1 with 12px inner padding and
+ * the question turns navy, 150ms standard. Open: answer height 0 → auto
+ * 240ms out, answer fades in from 60ms, toggle turns; close 200ms in.
+ * The answer stays in the HTML either way (<details>); browsers without
+ * ::details-content simply open instantly. Reduced motion: instant. */
+.mk[data-motion='on'] .mk-faq-item > .mk-faq-summary {
+  transition:
+    background-color var(--mk-motion-instant) var(--mk-motion-ease-standard),
+    padding var(--mk-motion-instant) var(--mk-motion-ease-standard);
+}
+.mk[data-motion='on'] .mk-faq-item .mk-faq-q {
+  transition: color var(--mk-motion-instant) var(--mk-motion-ease-standard);
+}
+@media (hover: hover) {
+  .mk[data-motion='on'] .mk-faq-item > .mk-faq-summary:hover {
+    background-color: var(--mk-surface);
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .mk[data-motion='on'] .mk-tone-surface .mk-faq-item > .mk-faq-summary:hover {
+    background-color: #fff;
+  }
+  .mk[data-motion='on'] .mk-faq-item > .mk-faq-summary:hover .mk-faq-q {
+    color: var(--mk-navy);
+  }
+  .mk[data-motion='on'] .mk-tone-dark .mk-faq-item > .mk-faq-summary:hover,
+  .mk[data-motion='on'] .mk-tone-navy .mk-faq-item > .mk-faq-summary:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+  .mk[data-motion='on']
+    .mk-tone-dark
+    .mk-faq-item
+    > .mk-faq-summary:hover
+    .mk-faq-q,
+  .mk[data-motion='on']
+    .mk-tone-navy
+    .mk-faq-item
+    > .mk-faq-summary:hover
+    .mk-faq-q {
+    color: var(--mk-pale);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mk[data-motion='on'] .mk-faq-item {
+    interpolate-size: allow-keywords;
+    transition: padding-bottom var(--mk-motion-close)
+      var(--mk-motion-ease-in);
+  }
+  .mk[data-motion='on'] .mk-faq-item[open] {
+    transition: padding-bottom var(--mk-motion-quick)
+      var(--mk-motion-ease-out);
+  }
+  .mk[data-motion='on'] .mk-faq-item::details-content {
+    block-size: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition:
+      block-size var(--mk-motion-close) var(--mk-motion-ease-in),
+      opacity var(--mk-motion-close) var(--mk-motion-ease-in),
+      content-visibility var(--mk-motion-close) allow-discrete;
+  }
+  .mk[data-motion='on'] .mk-faq-item[open]::details-content {
+    block-size: auto;
+    opacity: 1;
+    transition:
+      block-size var(--mk-motion-quick) var(--mk-motion-ease-out),
+      opacity var(--mk-motion-quick) var(--mk-motion-ease-out) 60ms,
+      content-visibility var(--mk-motion-quick) allow-discrete;
+  }
+  .mk[data-motion='on'] .mk-faq-q::after {
+    transition: transform var(--mk-motion-close) var(--mk-motion-ease-in);
+  }
+  .mk[data-motion='on'] .mk-faq-item[open] .mk-faq-q::after {
+    transform: rotate(180deg);
+    transition: transform var(--mk-motion-quick) var(--mk-motion-ease-out);
+  }
+}

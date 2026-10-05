@@ -1,6 +1,12 @@
 'use client';
 
-import { useId, useState, type CSSProperties } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import {
   CARRIERS,
   COUNTRY_OPTIONS,
@@ -21,6 +27,8 @@ import {
   resultStep,
   type RouteState,
 } from './office-route';
+import { motionAllowed } from '../motion/flag';
+import { MOTION } from '../motion/tokens';
 import './widgets.css';
 import './widgets-motion.css';
 
@@ -33,7 +41,11 @@ const ROUTE_LABELS = [
   'Regional carrier',
   'No match',
 ];
-const ROUTE_STEP_MS = 110;
+/** Figma 3C: first node lights at 100ms, then one every 120ms… */
+const ROUTE_START_MS = 100;
+const ROUTE_STEP_MS = 120;
+/** …and the card ring lands 140ms after the last node (720ms for 4). */
+const ROUTE_RING_GAP_MS = 140;
 
 /**
  * Visual route through the six rules (decorative; the result panel states
@@ -177,10 +189,26 @@ export function OfficeFinder({ as = 'h2' }: { as?: 'h2' | 'h3' }) {
   const routeStates = result
     ? resultRoute(step, noNumber)
     : previewRoute(routeInput);
+  const ringDelay =
+    ROUTE_START_MS +
+    (step === null ? 0 : step + 1) * ROUTE_STEP_MS +
+    ROUTE_RING_GAP_MS;
   const cardDelay = {
-    '--mk-route-delay':
-      ((step === null ? 0 : step + 1) * ROUTE_STEP_MS + 80).toString() + 'ms',
+    '--mk-route-delay': ringDelay + 'ms',
   } as CSSProperties;
+
+  // Figma 3C: once the ring has landed, keyboard focus moves to the card
+  // heading (always — at once when motion is off).
+  const resultHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (!result) return;
+    const wait = motionAllowed() ? ringDelay + MOTION.quick : 0;
+    const t = window.setTimeout(() => {
+      if (resultHeading.current) resultHeading.current.focus();
+    }, wait);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
 
   function reset() {
     setLastOffice('');
@@ -201,7 +229,10 @@ export function OfficeFinder({ as = 'h2' }: { as?: 'h2' | 'h3' }) {
         <p>{T.intro}</p>
       </div>
       <div className="mk-widget-body">
-        <Route states={routeStates} mode={result ? 'result' : 'preview'} />
+        {/* Figma 3C: no route next to a no-match warning */}
+        {!result || result.kind === 'office' ? (
+          <Route states={routeStates} mode={result ? 'result' : 'preview'} />
+        ) : null}
         {!result ? (
           <form
             noValidate
@@ -292,7 +323,9 @@ export function OfficeFinder({ as = 'h2' }: { as?: 'h2' | 'h3' }) {
             role="status"
             style={cardDelay}
           >
-            <h3>{T.resultTitle}</h3>
+            <h3 ref={resultHeading} tabIndex={-1}>
+              {T.resultTitle}
+            </h3>
             <p className="mk-verdict-big">{result.name}</p>
             <p className="mk-verdict-address">{result.address}</p>
             <p>{result.reason}</p>
@@ -318,7 +351,9 @@ export function OfficeFinder({ as = 'h2' }: { as?: 'h2' | 'h3' }) {
             role="status"
             style={cardDelay}
           >
-            <h3>{T.noMatchTitle}</h3>
+            <h3 ref={resultHeading} tabIndex={-1}>
+              {T.noMatchTitle}
+            </h3>
             <p>{result.message}</p>
             <button type="button" className="mk-btn-link" onClick={reset}>
               {T.reset}

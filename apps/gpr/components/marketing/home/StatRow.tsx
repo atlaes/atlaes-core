@@ -16,7 +16,7 @@ export function StatRow() {
         {STAT_TILES.map((tile, i) => (
           <li key={i} className="mk-stat">
             <span className="mk-stat-figure">
-              <CountUp text={resolveTokens(tile.figure)} />
+              <CountUp text={resolveTokens(tile.figure)} index={i} />
             </span>
             <span className="mk-stat-caption">
               <Inline

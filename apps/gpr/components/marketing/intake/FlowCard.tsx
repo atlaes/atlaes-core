@@ -7,7 +7,14 @@
  * `?citizenship=…&residence=…` plus the attribution params, so the funnel
  * prefills the answers and never re-asks them.
  */
-import { useId, useRef, useState, type FormEvent } from 'react';
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import { useRouter } from 'next/navigation';
 import { COUNTRIES } from '@/data/countries';
 import { FUNNEL_ENTRY } from '@/content/registries/links';
@@ -16,7 +23,14 @@ import {
   preliminaryHint,
   type PreliminaryHint,
 } from '../widgets/preliminary-verdict';
+import { motionAllowed } from '../motion/flag';
+import { MOTION } from '../motion/tokens';
 import './flow-card.css';
+
+/** useLayoutEffect in the browser (no flash of the new hint text before
+ * the cross-fade starts), useEffect on the server (no SSR warning). */
+const useIsoLayoutEffect =
+  typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 export const FLOW_CARD_COPY = {
   heading: 'Check your eligibility',
@@ -59,7 +73,6 @@ function CountryField({
   value,
   onChange,
   invalid,
-  valid,
 }: {
   id: string;
   listId: string;
@@ -67,14 +80,13 @@ function CountryField({
   value: string;
   onChange: (v: string) => void;
   invalid: boolean;
-  valid: boolean;
 }) {
   return (
     <div className="mk-field">
       <label htmlFor={id} className="mk-field-label">
         {label}
       </label>
-      <span className={'mk-flow-input' + (valid ? ' is-valid' : '')}>
+      <span className="mk-flow-input">
         <input
           id={id}
           name={id}
@@ -87,14 +99,6 @@ function CountryField({
           aria-invalid={invalid || undefined}
           required
         />
-        <svg
-          className="mk-flow-tick"
-          viewBox="0 0 16 16"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <path d="M3.5 8.5l3 3 6-7" />
-        </svg>
       </span>
     </div>
   );
@@ -117,10 +121,45 @@ export function FlowCard() {
     ? preliminaryHint(citizenshipMatch!, residenceMatch!)
     : null;
   const verdict = hint && hint.kind === 'verdict' ? hint.verdict : null;
+  const verdictKey = verdict
+    ? verdict.status + '|' + verdict.title + '|' + verdict.body
+    : '';
   // Keep the last verdict mounted while the hint collapses again.
   const lastVerdict = useRef(verdict);
   if (verdict) lastVerdict.current = verdict;
-  const shown = verdict || lastVerdict.current;
+  // Figma 02 C′: when an answer changes while the hint is open, the old
+  // text fades out (150ms) and the new one fades in (150ms); the panel
+  // does not re-open. Instant without motion.
+  const [held, setHeld] = useState<typeof verdict>(null);
+  const wasOpen = useRef(false);
+  const shownKey = useRef('');
+  /** What the last committed render showed (set after every commit). */
+  const painted = useRef<typeof verdict>(null);
+  useIsoLayoutEffect(() => {
+    if (!verdict) {
+      wasOpen.current = false;
+      return;
+    }
+    const swap = wasOpen.current && shownKey.current !== verdictKey;
+    wasOpen.current = true;
+    if (!swap || !motionAllowed()) {
+      shownKey.current = verdictKey;
+      setHeld(null);
+      return;
+    }
+    // hold the old text while it fades out, then show the new one
+    setHeld((h) => h || painted.current);
+    const t = window.setTimeout(() => {
+      shownKey.current = verdictKey;
+      setHeld(null);
+    }, MOTION.instant);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verdictKey]);
+  const shown = held || verdict || lastVerdict.current;
+  useIsoLayoutEffect(() => {
+    painted.current = shown;
+  });
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -153,7 +192,6 @@ export function FlowCard() {
         value={citizenship}
         onChange={setCitizenship}
         invalid={invalidCitizenship}
-        valid={Boolean(citizenshipMatch)}
       />
       <CountryField
         id={uid + '-residence'}
@@ -162,7 +200,6 @@ export function FlowCard() {
         value={residence}
         onChange={setResidence}
         invalid={invalidResidence}
-        valid={Boolean(residenceMatch)}
       />
       {/* Preliminary hint from the country-only verdict rules
           (lib/eligibility-verdicts.ts), verbatim verdict texts. */}
@@ -171,7 +208,10 @@ export function FlowCard() {
         data-open={verdict ? 'true' : 'false'}
         aria-live="polite"
       >
-        <div className="mk-flow-hint-inner" aria-hidden={!verdict || undefined}>
+        <div
+          className={'mk-flow-hint-inner' + (held ? ' is-swapping' : '')}
+          aria-hidden={!verdict || undefined}
+        >
           {shown ? (
             <div className={'mk-flow-hint-box is-' + shown.status}>
               <p className="mk-flow-hint-title">{shown.title}</p>
@@ -191,7 +231,10 @@ export function FlowCard() {
           'mk-pill mk-pill-primary mk-pill-lg' + (ready ? ' mk-flow-ready' : '')
         }
       >
-        {FLOW_CARD_COPY.button}
+        {FLOW_CARD_COPY.button.replace(/\s*→$/, '')}{' '}
+        <span className="mk-pill-arrow" aria-hidden="true">
+          →
+        </span>
       </button>
       <p className="mk-flow-micro">{FLOW_CARD_COPY.microcopy}</p>
     </form>
