@@ -1,6 +1,47 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { motionAllowed } from './flag';
+import { cubicBezier, EASE_OUT, MOTION } from './tokens';
+
+/** Figma 4A: the active section is the one under a line 40 % from the top. */
+const READING_LINE = 0.4;
+const easeOut = cubicBezier(EASE_OUT);
+
+/**
+ * Narrow screens (Figma 4A): the jump row scrolls sideways; bring the
+ * active pill into view over 240ms (out easing), instantly with reduced
+ * motion. Only the row scrolls, never the page.
+ */
+function revealInRow(row: HTMLElement, a: HTMLElement): () => void {
+  if (row.scrollWidth <= row.clientWidth + 1) return () => {};
+  const rr = row.getBoundingClientRect();
+  const ar = a.getBoundingClientRect();
+  const pad = 16;
+  let delta = 0;
+  if (ar.left < rr.left + pad) delta = ar.left - rr.left - pad;
+  else if (ar.right > rr.right - pad) delta = ar.right - rr.right + pad;
+  if (!delta) return () => {};
+  const from = row.scrollLeft;
+  const to = Math.max(
+    0,
+    Math.min(from + delta, row.scrollWidth - row.clientWidth)
+  );
+  if (!motionAllowed()) {
+    row.scrollLeft = to;
+    return () => {};
+  }
+  let raf = 0;
+  let start = 0;
+  const step = (now: number) => {
+    if (!start) start = now;
+    const t = Math.min(1, (now - start) / MOTION.quick);
+    row.scrollLeft = from + (to - from) * easeOut(t);
+    if (t < 1) raf = requestAnimationFrame(step);
+  };
+  raf = requestAnimationFrame(step);
+  return () => cancelAnimationFrame(raf);
+}
 
 /**
  * Scroll-spy for an in-page anchor menu. Render it anywhere inside the
@@ -10,7 +51,7 @@ import { useEffect, useRef } from 'react';
  * closest `[data-sticky]` ancestor while it is pinned. Renders a hidden marker only;
  * the links stay server-rendered. Inactive when `.mk[data-motion]` is off.
  */
-export function ScrollSpy({ offset = 24 }: { offset?: number }) {
+export function ScrollSpy() {
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     const marker = ref.current;
@@ -32,6 +73,7 @@ export function ScrollSpy({ offset = 24 }: { offset?: number }) {
     const bar = nav.closest('[data-sticky]') as HTMLElement | null;
     let current: HTMLAnchorElement | null = null;
     let ticking = false;
+    let stopRowScroll = () => {};
     const update = () => {
       ticking = false;
       if (bar) {
@@ -43,11 +85,10 @@ export function ScrollSpy({ offset = 24 }: { offset?: number }) {
         if (pinned) bar.setAttribute('data-stuck', '');
         else bar.removeAttribute('data-stuck');
       }
-      // reading line: below the sticky bar (or the nav), a little way in
+      // reading line: 40 % from the top of the viewport (Figma 4A), never
+      // above the bottom of the sticky bar
       const chrome = (bar || nav).getBoundingClientRect().bottom;
-      const line =
-        Math.max(chrome, 0) +
-        Math.max(offset, Math.min(innerHeight * 0.25, 160));
+      const line = Math.max(chrome + 1, innerHeight * READING_LINE);
       let next: HTMLAnchorElement | null = null;
       for (const p of pairs) {
         if (p.el.getBoundingClientRect().top <= line) next = p.a;
@@ -59,6 +100,10 @@ export function ScrollSpy({ offset = 24 }: { offset?: number }) {
       if (current) current.removeAttribute('aria-current');
       if (next) next.setAttribute('aria-current', 'location');
       current = next;
+      if (next && bar) {
+        stopRowScroll();
+        stopRowScroll = revealInRow(nav, next);
+      }
     };
     const onScroll = () => {
       if (!ticking) {
@@ -72,9 +117,10 @@ export function ScrollSpy({ offset = 24 }: { offset?: number }) {
     return () => {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
+      stopRowScroll();
       if (current) current.removeAttribute('aria-current');
       if (bar) bar.removeAttribute('data-stuck');
     };
-  }, [offset]);
+  }, []);
   return <span ref={ref} hidden />;
 }

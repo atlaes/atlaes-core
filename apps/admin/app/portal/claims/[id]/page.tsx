@@ -1,123 +1,128 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useState } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 import {
-  Download,
-  Upload,
-  Pencil,
-  Send,
-  Inbox,
-  Clock,
-  FileText,
-} from 'lucide-react';
-import {
-  CASE_STAGES,
-  CHANNEL_LABELS,
   getFirmCase,
   getFirmCorrespondenceDownload,
   getFirmDownload,
-  LawFirmCaseEvent,
-  LawFirmSubmissionChannel,
   recordFirmEvent,
   setFirmReference,
   uploadFirmCorrespondence,
+  type FirmCaseDetail,
 } from '@/lib/law-firm-api';
+import { Spinner, formatBytes } from '@/components/ui';
 import {
-  Button,
-  ErrorText,
-  Fact,
-  FactGroup,
-  Field,
-  PageHeader,
-  Spinner,
-  Stepper,
-  Table,
-  TableBody,
-  TableHead,
-  Td,
-  Th,
-  formatBytes,
-  formatDate,
-  inputClass,
-} from '@/components/ui';
+  Chip,
+  CopyIcon,
+  DataRow,
+  Note,
+  PillButton,
+  PortalCard,
+  PortalColumn,
+  PortalField,
+  apiError,
+  caseIdentifierLabel,
+  caseTypeChip,
+  copyText,
+  fmtDay,
+  fmtDayTime,
+  fmtDotted,
+  parseDotted,
+  portalInputClass,
+} from '@/components/portal/ui';
 
-const EVENT_LABELS: Record<string, string> = {
-  downloaded: 'Paket heruntergeladen',
-  submitted: 'Beim Versorgungsträger eingereicht',
-  response_received: 'Antwort erhalten',
-  closed: 'Akte abgeschlossen',
-  reference_set: 'Aktenzeichen eingetragen',
-  correspondence_uploaded: 'Schreiben hochgeladen',
-};
+/**
+ * Case screen of the law-firm portal (Figma section A):
+ *   03 before AZ (1032:5127) → 04 AZ saved (1033:5127) → 05 submitted
+ *   (1034:5127). Platform brief Part 1: AZ mandatory (12345-YY), download
+ *   disabled until it is saved, saving the submission date creates the
+ *   event "Submitted" and removes the case from the firm's view.
+ */
+
+const AZ_PATTERN = /^\d{5}-\d{2}$/;
+
+const VISIBILITY_TEXT =
+  'Case appears on “Ready for submission”; disappears from the firm’s view when the submission date is saved. No submission date after 7 days → warning to ATLAES, case stays visible. ATLAES Admin can re-release a submitted case for 48 hours.';
+const FROZEN_TEXT =
+  'The generated PDF is stored on the case as the frozen submitted version; later client-data corrections do not change it. Re-download allowed while the case is visible.';
+
+/** DRV refund print order (brief Part 1; labels as in Figma). */
+const DRV_PACK_CONTENTS = [
+  'Cover letter (with AZ)',
+  'V0901 — Antrag auf Beitragserstattung',
+  'A1310 — Zahlungserklärung',
+  'Power of attorney (PoA)',
+  'A1002 — Lebensbescheinigung',
+  'Reply to refund (Rückantwort)',
+  'Copy of payslip',
+  'Copy of the client’s ID',
+];
+const BAV_PACK_CONTENTS = [
+  'Cover letter (with AZ)',
+  'Power of attorney (PoA)',
+  'Enclosures',
+];
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-type EventForm = {
-  event: LawFirmCaseEvent;
-  date: string;
-  channel: LawFirmSubmissionChannel;
-  note: string;
-};
+type Claim = FirmCaseDetail['claim'];
 
 export default function PortalCasePage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
-  const uploadRef = useRef<HTMLDivElement>(null);
 
-  const [refEditing, setRefEditing] = useState(false);
-  const [refValue, setRefValue] = useState('');
-  const [eventForm, setEventForm] = useState<EventForm | null>(null);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadNote, setUploadNote] = useState('');
-  const [uploadDate, setUploadDate] = useState(todayIso());
+  const [azEditing, setAzEditing] = useState(false);
+  const [azValue, setAzValue] = useState('');
+  const [azError, setAzError] = useState<string | null>(null);
+  const [subDate, setSubDate] = useState('');
+  const [subError, setSubError] = useState<string | null>(null);
+  // Saving the submission date hides the case server-side; keep showing
+  // the "submitted" screen (Figma 05) from the cached detail.
+  const [submittedLocal, setSubmittedLocal] = useState<{
+    date: string;
+    savedAt: Date;
+  } | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<'ok' | 'fail' | null>(null);
 
   const caseQuery = useQuery({
     queryKey: ['firm-case', id],
     queryFn: () => getFirmCase(id),
     enabled: !!id,
+    retry: false,
   });
 
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['firm-case', id] });
+  const refreshLists = () => {
     queryClient.invalidateQueries({ queryKey: ['firm-claims'] });
     queryClient.invalidateQueries({ queryKey: ['firm-summary'] });
   };
 
-  const refMutation = useMutation({
+  const azMutation = useMutation({
     mutationFn: (v: string) => setFirmReference(id, v),
     onSuccess: () => {
-      setRefEditing(false);
-      invalidate();
+      setAzEditing(false);
+      setAzError(null);
+      queryClient.invalidateQueries({ queryKey: ['firm-case', id] });
+      refreshLists();
     },
+    onError: (e) => setAzError(apiError(e, 'The AZ could not be saved.')),
   });
-  const eventMutation = useMutation({
-    mutationFn: (f: EventForm) =>
-      recordFirmEvent(id, {
-        event: f.event,
-        date: f.date || null,
-        channel: f.event === 'submitted' ? f.channel : null,
-        note: f.note.trim() || null,
-      }),
-    onSuccess: () => {
-      setEventForm(null);
-      invalidate();
+
+  const submitMutation = useMutation({
+    mutationFn: (date: string) =>
+      recordFirmEvent(id, { event: 'submitted', date }),
+    onSuccess: (_r, date) => {
+      setSubmittedLocal({ date, savedAt: new Date() });
+      setSubError(null);
+      refreshLists();
     },
-  });
-  const uploadMutation = useMutation({
-    mutationFn: (file: File) =>
-      uploadFirmCorrespondence(id, file, {
-        note: uploadNote.trim() || undefined,
-        receivedDate: uploadDate || undefined,
-      }),
-    onSuccess: () => {
-      setUploadFile(null);
-      setUploadNote('');
-      setUploadDate(todayIso());
-      invalidate();
-    },
+    onError: (e) =>
+      setSubError(apiError(e, 'The submission date could not be saved.')),
   });
 
   const open = async (fn: () => Promise<{ downloadUrl: string | null }>) => {
@@ -126,727 +131,784 @@ export default function PortalCasePage() {
       const r = await fn();
       if (r.downloadUrl) {
         window.open(r.downloadUrl, '_blank', 'noopener');
-        invalidate();
-      } else
-        setDownloadError('In dieser Umgebung ist kein Download verfügbar.');
+        if (!submittedLocal)
+          queryClient.invalidateQueries({ queryKey: ['firm-case', id] });
+      } else {
+        setDownloadError('No download is available in this environment.');
+      }
     } catch (e) {
-      setDownloadError((e as Error).message || 'Download fehlgeschlagen');
+      setDownloadError(apiError(e, 'Download failed.'));
     }
   };
-
-  const activity = useMemo(() => {
-    if (!caseQuery.data) return [];
-    const { events, correspondence } = caseQuery.data;
-    const items = [
-      ...events.map((e) => ({
-        id: e.id,
-        at: e.createdAt ?? '',
-        title: `${EVENT_LABELS[e.event] ?? e.event}${
-          e.channel
-            ? ` (${CHANNEL_LABELS[e.channel as LawFirmSubmissionChannel] ?? e.channel})`
-            : ''
-        }${e.date ? ` am ${formatDate(e.date)}` : ''}`,
-        body: e.note,
-        icon:
-          e.event === 'correspondence_uploaded'
-            ? Inbox
-            : e.event === 'submitted'
-              ? Send
-              : Clock,
-      })),
-      ...correspondence
-        .filter((c) => c.direction !== 'provider_in')
-        .map((c) => ({
-          id: `c-${c.id}`,
-          at: c.createdAt ?? '',
-          title:
-            c.direction === 'package_out'
-              ? 'Anschreiben-Paket von CompanyPension erstellt'
-              : c.direction === 'copy_out'
-                ? 'Kopie für die Gegenseite erstellt'
-                : 'Notiz',
-          body: c.note,
-          icon: FileText,
-        })),
-    ];
-    return items.sort(
-      (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()
-    );
-  }, [caseQuery.data]);
 
   if (caseQuery.isLoading) return <Spinner full />;
   if (caseQuery.error || !caseQuery.data) {
     return (
-      <PageHeader
-        title="Akte nicht verfügbar"
-        back={{ href: '/portal', label: 'Akten' }}
-      />
+      <PortalColumn>
+        <BackLink />
+        <h1 className="text-[32px] font-extrabold leading-[1.15] tracking-[-0.32px] text-[#181818]">
+          Case not available
+        </h1>
+        <p className="text-[15px] leading-[1.5] text-[#4b4f58]">
+          This case is no longer released to your firm. If you need it back,
+          ask ATLAES to re-release it.
+        </p>
+      </PortalColumn>
     );
   }
 
-  const { claim, correspondence } = caseQuery.data;
-  const { claimant, bav } = claim;
-  const state = claim.caseState;
-  const isClosed = state === 'closed';
+  const { claim, events, correspondence } = caseQuery.data;
+  const chip = caseTypeChip(claim.caseType);
+  const isBav = claim.caseType === 'bav_cashout';
+  const az = claim.lawFirmRef;
+  const azValid = claim.aktenzeichenValid ?? AZ_PATTERN.test(az ?? '');
+  const showAzForm = !azValid || azEditing;
+  const submittedDate = submittedLocal?.date ?? claim.firmSubmittedAt ?? null;
+  const isSubmitted = !!submittedDate;
+  const rereleased = claim.visibility === 'rereleased';
+  const releasedAt = claim.releasedAt ?? claim.assignedAt;
+
+  const downloadAllowed =
+    (claim.download ? claim.download.allowed : azValid && claim.packageReady) &&
+    !showAzForm &&
+    (!submittedLocal || rereleased);
+  const downloadReason =
+    claim.download && !claim.download.allowed
+      ? 'Enter and save the Aktenzeichen first'
+      : !azValid || showAzForm
+        ? 'Enter and save the Aktenzeichen first'
+        : null;
+
+  const azSavedAt = events.find((e) => e.event === 'reference_set')?.createdAt;
+  const submittedEvent = events.find((e) => e.event === 'submitted');
+  const downloads = events.filter((e) => e.event === 'downloaded');
   const incoming = correspondence.filter((c) => c.direction === 'provider_in');
 
-  const startEvent = (event: LawFirmCaseEvent) =>
-    setEventForm({ event, date: todayIso(), channel: 'post', note: '' });
-  const scrollToUpload = () =>
-    uploadRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const saveAz = (e: React.FormEvent) => {
+    e.preventDefault();
+    const v = azValue.trim();
+    if (!AZ_PATTERN.test(v)) {
+      setAzError('Format 12345-YY, e.g. 06152-26');
+      return;
+    }
+    azMutation.mutate(v);
+  };
 
-  // The one thing to do next, by stage.
-  let next: { text: string; action: React.ReactNode } | null = null;
-  if (isClosed) {
-    next = null;
-  } else if (!claim.lawFirmRef) {
-    next = {
-      text: 'Tragen Sie Ihr Aktenzeichen ein. Das Anschreiben wird damit neu erstellt („Unser Zeichen“).',
-      action: (
-        <Button
-          variant="primary"
-          onClick={() => {
-            setRefValue('');
-            setRefEditing(true);
-          }}
-        >
-          <Pencil className="h-4 w-4" />
-          Aktenzeichen eintragen
-        </Button>
-      ),
-    };
-  } else if (state === 'new') {
-    next = {
-      text: claim.packageReady
-        ? 'Laden Sie das Paket herunter: unterschriftsreifes Anschreiben, Vollmacht und Anlagen.'
-        : 'Das Paket wird von CompanyPension noch erstellt.',
-      action: claim.packageReady ? (
-        <Button
-          variant="primary"
-          onClick={() => open(() => getFirmDownload(id, 'package'))}
-        >
-          <Download className="h-4 w-4" />
-          Paket herunterladen
-        </Button>
-      ) : null,
-    };
-  } else if (state === 'downloaded') {
-    next = {
-      text: 'Sobald das Schreiben beim Versorgungsträger ist, erfassen Sie Datum und Versandweg.',
-      action: (
-        <Button variant="primary" onClick={() => startEvent('submitted')}>
-          <Send className="h-4 w-4" />
-          Einreichung erfassen
-        </Button>
-      ),
-    };
-  } else if (state === 'submitted') {
-    next = {
-      text: 'Wenn die Antwort des Versorgungsträgers eingeht, laden Sie den Scan hoch und erfassen den Eingang.',
-      action: (
-        <div className="flex flex-wrap gap-2">
-          <Button variant="primary" onClick={scrollToUpload}>
-            <Upload className="h-4 w-4" />
-            Antwort hochladen
-          </Button>
-          <Button onClick={() => startEvent('response_received')}>
-            Eingang erfassen
-          </Button>
-        </div>
-      ),
-    };
-  } else if (state === 'response_received') {
-    next = {
-      text: 'Weitere Antworten können Sie hochladen. Ist die Sache erledigt, schließen Sie die Akte.',
-      action: (
-        <div className="flex flex-wrap gap-2">
-          <Button variant="primary" onClick={scrollToUpload}>
-            <Upload className="h-4 w-4" />
-            Weitere Antwort hochladen
-          </Button>
-          <Button onClick={() => startEvent('closed')}>Akte schließen</Button>
-        </div>
-      ),
-    };
-  }
+  const saveSubmission = (e: React.FormEvent) => {
+    e.preventDefault();
+    const iso = parseDotted(subDate);
+    if (!iso) {
+      setSubError('Enter the date as DD.MM.YYYY.');
+      return;
+    }
+    if (iso > todayIso()) {
+      setSubError('The submission date cannot be in the future.');
+      return;
+    }
+    submitMutation.mutate(iso);
+  };
+
+  const copyAll = async () => {
+    const ok = await copyText(claim.copyBlock ?? buildCopyBlock(claim));
+    setCopied(ok ? 'ok' : 'fail');
+    window.setTimeout(() => setCopied(null), 2500);
+  };
+
+  const caseData = (
+    <PortalCard
+      title="Case data"
+      action={
+        <PillButton variant="outline" size="sm" onClick={copyAll}>
+          {copied === 'ok' ? (
+            <>
+              <CopyIcon /> Copied
+            </>
+          ) : (
+            'Copy all'
+          )}
+        </PillButton>
+      }
+    >
+      <CaseDataRows claim={claim} compact={isSubmitted} />
+      {copied === 'fail' && (
+        <Note tone="error">
+          Copying is blocked in this browser. Select the fields and copy them
+          manually.
+        </Note>
+      )}
+      {!azValid && !isSubmitted && (
+        <Note>
+          Read-only. “Copy all” copies these fields as one block in the order
+          agreed with the firm.
+        </Note>
+      )}
+    </PortalCard>
+  );
+
+  const packContents = (
+    <PortalCard title="Pack contents">
+      <ol className="flex w-full flex-col gap-2.5 leading-[1.5]">
+        {packContentLabels(claim, isBav).map((label, i) => (
+          <li key={`${i}-${label}`} className="flex w-full items-start gap-2.5">
+            <span className="w-4 shrink-0 text-[12px] font-bold leading-[21px] text-[#5e8cd9]">
+              {String(i + 1).padStart(2, '0')}
+            </span>
+            <span className="min-w-0 flex-1 text-[14px] text-[#181818]">
+              {label}
+            </span>
+          </li>
+        ))}
+      </ol>
+      {!azValid && (
+        <Note>
+          Merged into one PDF in print order. Generated at download time with
+          the AZ on the cover letter.
+        </Note>
+      )}
+    </PortalCard>
+  );
+
+  const downloadsCard =
+    downloads.length > 0 ? (
+      <PortalCard title="Downloads">
+        <ul className="flex w-full flex-col leading-[1.5]">
+          {downloads.map((d, i) => (
+            <li
+              key={d.id}
+              className={`flex flex-col gap-0.5 py-2.5 ${i > 0 ? 'border-t border-[#f1f1f1]' : ''}`}
+            >
+              <span className="text-[13px] font-semibold text-[#181818]">
+                Submission pack · v1
+              </span>
+              <span className="text-[12px] text-[#8c8c8c]">
+                {fmtDayTime(d.createdAt)}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {!isSubmitted && (
+          <Note>Every download is logged (user, time, IP).</Note>
+        )}
+      </PortalCard>
+    ) : null;
 
   return (
-    <div>
-      <PageHeader
-        back={{ href: '/portal', label: 'Akten' }}
-        title={claimant.name ?? 'Mandant'}
-        subtitle={
-          <>
-            {bav.route ? `Weg ${bav.route} · ` : ''}
-            {claim.lawFirmRef ? `Unser Zeichen ${claim.lawFirmRef} · ` : ''}
-            übergeben {formatDate(claim.assignedAt)}
-            {claim.payoutTarget === 'law_firm'
-              ? ' · Auszahlung auf Anderkonto'
-              : ''}
-          </>
-        }
-        actions={
-          !isClosed && !refEditing && claim.lawFirmRef ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setRefValue(claim.lawFirmRef ?? '');
-                setRefEditing(true);
-              }}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              Aktenzeichen ändern
-            </Button>
+    <PortalColumn>
+      <BackLink />
+
+      {isSubmitted && (
+        <div className="flex w-full items-center gap-3 rounded-[12px] bg-[#fbefc7] px-5 py-3.5 leading-[1.4] text-[#6b4d00]">
+          <span aria-hidden className="text-[12px]">
+            ●
+          </span>
+          <p className="flex-1 text-[15px] font-semibold">
+            Submitted on {fmtDay(submittedDate)} — this case will disappear
+            from your view
+          </p>
+        </div>
+      )}
+
+      <header className="flex flex-col items-start gap-2.5">
+        <div className="flex gap-2">
+          <Chip tone={chip.tone}>{chip.label}</Chip>
+          {isSubmitted && <Chip tone="green">Submitted</Chip>}
+        </div>
+        <h1 className="text-[32px] font-extrabold leading-[1.15] tracking-[-0.32px] text-[#181818]">
+          {claim.claimant.name ?? 'Name missing'}
+        </h1>
+        <p className="text-[15px] leading-[1.5] text-[#4b4f58]">
+          {isSubmitted
+            ? `Released ${fmtDay(releasedAt)} · Submitted ${fmtDay(submittedDate)}${az ? ` · AZ ${az}` : ''}`
+            : `Released ${fmtDay(releasedAt)} · Ready for submission · Route: via law firm`}
+        </p>
+      </header>
+
+      <div className="flex w-full flex-col items-start gap-8 lg:flex-row">
+        {/* Main column */}
+        <div className="flex w-full min-w-0 flex-col gap-6 lg:w-[640px] lg:shrink-0">
+          {isSubmitted ? (
+            <>
+              <PortalCard title="Submission pack — frozen version">
+                <div className="flex w-full flex-wrap items-center gap-4 rounded-[12px] bg-[#f1f1f1] px-5 py-4">
+                  <span className="flex h-11 w-9 shrink-0 items-center justify-center rounded-[6px] border border-[#c6c6c6] bg-white text-[9px] font-bold leading-none text-[#002691]">
+                    PDF
+                  </span>
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.4]">
+                    <span className="text-[15px] font-semibold text-[#181818]">
+                      Submission pack · v1 (submitted)
+                    </span>
+                    <span className="truncate text-[13px] text-[#8c8c8c]">
+                      {packSummary(claim)}
+                    </span>
+                  </div>
+                  <PillButton
+                    variant="outline"
+                    size="sm"
+                    disabled={!downloadAllowed}
+                    onClick={() => open(() => getFirmDownload(id, 'package'))}
+                  >
+                    Re-download
+                  </PillButton>
+                </div>
+                {downloadError && <Note tone="error">{downloadError}</Note>}
+                <Note>{FROZEN_TEXT}</Note>
+              </PortalCard>
+
+              <PortalCard title="Submission">
+                <div className="flex w-full flex-col gap-6 sm:flex-row">
+                  <ReadonlyField
+                    label="Submission date"
+                    value={fmtDotted(submittedDate)}
+                  />
+                  <ReadonlyField label="Aktenzeichen (AZ)" value={az ?? ''} />
+                </div>
+                <Note>
+                  Saved{' '}
+                  {fmtDayTime(
+                    submittedLocal?.savedAt ?? submittedEvent?.createdAt
+                  )}
+                  {submittedLocal && user?.email ? ` by ${user.email}` : ''} ·
+                  event “Submitted” recorded on the case.
+                </Note>
+              </PortalCard>
+
+              {caseData}
+            </>
+          ) : (
+            <>
+              {caseData}
+
+              <PortalCard title="Aktenzeichen (AZ)">
+                {showAzForm ? (
+                  <form
+                    onSubmit={saveAz}
+                    className="flex w-full flex-col gap-5"
+                    noValidate
+                  >
+                    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+                      <PortalField
+                        label="Aktenzeichen"
+                        htmlFor="az-input"
+                        hint={
+                          azError ? (
+                            <span className="text-[#b42318]">{azError}</span>
+                          ) : (
+                            'Format 12345-YY, e.g. 06152-26'
+                          )
+                        }
+                      >
+                        <input
+                          id="az-input"
+                          value={azValue}
+                          onChange={(e) => {
+                            setAzValue(e.target.value);
+                            setAzError(null);
+                          }}
+                          placeholder="06152-26"
+                          inputMode="numeric"
+                          maxLength={8}
+                          autoComplete="off"
+                          aria-invalid={!!azError}
+                          className={portalInputClass}
+                        />
+                      </PortalField>
+                      <div className="flex gap-3">
+                        <PillButton
+                          type="submit"
+                          disabled={azMutation.isPending}
+                        >
+                          {azMutation.isPending ? 'Saving…' : 'Save'}
+                        </PillButton>
+                        {azEditing && azValid && (
+                          <PillButton
+                            variant="outline"
+                            onClick={() => {
+                              setAzEditing(false);
+                              setAzError(null);
+                            }}
+                          >
+                            Cancel
+                          </PillButton>
+                        )}
+                      </div>
+                    </div>
+                    <Note>
+                      Mandatory. Download is disabled until the AZ is saved.
+                    </Note>
+                  </form>
+                ) : (
+                  <div className="flex w-full flex-wrap items-center gap-3">
+                    <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-[#dcecdf] py-2 pl-3.5 pr-4 font-bold leading-[1.4] text-[#1f5f31]">
+                      <span className="text-[14px]">✓</span>
+                      <span className="text-[15px]">AZ {az}</span>
+                    </span>
+                    {azSavedAt && (
+                      <span className="text-[13px] leading-[1.4] text-[#8c8c8c]">
+                        Saved {fmtDayTime(azSavedAt)}
+                      </span>
+                    )}
+                    {!claim.pack?.frozen && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAzValue(az ?? '');
+                          setAzEditing(true);
+                        }}
+                        className="ml-auto text-[14px] font-semibold leading-[1.4] text-[#002691] hover:underline"
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </div>
+                )}
+              </PortalCard>
+
+              <PortalCard title="Submission pack">
+                <div className="flex flex-col items-start gap-2">
+                  <PillButton
+                    disabled={!downloadAllowed}
+                    onClick={() => open(() => getFirmDownload(id, 'package'))}
+                  >
+                    Download submission pack
+                    {downloadAllowed && <span aria-hidden>→</span>}
+                  </PillButton>
+                  <p
+                    className={`text-[13px] leading-[1.5] ${downloadAllowed ? 'text-[#4b4f58]' : 'text-[#8c8c8c]'}`}
+                  >
+                    {downloadAllowed
+                      ? claim.pack?.frozen
+                        ? `Re-downloads the frozen pack with AZ ${az} on the cover letter`
+                        : `Generates the pack now with AZ ${az} on the cover letter`
+                      : (downloadReason ??
+                        (!claim.packageReady
+                          ? 'The pack is still being prepared by ATLAES'
+                          : 'Download is not available for this case'))}
+                  </p>
+                  {claim.copyReady && downloadAllowed && (
+                    <button
+                      type="button"
+                      onClick={() => open(() => getFirmDownload(id, 'copy'))}
+                      className="text-[14px] font-semibold leading-[1.4] text-[#002691] hover:underline"
+                    >
+                      Download copy for the other party (PDF)
+                    </button>
+                  )}
+                  {downloadError && <Note tone="error">{downloadError}</Note>}
+                  {!claim.pack?.frozen &&
+                    (claim.pack?.missingData.length ?? 0) > 0 && (
+                      <Note tone="error">
+                        Data missing for the pack:{' '}
+                        {claim.pack!.missingData.join(', ')}. ATLAES has been
+                        asked to complete it.
+                      </Note>
+                    )}
+                </div>
+
+                {azValid && !showAzForm && <Note>{FROZEN_TEXT}</Note>}
+
+                <form
+                  onSubmit={saveSubmission}
+                  className="flex w-full flex-col gap-5"
+                  noValidate
+                >
+                  <div
+                    className={`flex w-full flex-col gap-3 ${azValid && !showAzForm ? 'sm:flex-row sm:items-end' : ''}`}
+                  >
+                    <PortalField
+                      label="Submission date"
+                      htmlFor="submission-date"
+                      disabled={!azValid || showAzForm}
+                      hint={
+                        subError ? (
+                          <span className="text-[#b42318]">{subError}</span>
+                        ) : azValid && !showAzForm ? (
+                          'Saving it creates the event “Submitted” and removes the case from your view.'
+                        ) : undefined
+                      }
+                    >
+                      <input
+                        id="submission-date"
+                        value={subDate}
+                        onChange={(e) => {
+                          setSubDate(e.target.value);
+                          setSubError(null);
+                        }}
+                        placeholder="DD.MM.YYYY"
+                        inputMode="numeric"
+                        maxLength={10}
+                        autoComplete="off"
+                        disabled={!azValid || showAzForm}
+                        aria-invalid={!!subError}
+                        className={`${portalInputClass} ${!azValid || showAzForm ? 'bg-[#f1f1f1]' : ''}`}
+                      />
+                    </PortalField>
+                    <PillButton
+                      type="submit"
+                      className={`self-start ${azValid && !showAzForm ? 'sm:self-end' : ''}`}
+                      disabled={
+                        !azValid || showAzForm || submitMutation.isPending
+                      }
+                    >
+                      {submitMutation.isPending
+                        ? 'Saving…'
+                        : 'Save submission date'}
+                    </PillButton>
+                  </div>
+                </form>
+              </PortalCard>
+            </>
+          )}
+        </div>
+
+        {/* Rail */}
+        <aside className="flex w-full min-w-0 flex-1 flex-col gap-6">
+          {isSubmitted ? (
+            <>
+              <PortalCard title="Re-release window" tone="blue">
+                <p className="text-[14px] font-semibold leading-[1.5] text-[#002691]">
+                  ATLAES Admin can re-release a submitted case for 48 hours.
+                </p>
+                <p className="text-[14px] leading-[1.5] text-[#002691]">
+                  {rereleased && claim.rereleasedUntil
+                    ? `Re-released until ${fmtDayTime(claim.rereleasedUntil)}. After that the case disappears again.`
+                    : 'If you need the case back after it has disappeared, ask ATLAES to re-release it. It will show here again for 48 hours with the same frozen pack.'}
+                </p>
+              </PortalCard>
+              {downloadsCard}
+              <ReturnChannelCard
+                claimId={id}
+                isBav={isBav}
+                incoming={incoming}
+                onOpen={open}
+                onUploaded={() => {
+                  if (!submittedLocal)
+                    queryClient.invalidateQueries({
+                      queryKey: ['firm-case', id],
+                    });
+                }}
+              />
+            </>
+          ) : (
+            <>
+              {azValid && !showAzForm && downloadsCard}
+              {packContents}
+              <PortalCard title="Visibility" tone="blue">
+                <p className="text-[14px] leading-[1.5] text-[#002691]">
+                  {VISIBILITY_TEXT}
+                </p>
+              </PortalCard>
+            </>
+          )}
+        </aside>
+      </div>
+    </PortalColumn>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function BackLink() {
+  return (
+    <Link
+      href="/portal"
+      className="self-start text-[14px] font-semibold leading-[1.4] text-[#002691] hover:underline"
+    >
+      ← Released cases
+    </Link>
+  );
+}
+
+function ReadonlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-2">
+      <span className="text-[13px] font-semibold leading-[1.4] text-[#8c8c8c]">
+        {label}
+      </span>
+      <div className="flex h-[52px] items-center rounded-[10px] border border-[#c6c6c6] bg-[#f1f1f1] px-4 text-[15px] leading-[1.4] text-[#8c8c8c]">
+        {value || '—'}
+      </div>
+    </div>
+  );
+}
+
+function counterparty(claim: Claim): {
+  label: string;
+  name: string | null;
+  mailing: string[];
+} {
+  const { bav } = claim;
+  if (claim.caseType === 'bav_cashout') {
+    const employer = bav.addresseeType === 'employer';
+    const r = bav.recipient;
+    return {
+      label: employer ? 'Responsible employer' : 'Responsible pension provider',
+      name: (employer ? bav.employerName : bav.providerName) ?? r.name,
+      mailing: [
+        r.name,
+        r.department,
+        r.street,
+        [r.postalCode, r.city].filter(Boolean).join(' '),
+      ].filter((l): l is string => !!l),
+    };
+  }
+  const recipient = claim.pack?.manifest?.recipient;
+  return {
+    label: 'Responsible DRV office',
+    name: recipient?.carrierName ?? bav.drvOffice,
+    mailing: recipient?.mailingAddress ?? [],
+  };
+}
+
+function addressLine(claim: Claim): string | null {
+  const a = claim.claimant.address;
+  return (
+    [a.line1, a.line2, [a.postalCode, a.city].filter(Boolean).join(' '), a.country]
+      .filter(Boolean)
+      .join(', ') || null
+  );
+}
+
+function CaseDataRows({
+  claim,
+  compact,
+}: {
+  claim: Claim;
+  compact: boolean;
+}) {
+  const cp = counterparty(claim);
+  const ident = claim.caseIdentifier;
+  return (
+    <dl className="flex w-full flex-col gap-3">
+      <DataRow label="Case type" value={caseTypeChip(claim.caseType).label} />
+      <DataRow label="Name" value={claim.claimant.name} />
+      {!compact && (
+        <>
+          <DataRow label="Address" value={addressLine(claim)} />
+          <DataRow
+            label="Date of birth"
+            value={
+              claim.claimant.dateOfBirth
+                ? fmtDay(claim.claimant.dateOfBirth)
+                : null
+            }
+          />
+          <DataRow label="Nationality" value={claim.claimant.nationality} />
+        </>
+      )}
+      {ident && (
+        <DataRow label={caseIdentifierLabel(ident.label)} value={ident.value} />
+      )}
+      <DataRow label={cp.label} value={cp.name} />
+      <DataRow
+        label="Mailing address"
+        value={
+          cp.mailing.length > 0 ? (
+            <>
+              {cp.mailing.map((l, i) => (
+                <span key={i} className="block">
+                  {l}
+                </span>
+              ))}
+            </>
           ) : null
         }
       />
+    </dl>
+  );
+}
 
-      <div className="mb-4">
-        <Stepper steps={CASE_STAGES} current={state} />
-      </div>
+function packContentLabels(claim: Claim, isBav: boolean): string[] {
+  const docs = claim.pack?.manifest?.documents;
+  if (Array.isArray(docs) && docs.length > 0) return docs.map((d) => d.label);
+  return isBav ? BAV_PACK_CONTENTS : DRV_PACK_CONTENTS;
+}
 
-      {refEditing && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (refValue.trim()) refMutation.mutate(refValue.trim());
-          }}
-          className="mb-4 flex flex-wrap items-end gap-2 rounded-lg border border-gray-200 bg-white p-4"
-        >
-          <div className="min-w-[220px] flex-1">
-            <Field label="Unser Zeichen" htmlFor="ref-input">
-              <input
-                id="ref-input"
-                value={refValue}
-                onChange={(e) => setRefValue(e.target.value)}
-                maxLength={100}
-                placeholder="z. B. 2026/0815-KC"
-                className={inputClass}
-                autoFocus
-              />
-            </Field>
-          </div>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={refMutation.isPending || !refValue.trim()}
-          >
-            {refMutation.isPending
-              ? 'Speichern…'
-              : 'Speichern und Anschreiben neu erstellen'}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => setRefEditing(false)}
-          >
-            Abbrechen
-          </Button>
-          {refMutation.isError && (
-            <div className="w-full">
-              <ErrorText
-                error={refMutation.error}
-                fallback="Konnte nicht gespeichert werden"
-              />
-            </div>
-          )}
-        </form>
-      )}
+function packSummary(claim: Claim): string {
+  const m = claim.pack?.manifest;
+  const parts = [
+    `Generated ${fmtDayTime(claim.pack?.generatedAt ?? m?.generatedAt ?? claim.downloadedAt)}`,
+  ];
+  if (claim.lawFirmRef) parts.push(`AZ ${claim.lawFirmRef}`);
+  if (Array.isArray(m?.documents) && m!.documents!.length > 0)
+    parts.push(`${m!.documents!.length} documents, 1 PDF`);
+  return parts.join(' · ');
+}
 
-      {next && !refEditing && (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-brand-accent bg-white px-4 py-3 shadow-sm">
-          <p className="text-sm text-gray-800">
-            <span className="font-medium text-brand-dark">
-              Nächster Schritt:
-            </span>{' '}
-            {next.text}
-          </p>
-          {next.action}
-        </div>
-      )}
-      {isClosed && (
-        <div className="mb-6 rounded-lg bg-gray-100 px-4 py-3 text-sm text-gray-600">
-          Diese Akte ist abgeschlossen
-          {claim.closedAt ? ` (${formatDate(claim.closedAt)})` : ''}. Änderungen
-          sind nicht mehr möglich.
-        </div>
-      )}
+/** Client-side fallback when the API has no `copyBlock` yet. */
+function buildCopyBlock(claim: Claim): string {
+  const cp = counterparty(claim);
+  const rows: [string, string | null | undefined][] = [
+    ['Case type', caseTypeChip(claim.caseType).label],
+    ['Name', claim.claimant.name],
+    ['Address', addressLine(claim)],
+    ['Date of birth', claim.claimant.dateOfBirth],
+    ['Nationality', claim.claimant.nationality],
+    [
+      caseIdentifierLabel(claim.caseIdentifier?.label),
+      claim.caseIdentifier?.value,
+    ],
+    [cp.label, cp.name],
+    ['Mailing address', cp.mailing.join(', ')],
+    ['Aktenzeichen', claim.lawFirmRef],
+  ];
+  return rows
+    .filter(([, v]) => v && String(v).trim())
+    .map(([l, v]) => `${l}: ${String(v).trim()}`)
+    .join('\n');
+}
 
-      {eventForm && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            eventMutation.mutate(eventForm);
-          }}
-          className="mb-6 space-y-3 rounded-lg border border-gray-200 bg-white p-4"
-        >
-          <h3 className="text-sm font-semibold text-brand-dark">
-            {EVENT_LABELS[eventForm.event]}
-          </h3>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Datum" htmlFor="event-date">
-              <input
-                id="event-date"
-                type="date"
-                value={eventForm.date}
-                max={todayIso()}
-                onChange={(e) =>
-                  setEventForm({ ...eventForm, date: e.target.value })
-                }
-                className={inputClass}
-              />
-            </Field>
-            {eventForm.event === 'submitted' && (
-              <Field label="Versandweg" htmlFor="event-channel">
-                <select
-                  id="event-channel"
-                  value={eventForm.channel}
-                  onChange={(e) =>
-                    setEventForm({
-                      ...eventForm,
-                      channel: e.target.value as LawFirmSubmissionChannel,
-                    })
+function ReturnChannelCard({
+  claimId,
+  isBav,
+  incoming,
+  onOpen,
+  onUploaded,
+}: {
+  claimId: string;
+  isBav: boolean;
+  incoming: FirmCaseDetail['correspondence'];
+  onOpen: (fn: () => Promise<{ downloadUrl: string | null }>) => void;
+  onUploaded: () => void;
+}) {
+  const [openForm, setOpenForm] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [received, setReceived] = useState(todayIso());
+  const [note, setNote] = useState('');
+  const [uploaded, setUploaded] = useState<FirmCaseDetail['correspondence']>(
+    []
+  );
+
+  const upload = useMutation({
+    mutationFn: (f: File) =>
+      uploadFirmCorrespondence(claimId, f, {
+        note: note.trim() || undefined,
+        receivedDate: received || undefined,
+      }),
+    onSuccess: (item) => {
+      setUploaded((u) => [item, ...u]);
+      setFile(null);
+      setNote('');
+      setReceived(todayIso());
+      setOpenForm(false);
+      onUploaded();
+    },
+  });
+
+  const letters = [
+    ...uploaded,
+    ...incoming.filter((c) => !uploaded.some((u) => u.id === c.id)),
+  ];
+
+  return (
+    <PortalCard title="Return channel">
+      <p className="text-[14px] leading-[1.5] text-[#4b4f58]">
+        {isBav
+          ? 'Scan letters from the pension provider or employer for this case to the platform intake mailbox — one letter per scan. The platform matches them on name plus contract number and files them to the case.'
+          : 'Scan DRV letters and Bescheide for this case to the platform intake mailbox — one letter per scan. The platform matches them on name plus VSNR and files them to the case.'}
+      </p>
+
+      {letters.length > 0 && (
+        <ul className="flex w-full flex-col">
+          {letters.map((c, i) => (
+            <li
+              key={c.id}
+              className={`flex items-start justify-between gap-3 py-2.5 ${i > 0 ? 'border-t border-[#f1f1f1]' : ''}`}
+            >
+              <div className="min-w-0 leading-[1.5]">
+                <p className="truncate text-[13px] font-semibold text-[#181818]">
+                  {c.document?.fileName ?? 'Letter'}
+                </p>
+                <p className="text-[12px] text-[#8c8c8c]">
+                  Received {fmtDay(c.receivedDate ?? c.createdAt)}
+                  {c.document ? ` · ${formatBytes(c.document.fileSize)}` : ''}
+                </p>
+              </div>
+              {c.document && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onOpen(() => getFirmCorrespondenceDownload(claimId, c.id))
                   }
-                  className={inputClass}
+                  className="shrink-0 text-[13px] font-semibold text-[#002691] hover:underline"
                 >
-                  {(
-                    Object.keys(CHANNEL_LABELS) as LawFirmSubmissionChannel[]
-                  ).map((k) => (
-                    <option key={k} value={k}>
-                      {CHANNEL_LABELS[k]}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            )}
-          </div>
-          <Field
-            label="Hinweis an CompanyPension (optional)"
-            htmlFor="event-note"
+                  Open
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {openForm ? (
+        <form
+          className="flex w-full flex-col gap-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (file) upload.mutate(file);
+          }}
+        >
+          <PortalField
+            label="Letter (PDF, JPG, PNG, max. 10 MB)"
+            htmlFor="letter-file"
           >
+            <input
+              id="letter-file"
+              type="file"
+              accept="application/pdf,image/jpeg,image/png"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="block w-full text-[13px] text-[#4b4f58] file:mr-3 file:rounded-full file:border file:border-[#002691] file:bg-white file:px-4 file:py-1.5 file:text-[13px] file:font-bold file:text-[#002691]"
+            />
+          </PortalField>
+          <PortalField label="Received on" htmlFor="letter-received">
+            <input
+              id="letter-received"
+              type="date"
+              value={received}
+              max={todayIso()}
+              onChange={(e) => setReceived(e.target.value)}
+              className={portalInputClass}
+            />
+          </PortalField>
+          <PortalField label="Note (optional)" htmlFor="letter-note">
             <textarea
-              id="event-note"
-              value={eventForm.note}
-              onChange={(e) =>
-                setEventForm({ ...eventForm, note: e.target.value })
-              }
+              id="letter-note"
               rows={2}
               maxLength={1000}
-              className={inputClass}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className={`${portalInputClass} h-auto py-3`}
             />
-          </Field>
-          <div className="flex gap-2">
-            <Button
+          </PortalField>
+          {upload.isError && (
+            <Note tone="error">{apiError(upload.error, 'Upload failed.')}</Note>
+          )}
+          <div className="flex flex-wrap gap-3">
+            <PillButton
               type="submit"
-              variant="primary"
-              disabled={eventMutation.isPending}
+              size="md"
+              disabled={!file || upload.isPending}
             >
-              {eventMutation.isPending ? 'Speichern…' : 'Erfassen'}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setEventForm(null)}
+              {upload.isPending ? 'Uploading…' : 'Upload'}
+            </PillButton>
+            <PillButton
+              variant="outline"
+              size="md"
+              onClick={() => setOpenForm(false)}
             >
-              Abbrechen
-            </Button>
+              Cancel
+            </PillButton>
           </div>
-          {eventMutation.isError && (
-            <ErrorText
-              error={eventMutation.error}
-              fallback="Konnte nicht erfasst werden"
-            />
-          )}
         </form>
+      ) : (
+        <PillButton
+          variant="outline"
+          size="md"
+          className="self-start"
+          onClick={() => setOpenForm(true)}
+        >
+          Upload a letter instead
+        </PillButton>
       )}
-
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="min-w-0 space-y-8">
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">
-              <Fact label="Mandant" value={claimant.name} />
-              <Fact
-                label="Geburtsdatum"
-                value={formatDate(claimant.dateOfBirth)}
-              />
-              <Fact
-                label="Weg"
-                value={
-                  bav.route === 'A'
-                    ? 'A · DRV-Erstattung liegt vor (§ 3 Abs. 3 BetrAVG)'
-                    : bav.route === 'B'
-                      ? 'B · Kleinstanwartschaft (§ 3 Abs. 2 BetrAVG)'
-                      : null
-                }
-              />
-              <Fact label="Arbeitgeber" value={bav.employerName} />
-              <Fact label="Versorgungsträger" value={bav.providerName} />
-              <Fact label="Durchführungsweg" value={bav.durchfuehrungsweg} />
-              <Fact
-                label={bav.contractReferenceLabel || 'Vertragsnummer'}
-                value={bav.contractReference}
-              />
-              <Fact
-                label="Auszahlung"
-                value={
-                  claim.payoutTarget === 'law_firm'
-                    ? 'Anderkonto der Kanzlei'
-                    : 'Konto des Mandanten'
-                }
-              />
-              <Fact
-                label="Unser Zeichen"
-                value={claim.lawFirmRef ?? 'noch nicht eingetragen'}
-              />
-            </dl>
-          </div>
-
-          <section ref={uploadRef}>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Schreiben des Versorgungsträgers
-            </h2>
-            {!isClosed && (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (uploadFile) uploadMutation.mutate(uploadFile);
-                }}
-                className="mb-3 rounded-lg border border-dashed border-gray-300 bg-white p-4"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const f = e.dataTransfer.files?.[0];
-                  if (f) setUploadFile(f);
-                }}
-              >
-                <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
-                  <Field
-                    label="Scan oder weitergeleitete E-Mail (PDF, JPG, PNG, max. 10 MB)"
-                    htmlFor="upload-file"
-                  >
-                    <input
-                      id="upload-file"
-                      type="file"
-                      accept="application/pdf,image/jpeg,image/png"
-                      onChange={(e) =>
-                        setUploadFile(e.target.files?.[0] ?? null)
-                      }
-                      className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-md file:border file:border-gray-300 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-50"
-                    />
-                    {uploadFile && (
-                      <span className="mt-1 block text-xs text-gray-500">
-                        {uploadFile.name} · {formatBytes(uploadFile.size)}
-                      </span>
-                    )}
-                  </Field>
-                  <Field label="Eingang am" htmlFor="upload-date">
-                    <input
-                      id="upload-date"
-                      type="date"
-                      value={uploadDate}
-                      max={todayIso()}
-                      onChange={(e) => setUploadDate(e.target.value)}
-                      className={inputClass}
-                    />
-                  </Field>
-                </div>
-                <div className="mt-3">
-                  <Field
-                    label="Kurze Notiz: Was teilt der Versorgungsträger mit?"
-                    htmlFor="upload-note"
-                  >
-                    <textarea
-                      id="upload-note"
-                      value={uploadNote}
-                      onChange={(e) => setUploadNote(e.target.value)}
-                      rows={2}
-                      maxLength={1000}
-                      className={inputClass}
-                    />
-                  </Field>
-                </div>
-                <div className="mt-3 flex items-center gap-3">
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    disabled={!uploadFile || uploadMutation.isPending}
-                  >
-                    <Upload className="h-4 w-4" />
-                    {uploadMutation.isPending
-                      ? 'Wird hochgeladen…'
-                      : 'Hochladen'}
-                  </Button>
-                  <span className="text-xs text-gray-400">
-                    CompanyPension wird per E-Mail informiert.
-                  </span>
-                </div>
-                {uploadMutation.isError && (
-                  <div className="mt-2">
-                    <ErrorText
-                      error={uploadMutation.error}
-                      fallback="Upload fehlgeschlagen"
-                    />
-                  </div>
-                )}
-              </form>
-            )}
-            {incoming.length === 0 ? (
-              <p className="text-sm text-gray-400">
-                Noch kein Schreiben hochgeladen.
-              </p>
-            ) : (
-              <Table minWidth={560}>
-                <TableHead>
-                  <Th>Datei</Th>
-                  <Th>Eingang</Th>
-                  <Th>Hochgeladen</Th>
-                  <Th align="right"></Th>
-                </TableHead>
-                <TableBody>
-                  {incoming.map((c) => (
-                    <tr key={c.id}>
-                      <Td nowrap={false}>
-                        <div className="text-gray-900">
-                          {c.document?.fileName}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {c.document ? formatBytes(c.document.fileSize) : ''}
-                          {c.note ? ` · ${c.note}` : ''}
-                        </div>
-                      </Td>
-                      <Td className="tabular-nums text-gray-600">
-                        {formatDate(c.receivedDate)}
-                      </Td>
-                      <Td className="tabular-nums text-gray-600">
-                        {formatDate(c.createdAt, true)}
-                      </Td>
-                      <Td align="right">
-                        {c.document && (
-                          <button
-                            className="text-gray-500 hover:text-brand-dark"
-                            onClick={() =>
-                              open(() =>
-                                getFirmCorrespondenceDownload(id, c.id)
-                              )
-                            }
-                            aria-label="Herunterladen"
-                          >
-                            <Download className="h-4 w-4" />
-                          </button>
-                        )}
-                      </Td>
-                    </tr>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </section>
-
-          <section>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Verlauf
-            </h2>
-            {activity.length === 0 ? (
-              <p className="text-sm text-gray-400">Noch keine Einträge.</p>
-            ) : (
-              <ol className="relative border-l border-gray-200 pl-5">
-                {activity.map((item) => (
-                  <li key={item.id} className="relative mb-4">
-                    <span className="absolute -left-[27px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white text-gray-400 ring-1 ring-gray-200">
-                      <item.icon className="h-2.5 w-2.5" />
-                    </span>
-                    <p className="text-sm text-gray-900">{item.title}</p>
-                    {item.body && (
-                      <p className="mt-0.5 text-sm text-gray-600">
-                        {item.body}
-                      </p>
-                    )}
-                    <p className="mt-0.5 text-xs text-gray-400">
-                      {formatDate(item.at, true)}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
-        </div>
-
-        <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Downloads
-            </h3>
-            {claim.packageReady ? (
-              <div className="mt-2 space-y-2">
-                <Button
-                  className="w-full justify-center"
-                  variant={
-                    state === 'new' && claim.lawFirmRef
-                      ? 'primary'
-                      : 'secondary'
-                  }
-                  onClick={() => open(() => getFirmDownload(id, 'package'))}
-                >
-                  <Download className="h-4 w-4" />
-                  Anschreiben-Paket (PDF)
-                </Button>
-                {claim.copyReady && (
-                  <Button
-                    className="w-full justify-center"
-                    onClick={() => open(() => getFirmDownload(id, 'copy'))}
-                  >
-                    <Download className="h-4 w-4" />
-                    Kopie für die Gegenseite
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <p className="mt-2 text-sm text-gray-500">
-                Das Paket wird von CompanyPension noch erstellt.
-              </p>
-            )}
-            <p className="mt-2 text-xs text-gray-400">
-              Links sind 15 Minuten gültig. Das Paket enthält das Anschreiben,
-              die Vollmacht des Mandanten und die Anlagen; Ihre Kanzlei druckt,
-              unterschreibt und versendet.
-              {claim.downloadedAt
-                ? ` Erstmals heruntergeladen ${formatDate(claim.downloadedAt, true)}.`
-                : ''}
-            </p>
-            {downloadError && (
-              <p className="mt-2 text-xs text-red-700">{downloadError}</p>
-            )}
-          </div>
-
-          {bav.recipient.name && (
-            <div className="rounded-lg border border-gray-200 bg-white p-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Empfänger des Schreibens
-              </h3>
-              <p className="mt-2 text-sm text-gray-900">{bav.recipient.name}</p>
-              {bav.recipient.department && (
-                <p className="text-sm text-gray-700">
-                  {bav.recipient.department}
-                </p>
-              )}
-              <p className="text-sm text-gray-700">{bav.recipient.street}</p>
-              <p className="text-sm text-gray-700">
-                {[bav.recipient.postalCode, bav.recipient.city]
-                  .filter(Boolean)
-                  .join(' ')}
-              </p>
-              {bav.recipient.ref && (
-                <p className="mt-1 text-xs text-gray-500">
-                  Ihr Zeichen: {bav.recipient.ref}
-                </p>
-              )}
-              <p className="mt-1 text-xs text-gray-500">
-                {bav.addresseeType === 'employer'
-                  ? 'Arbeitgeber'
-                  : 'Versorgungsträger'}
-              </p>
-            </div>
-          )}
-
-          <div className="space-y-4">
-            <FactGroup title="Mandant">
-              <Fact
-                label="Anrede"
-                value={
-                  claimant.salutation === 'herr'
-                    ? 'Herr'
-                    : claimant.salutation === 'frau'
-                      ? 'Frau'
-                      : null
-                }
-              />
-              <Fact label="Staatsangehörigkeit" value={claimant.nationality} />
-              <Fact label="E-Mail" value={claimant.email} wide />
-              <Fact
-                label="Anschrift"
-                value={
-                  [
-                    claimant.address.line1,
-                    claimant.address.line2,
-                    [claimant.address.postalCode, claimant.address.city]
-                      .filter(Boolean)
-                      .join(' '),
-                    claimant.address.country,
-                  ]
-                    .filter(Boolean)
-                    .join(', ') || null
-                }
-                wide
-              />
-              <Fact
-                label="Letzte Anschrift in Deutschland"
-                value={
-                  [
-                    claimant.germanAddress.street,
-                    [
-                      claimant.germanAddress.postalCode,
-                      claimant.germanAddress.city,
-                    ]
-                      .filter(Boolean)
-                      .join(' '),
-                  ]
-                    .filter(Boolean)
-                    .join(', ') || null
-                }
-                wide
-              />
-              <Fact
-                label="Wegzug"
-                value={formatDate(claimant.germanAddress.moveOutDate)}
-              />
-              <Fact label="Steuer-ID" value={claimant.taxId} />
-              <Fact
-                label="Kontoinhaber"
-                value={claimant.accountHolderName}
-                wide
-              />
-              <Fact label="IBAN" value={claimant.ibanMasked} />
-            </FactGroup>
-            {(bav.route === 'A' || bav.route === 'B') && (
-              <FactGroup
-                title={bav.route === 'A' ? 'DRV-Erstattung' : 'Standmitteilung'}
-              >
-                {bav.route === 'A' ? (
-                  <>
-                    <Fact
-                      label="Rentenversicherungsträger"
-                      value={bav.drvOffice}
-                      wide
-                    />
-                    <Fact
-                      label="Bescheid vom"
-                      value={formatDate(bav.drvDecisionDate)}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <Fact label="Dokument" value={bav.statementType} />
-                    <Fact label="Stand" value={formatDate(bav.statementDate)} />
-                    <Fact
-                      label="Leistung"
-                      value={
-                        bav.benefitAmount
-                          ? `€${bav.benefitAmount} (${bav.benefitForm === 'pension' ? 'Rente' : bav.benefitForm === 'capital' ? 'Kapital' : 'unbekannt'})`
-                          : null
-                      }
-                    />
-                  </>
-                )}
-                <Fact
-                  label="Beschäftigungsende"
-                  value={formatDate(bav.employmentEndDate)}
-                />
-              </FactGroup>
-            )}
-          </div>
-        </aside>
-      </div>
-    </div>
+    </PortalCard>
   );
 }

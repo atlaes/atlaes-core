@@ -608,6 +608,24 @@ export const claimsTable = claims.table(
       () => users.id
     ),
 
+    // Client payout release (migration 0020, services/payout-flow). Set when
+    // the client signs the Zahlungserklärung: the case then enters the
+    // law-firm payout queue. Lines/figures live on claims.payout_releases
+    // (row payout_release_id). Flags are for ATLAES Admin.
+    payoutReleasedAt: timestamp('payout_released_at', { withTimezone: true }),
+    payoutReleaseId: uuid('payout_release_id'),
+    payoutZeDocumentId: uuid('payout_ze_document_id').references(
+      () => documents.id
+    ),
+    payoutZeS3Key: varchar('payout_ze_s3_key', { length: 500 }),
+    payoutSmallRefund: boolean('payout_small_refund'), // "small refund – annual settlement"
+    payoutDetailsReviewRequired: boolean('payout_details_review_required')
+      .notNull()
+      .default(false), // "payout details need review"
+    payoutAmountMismatch: boolean('payout_amount_mismatch')
+      .notNull()
+      .default(false), // OCR amount ≠ received amount (non-blocking)
+
     // Timestamps
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),

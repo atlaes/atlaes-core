@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { motionAllowed } from './flag';
+import { staggerDelay } from './tokens';
 
 /**
  * Elements tagged automatically on pages that do not set `data-reveal`
@@ -10,16 +11,20 @@ import { motionAllowed } from './flag';
  */
 const AUTO_REVEAL = [
   '.mk-hs > .mk-container',
-  '.mk-section > .mk-section-inner > .mk-body',
   '.mk-core-cta-inner',
-  // article pages: structural blocks only, never running paragraphs
-  '.mk-art-col > .mk-art-tool',
+  // article pages: structural blocks only, never running paragraphs;
+  // never tools (forms) or FAQ answers (Figma 4D "never applied to")
   '.mk-art-col > .mk-art-kv',
   '.mk-art-col > .mk-callout',
   '.mk-art-col > .mk-table-wrap',
-  '.mk-art-col > .mk-faq',
   '.mk-art-review',
 ].join(',');
+/** Section bodies: H2 and blocks reveal one after another (4D). */
+const AUTO_GROUP = '.mk-section > .mk-section-inner > .mk-body';
+/** Children of a group/stagger that never move (Figma 4D): forms, tools,
+ * FAQ answers, legal notes, the sticky jump menu. */
+const NO_REVEAL =
+  'form, .mk-faq, .mk-widget, .mk-art-tool, .mk-flow-card, .mk-note, .mk-jump, [data-sticky]';
 const AUTO_RAIL = '.mk-main .mk-rail';
 const AUTO_STAGGER = [
   '.mk-review-grid',
@@ -30,15 +35,20 @@ const AUTO_STAGGER = [
   '.mk-art-stats',
 ].join(',');
 const HERO = 'header, .mk-home-hero, .mk-chero, .mk-core-hero, .mk-hero';
-const STAGGER_STEP_MS = 70;
-const STAGGER_MAX = 8;
 const SCROLLED_PX = 8;
+/** Figma 4B/4D trigger: "section ≥ 15 % in viewport". */
+const IN_VIEW_RATIO = 0.15;
 
 function skip(el: Element): boolean {
   return !!el.closest(HERO) || !!el.querySelector('h1');
 }
 
 function tag(root: Element) {
+  root.querySelectorAll(AUTO_GROUP).forEach((el) => {
+    if (!el.hasAttribute('data-reveal') && !skip(el)) {
+      el.setAttribute('data-reveal', 'group');
+    }
+  });
   root.querySelectorAll(AUTO_REVEAL).forEach((el) => {
     if (!el.hasAttribute('data-reveal') && !skip(el)) {
       el.setAttribute('data-reveal', '');
@@ -56,13 +66,38 @@ function tag(root: Element) {
   });
 }
 
+/**
+ * Stagger (Figma 4D): 80ms per item, at most 4 steps, then all at once.
+ * A section body (`group`) continues after its rail, so the H2 comes at
+ * +80ms and the first block at +160ms; children that must never move
+ * (forms, FAQ, tools, legal notes) are marked `data-reveal-skip`.
+ */
 function setStagger(el: Element) {
-  Array.prototype.forEach.call(el.children, (child: HTMLElement, i: number) => {
+  const group = el.getAttribute('data-reveal') === 'group';
+  let i = 0;
+  Array.prototype.forEach.call(el.children, (child: HTMLElement) => {
+    if (
+      group &&
+      (child.matches(NO_REVEAL) || child.querySelector(NO_REVEAL))
+    ) {
+      child.setAttribute('data-reveal-skip', '');
+      return;
+    }
     child.style.setProperty(
       '--reveal-delay',
-      Math.min(i, STAGGER_MAX) * STAGGER_STEP_MS + 'ms'
+      staggerDelay(i, group ? 1 : 0) + 'ms'
     );
+    i++;
   });
+}
+
+/** In view per Figma: ≥ 15 % of the unit visible, or (for units taller
+ * than the viewport) covering ≥ 15 % of the viewport. */
+function inView(e: IntersectionObserverEntry): boolean {
+  if (!e.isIntersecting) return false;
+  if (e.intersectionRatio >= IN_VIEW_RATIO) return true;
+  const vh = e.rootBounds ? e.rootBounds.height : window.innerHeight;
+  return e.intersectionRect.height >= vh * IN_VIEW_RATIO;
 }
 
 /**
@@ -107,21 +142,27 @@ export function MotionObserver() {
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          if (e.isIntersecting) {
+          if (inView(e)) {
             e.target.classList.add('is-in');
             io.unobserve(e.target);
           }
         }
       },
-      { rootMargin: '0px 0px -8% 0px', threshold: 0 }
+      { threshold: [0, 0.01, 0.02, 0.05, 0.1, IN_VIEW_RATIO] }
     );
 
-    const SEL = '[data-reveal]:not(.is-in), [data-reveal-stagger]:not(.is-in)';
+    const SEL =
+      '[data-reveal]:not(.is-in):not([data-reveal="off"]), [data-reveal-stagger]:not(.is-in)';
     const scan = (scope: Element) => {
       tag(scope);
       const vh = window.innerHeight;
       scope.querySelectorAll(SEL).forEach((el) => {
-        if (el.hasAttribute('data-reveal-stagger')) setStagger(el);
+        if (
+          el.hasAttribute('data-reveal-stagger') ||
+          el.getAttribute('data-reveal') === 'group'
+        ) {
+          setStagger(el);
+        }
         const r = el.getBoundingClientRect();
         const visible = r.top < vh && r.bottom > 0;
         // Before `html.js` exists nothing is hidden: whatever is on

@@ -189,34 +189,43 @@
   top: 63px;
 }
 
-/* ---- motion (stream M1): step progress line ----
+/* ---- motion (stream M1): step progress line (Figma 4C) ----
  * StepProgress sets [data-progress] on the timeline, --mk-step-p (0…1) and
- * .is-reached on each step. A navy line draws over the tint connector;
- * reached nodes turn navy. Off with the switch, no JS or reduced motion. */
+ * .is-reached on each step. A navy line grows over the tint connector,
+ * linear with scroll, both directions; a node turns navy (150ms standard)
+ * when the line reaches it. Reduced motion (switch on): the final frame —
+ * full navy line, all nodes navy. Off with the switch or without JS. */
+html.js .mk[data-motion='on'] .mk-hiw-timeline[data-progress] .mk-hiw-step::after,
+.mk[data-motion='on'] .mk-hiw-step::after {
+  content: '';
+  position: absolute;
+  left: 19px;
+  top: 40px;
+  bottom: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--mk-navy);
+  transform-origin: top;
+  transform: scaleY(0);
+}
+.mk[data-motion='on'] .mk-hiw-step:last-child::after {
+  display: none;
+}
+.mk[data-motion='on'] .mk-hiw-node {
+  transition:
+    background-color var(--mk-motion-instant) var(--mk-motion-ease-standard),
+    color var(--mk-motion-instant) var(--mk-motion-ease-standard);
+}
 @media (prefers-reduced-motion: no-preference) {
+  html:not(.js) .mk[data-motion='on'] .mk-hiw-step::after,
+  .mk[data-motion='on'] .mk-hiw-timeline:not([data-progress]) .mk-hiw-step::after {
+    display: none;
+  }
   html.js
     .mk[data-motion='on']
     .mk-hiw-timeline[data-progress]
     .mk-hiw-step::after {
-    content: '';
-    position: absolute;
-    left: 19px;
-    top: 40px;
-    bottom: 0;
-    width: 2px;
-    border-radius: 1px;
-    background: var(--mk-navy);
-    transform-origin: top;
     transform: scaleY(var(--mk-step-p, 0));
-  }
-  html.js
-    .mk[data-motion='on']
-    .mk-hiw-timeline[data-progress]
-    .mk-hiw-step:last-child::after {
-    display: none;
-  }
-  html.js .mk[data-motion='on'] .mk-hiw-timeline[data-progress] .mk-hiw-node {
-    transition: background-color 300ms ease-out;
   }
   html.js
     .mk[data-motion='on']
@@ -224,14 +233,20 @@
     .mk-hiw-step.is-reached
     .mk-hiw-node {
     background: var(--mk-navy);
+    color: #fff;
   }
-  @media (min-width: 1024px) {
-    html.js
-      .mk[data-motion='on']
-      .mk-hiw-timeline[data-progress]
-      .mk-hiw-step::after {
-      left: 23px;
-      top: 48px;
-    }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk[data-motion='on'] .mk-hiw-step::after {
+    transform: none;
+  }
+  .mk[data-motion='on'] .mk-hiw-node {
+    background: var(--mk-navy);
+  }
+}
+@media (min-width: 1024px) {
+  .mk[data-motion='on'] .mk-hiw-step::after {
+    left: 23px;
+    top: 48px;
   }
 }

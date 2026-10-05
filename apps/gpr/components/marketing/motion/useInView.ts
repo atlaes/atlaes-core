@@ -5,7 +5,8 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 export interface UseInViewOptions {
   /** IntersectionObserver rootMargin; default reveals slightly before the fold. */
   rootMargin?: string;
-  threshold?: number | number[];
+  /** Share of the element that must be visible (0…1). */
+  threshold?: number;
   /** Stop observing after the first entry (default true). */
   once?: boolean;
 }
@@ -34,10 +35,10 @@ export function useInView<T extends Element = HTMLElement>(
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          if (e.isIntersecting) {
+          if (e.isIntersecting && e.intersectionRatio >= threshold) {
             setInView(true);
             if (once) io.disconnect();
-          } else if (!once) {
+          } else if (!once && !e.isIntersecting) {
             setInView(false);
           }
         }

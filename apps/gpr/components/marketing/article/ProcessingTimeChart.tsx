@@ -107,7 +107,12 @@ export function ProcessingTimeChart() {
       </figcaption>
       <RevealBars className="mk-ptc-rows">
         {rows.map((r, i) => (
-          <li key={r.id} className="mk-ptc-row" title={r.sentence}>
+          <li
+            key={r.id}
+            className="mk-ptc-row"
+            title={r.sentence}
+            style={{ '--i': i } as CSSProperties}
+          >
             <span className="mk-ptc-label">
               {r.label}
               <small>{r.sub}</small>
@@ -116,10 +121,10 @@ export function ProcessingTimeChart() {
               <span
                 className="mk-ptc-fill"
                 data-bar=""
-                style={{ width: r.pct + '%', '--i': i } as CSSProperties}
+                style={{ width: r.pct + '%' }}
               />
             </span>
-            <span className="mk-ptc-value">
+            <span className="mk-ptc-value" data-bar-value="">
               {r.value}
               {r.detail ? <small>{r.detail}</small> : null}
             </span>

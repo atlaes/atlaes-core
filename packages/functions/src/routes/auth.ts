@@ -467,6 +467,26 @@ auth.post(
         }
       }
 
+      // Law-firm members get no session from the link alone: they finish
+      // with a TOTP code at /api/auth/2fa (portal brief: 2FA required).
+      if (user.role === 'law_firm') {
+        const { createChallengeToken, TotpService } = await import(
+          '../services/totp/service'
+        );
+        return c.json({
+          message: 'Two-factor sign-in required',
+          twoFactorRequired: true,
+          enrolmentRequired: !(await TotpService.isEnrolled(user.id)),
+          user: { id: user.id, email: user.email },
+          ...createChallengeToken({
+            userId: user.id,
+            email: user.email,
+            emailVerified: !!user.emailVerified,
+            role: user.role,
+          }),
+        });
+      }
+
       // Generate authentication tokens
       const authTokens = AuthService.generateTokens({
         userId: user.id,

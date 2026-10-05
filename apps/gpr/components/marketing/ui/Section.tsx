@@ -43,8 +43,9 @@ export interface SectionProps {
   as?: 'h2' | 'h3';
   className?: string;
   /**
-   * Fade the body up when it scrolls into view (motion on only; content
-   * is in the HTML either way). Pass `false` for above-the-fold sections.
+   * Reveal the body when it scrolls into view (motion on only; content
+   * is in the HTML either way): H2 and blocks fade up 24px in turn after
+   * the rail (Figma 4D). Pass `false` for above-the-fold sections.
    */
   reveal?: boolean;
 }
@@ -81,7 +82,7 @@ export function Section({
     >
       <div className="mk-section-inner">
         <Rail index={index} label={label} />
-        <div className="mk-body" data-reveal={reveal ? '' : 'off'}>
+        <div className="mk-body" data-reveal={reveal ? 'group' : 'off'}>
           {title ? <Heading className="mk-h2">{title}</Heading> : null}
           {children}
         </div>

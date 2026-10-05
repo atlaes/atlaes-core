@@ -134,13 +134,13 @@ describe('payout notifications', () => {
       portalUrl: 'https://app.example/decision',
     });
     expect(m.subject).toBe(
-      'Your refund decision is in – please review it by 14 October 2026'
+      'Your refund decision is in – please review it by 14 Oct 2026'
     );
     expect(m.text).toContain('€29,601.90');
     expect(m.text).toContain(
       'Review my decision: https://app.example/decision'
     );
-    expect(m.text).toContain('[case manager signature]');
+    expect(m.text).not.toContain('[');
     const a1 = payoutNotification('A1', {
       firstName: 'Anita',
       amountEur: 3038.49,

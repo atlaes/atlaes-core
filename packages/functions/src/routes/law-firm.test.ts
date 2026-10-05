@@ -53,6 +53,8 @@ async function makeUser(role: string, tag: string) {
     email: user.email,
     emailVerified: true,
     role,
+    // Portal routes need a fresh second factor (requirePortalSecurity).
+    mfa: Math.floor(Date.now() / 1000),
   }).accessToken;
   return { user, token };
 }
@@ -236,6 +238,29 @@ describe('Law firm portal routes', () => {
       const body = await res.json();
       expect(body.firm.id).toBe(firmA.id);
       expect(body.membership.userId).toBe(memberA.user.id);
+    });
+
+    it('refuses a member session without a fresh second factor', async () => {
+      const plain = AuthService.generateTokens({
+        userId: memberA.user.id,
+        email: memberA.user.email,
+        emailVerified: true,
+        role: 'law_firm',
+      }).accessToken;
+      const res = await request('GET', '/api/law-firm/me', plain);
+      expect(res.status).toBe(403);
+      expect((await res.json()).code).toBe('two_factor_required');
+
+      const stale = AuthService.generateTokens({
+        userId: memberA.user.id,
+        email: memberA.user.email,
+        emailVerified: true,
+        role: 'law_firm',
+        mfa: Math.floor(Date.now() / 1000) - 13 * 3600,
+      }).accessToken;
+      expect((await request('GET', '/api/law-firm/me', stale)).status).toBe(
+        403
+      );
     });
   });
 

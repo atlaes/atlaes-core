@@ -294,23 +294,25 @@
   width: 32%;
 }
 
-/* ---- motion (stream M1): jump bar outside the hero, sticky on scroll ----
+/* ---- motion (stream M1): jump bar outside the hero, sticky (Figma 4A) ----
  * Same static spacing as the in-hero row (row → 36/64 → pills → 48/64 →
- * hairline): margins sit outside the 12px-padded bar so the pinned bar
- * stays compact. Sticky only with motion on and ≥768px (phone rows wrap). */
+ * hairline): margins sit outside the 15px-padded bar, so pinning never
+ * moves the page. Pinned (data-stuck): white bar + 0/4/12 navy 10 %
+ * shadow, 150ms standard. Phones: one sideways-scrolling row
+ * (ScrollSpy keeps the active pill in view). */
 .mk-chero-jumpbar {
   position: relative;
   z-index: 15;
   background: #fff;
-  margin-top: 24px;
-  margin-bottom: 36px;
+  margin-top: 21px;
+  margin-bottom: 33px;
 }
 .mk-chero-jumpbar-inner,
 .mk-chero-jumpfoot {
   width: 100%;
   max-width: var(--mk-container-w);
   margin: 0 auto;
-  padding: 12px var(--mk-gutter);
+  padding: 15px var(--mk-gutter);
 }
 .mk-chero-jumpfoot {
   padding-top: 0;
@@ -318,22 +320,42 @@
 }
 @media (min-width: 1024px) {
   .mk-chero-jumpbar {
-    margin-top: 52px;
-    margin-bottom: 52px;
+    margin-top: 49px;
+    margin-bottom: 49px;
   }
 }
-@media (min-width: 768px) {
-  .mk[data-motion='on'] .mk-chero-jumpbar {
-    position: sticky;
-    top: var(--mk-header-h);
-    transition: box-shadow 200ms ease-out;
+.mk[data-motion='on'] .mk-chero-jumpbar {
+  position: sticky;
+  top: var(--mk-header-h);
+  background-color: transparent;
+  transition:
+    background-color var(--mk-motion-instant) var(--mk-motion-ease-standard),
+    box-shadow var(--mk-motion-instant) var(--mk-motion-ease-standard);
+}
+.mk[data-motion='on'] .mk-chero-jumpbar[data-stuck] {
+  background-color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 38, 145, 0.1);
+}
+.mk[data-motion='on'] .mk-country [id] {
+  /* header + pinned bar (~64px) + 24px (Figma 4A) */
+  scroll-margin-top: calc(var(--mk-header-h) + 88px);
+}
+@media (max-width: 767px) {
+  .mk[data-motion='on'] .mk-chero-jumpbar .mk-jump {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    margin: 0 calc(-1 * var(--mk-gutter));
+    padding: 0 var(--mk-gutter);
+    scroll-padding-inline: var(--mk-gutter);
   }
-  .mk[data-motion='on'] .mk-chero-jumpbar[data-stuck] {
-    box-shadow:
-      0 1px 0 var(--mk-surface),
-      0 8px 20px rgba(24, 24, 24, 0.06);
+  .mk[data-motion='on'] .mk-chero-jumpbar .mk-jump::-webkit-scrollbar {
+    display: none;
   }
-  .mk[data-motion='on'] .mk-country [id] {
-    scroll-margin-top: calc(var(--mk-header-h) + 80px);
+  .mk[data-motion='on'] .mk-chero-jumpbar .mk-jump > *,
+  .mk[data-motion='on'] .mk-chero-jumpbar .mk-jump li {
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 }
