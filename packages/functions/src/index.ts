@@ -10,6 +10,7 @@ import { env, assertMigrationTokenConfigured } from './utils/env';
 // Import routes
 import health from './routes/health';
 import auth from './routes/auth';
+import authTwoFactor from './routes/auth-2fa';
 import users from './routes/users';
 import vbl from './routes/vbl';
 import vblPendingCalculatorSessions from './routes/vbl-pending-calculator-sessions';
@@ -41,6 +42,7 @@ app.use('*', errorHandler);
 
 // Routes
 app.route('/api/health', health);
+app.route('/api/auth/2fa', authTwoFactor);
 app.route('/api/auth', auth);
 app.route('/api/users', users);
 app.route('/api/vbl/pending-calculator-sessions', vblPendingCalculatorSessions);

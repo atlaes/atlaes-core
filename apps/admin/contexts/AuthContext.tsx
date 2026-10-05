@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import apiClient from '../lib/api';
+import { saveChallenge } from '../lib/two-factor-api';
 
 // Roles this app serves. Admins land on /claims, law-firm users on /portal.
 export type AppRole = 'admin' | 'law_firm';
@@ -33,7 +34,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   error: string | null;
   requestMagicLink: (email: string) => Promise<{ magicLink?: string }>;
-  verifyMagicLink: (token: string) => Promise<void>;
+  // twoFactorRequired: law-firm sign-in continues at /auth/portal-sign-in.
+  verifyMagicLink: (token: string) => Promise<{ twoFactorRequired?: boolean }>;
   logout: () => void;
 }
 
@@ -48,7 +50,7 @@ export const useAuth = () => {
       isAuthenticated: false,
       error: null,
       requestMagicLink: async () => ({ magicLink: undefined }),
-      verifyMagicLink: async () => {},
+      verifyMagicLink: async () => ({}),
       logout: () => {},
     } as AuthContextType;
   }
@@ -140,16 +142,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         token,
       });
 
+      // Law-firm accounts: no session yet, the 2FA step issues it.
+      if (response.data.twoFactorRequired) {
+        saveChallenge({
+          challengeToken: response.data.challengeToken,
+          challengeExpiresAt: response.data.challengeExpiresAt,
+          email: response.data.user?.email ?? '',
+          enrolmentRequired: !!response.data.enrolmentRequired,
+        });
+        return { twoFactorRequired: true };
+      }
+
       const { user: userData, tokens } = response.data;
       const payload = decodeJwtPayload(tokens.accessToken);
       if (!payload || !isAppRole(payload.role)) {
         setError(ACCESS_DENIED);
-        return;
+        return {};
       }
 
       localStorage.setItem('accessToken', tokens.accessToken);
       localStorage.setItem('refreshToken', tokens.refreshToken);
       setUser({ ...userData, role: payload.role });
+      return {};
     } catch (error: any) {
       throw new Error(
         error.response?.data?.error || 'Magic link verification failed'

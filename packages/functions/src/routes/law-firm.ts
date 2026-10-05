@@ -12,6 +12,12 @@ import {
 } from '../drizzle/schema/claims';
 import { LawFirmService, type FirmContext } from '../services/law-firm';
 import { AKTENZEICHEN_PATTERN } from '../services/law-firm-rules';
+import {
+  portalClientIp,
+  requirePortalSecurity,
+} from '../services/totp/portal-guard';
+import { db } from '../utils/db';
+import { auditLogs } from '../drizzle/schema/shared';
 
 declare module 'hono' {
   interface ContextVariableMap {
@@ -40,7 +46,14 @@ const firmScope = async (c: Context, next: Next) => {
 
 const lawFirm = new Hono();
 
-lawFirm.use('*', authMiddleware, requireRole('law_firm', 'admin'), firmScope);
+// requirePortalSecurity: TOTP-backed session + optional firm IP allowlist.
+lawFirm.use(
+  '*',
+  authMiddleware,
+  requireRole('law_firm', 'admin'),
+  firmScope,
+  requirePortalSecurity
+);
 
 function fail(c: Context, error: unknown, fallback: string) {
   const message = error instanceof Error ? error.message : fallback;
@@ -88,10 +101,8 @@ async function parseJson<T extends z.ZodTypeAny>(
 }
 
 const claimId = (c: Context) => c.req.param('id') as string;
-const clientIp = (c: Context) =>
-  c.req.header('x-forwarded-for')?.split(',')[0].trim() ||
-  c.req.header('x-real-ip') ||
-  null;
+// Proxy-appended X-Forwarded-For entry (the first one is client-supplied).
+const clientIp = (c: Context) => portalClientIp(c);
 
 // Firm + membership for the signed-in user
 lawFirm.get('/me', (c) => {
@@ -298,6 +309,21 @@ lawFirm.get(
       if (!result) {
         return c.json({ success: false, error: 'Not found' }, 404);
       }
+      // Every portal download is logged with user, time and IP (brief).
+      const ip = clientIp(c);
+      await db.insert(auditLogs).values({
+        userId: c.get('user').id,
+        action: 'law_firm_correspondence_downloaded',
+        resource: 'claim',
+        resourceId: claimId(c),
+        details: {
+          firmId: firm.id,
+          correspondenceId: c.req.param('corrId'),
+          fileName: result.fileName,
+          ip,
+        },
+        ipAddress: ip?.slice(0, 45) ?? null,
+      });
       return c.json({ success: true, ...result });
     } catch (error) {
       return fail(c, error, 'Failed to get download');
