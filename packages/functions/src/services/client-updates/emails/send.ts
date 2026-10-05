@@ -8,6 +8,7 @@
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { logger, toErrorMeta } from '../../../utils/logger';
 import { env } from '../../../utils/env';
+import { isE2eTestAddress } from '../../../utils/e2e';
 
 const sesClient = new SESClient({ region: env.SES_REGION });
 const isSesAvailable = !!process.env.SST_RESOURCE_AtlaesEmail;
@@ -96,6 +97,16 @@ export interface ClientUpdateMail {
 export async function sendClientUpdateEmail(
   mail: ClientUpdateMail
 ): Promise<boolean> {
+  // Bounce protection: @e2e.test (staging e2e suite) is never handed to SES.
+  if (isE2eTestAddress(mail.to)) {
+    logger.info(
+      `[Email] Not sending client update to e2e test address: ${mail.to}`,
+      {
+        subject: mail.subject,
+      }
+    );
+    return true;
+  }
   const text = mail.paragraphs.join('\n\n');
   const html = renderClientUpdateHtml(mail);
   if (!isSesAvailable) {

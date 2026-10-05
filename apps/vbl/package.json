@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test:routing": "node --test tests/public-route-collisions.test.mjs",
+    "test:e2e:staging": "playwright test -c playwright.staging.config.ts",
+    "e2e:specimens": "node e2e-staging/fixtures/make-specimens.mjs",
     "clean": "rm -rf .next"
   },
   "dependencies": {

@@ -1,6 +1,7 @@
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { Resource } from 'sst';
 import { env } from '../../../utils/env';
+import { isE2eTestAddress } from '../../../utils/e2e';
 import { logger, toErrorMeta } from '../../../utils/logger';
 import { leadsConfig } from '../config';
 
@@ -37,6 +38,16 @@ export async function sendLeadMail(
   mail: LeadMail,
   logLabel: string
 ): Promise<boolean> {
+  // Bounce protection: @e2e.test (staging e2e suite) is never handed to SES.
+  if (isE2eTestAddress(mail.to)) {
+    logger.info(
+      `[Email] Not sending ${logLabel} to e2e test address: ${mail.to}`,
+      {
+        subject: mail.subject,
+      }
+    );
+    return true;
+  }
   if (!isSesAvailable()) {
     logger.info(`[Email] Would send ${logLabel} to: ${mail.to}`, {
       subject: mail.subject,

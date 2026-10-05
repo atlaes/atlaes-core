@@ -61,6 +61,9 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
         ? ''
         : 'sk_test_51SRpwnD86goZexmM9XSBC97ERit2aUg4XOg0TGNvag9Zhzugx7NyChKTU0AubwFyrvIHtveGkd6AnjyytKpVlQWB00s9zr78UR',
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET ?? '',
+    // Encrypts law-firm 2FA secrets (AES-256-GCM, 64 hex chars). GitHub
+    // environment secret; unset = fallback key derived from JWT_SECRET.
+    TOTP_ENCRYPTION_KEY: process.env.TOTP_ENCRYPTION_KEY ?? '',
     ADMIN_MIGRATION_TOKEN: adminMigrationToken.value,
     MISTRAL_API_KEY: mistralApiKey.value,
     MISTRAL_OCR_MODEL: process.env.MISTRAL_OCR_MODEL ?? 'mistral-ocr-latest',
@@ -78,6 +81,14 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
     LEADS_V0900_GUIDE_URL: process.env.LEADS_V0900_GUIDE_URL ?? '',
     LEADS_WEGZUG_GUIDE_URL: process.env.LEADS_WEGZUG_GUIDE_URL ?? '',
     LEADS_NOTIFY_EMAIL: process.env.LEADS_NOTIFY_EMAIL ?? '',
+    // Staging-only e2e test login (packages/functions/src/utils/e2e.ts):
+    // the Playwright suite sends E2E_LOGIN_SECRET as X-E2E-Secret to get
+    // magic links for @e2e.test addresses and to clean up after itself.
+    // Empty = off; the backend also refuses it whenever APP_STAGE is
+    // 'production', so production never carries a secret.
+    APP_STAGE: $app.stage,
+    E2E_LOGIN_SECRET:
+      $app.stage === 'production' ? '' : (process.env.E2E_LOGIN_SECRET ?? ''),
   },
   loadBalancer: {
     domain:

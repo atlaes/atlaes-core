@@ -16,6 +16,7 @@ import { UserService } from '../services/user';
 import { authMiddleware } from '../middleware/auth';
 import { GPRApplicationService } from '../services/gpr-application';
 import { sendMagicLinkEmail } from '../services/email';
+import { isE2eRequest } from '../utils/e2e';
 import { db } from '../utils/db';
 import { users } from '../drizzle/schema/shared';
 import { eq } from 'drizzle-orm';
@@ -368,8 +369,14 @@ auth.post(
         ? `${baseMagicLinkUrl}&redirect=${encodeURIComponent(redirectUrl)}`
         : baseMagicLinkUrl;
 
+      // Staging e2e login (utils/e2e.ts): a secret-bearing request for an
+      // @e2e.test address gets the link in the response instead of by mail.
+      const isE2e = isE2eRequest(c, email);
+
       // Send magic link email (skips in local dev, sends via SES in prod)
-      await sendMagicLinkEmail(email, magicLinkUrl);
+      if (!isE2e) {
+        await sendMagicLinkEmail(email, magicLinkUrl);
+      }
       logger.info(`Magic link for ${email}: ${magicLinkUrl}`);
 
       // Only include the magic link in the response outside production:
@@ -377,7 +384,7 @@ auth.post(
       const response: Record<string, string> = {
         message: 'Magic link sent to your email address.',
       };
-      if (env.NODE_ENV === 'development' || env.NODE_ENV === 'test') {
+      if (env.NODE_ENV === 'development' || env.NODE_ENV === 'test' || isE2e) {
         response.magicLink = magicLinkUrl;
       }
 

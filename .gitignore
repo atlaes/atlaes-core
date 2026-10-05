@@ -116,3 +116,7 @@ Thumbs.db
 *.db
 *.sqlite
 .figma-token
+
+# Playwright staging suite output (apps/vbl/playwright.staging.config.ts)
+test-results-staging/
+playwright-report-staging/

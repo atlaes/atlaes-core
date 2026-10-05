@@ -1,0 +1,138 @@
+{
+  "passports": {
+    "uto": {
+      "code": "uto",
+      "issuingState": "UTO",
+      "nationality": "UTO",
+      "countryName": "UTOPIA",
+      "nationalityName": "UTOPIAN",
+      "surname": "SPECIMEN",
+      "givenNames": "ERIKA",
+      "sex": "F",
+      "dateOfBirth": "1990-08-12",
+      "placeOfBirth": "UTOPIA CITY",
+      "dateOfIssue": "2021-03-01",
+      "dateOfExpiry": "2031-02-28",
+      "passportNumber": "L01X00T47",
+      "mrz": [
+        "P<UTOSPECIMEN<<ERIKA<<<<<<<<<<<<<<<<<<<<<<<<",
+        "L01X00T471UTO9008124F3102282<<<<<<<<<<<<<<<8"
+      ],
+      "ocrText": "# PASSPORT / PASSEPORT — UTOPIA\nSPECIMEN — NOT A VALID TRAVEL DOCUMENT — FOR SOFTWARE TESTING ONLY\nType: P\nIssuing state: UTO\nPassport No.: L01X00T47\nNationality: UTOPIAN\nSurname: SPECIMEN\nGiven names: ERIKA\nDate of birth: 12 AUG 1990\nSex: F\nPlace of birth: UTOPIA CITY\nDate of issue: 01 MAR 2021\nDate of expiry: 28 FEB 2031\nSPECIMEN\nP<UTOSPECIMEN<<ERIKA<<<<<<<<<<<<<<<<<<<<<<<<\nL01X00T471UTO9008124F3102282<<<<<<<<<<<<<<<8",
+      "files": {
+        "png": {
+          "name": "passport-uto.png",
+          "sha256": "796de30f4dcc7e409a4d747f8380d9e17669cf23f00299d027ad9476efb0265c"
+        },
+        "pdf": {
+          "name": "passport-uto.pdf",
+          "sha256": "7016ccf097cca0621217f26a52497228d634552f7e74c699b2e1dd812736f063"
+        }
+      }
+    },
+    "ind": {
+      "code": "ind",
+      "issuingState": "IND",
+      "nationality": "IND",
+      "countryName": "REPUBLIC OF INDIA (SPECIMEN)",
+      "nationalityName": "INDIAN",
+      "surname": "SPECIMEN",
+      "givenNames": "ASHA",
+      "sex": "F",
+      "dateOfBirth": "1988-02-29",
+      "placeOfBirth": "SAMPLE TOWN",
+      "dateOfIssue": "2020-06-15",
+      "dateOfExpiry": "2030-06-14",
+      "passportNumber": "Z0000001",
+      "mrz": [
+        "P<INDSPECIMEN<<ASHA<<<<<<<<<<<<<<<<<<<<<<<<<",
+        "Z0000001<8IND8802299F3006140<<<<<<<<<<<<<<<2"
+      ],
+      "ocrText": "# PASSPORT / PASSEPORT — REPUBLIC OF INDIA (SPECIMEN)\nSPECIMEN — NOT A VALID TRAVEL DOCUMENT — FOR SOFTWARE TESTING ONLY\nType: P\nIssuing state: IND\nPassport No.: Z0000001\nNationality: INDIAN\nSurname: SPECIMEN\nGiven names: ASHA\nDate of birth: 29 FEB 1988\nSex: F\nPlace of birth: SAMPLE TOWN\nDate of issue: 15 JUN 2020\nDate of expiry: 14 JUN 2030\nSPECIMEN\nP<INDSPECIMEN<<ASHA<<<<<<<<<<<<<<<<<<<<<<<<<\nZ0000001<8IND8802299F3006140<<<<<<<<<<<<<<<2",
+      "files": {
+        "png": {
+          "name": "passport-ind.png",
+          "sha256": "761316690f512052dc73968d89d2719a4b2128018f01dd34a0d0cbcb7bddfd60"
+        },
+        "pdf": {
+          "name": "passport-ind.pdf",
+          "sha256": "830df3100f74d17b0e83902b057c5cf799111e83925262c3eda2b5a6761ad589"
+        }
+      }
+    },
+    "phl": {
+      "code": "phl",
+      "issuingState": "PHL",
+      "nationality": "PHL",
+      "countryName": "REPUBLIC OF THE PHILIPPINES (SPECIMEN)",
+      "nationalityName": "FILIPINO",
+      "surname": "SPECIMEN",
+      "givenNames": "JUAN",
+      "sex": "M",
+      "dateOfBirth": "1985-11-03",
+      "placeOfBirth": "SAMPLE CITY",
+      "dateOfIssue": "2022-01-10",
+      "dateOfExpiry": "2032-01-09",
+      "passportNumber": "P0000000A",
+      "mrz": [
+        "P<PHLSPECIMEN<<JUAN<<<<<<<<<<<<<<<<<<<<<<<<<",
+        "P0000000A5PHL8511032M3201093<<<<<<<<<<<<<<<4"
+      ],
+      "ocrText": "# PASSPORT / PASSEPORT — REPUBLIC OF THE PHILIPPINES (SPECIMEN)\nSPECIMEN — NOT A VALID TRAVEL DOCUMENT — FOR SOFTWARE TESTING ONLY\nType: P\nIssuing state: PHL\nPassport No.: P0000000A\nNationality: FILIPINO\nSurname: SPECIMEN\nGiven names: JUAN\nDate of birth: 03 NOV 1985\nSex: M\nPlace of birth: SAMPLE CITY\nDate of issue: 10 JAN 2022\nDate of expiry: 09 JAN 2032\nSPECIMEN\nP<PHLSPECIMEN<<JUAN<<<<<<<<<<<<<<<<<<<<<<<<<\nP0000000A5PHL8511032M3201093<<<<<<<<<<<<<<<4",
+      "files": {
+        "png": {
+          "name": "passport-phl.png",
+          "sha256": "d10f4a810bbddc173de1ce60a81a57b8d26649c19ec87e29d688d9b3d9477590"
+        },
+        "pdf": {
+          "name": "passport-phl.pdf",
+          "sha256": "2fdc4878d9d150bb8c6c64581c5bd846b5c325216b761e15957236321709f7b3"
+        }
+      }
+    }
+  },
+  "statements": {
+    "VBL": {
+      "file": "vbl-statement.pdf",
+      "provider": "VBL",
+      "institution": "Versorgungsanstalt des Bundes und der Länder (VBL) — SPECIMEN",
+      "plan": "VBLklassik",
+      "federalState": "Bavaria",
+      "federalStateDe": "Bayern",
+      "start": {
+        "month": "January",
+        "year": "2020",
+        "de": "01.01.2020"
+      },
+      "end": {
+        "month": "December",
+        "year": "2021",
+        "de": "31.12.2021"
+      },
+      "salary": "3500",
+      "ocrText": "Versorgungsanstalt des Bundes und der Länder (VBL) — SPECIMEN\nVersicherungsnachweis / Statement of insurance — SPECIMEN\nVersicherte Person: SPECIMEN, ERIKA (fictional)\nVersicherungsnummer: 0000000000 (SPECIMEN)\nTarif: VBLklassik\nArbeitgeber (Sitz): Musterbetrieb, Bayern\nPflichtversicherung vom 01.01.2020 bis 31.12.2021\nEnde des Arbeitsverhältnisses: 31.12.2021\nDurchschnittliches zusatzversorgungspflichtiges Entgelt: 3500 EUR monatlich\nSPECIMEN — FOR SOFTWARE TESTING ONLY",
+      "sha256": "65f7e3de1dba1645756b4b7a4bbe2997d1bd08d26b5ace4c3c2136032507d632"
+    },
+    "VddB": {
+      "file": "vddb-statement.pdf",
+      "provider": "VddB",
+      "institution": "Versorgungsanstalt der deutschen Bühnen (VddB) — SPECIMEN",
+      "plan": null,
+      "federalState": "Bavaria",
+      "federalStateDe": "Bayern",
+      "start": {
+        "month": "January",
+        "year": "2019",
+        "de": "01.01.2019"
+      },
+      "end": {
+        "month": "December",
+        "year": "2020",
+        "de": "31.12.2020"
+      },
+      "salary": "4200",
+      "ocrText": "Versorgungsanstalt der deutschen Bühnen (VddB) — SPECIMEN\nVersicherungsnachweis / Statement of insurance — SPECIMEN\nVersicherte Person: SPECIMEN, ERIKA (fictional)\nVersicherungsnummer: 0000000000 (SPECIMEN)\nArbeitgeber (Sitz): Musterbetrieb, Bayern\nPflichtversicherung vom 01.01.2019 bis 31.12.2020\nEnde des Arbeitsverhältnisses: 31.12.2020\nDurchschnittliches zusatzversorgungspflichtiges Entgelt: 4200 EUR monatlich\nSPECIMEN — FOR SOFTWARE TESTING ONLY",
+      "sha256": "a51e9b3d8a6c4a0730bbca32b6bbf3d7ee1226a8ba6ed9c7869cec5853a0e9ac"
+    }
+  }
+}
