@@ -1,6 +1,7 @@
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { logger, toErrorMeta } from '../utils/logger';
 import { env } from '../utils/env';
+import { isE2eTestAddress } from '../utils/e2e';
 
 const REGION = env.SES_REGION;
 const FROM_EMAIL = env.SES_FROM_EMAIL;
@@ -17,12 +18,24 @@ if (!isSesAvailable) {
 }
 
 /**
+ * Bounce protection: never hand an @e2e.test address (staging e2e suite,
+ * reserved TLD) to SES, with or without the e2e secret. Logged instead;
+ * reported as sent so callers behave as they would for a real address.
+ */
+function isSuppressedE2eRecipient(to: string, label: string): boolean {
+  if (!isE2eTestAddress(to)) return false;
+  logger.info(`[Email] Not sending ${label} email to e2e test address: ${to}`);
+  return true;
+}
+
+/**
  * Send a magic link email. In local dev (no SES resource), logs instead of sending.
  */
 export async function sendMagicLinkEmail(
   to: string,
   magicLinkUrl: string
 ): Promise<boolean> {
+  if (isSuppressedE2eRecipient(to, 'magic link')) return true;
   const html = generateMagicLinkEmailHtml(magicLinkUrl);
   const plainText = generateMagicLinkEmailText(magicLinkUrl);
 
@@ -63,6 +76,7 @@ export async function sendMagicLinkEmail(
  * instead of sending.
  */
 export async function sendClaimStoppedEmail(to: string): Promise<boolean> {
+  if (isSuppressedE2eRecipient(to, 'claim-stopped')) return true;
   const html = generateClaimStoppedEmailHtml();
   const plainText = generateClaimStoppedEmailText();
 
@@ -115,6 +129,7 @@ export async function sendContractWithdrawalEmail(
   to: string,
   details: ContractWithdrawalEmailDetails
 ): Promise<boolean> {
+  if (isSuppressedE2eRecipient(to, 'contract-withdrawal')) return true;
   const html = generateContractWithdrawalEmailHtml(to, details);
   const plainText = generateContractWithdrawalEmailText(to, details);
 
@@ -561,6 +576,7 @@ async function sendBrandedEmail(
   email: BrandedEmail,
   logLabel: string
 ): Promise<boolean> {
+  if (isSuppressedE2eRecipient(to, logLabel)) return true;
   if (!isSesAvailable) {
     logger.info(`[Email] Would send ${logLabel} email to: ${to}`, {
       subject: email.subject,

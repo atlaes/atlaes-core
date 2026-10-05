@@ -42,7 +42,28 @@ function getDatabaseUrl(): string {
   return fallback;
 }
 
-const envSchema = z.object({
+// An empty string (how SST passes an unset `process.env.X ?? ''`) means unset.
+const emptyToUndefined = (value: unknown) => (value === '' ? undefined : value);
+
+/**
+ * Staging-only e2e test login (see utils/e2e.ts). Both optional: with either
+ * missing, or with APP_STAGE = 'production', every e2e path is off.
+ * Exported so the rules can be unit-tested without re-importing this module.
+ */
+export const e2eEnvSchema = z.object({
+  // The SST stage the backend runs in ($app.stage). Unset = e2e off.
+  APP_STAGE: z.preprocess(emptyToUndefined, z.string().optional()),
+  // Shared secret the Playwright suite sends as X-E2E-Secret.
+  E2E_LOGIN_SECRET: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .min(32, 'E2E_LOGIN_SECRET must be at least 32 characters')
+      .optional()
+  ),
+});
+
+const baseEnvSchema = z.object({
   DATABASE_URL: z.preprocess(() => getDatabaseUrl(), z.string()),
   REDIS_URL: z.string().optional().default('redis://localhost:6379'),
   JWT_SECRET: z
@@ -128,6 +149,8 @@ const envSchema = z.object({
   // e-mail (was an inline Drive image). Unset = no photo.
   LEADS_SIGNATURE_PHOTO_URL: z.string().optional(),
 });
+
+const envSchema = baseEnvSchema.merge(e2eEnvSchema);
 
 export const env = envSchema.parse(process.env);
 

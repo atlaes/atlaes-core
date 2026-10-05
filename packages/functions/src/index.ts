@@ -25,6 +25,7 @@ import payments from './routes/payments';
 import leads from './routes/leads';
 import account from './routes/account';
 import clientUpdatesAdmin from './routes/client-updates-admin';
+import e2e from './routes/e2e';
 
 // Fail fast before serving traffic if this backend would expose
 // /api/migrations/run with the publicly-known dev token.
@@ -57,6 +58,8 @@ app.route('/api/payments', payments);
 app.route('/api/leads', leads);
 app.route('/api/account', account);
 app.route('/api/admin/client-updates', clientUpdatesAdmin);
+// Staging e2e support; 404 unless the e2e guard passes (utils/e2e.ts).
+app.route('/api/e2e', e2e);
 
 // Root endpoint
 app.get('/', (c) => {

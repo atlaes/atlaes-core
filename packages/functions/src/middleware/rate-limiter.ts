@@ -1,6 +1,7 @@
 import type { Context, Next } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { logger } from '../utils/logger';
+import { isE2eRequest } from '../utils/e2e';
 
 // Container-compatible rate limiter with Redis support
 export const rateLimiter = (
@@ -13,6 +14,13 @@ export const rateLimiter = (
   const max = options.max || 100; // 100 requests per window
 
   return async (c: Context, next: Next) => {
+    // The staging e2e suite (secret header, non-production stage) runs many
+    // requests from one runner IP; it is exempt.
+    if (isE2eRequest(c)) {
+      await next();
+      return;
+    }
+
     const ip =
       c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
     const userAgent = c.req.header('user-agent') || '';
