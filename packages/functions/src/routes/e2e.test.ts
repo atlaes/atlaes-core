@@ -352,6 +352,66 @@ describe('staging e2e login', () => {
       });
     });
 
+    it('deletes payout rows on a test claim and keeps the firm statement line', async () => {
+      const email = e2eEmail('payout');
+      const userId = randomUUID();
+      await sql`INSERT INTO shared.users (id, email, auth_provider) VALUES (${userId}::uuid, ${email}, 'magic_link')`;
+      const [claim] = await sql`
+        INSERT INTO claims.claims (user_id, status) VALUES (${userId}::uuid, 'submitted') RETURNING id`;
+      const [firm] = await sql`
+        INSERT INTO shared.law_firms (name) VALUES (${`E2E firm ${randomUUID().slice(0, 8)}`}) RETURNING id`;
+      const [imp] = await sql`
+        INSERT INTO claims.statement_imports (law_firm_id, file_name, file_kind, column_map, uploaded_by)
+        VALUES (${firm.id}::uuid, 'statement.csv', 'csv', '{}'::jsonb, ${userId}::uuid) RETURNING id`;
+      const [line] = await sql`
+        INSERT INTO claims.statement_lines (import_id, law_firm_id, line_no, status, dedupe_hash, claim_id)
+        VALUES (${imp.id}::uuid, ${firm.id}::uuid, 1, 'matched', ${randomUUID().replace(/-/g, '')}, ${claim.id}::uuid)
+        RETURNING id`;
+      const [release] = await sql`
+        INSERT INTO claims.payout_releases (claim_id, amount_received_eur, value_date, fee_eur, law_firm_fee_eur, atlaes_share_eur, client_amount_eur)
+        VALUES (${claim.id}::uuid, 5000, '2026-10-01', 487.5, 178.5, 309, 4512.5) RETURNING id`;
+      const [receipt] = await sql`
+        INSERT INTO claims.funds_receipts (claim_id, statement_line_id, amount_received, value_date, fee, law_firm_fee, atlaes_share, client_amount, fee_config, recorded_by)
+        VALUES (${claim.id}::uuid, ${line.id}::uuid, 5000, '2026-10-01', 487.5, 178.5, 309, 4512.5, '{}'::jsonb, ${userId}::uuid)
+        RETURNING id`;
+      await sql`
+        INSERT INTO claims.invoices (claim_id, funds_receipt_id, provider, status, gross_amount, tax_rate_percent, voucher_date)
+        VALUES (${claim.id}::uuid, ${receipt.id}::uuid, 'none', 'pending', 309, 19, '2026-10-01')`;
+      await sql`
+        INSERT INTO claims.payout_lines (claim_id, payout_release_id, funds_receipt_id, kind, recipient, amount, account, transfer_method, reference)
+        VALUES (${claim.id}::uuid, ${release.id}::uuid, ${receipt.id}::uuid, 'client', 'SPECIMEN', 4512.5, 'DE89370400440532013000', 'SEPA', 'E2E')`;
+
+      const res = await post(
+        '/api/e2e/cleanup',
+        { emails: [email] },
+        withSecret
+      );
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ success: true, users: 1, claims: 1 });
+
+      const left = await sql`
+        SELECT
+          (SELECT count(*) FROM claims.claims WHERE id = ${claim.id}::uuid) AS claims,
+          (SELECT count(*) FROM claims.payout_releases WHERE claim_id = ${claim.id}::uuid) AS releases,
+          (SELECT count(*) FROM claims.funds_receipts WHERE claim_id = ${claim.id}::uuid) AS receipts,
+          (SELECT count(*) FROM claims.invoices WHERE claim_id = ${claim.id}::uuid) AS invoices,
+          (SELECT count(*) FROM claims.payout_lines WHERE claim_id = ${claim.id}::uuid) AS lines,
+          (SELECT count(*) FROM claims.statement_lines WHERE id = ${line.id}::uuid AND claim_id IS NULL) AS unmatched_line,
+          (SELECT count(*) FROM claims.statement_imports WHERE id = ${imp.id}::uuid AND uploaded_by IS NULL) AS import_kept`;
+      expect(left[0]).toEqual({
+        claims: '0',
+        releases: '0',
+        receipts: '0',
+        invoices: '0',
+        lines: '0',
+        unmatched_line: '1',
+        import_kept: '1',
+      });
+
+      await sql`DELETE FROM claims.statement_imports WHERE id = ${imp.id}::uuid`;
+      await sql`DELETE FROM shared.law_firms WHERE id = ${firm.id}::uuid`;
+    });
+
     it('sweeps e2e rows older than the cutoff only', async () => {
       const oldEmail = e2eEmail('old');
       const newEmail = e2eEmail('new');

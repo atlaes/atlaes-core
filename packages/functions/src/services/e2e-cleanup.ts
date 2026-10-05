@@ -36,6 +36,19 @@ import {
   workflowStates as vblWorkflowStates,
 } from '../drizzle/schema/vbl';
 import { leads } from '../drizzle/schema/leads';
+import {
+  payoutCustomerInputs,
+  payoutDecisions,
+  payoutReleases,
+} from '../drizzle/schema/payout';
+import {
+  fundsReceipts,
+  invoices,
+  payoutLines,
+  statementImports,
+  statementLines,
+} from '../drizzle/schema/payout-queue';
+import { lawFirmIpAllowlist } from '../drizzle/schema/two-factor';
 
 /**
  * Deletes the data the staging e2e suite creates. Only ever touches rows
@@ -51,7 +64,8 @@ import { leads } from '../drizzle/schema/leads';
  *   1. null "actor" columns that point at a test user from rows that
  *      survive (e.g. a test user recorded as uploader) — defensive, these
  *      only ever reference test users on test claims;
- *   2. claims (cascades claim_documents, claim_workflow_states,
+ *   2. payout lines, invoices and funds receipts, then claims (cascades
+ *      payout decisions/releases/customer inputs, claim_documents, claim_workflow_states,
  *      claim_correspondence, client_* tables, contract_withdrawals);
  *   3. applications + their logs/workflow states (gpr and vbl);
  *   4. documents, signatures, audit rows, law-firm membership, profiles,
@@ -223,6 +237,16 @@ export class E2eCleanupService {
           [clientTaskDocuments, clientTaskDocuments.uploadedBy, 'uploadedBy'],
           [clientUpdateTasks, clientUpdateTasks.sentBy, 'sentBy'],
           [lawFirmMembers, lawFirmMembers.invitedBy, 'invitedBy'],
+          [statementImports, statementImports.uploadedBy, 'uploadedBy'],
+          [statementLines, statementLines.resolvedBy, 'resolvedBy'],
+          [fundsReceipts, fundsReceipts.recordedBy, 'recordedBy'],
+          [payoutLines, payoutLines.paidBy, 'paidBy'],
+          [payoutDecisions, payoutDecisions.correctedBy, 'correctedBy'],
+          [payoutDecisions, payoutDecisions.createdBy, 'createdBy'],
+          [payoutCustomerInputs, payoutCustomerInputs.createdBy, 'createdBy'],
+          [payoutCustomerInputs, payoutCustomerInputs.resolvedBy, 'resolvedBy'],
+          [payoutReleases, payoutReleases.reviewClearedBy, 'reviewClearedBy'],
+          [lawFirmIpAllowlist, lawFirmIpAllowlist.createdBy, 'createdBy'],
         ];
         for (const [table, column, key] of actorColumns) {
           await tx
@@ -238,6 +262,20 @@ export class E2eCleanupService {
         await tx
           .delete(clientUpdateTasks)
           .where(inArray(clientUpdateTasks.claimId, claimIds));
+        // Payout rows reference claims without a cascade (migration 0021):
+        // lines and invoices point at receipts, so they go first. Statement
+        // lines belong to the firm's import and only lose the match.
+        await tx
+          .delete(payoutLines)
+          .where(inArray(payoutLines.claimId, claimIds));
+        await tx.delete(invoices).where(inArray(invoices.claimId, claimIds));
+        await tx
+          .delete(fundsReceipts)
+          .where(inArray(fundsReceipts.claimId, claimIds));
+        await tx
+          .update(statementLines)
+          .set({ claimId: null })
+          .where(inArray(statementLines.claimId, claimIds));
         const withdrawals = await tx
           .delete(contractWithdrawals)
           .where(
