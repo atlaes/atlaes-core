@@ -685,3 +685,33 @@ export async function sendOpsLawFirmActivityEmail(details: {
     'ops law-firm activity'
   );
 }
+
+/**
+ * Ops notice for a submitted claim that needs a person (submission hold:
+ * provider data missing, manual submission, package build failure). Goes
+ * to OPS_NOTIFICATION_EMAIL; when that is unset the notice is only logged.
+ */
+export async function sendOpsClaimAttentionEmail(details: {
+  subject: string;
+  summary: string;
+  detailLines: string[];
+  claimUrl: string;
+}): Promise<boolean> {
+  const to = env.OPS_NOTIFICATION_EMAIL;
+  if (!to) {
+    logger.warn('[Email] OPS_NOTIFICATION_EMAIL unset; claim notice not mailed', {
+      subject: details.subject,
+    });
+    return false;
+  }
+  return sendBrandedEmail(
+    to,
+    {
+      subject: details.subject,
+      heading: details.summary,
+      paragraphs: details.detailLines,
+      cta: { label: 'Open the claim in the admin', url: details.claimUrl },
+    },
+    'ops claim attention'
+  );
+}

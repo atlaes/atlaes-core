@@ -36,6 +36,16 @@ import {
   inputClass,
 } from '@/components/ui';
 import { DocumentViewer, ViewerDoc } from '@/components/DocumentViewer';
+import { BavRecipientEditor, SubmissionHoldBanner } from '@/components/claim-hold';
+
+const STAGE_REASON_LABELS: Record<string, string> = {
+  contract_ended: 'Contract ended / not renewed',
+  health: 'Health reasons / injury',
+  career_change: 'Career change',
+  retirement: 'Retirement',
+  relocation: 'Relocation',
+  other: 'Other',
+};
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   submitted: ['processing'],
@@ -161,6 +171,7 @@ export default function ClaimDetailPage() {
   const [newNote, setNewNote] = useState('');
   const [routeForm, setRouteForm] = useState<{ handlingRoute: ClaimHandlingRoute; payoutTarget: ClaimPayoutTarget; lawFirmRef: string; note: string } | null>(null);
   const [viewer, setViewer] = useState<ViewerDoc | null>(null);
+  const [editingRecipient, setEditingRecipient] = useState(false);
 
   const detailQuery = useQuery({ queryKey: ['admin-claim', id], queryFn: () => getClaimDetail(id), enabled: !!id });
   const isLawFirmClaim = detailQuery.data?.claim.handlingRoute === 'law_firm';
@@ -206,6 +217,15 @@ export default function ClaimDetailPage() {
           body: meta.note ?? null, actor: 'law firm',
         };
       }
+      if (meta.action === 'submission_hold_set') {
+        return { id: entry.id, at: entry.createdAt, kind: 'handling', title: `On hold: ${String(meta.hold).replace(/_/g, ' ')}`, body: meta.reason ?? null, actor: entry.triggeredBy };
+      }
+      if (meta.action === 'submission_hold_cleared') {
+        return { id: entry.id, at: entry.createdAt, kind: 'handling', title: `Hold resolved: ${String(meta.hold).replace(/_/g, ' ')}`, body: meta.note ?? null, actor: entry.triggeredBy };
+      }
+      if (meta.action === 'bav_recipient_update') {
+        return { id: entry.id, at: entry.createdAt, kind: 'handling', title: `Letter recipient set${meta.savedToProviderMatrix ? ' (saved to the provider matrix)' : ''}`, body: meta.recipient ? [meta.recipient.bavRecipientName, meta.recipient.bavRecipientStreet, [meta.recipient.bavRecipientPostalCode, meta.recipient.bavRecipientCity].filter(Boolean).join(' ')].filter(Boolean).join(', ') : null, actor: 'ops' };
+      }
       if (meta.action === 'handling_route_update') {
         return { id: entry.id, at: entry.createdAt, kind: 'handling', title: `Handling changed to ${meta.handlingRoute === 'law_firm' ? 'law firm' : 'direct'}${meta.payoutTarget === 'law_firm' ? ', payout to Anderkonto' : ''}`, body: meta.note ?? null, actor: 'ops' };
       }
@@ -234,6 +254,12 @@ export default function ClaimDetailPage() {
   const nextStatuses = VALID_TRANSITIONS[claim.status] || [];
   const currentRoute: ClaimHandlingRoute = claim.handlingRoute ?? 'direct';
   const isBav = claim.pensionType === 'private';
+  const isStage = claim.pensionProvider === 'VddB' || claim.pensionProvider === 'VddKO';
+  const stage = claim.stageDetails ?? {};
+  const openRecipientEditor = () => {
+    setEditingRecipient(true);
+    setTimeout(() => document.getElementById('bav-recipient-editor')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+  };
   const routeLocked = !!claim.lettershopSubmissionId && currentRoute === 'direct';
   const correspondenceFiles = (exchangeQuery.data?.correspondence ?? []).filter((c) => c.document);
 
@@ -244,7 +270,7 @@ export default function ClaimDetailPage() {
       {/* Header */}
       <div className="mb-6">
         <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
-          Claim · {isBav ? 'bAV cash-out' : claim.pensionType === 'public' ? 'Public refund' : 'Product not set'}
+          Claim · {isBav ? 'bAV cash-out' : claim.pensionType === 'public' ? 'Public refund' : 'Product not set'}{claim.pensionProvider && !isBav ? ` · ${claim.pensionProvider}` : ''}
         </p>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -312,6 +338,7 @@ export default function ClaimDetailPage() {
             {routingMutation.isError && <ErrorText error={routingMutation.error} fallback="Could not save" />}
           </div>
         )}
+        <SubmissionHoldBanner claim={claim} onEditRecipient={openRecipientEditor} onChanged={invalidate} />
         {regenerateMutation.isError && <div className="mt-2"><ErrorText error={regenerateMutation.error} fallback="Could not regenerate" /></div>}
         {regenerateMutation.isSuccess && regenerateMutation.data.missingPlaceholders.length > 0 && (
           <p className="mt-2 text-xs text-amber-700">Package generated with empty placeholders: {regenerateMutation.data.missingPlaceholders.join(', ')}</p>
@@ -357,7 +384,8 @@ export default function ClaimDetailPage() {
           </Section>
 
           {isBav && (
-            <Section title="bAV intake">
+            <Section title="bAV intake" action={!editingRecipient && <Button size="sm" onClick={openRecipientEditor}>Edit recipient</Button>}>
+              {editingRecipient && <BavRecipientEditor claim={claim} onClose={() => setEditingRecipient(false)} onSaved={invalidate} />}
               <dl className="grid gap-x-8 sm:grid-cols-2">
                 <div>
                   <Row label="Route" value={claim.drvRefundReceived === true ? 'A · DRV refund granted (§ 3 Abs. 3)' : claim.drvRefundReceived === false ? 'B · small entitlement (§ 3 Abs. 2)' : null} />
@@ -374,10 +402,30 @@ export default function ClaimDetailPage() {
                   <Row label="Statement" value={claim.bavStatementType ? `${claim.bavStatementType}${claim.bavStatementDate ? `, ${formatDate(claim.bavStatementDate)}` : ''}` : null} />
                   <Row label="Benefit" value={claim.bavBenefitAmount ? `€${claim.bavBenefitAmount} (${claim.bavBenefitForm ?? 'unknown'})` : null} />
                   <Row label="Addressee" value={claim.bavRecipientName ? `${claim.bavAddresseeType === 'employer' ? 'Employer' : 'Provider'}: ${claim.bavRecipientName}${claim.bavRecipientDepartment ? `, ${claim.bavRecipientDepartment}` : ''}` : null} />
-                  <Row label="Address" value={[claim.bavRecipientStreet, [claim.bavRecipientPostalCode, claim.bavRecipientCity].filter(Boolean).join(' ')].filter(Boolean).join(', ') || null} />
+                  <Row label="Address" value={[claim.bavRecipientStreet, [claim.bavRecipientPostalCode, claim.bavRecipientCity].filter(Boolean).join(' '), claim.bavRecipientCountry].filter(Boolean).join(', ') || <span className="text-amber-700">missing</span>} />
                   <Row label="Their reference" value={claim.bavRecipientRef} />
                   <Row label="Tax ID" value={claim.taxId} />
                   <Row label="Health insurance ended" value={formatDate(claim.healthInsuranceEndDate)} />
+                </div>
+              </dl>
+            </Section>
+          )}
+
+          {isStage && (
+            <Section title="Stage employment">
+              <dl className="grid gap-x-8 sm:grid-cols-2">
+                <div>
+                  <Row label="Institution" value={claim.pensionProvider} />
+                  <Row label="Membership no." value={claim.svNummer ?? <span className="text-amber-700">missing</span>} />
+                  <Row label="Stage / orchestra" value={stage.stageName} />
+                  <Row label="Role" value={stage.rolePosition} />
+                  <Row label="Employment ended" value={stage.employmentEndDate ? formatDate(stage.employmentEndDate) : null} />
+                </div>
+                <div>
+                  <Row label="Stopped for good" value={stage.permanentlyStopped} />
+                  <Row label="Reason for leaving" value={stage.reasonForLeaving ? `${STAGE_REASON_LABELS[stage.reasonForLeaving] ?? stage.reasonForLeaving}${stage.reasonForLeavingOther ? `: ${stage.reasonForLeavingOther}` : ''}` : null} />
+                  <Row label="Current occupation" value={stage.currentOccupation} />
+                  <Row label="Unable to work (health)" value={stage.unableToWorkHealth} />
                 </div>
               </dl>
             </Section>
@@ -392,7 +440,8 @@ export default function ClaimDetailPage() {
                 <Row label="Place of birth" value={claim.placeOfBirth} />
                 <Row label="Nationality" value={claim.nationality} />
                 <Row label="Passport" value={claim.passportNumber ? `${claim.passportNumber}${claim.passportExpiryDate ? `, expires ${formatDate(claim.passportExpiryDate)}` : ''}` : null} />
-                <Row label="SV-Nummer" value={claim.svNummer} />
+                <Row label="Institution" value={!isBav ? claim.pensionProvider : null} />
+                <Row label={claim.pensionProvider && !isBav ? 'Membership no.' : 'SV-Nummer'} value={claim.svNummer} />
               </div>
               <div>
                 <Row label="Address" value={[claim.currentAddressLine1, claim.currentAddressLine2, [claim.currentPostalCode, claim.currentCity].filter(Boolean).join(' '), claim.currentCountry].filter(Boolean).join(', ') || null} />
@@ -483,6 +532,7 @@ export default function ClaimDetailPage() {
             <RailRow label="Claim ID" value={<CopyId id={claim.id} />} />
             <RailRow label="Product" value={isBav ? <Pill tone="brand">bAV cash-out</Pill> : claim.pensionType === 'public' ? <Pill>Public refund</Pill> : 'Not set'} />
             <RailRow label="Status" value={<StatusDot tone={CLAIM_STATUS_TONE[claim.status] ?? 'neutral'}>{CLAIM_STATUS_LABEL[claim.status] ?? claim.status}</StatusDot>} />
+            <RailRow label="On hold" value={claim.submissionHold ? <span className="text-amber-700">{claim.submissionHold.replace(/_/g, ' ')}</span> : null} />
             <RailRow label="Workflow step" value={claim.workflowState.replace(/_/g, ' ')} />
             <RailRow label="Created" value={formatDate(claim.createdAt, true)} />
             <RailRow label="Last updated" value={formatDate(claim.updatedAt, true)} />

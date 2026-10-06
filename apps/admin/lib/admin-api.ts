@@ -10,6 +10,18 @@ export type ClaimHandlingRoute = 'direct' | 'law_firm';
 export type ClaimPayoutTarget = 'client' | 'law_firm';
 export type ClaimPensionType = 'public' | 'private';
 
+// Why a submitted claim waits for ops (backend: ClaimSubmissionHold).
+export type ClaimSubmissionHold =
+  | 'awaiting_provider_data'
+  | 'manual_submission_required'
+  | 'package_generation_failed';
+
+export const SUBMISSION_HOLD_LABELS: Record<ClaimSubmissionHold, string> = {
+  awaiting_provider_data: 'Waiting for provider data',
+  manual_submission_required: 'Manual submission required',
+  package_generation_failed: 'Package generation failed',
+};
+
 export interface ClaimListItem {
   id: string;
   userId: string;
@@ -23,6 +35,9 @@ export interface ClaimListItem {
   handlingRoute: ClaimHandlingRoute;
   lawFirmRef: string | null;
   lawFirmCaseState: string | null;
+  pensionProvider: string | null;
+  submissionHold: ClaimSubmissionHold | null;
+  submissionHoldReason: string | null;
   submittedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -51,6 +66,8 @@ export interface ClaimDetail {
   currentPostalCode: string | null;
   currentCountry: string | null;
   svNummer: string | null;
+  pensionProvider: string | null;
+  stageDetails: Record<string, string> | null;
   germanStreet: string | null;
   germanPostalCode: string | null;
   germanCity: string | null;
@@ -108,6 +125,7 @@ export interface ClaimDetail {
   bavRecipientCity: string | null;
   bavRecipientDepartment: string | null;
   bavRecipientRef: string | null;
+  bavRecipientCountry: string | null;
   bavProviderFormTitle: string | null;
   // Health insurance (bAV only)
   healthInsuranceType: string | null;
@@ -130,6 +148,10 @@ export interface ClaimDetail {
   lawFirmResponseAt: string | null;
   lawFirmClosedAt: string | null;
   copyPdfS3Key: string | null;
+  // Submission hold (nothing goes out until ops resolve it)
+  submissionHold: ClaimSubmissionHold | null;
+  submissionHoldReason: string | null;
+  submissionHoldAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -194,6 +216,7 @@ export async function getClaims(params?: {
   status?: string;
   handlingRoute?: ClaimHandlingRoute;
   pensionType?: ClaimPensionType;
+  submissionHold?: ClaimSubmissionHold | 'any';
   search?: string;
   sort?: ClaimSort;
   dir?: 'asc' | 'desc';
@@ -260,6 +283,53 @@ export async function regeneratePackage(id: string): Promise<{
     `/admin/claims/${id}/package/regenerate`
   );
   return data;
+}
+
+export interface BavRecipientInput {
+  addresseeType: 'employer' | 'provider';
+  name: string;
+  department?: string | null;
+  street: string;
+  postalCode: string;
+  city: string;
+  country?: string | null;
+  reference?: string | null;
+  saveToProviderMatrix?: boolean;
+}
+
+export interface BavRecipientResult {
+  claim: ClaimDetail;
+  provider: { id: string; name: string } | null;
+  packageResult: {
+    generated: boolean;
+    error?: string;
+    pdfS3Key?: string;
+    sentToLettershop: boolean;
+  } | null;
+}
+
+/** Ops enter the bAV letter recipient; a submitted claim gets its package. */
+export async function saveBavRecipient(
+  id: string,
+  input: BavRecipientInput
+): Promise<BavRecipientResult> {
+  const { data } = await apiClient.put(
+    `/admin/claims/${id}/bav-recipient`,
+    input
+  );
+  return data;
+}
+
+/** Close a hold handled outside the system (e.g. manual VddB submission). */
+export async function resolveSubmissionHold(
+  id: string,
+  note: string
+): Promise<ClaimDetail> {
+  const { data } = await apiClient.post(
+    `/admin/claims/${id}/submission-hold/resolve`,
+    { note }
+  );
+  return data.claim;
 }
 
 export async function addNote(id: string, note: string): Promise<void> {

@@ -604,10 +604,24 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
               </p>
             )}
             {data.bankDetails.iban ? (
-              <p className="text-gray-700">
-                <span className="text-gray-500">IBAN:</span>{' '}
-                {data.bankDetails.iban}
-              </p>
+              <>
+                <p className="text-gray-700">
+                  <span className="text-gray-500">IBAN:</span>{' '}
+                  {data.bankDetails.iban}
+                </p>
+                {data.pensionType === 'private' && (
+                  <>
+                    <p className="text-gray-700">
+                      <span className="text-gray-500">BIC:</span>{' '}
+                      {data.bankDetails.swiftBic || 'Not provided'}
+                    </p>
+                    <p className="text-gray-700">
+                      <span className="text-gray-500">Bank:</span>{' '}
+                      {data.bankDetails.bankName || 'Not provided'}
+                    </p>
+                  </>
+                )}
+              </>
             ) : (
               <p className="text-gray-700">
                 {data.bankDetails.accountOption === 'open_free_account' &&

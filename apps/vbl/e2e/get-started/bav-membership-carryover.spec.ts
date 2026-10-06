@@ -270,6 +270,9 @@ test.describe('bAV membership carry-over (final review fix — CRITICAL 1/2)', (
       page.getByRole('heading', { name: 'Enter your bank details' })
     ).toBeVisible({ timeout: 5_000 });
     await page.getByPlaceholder(/IBAN/i).fill('DE89370400440532013000');
+    // bAV only: the Abfindung letters need the BIC and the bank's name.
+    await page.getByLabel('BIC / SWIFT code').fill('COBADEFFXXX');
+    await page.getByLabel('Name of the bank').fill('Commerzbank');
     await page.getByRole('button', { name: /Continue/i }).click();
 
     // 8. Signature (shared).

@@ -7,6 +7,8 @@ import {
   areConfirmStopAnswersClear,
   getSubmitDetailsSubsteps,
   isConfirmComplete,
+  isStageProvider,
+  normalizeBic,
   SubmitDetailsSubStep,
 } from '@/contexts/OnboardingContext';
 import { useEligibility } from '@/contexts/EligibilityContext';
@@ -497,9 +499,37 @@ export function GetStartedOnboardingFlow() {
           await markStepComplete(claimId, 'passportUpload');
           break;
         }
-        case 'membership':
+        case 'membership': {
+          const stage = data.membership.stageDetails;
+          const isStage = isStageProvider(data.membership.pensionProvider);
           await updateClaim(claimId, {
-            svNummer: data.membership.membershipNumber || undefined,
+            svNummer: data.membership.membershipNumber.trim() || undefined,
+            // Public/stage: the institution itself (VBL, ZVK, VddB, VddKO)
+            // decides where the claim goes; stage claims carry their
+            // employment answers.
+            ...(data.pensionType !== 'private'
+              ? {
+                  pensionProvider: data.membership.pensionProvider || undefined,
+                }
+              : {}),
+            ...(isStage
+              ? {
+                  stageDetails: {
+                    stageName: stage.stageName.trim() || undefined,
+                    rolePosition: stage.rolePosition.trim() || undefined,
+                    employmentEndDate: stage.employmentEndDate || undefined,
+                    permanentlyStopped: stage.permanentlyStopped || undefined,
+                    reasonForLeaving: stage.reasonForLeaving || undefined,
+                    reasonForLeavingOther:
+                      stage.reasonForLeaving === 'other'
+                        ? stage.reasonForLeavingOther.trim() || undefined
+                        : undefined,
+                    currentOccupation:
+                      stage.currentOccupation.trim() || undefined,
+                    unableToWorkHealth: stage.unableToWorkHealth || undefined,
+                  },
+                }
+              : {}),
             // bAV: the "membership number" is the provider's contract /
             // policy reference and the provider itself is letter data.
             ...(data.pensionType === 'private'
@@ -516,6 +546,7 @@ export function GetStartedOnboardingFlow() {
           });
           await markStepComplete(claimId, 'germanSocialInsurance');
           break;
+        }
         case 'employment': {
           const e = data.employment;
           const addresseeType =
@@ -611,6 +642,14 @@ export function GetStartedOnboardingFlow() {
           await updateClaim(claimId, {
             iban: data.bankDetails.iban || undefined,
             accountHolderName: data.bankDetails.accountHolder || undefined,
+            // bAV/private: required by the Abfindung letters.
+            ...(data.pensionType === 'private'
+              ? {
+                  swiftBic:
+                    normalizeBic(data.bankDetails.swiftBic) || undefined,
+                  bankName: data.bankDetails.bankName.trim() || undefined,
+                }
+              : {}),
           });
           await markStepComplete(claimId, 'bankDetails');
           break;
