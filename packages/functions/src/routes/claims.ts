@@ -86,8 +86,27 @@ const updateClaimSchema = z.object({
   currentPostalCode: z.string().max(20).optional(),
   currentCountry: z.string().max(100).optional(),
 
-  // German Social Insurance
+  // German Social Insurance / VBL, ZVK, VddB or VddKO membership number
   svNummer: z.string().max(50).optional(),
+
+  // Public-sector institution (VBL, a ZVK, KVBW, VddB, VddKO) and the
+  // VddB/VddKO stage employment answers
+  pensionProvider: z.string().trim().max(100).optional(),
+  stageDetails: z
+    .object({
+      stageName: z.string().max(255).optional(),
+      rolePosition: z.string().max(255).optional(),
+      employmentEndDate: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+      permanentlyStopped: z.enum(['yes', 'no']).optional(),
+      reasonForLeaving: z.string().max(100).optional(),
+      reasonForLeavingOther: z.string().max(500).optional(),
+      currentOccupation: z.string().max(255).optional(),
+      unableToWorkHealth: z.enum(['yes', 'no']).optional(),
+    })
+    .optional(),
 
   // Last German Address
   germanStreet: z.string().max(255).optional(),
@@ -1119,7 +1138,11 @@ claims.post(
         error.message.startsWith('Claim not found')
       ) {
         status = 404;
-      } else if (error instanceof Error && error.message.includes('missing')) {
+      } else if (
+        error instanceof Error &&
+        (error.message.includes('missing') ||
+          error.message.startsWith('Cannot generate'))
+      ) {
         status = 400;
       }
       return c.json(

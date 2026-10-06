@@ -149,6 +149,27 @@ export function isValidGermanTaxId(value: string): boolean {
   return /^(\d\s?){11}$/.test(value.trim());
 }
 
+// BIC / SWIFT code (ISO 9362): 4-letter bank code, 2-letter country code,
+// 2-character location, optional 3-character branch → 8 or 11 characters.
+// Spaces are ignored; same rule as the backend (payout-flow/bank-validation).
+export function normalizeBic(value: string): string {
+  return value.replace(/\s+/g, '').toUpperCase();
+}
+
+export function isValidBic(value: string): boolean {
+  return /^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(normalizeBic(value));
+}
+
+/** bAV/private: BIC and bank name complete the bank step. */
+export function isBavBankComplete(b: OnboardingBankDetails): boolean {
+  return isValidBic(b.swiftBic) && b.bankName.trim() !== '';
+}
+
+// VddB / VddKO: stage and orchestra pension institutions.
+export function isStageProvider(provider: string): boolean {
+  return provider === 'VddB' || provider === 'VddKO';
+}
+
 export function isEmploymentComplete(e: OnboardingEmployment): boolean {
   return (
     e.employerName.trim() !== '' &&
@@ -191,6 +212,10 @@ export type BankAccountOption =
 export interface OnboardingBankDetails {
   accountHolder: string;
   iban: string;
+  // bAV/private only: the Abfindung letters and the provider's payout need
+  // the BIC and the bank's name (claims.swift_bic / claims.bank_name).
+  swiftBic: string;
+  bankName: string;
   accountOption: BankAccountOption;
   // For "Open free EUR account" option
   phoneNumber: string;
@@ -497,6 +522,8 @@ const initialData: OnboardingData = {
   bankDetails: {
     accountHolder: '',
     iban: '',
+    swiftBic: '',
+    bankName: '',
     accountOption: 'own_iban',
     phoneNumber: '',
     phoneConsent: false,
@@ -674,7 +701,8 @@ export function OnboardingProvider({
       cashOutBasis: persisted.data.cashOutBasis
         ? { ...prev.cashOutBasis, ...persisted.data.cashOutBasis }
         : prev.cashOutBasis,
-      bankDetails: persisted.data.bankDetails,
+      // swiftBic/bankName were added later; older blobs lack them.
+      bankDetails: { ...prev.bankDetails, ...persisted.data.bankDetails },
       signature: { ...prev.signature, ...persisted.data.signature },
       // `confirm` was added after the first persisted-blob shape shipped;
       // guard against older blobs that predate it.
@@ -849,11 +877,12 @@ export function OnboardingProvider({
               s.unableToWorkHealth !== ''
             );
           })();
+          // Stage providers need the membership number too (VddB/VddKO
+          // know the claimant by it).
           const pensionDetailsOk =
             data.membership.pensionProvider !== '' &&
-            (isStage
-              ? stageDetailsOk
-              : data.membership.membershipNumber.trim() !== '');
+            data.membership.membershipNumber.trim() !== '' &&
+            (!isStage || stageDetailsOk);
           // Health Insurance only gates step 3 completion for bAV/private
           // claimants — see getSubmitDetailsSubsteps.
           const healthInsuranceOk =
@@ -883,6 +912,9 @@ export function OnboardingProvider({
             cashOutOk &&
             (data.bankDetails.iban !== '' ||
               data.bankDetails.accountOption !== 'own_iban') &&
+            (!isPrivate ||
+              data.bankDetails.accountOption === 'open_free_account' ||
+              isBavBankComplete(data.bankDetails)) &&
             (!!data.signature.signatureData ||
               !!data.signature.signatureFile) &&
             data.signature.legalConfirmed
@@ -916,7 +948,8 @@ export function OnboardingProvider({
           const isStage =
             data.membership.pensionProvider === 'VddB' ||
             data.membership.pensionProvider === 'VddKO';
-          if (!isStage) return data.membership.membershipNumber.trim() !== '';
+          if (data.membership.membershipNumber.trim() === '') return false;
+          if (!isStage) return true;
           const s = data.membership.stageDetails;
           const reasonOk =
             s.reasonForLeaving !== '' &&
@@ -945,10 +978,14 @@ export function OnboardingProvider({
           return isEmploymentComplete(data.employment);
         case 'cash-out-basis':
           return isCashOutBasisComplete(data.cashOutBasis);
-        case 'bank-details':
+        case 'bank-details': {
+          // bAV/private: the letters also need the BIC and the bank's name.
+          const bavBankOk =
+            data.pensionType !== 'private' ||
+            isBavBankComplete(data.bankDetails);
           // Own IBAN: just need IBAN
           if (data.bankDetails.accountOption === 'own_iban') {
-            return data.bankDetails.iban !== '';
+            return data.bankDetails.iban !== '' && bavBankOk;
           }
           // Open free EUR account: need phone number and consent
           if (data.bankDetails.accountOption === 'open_free_account') {
@@ -962,10 +999,12 @@ export function OnboardingProvider({
             return (
               data.bankDetails.accountHolder !== '' &&
               data.bankDetails.iban !== '' &&
-              data.bankDetails.thirdPartyConfirmed
+              data.bankDetails.thirdPartyConfirmed &&
+              bavBankOk
             );
           }
           return false;
+        }
         case 'signature':
           return (
             (!!data.signature.signatureData ||
@@ -1062,13 +1101,23 @@ export function OnboardingProvider({
       membership: {
         ...prev.membership,
         pensionProvider: claimOrPrev(
-          claim.bavProviderName,
+          claim.pensionProvider || claim.bavProviderName,
           prev.membership.pensionProvider
         ),
         membershipNumber: claimOrPrev(
           claim.svNummer,
           prev.membership.membershipNumber
         ),
+        // Stage answers are stored on the claim since migration 0023; the
+        // claim wins per field where it has a value.
+        stageDetails: {
+          ...prev.membership.stageDetails,
+          ...Object.fromEntries(
+            Object.entries(
+              (claim.stageDetails ?? {}) as Record<string, unknown>
+            ).filter(([, v]) => typeof v === 'string' && v !== '')
+          ),
+        },
       },
       address: {
         ...prev.address,
@@ -1193,6 +1242,8 @@ export function OnboardingProvider({
           claim.accountHolderName,
           prev.bankDetails.accountHolder
         ),
+        swiftBic: claimOrPrev(claim.swiftBic, prev.bankDetails.swiftBic),
+        bankName: claimOrPrev(claim.bankName, prev.bankDetails.bankName),
       },
     }));
 

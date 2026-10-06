@@ -14,6 +14,7 @@ import {
   ClaimPensionType,
   ClaimSort,
   ClaimListItem,
+  SUBMISSION_HOLD_LABELS,
 } from '@/lib/admin-api';
 import {
   Button,
@@ -46,16 +47,19 @@ const CASE_STATE_LABELS: Record<string, string> = {
 };
 
 // Saved views: the questions ops actually ask, as tabs.
-type ViewKey = 'needs-ops' | 'processing' | 'law-firm' | 'bav' | 'all';
+type ViewKey = 'needs-ops' | 'on-hold' | 'processing' | 'law-firm' | 'bav' | 'all';
 const VIEWS: {
   key: ViewKey;
   label: string;
   status?: string;
   route?: ClaimHandlingRoute;
   product?: ClaimPensionType;
+  // Submitted claims that cannot go out until ops act (submission hold).
+  onHold?: boolean;
   count?: (s: { submitted: number; processing: number; lawFirm: number; total: number }) => number;
 }[] = [
   { key: 'needs-ops', label: 'Needs ops', status: 'submitted', count: (s) => s.submitted },
+  { key: 'on-hold', label: 'On hold', onHold: true },
   { key: 'processing', label: 'Processing', status: 'processing', count: (s) => s.processing },
   { key: 'law-firm', label: 'With law firm', route: 'law_firm', count: (s) => s.lawFirm },
   { key: 'bav', label: 'bAV cash-out', product: 'private' },
@@ -91,12 +95,13 @@ export default function ClaimsPage() {
 
   const statsQuery = useQuery({ queryKey: ['admin-stats'], queryFn: getStats });
   const claimsQuery = useQuery({
-    queryKey: ['admin-claims', effStatus, effRoute, effProduct, search, sort, dir, page],
+    queryKey: ['admin-claims', effStatus, effRoute, effProduct, current.onHold ?? false, search, sort, dir, page],
     queryFn: () =>
       getClaims({
         status: effStatus || undefined,
         handlingRoute: effRoute || undefined,
         pensionType: effProduct || undefined,
+        submissionHold: current.onHold ? 'any' : undefined,
         search: search || undefined,
         sort,
         dir,
@@ -232,8 +237,16 @@ export default function ClaimsPage() {
                   </Td>
                   <Td>
                     {claim.pensionType === 'private' ? <Pill tone="brand">bAV cash-out</Pill> : claim.pensionType === 'public' ? <Pill>Public refund</Pill> : <span className="text-xs text-gray-400">—</span>}
+                    {claim.pensionProvider && <div className="mt-0.5 text-xs text-gray-500">{claim.pensionProvider}</div>}
                   </Td>
-                  <Td><StatusDot tone={CLAIM_STATUS_TONE[claim.status] ?? 'neutral'}>{CLAIM_STATUS_LABEL[claim.status] ?? claim.status}</StatusDot></Td>
+                  <Td>
+                    <StatusDot tone={CLAIM_STATUS_TONE[claim.status] ?? 'neutral'}>{CLAIM_STATUS_LABEL[claim.status] ?? claim.status}</StatusDot>
+                    {claim.submissionHold && (
+                      <div className="mt-1" title={claim.submissionHoldReason ?? undefined}>
+                        <Pill tone="wait">{SUBMISSION_HOLD_LABELS[claim.submissionHold]}</Pill>
+                      </div>
+                    )}
+                  </Td>
                   <Td>
                     {claim.handlingRoute === 'law_firm' ? (
                       <div>
@@ -264,7 +277,7 @@ export default function ClaimsPage() {
         </>
       ) : (
         <div className="border-t border-gray-200">
-          <EmptyState icon={<FileText className="h-8 w-8" />} title={view === 'needs-ops' ? 'Nothing waiting for ops' : 'No claims match'} hint={search ? `Nothing found for “${search}”.` : 'Try another view or clear the filters.'} />
+          <EmptyState icon={<FileText className="h-8 w-8" />} title={view === 'needs-ops' || view === 'on-hold' ? 'Nothing waiting for ops' : 'No claims match'} hint={search ? `Nothing found for “${search}”.` : 'Try another view or clear the filters.'} />
         </div>
       )}
 
@@ -345,6 +358,7 @@ function PeekPanel({ id, onClose, onChanged }: { id: string; onClose: () => void
               <Fact label="Handling" value={c.handlingRoute === 'law_firm' ? `Law firm · ${CASE_STATE_LABELS[c.lawFirmCaseState ?? 'new']}${c.lawFirmRef ? ` · ${c.lawFirmRef}` : ''}` : 'Direct via lettershop'} wide />
               <Fact label="Payment" value={c.paymentStatus} />
               <Fact label="Package" value={c.pdfS3Key ? 'generated' : 'not yet'} />
+              <Fact label="On hold" value={c.submissionHold ? SUBMISSION_HOLD_LABELS[c.submissionHold] : null} wide />
             </FactGroup>
             {c.pensionType === 'private' && (
               <FactGroup title="bAV">

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { ClaimDocumentRole } from '../../drizzle/schema/claims';
 import {
+  isBavRecipientComplete,
   resolveBavRoute,
+  validateBavClientIntake,
   validateBavIntake,
+  validateBavRecipient,
   type BavClaimFields,
 } from './intake-validation';
 import { MUSTER_2_CLAIM } from './muster-2.fixture';
@@ -191,13 +194,74 @@ describe('validateBavIntake', () => {
     expect(errors).toEqual([
       'Salutation (Herr/Frau) is required',
       'Contract reference label is required when a reference is given',
+      'IBAN is required',
+      'BIC is required',
+      'Provider form title is required when a provider form is enclosed',
       'Recipient name is required',
       'Recipient street is required',
       'Recipient postal code is required',
       'Recipient city is required',
-      'IBAN is required',
-      'BIC is required',
-      'Provider form title is required when a provider form is enclosed',
+    ]);
+  });
+
+  it('rejects a BIC that is not 8 or 11 characters of ISO 9362 shape', () => {
+    for (const swiftBic of ['COBADEFF1', 'COBA DE', '1OBADEFFXXX']) {
+      expect(validateBavIntake(routeA({ swiftBic }), DOCS_A, NOW)).toEqual([
+        'BIC must have 8 or 11 characters (e.g. COBADEFFXXX)',
+      ]);
+    }
+    for (const swiftBic of ['COBADEFF', 'cobadeffxxx', 'COBA DE FF XXX']) {
+      expect(validateBavIntake(routeA({ swiftBic }), DOCS_A, NOW)).toEqual([]);
+    }
+  });
+
+  it('requires the bank name', () => {
+    expect(validateBavIntake(routeA({ bankName: ' ' }), DOCS_A, NOW)).toEqual([
+      'Bank name is required',
+    ]);
+  });
+});
+
+describe('split: client intake vs ops recipient', () => {
+  const noRecipient = {
+    bavRecipientName: 'Allianz',
+    bavRecipientDepartment: null,
+    bavRecipientStreet: null,
+    bavRecipientPostalCode: null,
+    bavRecipientCity: null,
+  };
+
+  it('lets the client submit without the recipient address', () => {
+    expect(validateBavClientIntake(routeA(noRecipient), DOCS_A, NOW)).toEqual(
+      []
+    );
+  });
+
+  it('still needs the client bank block (BIC and bank name)', () => {
+    expect(
+      validateBavClientIntake(
+        routeA({ ...noRecipient, swiftBic: null, bankName: null }),
+        DOCS_A,
+        NOW
+      )
+    ).toEqual(['BIC is required', 'Bank name is required']);
+  });
+
+  it('reports the recipient fields ops must complete', () => {
+    expect(validateBavRecipient(routeA(noRecipient))).toEqual([
+      'Recipient street is required',
+      'Recipient postal code is required',
+      'Recipient city is required',
+    ]);
+    expect(isBavRecipientComplete(routeA(noRecipient))).toBe(false);
+    expect(isBavRecipientComplete(routeA())).toBe(true);
+  });
+
+  it('keeps the full check (package generation) as client + recipient', () => {
+    expect(validateBavIntake(routeA(noRecipient), DOCS_A, NOW)).toEqual([
+      'Recipient street is required',
+      'Recipient postal code is required',
+      'Recipient city is required',
     ]);
   });
 });

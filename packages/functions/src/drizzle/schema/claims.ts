@@ -313,6 +313,39 @@ export const CORRESPONDENCE_SOURCES = [
 ] as const;
 export type CorrespondenceSource = (typeof CORRESPONDENCE_SOURCES)[number];
 
+// Why a submitted claim is waiting for ops (claims.submission_hold):
+// awaiting_provider_data — bAV claim whose letter recipient (provider
+//   address) is incomplete; ops enter it in the admin, then the package is
+//   generated. No package, lettershop job or law-firm release before that.
+// manual_submission_required — VddB/VddKO claim: there is no VddB/VddKO
+//   claim form in the system yet, so ops submit it by hand. Never sent to
+//   the lettershop (the VBL L203 is the wrong institution's form).
+// package_generation_failed — the claim package could not be built after
+//   submission (reason holds the error); ops fix the data and regenerate.
+export const CLAIM_SUBMISSION_HOLDS = [
+  'awaiting_provider_data',
+  'manual_submission_required',
+  'package_generation_failed',
+] as const;
+export type ClaimSubmissionHold = (typeof CLAIM_SUBMISSION_HOLDS)[number];
+
+export const SUBMISSION_HOLD_LABELS: Record<ClaimSubmissionHold, string> = {
+  awaiting_provider_data: 'Waiting for provider data',
+  manual_submission_required: 'Manual submission required',
+  package_generation_failed: 'Package generation failed',
+};
+
+/** VddB / VddKO: stage and orchestra pension institutions. */
+export const STAGE_PENSION_PROVIDERS = ['VddB', 'VddKO'] as const;
+
+export function isStagePensionProvider(
+  provider: string | null | undefined
+): boolean {
+  return (STAGE_PENSION_PROVIDERS as readonly string[]).includes(
+    (provider ?? '').trim()
+  );
+}
+
 // Task 15: type of health insurance selected/confirmed on the Health
 // Insurance substep (bAV/private pension type only).
 export type HealthInsuranceType = 'statutory' | 'private' | 'not_sure';
@@ -367,6 +400,13 @@ export const claimsTable = claims.table(
 
     // Section 1: Personal Information - German Social Insurance
     svNummer: varchar('sv_nummer', { length: 50 }), // Optional
+
+    // Public-sector institution chosen in the VBL app (VBL, VBLklassik,
+    // VBLextra, a ZVK, KVBW, VddB, VddKO); svNummer holds its membership /
+    // insurance number. bAV claims keep their provider in bav_provider_name.
+    pensionProvider: varchar('pension_provider', { length: 100 }),
+    // VddB/VddKO stage employment answers (StageDetails), migration 0023.
+    stageDetails: jsonb('stage_details'),
 
     // Section 2: Documents - Last German Address
     germanStreet: varchar('german_street', { length: 255 }),
@@ -470,6 +510,7 @@ export const claimsTable = claims.table(
       length: 20,
     }), // → recipient_postal_code
     bavRecipientCity: varchar('bav_recipient_city', { length: 100 }), // → recipient_city
+    bavRecipientCountry: varchar('bav_recipient_country', { length: 100 }), // ops-entered; not printed (letters assume Germany)
     bavRecipientRef: varchar('bav_recipient_ref', { length: 100 }), // → recipient_ref ("Ihr Zeichen")
 
     // Section 3: Payment Details - Bank Details
@@ -626,6 +667,13 @@ export const claimsTable = claims.table(
       .notNull()
       .default(false), // OCR amount ≠ received amount (non-blocking)
 
+    // Submission hold (migration 0023, see ClaimSubmissionHold): the claim
+    // is submitted and paid but nothing goes out automatically until ops
+    // resolve the hold. NULL = no hold.
+    submissionHold: varchar('submission_hold', { length: 40 }),
+    submissionHoldReason: text('submission_hold_reason'),
+    submissionHoldAt: timestamp('submission_hold_at', { withTimezone: true }),
+
     // Timestamps
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -633,6 +681,9 @@ export const claimsTable = claims.table(
   (table) => ({
     lawFirmIdx: index('claims_law_firm_id_idx').on(table.lawFirmId),
     caseTypeIdx: index('claims_case_type_idx').on(table.caseType),
+    submissionHoldIdx: index('claims_submission_hold_idx').on(
+      table.submissionHold
+    ),
   })
 );
 

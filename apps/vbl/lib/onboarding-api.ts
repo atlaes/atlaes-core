@@ -246,9 +246,12 @@ export interface Claim {
   iban?: string;
   accountHolderName?: string;
   bankName?: string;
+  swiftBic?: string;
   preferredCurrency?: string;
   // Membership
   svNummer?: string;
+  pensionProvider?: string;
+  stageDetails?: Record<string, string>;
   // Signature
   signatureId?: string;
   signatureCompletedAt?: string;

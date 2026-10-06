@@ -159,6 +159,8 @@ export async function completeAddressAbroad(
 // ---------------------------------------------------------------------------
 
 export interface StageDetails {
+  /** VddB/VddKO membership number (stored as the claim's svNummer). */
+  membershipNumber: string;
   stageName: string;
   rolePosition: string;
   employmentEndDate: string;
@@ -167,12 +169,19 @@ export interface StageDetails {
 
 /**
  * Membership step for a stage provider (Membership.tsx, item 26): two
- * internal screens and no membership-number field.
+ * internal screens, the first one with the membership number.
  */
-export async function completeStageMembership(page: Page, s: StageDetails) {
+export async function completeStageMembership(
+  page: Page,
+  provider: 'VddB' | 'VddKO',
+  s: StageDetails
+) {
   await expect(
     page.getByRole('heading', { name: 'Stage or orchestra employment details' })
   ).toBeVisible({ timeout: 15_000 });
+  await page
+    .getByLabel(`${provider} membership number`)
+    .fill(s.membershipNumber);
   await page.getByPlaceholder('e.g. Berlin State Opera').fill(s.stageName);
   await page
     .getByPlaceholder('e.g. Violinist, actor, stage technician')
@@ -200,6 +209,37 @@ export async function completeStageMembership(page: Page, s: StageDetails) {
 // ---------------------------------------------------------------------------
 // Private bAV
 // ---------------------------------------------------------------------------
+
+export interface BavBank {
+  iban: string;
+  swiftBic: string;
+  bankName: string;
+}
+
+/**
+ * Bank step of the bAV flow: own EUR/SEPA account, IBAN plus the BIC and
+ * bank name the Abfindung letters need (only asked for bAV claims).
+ */
+export async function completeBavBankDetails(page: Page, bank: BavBank) {
+  await expect(
+    page.getByRole('heading', { name: 'Where should the refund be paid?' })
+  ).toBeVisible({ timeout: 5_000 });
+  await page
+    .getByRole('button', { name: /My own EUR \/ SEPA account/i })
+    .click();
+  await page.getByRole('button', { name: /Continue/i }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Enter your bank details' })
+  ).toBeVisible({ timeout: 5_000 });
+  await page.getByPlaceholder(/IBAN/i).fill(bank.iban);
+  const continueButton = page.getByRole('button', { name: /Continue/i });
+  // BIC and bank name are required for bAV.
+  await expect(continueButton).toBeDisabled();
+  await page.getByLabel('BIC / SWIFT code').fill(bank.swiftBic);
+  await page.getByLabel('Name of the bank').fill(bank.bankName);
+  await expect(continueButton).toBeEnabled();
+  await continueButton.click();
+}
 
 export async function completeBavMembership(
   page: Page,
@@ -429,6 +469,10 @@ export interface ClaimState {
   bankName: string | null;
   signatureId: string | null;
   svNummer: string | null;
+  pensionProvider: string | null;
+  stageDetails: Record<string, string> | null;
+  submissionHold: string | null;
+  submissionHoldReason: string | null;
   salutation: string | null;
   taxId: string | null;
   moveOutDate: string | null;
@@ -466,22 +510,6 @@ export async function fetchOnlyClaim(email: string) {
       documents: Array<{ documentRole: string }>;
     };
     return { claim, documentRoles: documents.map((d) => d.documentRole) };
-  } finally {
-    await api.dispose();
-  }
-}
-
-/** PUT /api/claims/:id as the claim owner (workarounds only). */
-export async function updateOwnClaim(
-  email: string,
-  claimId: string,
-  data: Record<string, unknown>
-) {
-  const { accessToken } = await apiLogin(email);
-  const api = await userApi(accessToken);
-  try {
-    const res = await api.put(`/api/claims/${claimId}`, { data });
-    expect(res.status(), await res.text()).toBe(200);
   } finally {
     await api.dispose();
   }

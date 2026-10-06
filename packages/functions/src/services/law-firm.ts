@@ -611,6 +611,15 @@ export class LawFirmService {
       logger.warn('No active law firm to assign the claim to', { claimId });
       return null;
     }
+    // A claim on a submission hold (e.g. no provider address yet, so no
+    // package) is assigned but not released or announced to the firm;
+    // ops release it once the hold is resolved.
+    const [current] = await db
+      .select({ submissionHold: claimsTable.submissionHold })
+      .from(claimsTable)
+      .where(eq(claimsTable.id, claimId))
+      .limit(1);
+    const held = !!current?.submissionHold;
     const now = new Date();
     await db
       .update(claimsTable)
@@ -619,15 +628,26 @@ export class LawFirmService {
         lawFirmAssignedAt: now,
         lawFirmCaseState: 'new',
         // Assignment releases the case to the firm (visible until submitted).
-        lawFirmReleasedAt: now,
-        lawFirmReleasedBy: adminUserId,
-        lawFirmRereleasedUntil: null,
+        ...(held
+          ? {}
+          : {
+              lawFirmReleasedAt: now,
+              lawFirmReleasedBy: adminUserId,
+              lawFirmRereleasedUntil: null,
+            }),
         updatedAt: now,
       })
       .where(eq(claimsTable.id, claimId));
 
     const claim = await ClaimsApplicationService.getClaimAsAdmin(claimId);
     if (!claim) return firm.id;
+    if (held) {
+      logger.info('Claim assigned to the law firm but held: not released', {
+        claimId,
+        hold: current?.submissionHold,
+      });
+      return firm.id;
+    }
 
     if (isBavCashout(claim) && claim.status !== 'draft') {
       try {
@@ -1180,6 +1200,11 @@ export class LawFirmService {
     if (!claim) throw new Error('Claim not found');
     if (claim.handlingRoute !== 'law_firm' || !claim.lawFirmId) {
       throw new Error('Invalid release: the case is not routed to a law firm');
+    }
+    if (claim.submissionHold) {
+      throw new Error(
+        `Invalid release: the claim is on hold (${claim.submissionHold}); resolve the hold first`
+      );
     }
     const now = new Date();
     await db.transaction(async (tx: any) => {

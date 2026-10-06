@@ -1,7 +1,4 @@
-import {
-  completeBankDetails,
-  completeSignature,
-} from '../../e2e/get-started/helpers';
+import { completeSignature } from '../../e2e/get-started/helpers';
 import {
   expect,
   loginViaMagicLink,
@@ -11,6 +8,7 @@ import {
 import {
   BAV_DOCUMENTS,
   completeAddressAbroad,
+  completeBavBankDetails,
   completeBavCashOutBasisRouteA,
   completeBavEmployment,
   completeBavHealthInsurance,
@@ -18,7 +16,6 @@ import {
   fetchOnlyClaim,
   navigatePrivateBavToEligible,
   requestSecureClaim,
-  updateOwnClaim,
 } from '../support/journeys';
 import { startPayment, uploadSpecimenPassport } from '../support/onboarding';
 import { payWithTestCard } from '../support/stripe';
@@ -33,25 +30,18 @@ import type { Page, Response } from '@playwright/test';
  * number → employment (employer, dates, Durchführungsweg, Steuer-ID) →
  * address abroad → health insurance certificate with real OCR → cash-out
  * basis route A with the specimen DRV Erstattungsbescheid (real OCR) →
- * IBAN → signature → review → submission, then the claim state via the
- * API.
+ * IBAN, BIC and bank name → signature → review → submission, then the
+ * claim state via the API.
  *
  * What the backend does with it (services/claims-application.ts
  * submitClaim): a bAV claim is `bav_cashout`; with no route chosen by ops
- * defaultHandlingRoute() makes it 'law_firm'. Submission builds the
- * Abfindung package (services/bav-letters, signer LAW), stores it in S3 for
- * the law firm and skips the lettershop, so `lettershopSubmissionId`
- * stays empty. There is no direct-vs-law-firm choice in the claimant flow;
- * ops switch it in the admin (PUT /api/admin/claims/:id/routing).
- *
- * Product bug: validateBavIntake requires BIC and bank name, but the bAV
- * flow never asks for them (BankDetails.tsx collects holder + IBAN only),
- * so the first submit is rejected. The test asserts that rejection, then
- * stores the two fields through the claimant API (what a fixed bank step
- * would send) and submits again from the UI. The recipient address is
- * filled from the provider matrix at submit time; if staging has no matrix
- * row for the provider the rejection names it too and the workaround adds
- * a specimen address (recorded as an annotation).
+ * defaultHandlingRoute() makes it 'law_firm'. The client does not enter
+ * the letter recipient's address (client answer 15 Sep 2026): the provider
+ * matrix fills it at submission, otherwise the claim is submitted and put
+ * on the 'awaiting_provider_data' hold for ATLAES ops, who enter the
+ * address in the admin; only then is the Abfindung package generated for
+ * the law firm. Staging has no matrix row for Allianz, so this claim waits
+ * for provider data: no package, no lettershop job.
  */
 
 test.beforeEach(() => requireE2eSecret());
@@ -68,9 +58,12 @@ const EMPLOYMENT = {
   taxId: '12 345 678 903',
 };
 const CONTRACT_REFERENCE = 'SPECIMEN-VN-0001';
-// The BIC/bank of the standard test IBAN completeBankDetails enters
-// (DE89 3704 0044 0532 0130 00).
-const BANK = { swiftBic: 'COBADEFFXXX', bankName: 'Commerzbank' };
+// The standard test IBAN and its BIC/bank (DE89 3704 0044 0532 0130 00).
+const BANK = {
+  iban: 'DE89370400440532013000',
+  swiftBic: 'COBADEFFXXX',
+  bankName: 'Commerzbank',
+};
 
 function submitResponse(page: Page): Promise<Response> {
   return page.waitForResponse(
@@ -81,185 +74,140 @@ function submitResponse(page: Page): Promise<Response> {
   );
 }
 
-test(
-  'bAV cash-out: check → login → pay → passport → employment → health insurance → DRV decision → sign → submitted (law firm)',
-  {
-    tag: '@product-bug',
-    annotation: {
-      type: 'product-bug',
-      description:
-        'A bAV claim cannot be submitted from the UI: the backend requires ' +
-        'BIC and bank name (validateBavIntake) but the bAV bank step only ' +
-        'collects account holder and IBAN. The test stores both through ' +
-        'the API and submits again.',
-    },
-  },
-  async ({ page, e2eEmail }, testInfo) => {
-    test.setTimeout(480_000);
-    const email = e2eEmail('bav');
+test('bAV cash-out: check → login → pay → passport → employment → health insurance → DRV decision → bank (BIC) → sign → submitted, waiting for provider data', async ({
+  page,
+  e2eEmail,
+}, testInfo) => {
+  test.setTimeout(480_000);
+  const email = e2eEmail('bav');
 
-    await navigatePrivateBavToEligible(page);
-    await requestSecureClaim(page, email, /Start bAV cash-out/i);
-    await loginViaMagicLink(page, email, '/get-started?fromAuth=1');
+  await navigatePrivateBavToEligible(page);
+  await requestSecureClaim(page, email, /Start bAV cash-out/i);
+  await loginViaMagicLink(page, email, '/get-started?fromAuth=1');
 
+  await expect(
+    page.getByRole('heading', { name: 'Start your bAV cash-out request' })
+  ).toBeVisible({ timeout: 30_000 });
+  // Both bAV consent boxes gate the pay button (startPayment checks them).
+  await expect(page.getByRole('checkbox')).not.toHaveCount(0);
+  await startPayment(page);
+  await payWithTestCard(page);
+
+  await uploadSpecimenPassport(page, testInfo, 'phl', 'png', async () => {
+    // bAV letters need Herr/Frau, prefilled from the passport sex.
     await expect(
-      page.getByRole('heading', { name: 'Start your bAV cash-out request' })
-    ).toBeVisible({ timeout: 30_000 });
-    // Both bAV consent boxes gate the pay button (startPayment checks them).
-    await expect(page.getByRole('checkbox')).not.toHaveCount(0);
-    await startPayment(page);
-    await payWithTestCard(page);
+      page.locator('select', { has: page.locator('option[value="herr"]') })
+    ).toHaveValue('herr');
+  });
 
-    await uploadSpecimenPassport(page, testInfo, 'phl', 'png', async () => {
-      // bAV letters need Herr/Frau, prefilled from the passport sex.
-      await expect(
-        page.locator('select', { has: page.locator('option[value="herr"]') })
-      ).toHaveValue('herr');
-    });
+  await completeBavMembership(page, PROVIDER, CONTRACT_REFERENCE);
+  await completeBavEmployment(page, EMPLOYMENT);
+  await completeAddressAbroad(page, {
+    street: '1 Specimen Street',
+    postalCode: '1000',
+    city: 'Sample City',
+    country: 'PH',
+  });
+  await completeBavHealthInsurance(page, testInfo);
+  await completeBavCashOutBasisRouteA(page, testInfo);
+  await completeBavBankDetails(page, BANK);
+  await completeSignature(page);
 
-    await completeBavMembership(page, PROVIDER, CONTRACT_REFERENCE);
-    await completeBavEmployment(page, EMPLOYMENT);
-    await completeAddressAbroad(page, {
-      street: '1 Specimen Street',
-      postalCode: '1000',
-      city: 'Sample City',
-      country: 'PH',
-    });
-    await completeBavHealthInsurance(page, testInfo);
-    await completeBavCashOutBasisRouteA(page, testInfo);
-    await completeBankDetails(page);
-    await completeSignature(page);
-
-    await expect(
-      page.getByRole('heading', { name: 'Review your bAV cash-out request' })
-    ).toBeVisible({ timeout: 20_000 });
-    // The bAV-only review sections, each complete (an incomplete health
-    // insurance section would carry an extra error label in its name).
-    for (const [id, title] of [
-      ['bav-employment', 'Employment'],
-      ['health-insurance', 'Health insurance'],
-      ['cash-out-basis', 'Cash-out basis'],
-    ]) {
-      await expect(page.locator(`#review-section-toggle-${id}`)).toHaveText(
-        title
-      );
-    }
-    const submitButton = page.getByRole('button', {
-      name: /Submit lump-sum settlement request/i,
-    });
-    await expect(submitButton).toBeEnabled();
-
-    // First submit: rejected today (product bug, see the annotation).
-    const firstResponse = submitResponse(page);
-    await submitButton.click();
-    const first = await firstResponse;
-    const firstBody = (await first.json()) as {
-      success: boolean;
-      error?: string;
-    };
-    testInfo.annotations.push({
-      type: 'first-submit',
-      description: `${first.status()}: ${firstBody.error ?? 'ok'}`,
-    });
-    expect(
-      first.status(),
-      'The first bAV submit was accepted: the BIC/bank-name gap is fixed, ' +
-        'drop the workaround from this test.'
-    ).toBe(400);
-    expect(firstBody.error).toContain('BIC is required');
-    expect(firstBody.error).toContain('Bank name is required');
-    await expect(page.getByText(/BIC is required/)).toBeVisible();
-
-    const { claim: draft } = await fetchOnlyClaim(email);
-    expect(draft.status).toBe('draft');
-    const recipientMissing = /Recipient (street|postal code|city)/.test(
-      firstBody.error ?? ''
+  await expect(
+    page.getByRole('heading', { name: 'Review your bAV cash-out request' })
+  ).toBeVisible({ timeout: 20_000 });
+  // The bAV-only review sections, each complete (an incomplete health
+  // insurance section would carry an extra error label in its name).
+  for (const [id, title] of [
+    ['bav-employment', 'Employment'],
+    ['health-insurance', 'Health insurance'],
+    ['cash-out-basis', 'Cash-out basis'],
+  ]) {
+    await expect(page.locator(`#review-section-toggle-${id}`)).toHaveText(
+      title
     );
-    testInfo.annotations.push({
-      type: 'provider-matrix',
-      description: recipientMissing
-        ? `no staging matrix row for "${PROVIDER}": specimen recipient address added`
-        : `recipient address of "${PROVIDER}" filled from the provider matrix`,
-    });
-    await updateOwnClaim(email, draft.id, {
-      ...BANK,
-      ...(recipientMissing
-        ? {
-            bavRecipientStreet: 'Specimenstraße 1',
-            bavRecipientPostalCode: '10115',
-            bavRecipientCity: 'Berlin',
-          }
-        : {}),
-    });
-
-    const secondResponse = submitResponse(page);
-    await submitButton.click();
-    const second = await secondResponse;
-    expect(second.status(), await second.text()).toBe(200);
-    await expect(
-      page.getByRole('heading', {
-        name: 'Your refund request has been submitted',
-      })
-    ).toBeVisible({ timeout: 90_000 });
-
-    // Backend state.
-    const { claim, documentRoles } = await fetchOnlyClaim(email);
-    expect(claim.status).toBe('submitted');
-    expect(claim.paymentStatus).toBe('paid');
-    expect(claim.submittedAt).toBeTruthy();
-    expect(claim.caseType).toBe('bav_cashout');
-    expect(claim.pensionType).toBe('private');
-    // defaultHandlingRoute('bav_cashout') — no route chosen by ops yet.
-    expect(claim.handlingRoute).toBe('law_firm');
-    // Law-firm claims are never mailed by us: package stored, no lettershop.
-    expect(
-      claim.lettershopSubmissionId,
-      'a law-firm-routed bAV claim was sent to the lettershop'
-    ).toBeNull();
-    expect(claim.pdfS3Key ?? '', 'bAV letter package stored').toMatch(
-      /\/bav-package-\d+\.pdf$/
-    );
-
-    expect(claim.firstName.toUpperCase()).toBe(PASSPORT.givenNames);
-    expect(claim.lastName.toUpperCase()).toBe(PASSPORT.surname);
-    expect(claim.dateOfBirth).toBe(PASSPORT.dateOfBirth);
-    expect(claim.salutation).toBe('herr');
-    expect(claim.currentCountry).toBe('PH');
-    expect(claim.bavProviderName).toBe(PROVIDER);
-    expect(claim.bavContractReference).toBe(CONTRACT_REFERENCE);
-    expect(claim.employerName).toBe(EMPLOYMENT.employerName);
-    expect(claim.employmentEndDate).toBe(EMPLOYMENT.employmentEndDate);
-    expect(claim.employerPersonnelNumber).toBe(EMPLOYMENT.personnelNumber);
-    expect(claim.bavDurchfuehrungsweg).toBe(EMPLOYMENT.durchfuehrungsweg);
-    expect(claim.moveOutDate).toBe(EMPLOYMENT.leftGermanyDate);
-    expect((claim.taxId ?? '').replace(/\s/g, '')).toBe(
-      EMPLOYMENT.taxId.replace(/\s/g, '')
-    );
-    // Direktversicherung → letter goes to the provider.
-    expect(claim.bavAddresseeType).toBe('provider');
-    expect(claim.bavRecipientName).toBe(PROVIDER);
-    expect(claim.healthInsuranceType).toBe(BAV_DOCUMENTS.healthInsurance.type);
-    expect(claim.drvRefundReceived).toBe(true);
-    expect(claim.drvOffice).toBe(DRV.drvOffice);
-    expect(claim.drvDecisionDate).toBe(DRV.decisionDate);
-    expect(claim.iban).toBe('DE89370400440532013000');
-    expect(claim.signatureId).toBeTruthy();
-    expect(documentRoles).toEqual(
-      expect.arrayContaining([
-        'passport',
-        'health_insurance',
-        'drv_refund_decision',
-      ])
-    );
-
-    testInfo.annotations.push({
-      type: 'claim',
-      description:
-        `status=${claim.status} payment=${claim.paymentStatus} ` +
-        `caseType=${claim.caseType} route=${claim.handlingRoute} ` +
-        `package=${claim.pdfS3Key ?? 'none'} ` +
-        `lettershop=${claim.lettershopSubmissionId ?? 'none'} ` +
-        `lawFirmId=${claim.lawFirmId ?? 'unassigned'}`,
-    });
   }
-);
+  const submitButton = page.getByRole('button', {
+    name: /Submit lump-sum settlement request/i,
+  });
+  await expect(submitButton).toBeEnabled();
+
+  const response = submitResponse(page);
+  await submitButton.click();
+  const submitted = await response;
+  expect(submitted.status(), await submitted.text()).toBe(200);
+  await expect(
+    page.getByRole('heading', {
+      name: 'Your refund request has been submitted',
+    })
+  ).toBeVisible({ timeout: 90_000 });
+
+  // Backend state.
+  const { claim, documentRoles } = await fetchOnlyClaim(email);
+  expect(claim.status).toBe('submitted');
+  expect(claim.paymentStatus).toBe('paid');
+  expect(claim.submittedAt).toBeTruthy();
+  expect(claim.caseType).toBe('bav_cashout');
+  expect(claim.pensionType).toBe('private');
+  // defaultHandlingRoute('bav_cashout') — no route chosen by ops yet.
+  expect(claim.handlingRoute).toBe('law_firm');
+  // No provider-matrix row for Allianz on staging: the claim waits for
+  // ops to enter the recipient address. Until then there is no package
+  // and nothing goes to the law firm or the lettershop.
+  expect(
+    claim.submissionHold,
+    `expected the claim to wait for provider data; if staging now has a ` +
+      `matrix row for "${PROVIDER}", expect a package instead`
+  ).toBe('awaiting_provider_data');
+  expect(claim.submissionHoldReason ?? '').toContain(PROVIDER);
+  expect(claim.pdfS3Key).toBeNull();
+  expect(
+    claim.lettershopSubmissionId,
+    'a law-firm-routed bAV claim was sent to the lettershop'
+  ).toBeNull();
+
+  expect(claim.firstName.toUpperCase()).toBe(PASSPORT.givenNames);
+  expect(claim.lastName.toUpperCase()).toBe(PASSPORT.surname);
+  expect(claim.dateOfBirth).toBe(PASSPORT.dateOfBirth);
+  expect(claim.salutation).toBe('herr');
+  expect(claim.currentCountry).toBe('PH');
+  expect(claim.bavProviderName).toBe(PROVIDER);
+  expect(claim.bavContractReference).toBe(CONTRACT_REFERENCE);
+  expect(claim.employerName).toBe(EMPLOYMENT.employerName);
+  expect(claim.employmentEndDate).toBe(EMPLOYMENT.employmentEndDate);
+  expect(claim.employerPersonnelNumber).toBe(EMPLOYMENT.personnelNumber);
+  expect(claim.bavDurchfuehrungsweg).toBe(EMPLOYMENT.durchfuehrungsweg);
+  expect(claim.moveOutDate).toBe(EMPLOYMENT.leftGermanyDate);
+  expect((claim.taxId ?? '').replace(/\s/g, '')).toBe(
+    EMPLOYMENT.taxId.replace(/\s/g, '')
+  );
+  // Direktversicherung → letter goes to the provider.
+  expect(claim.bavAddresseeType).toBe('provider');
+  expect(claim.bavRecipientName).toBe(PROVIDER);
+  expect(claim.healthInsuranceType).toBe(BAV_DOCUMENTS.healthInsurance.type);
+  expect(claim.drvRefundReceived).toBe(true);
+  expect(claim.drvOffice).toBe(DRV.drvOffice);
+  expect(claim.drvDecisionDate).toBe(DRV.decisionDate);
+  expect(claim.iban).toBe(BANK.iban);
+  expect(claim.swiftBic).toBe(BANK.swiftBic);
+  expect(claim.bankName).toBe(BANK.bankName);
+  expect(claim.signatureId).toBeTruthy();
+  expect(documentRoles).toEqual(
+    expect.arrayContaining([
+      'passport',
+      'health_insurance',
+      'drv_refund_decision',
+    ])
+  );
+
+  testInfo.annotations.push({
+    type: 'claim',
+    description:
+      `status=${claim.status} payment=${claim.paymentStatus} ` +
+      `caseType=${claim.caseType} route=${claim.handlingRoute} ` +
+      `hold=${claim.submissionHold ?? 'none'} ` +
+      `package=${claim.pdfS3Key ?? 'none'} ` +
+      `lettershop=${claim.lettershopSubmissionId ?? 'none'} ` +
+      `lawFirmId=${claim.lawFirmId ?? 'unassigned'}`,
+  });
+});

@@ -162,6 +162,13 @@
       "when": 1790324253025,
       "tag": "0022_law_firm_2fa",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790324254025,
+      "tag": "0023_claim_submission_hold",
+      "breakpoints": true
     }
   ]
 }

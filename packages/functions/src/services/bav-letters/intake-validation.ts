@@ -1,4 +1,5 @@
 import type { ClaimDocumentRole } from '../../drizzle/schema/claims';
+import { isValidBic } from '../payout-flow/bank-validation';
 import { getBavThresholds } from './constants';
 
 /**
@@ -74,12 +75,63 @@ const filled = (v: string | null | undefined): boolean =>
   typeof v === 'string' && v.trim() !== '';
 
 /**
- * Errors that block generating an Abfindung letter for a bAV claim.
- * Universal claim checks (name, passport, signature, …) live in the
- * claims service; this covers only what the bAV letters add. `now` picks
- * the § 3 Abs. 2 threshold year for route B.
+ * Errors that block generating an Abfindung letter for a bAV claim: what
+ * the client provides (validateBavClientIntake) plus the letter recipient
+ * ops complete (validateBavRecipient). Universal claim checks (name,
+ * passport, signature, …) live in the claims service. `now` picks the
+ * § 3 Abs. 2 threshold year for route B.
  */
 export function validateBavIntake(
+  claim: BavClaimFields,
+  documentRoles: readonly ClaimDocumentRole[],
+  now: Date = new Date()
+): string[] {
+  return [
+    ...validateBavClientIntake(claim, documentRoles, now),
+    ...validateBavRecipient(claim),
+  ];
+}
+
+/**
+ * The letter recipient's name and postal address. Not asked from the
+ * client (client answer, 15 Sep 2026): the provider matrix fills it at
+ * submission, otherwise ATLAES ops enter it in the admin before the
+ * package is generated.
+ */
+export function validateBavRecipient(
+  claim: Pick<
+    BavClaimFields,
+    | 'bavRecipientName'
+    | 'bavRecipientStreet'
+    | 'bavRecipientPostalCode'
+    | 'bavRecipientCity'
+  >
+): string[] {
+  const errors: string[] = [];
+  if (!filled(claim.bavRecipientName))
+    errors.push('Recipient name is required');
+  if (!filled(claim.bavRecipientStreet))
+    errors.push('Recipient street is required');
+  if (!filled(claim.bavRecipientPostalCode)) {
+    errors.push('Recipient postal code is required');
+  }
+  if (!filled(claim.bavRecipientCity))
+    errors.push('Recipient city is required');
+  return errors;
+}
+
+/** True when the letter recipient's name and address are complete. */
+export function isBavRecipientComplete(
+  claim: Parameters<typeof validateBavRecipient>[0]
+): boolean {
+  return validateBavRecipient(claim).length === 0;
+}
+
+/**
+ * What the client must provide before a bAV claim can be submitted:
+ * everything the letters need except the recipient address.
+ */
+export function validateBavClientIntake(
   claim: BavClaimFields,
   documentRoles: readonly ClaimDocumentRole[],
   now: Date = new Date()
@@ -133,21 +185,15 @@ export function validateBavIntake(
       'Direktzusage and Unterstützungskasse letters must be addressed to the employer'
     );
   }
-  if (!filled(claim.bavRecipientName))
-    errors.push('Recipient name is required');
-  if (!filled(claim.bavRecipientStreet))
-    errors.push('Recipient street is required');
-  if (!filled(claim.bavRecipientPostalCode)) {
-    errors.push('Recipient postal code is required');
-  }
-  if (!filled(claim.bavRecipientCity))
-    errors.push('Recipient city is required');
 
   if (!filled(claim.accountHolderName)) {
     errors.push('Bank account holder name is required');
   }
   if (!filled(claim.iban)) errors.push('IBAN is required');
   if (!filled(claim.swiftBic)) errors.push('BIC is required');
+  else if (!isValidBic(claim.swiftBic)) {
+    errors.push('BIC must have 8 or 11 characters (e.g. COBADEFFXXX)');
+  }
   if (!filled(claim.bankName)) errors.push('Bank name is required');
 
   if (has('provider_form') && !filled(claim.bavProviderFormTitle)) {
