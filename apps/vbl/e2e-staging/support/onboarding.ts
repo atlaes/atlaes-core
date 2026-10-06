@@ -14,7 +14,8 @@ export async function uploadSpecimenPassport(
   page: Page,
   testInfo: TestInfo,
   code: SpecimenCode = 'uto',
-  format: 'png' | 'pdf' = 'png'
+  format: 'png' | 'pdf' = 'png',
+  beforeContinue?: () => Promise<void>
 ) {
   const specimen = specimens.passports[code];
   await expect(
@@ -105,6 +106,7 @@ export async function uploadSpecimenPassport(
   );
 
   testInfo.annotations.push({ type: 'ocr', description: notes.join('; ') });
+  if (beforeContinue) await beforeContinue();
   await page.getByRole('button', { name: /Continue/i }).click();
 }
 

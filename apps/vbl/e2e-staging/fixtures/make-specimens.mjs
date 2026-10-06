@@ -14,12 +14,21 @@
  *   passport-<code>.png / .pdf   one per specimen nationality
  *   vbl-statement.pdf            VBL insurance statement (calculator upload path)
  *   vddb-statement.pdf           VddB statement (stage upload path)
+ *   drv-refund-decision.pdf      DRV refund decision (bAV cash-out, route A)
+ *   health-insurance-certificate.pdf
+ *                                health insurance certificate (bAV cash-out)
  *   specimens.json               the data printed on each file plus its
  *                                OCR text and sha256 — the e2e specs assert
  *                                OCR results against it, and the local
  *                                OCR stub (local runs only) answers from it
  *
  * Never replace these with real identity documents.
+ *
+ *   node e2e-staging/fixtures/make-specimens.mjs --documents-only
+ *
+ * regenerates only the bAV letters (DRV decision, health insurance) and
+ * keeps the passports and statements, whose PDFs would otherwise change
+ * byte-wise on every run.
  */
 import { chromium } from '@playwright/test';
 import { createHash } from 'crypto';
@@ -289,8 +298,8 @@ function statementLines(s) {
   ];
 }
 
-function statementHtml(s) {
-  const lines = statementLines(s);
+function statementHtml(s, body) {
+  const lines = body ? [s.institution, ...body] : statementLines(s);
   return `<!doctype html><html><head><meta charset="utf-8"><style>
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; }
   .page { position: relative; padding: 60px 70px; min-height: 1000px; }
@@ -309,9 +318,76 @@ function statementHtml(s) {
 }
 
 // ---------------------------------------------------------------------------
+// bAV cash-out letters (fictional): the DRV refund decision of route A and a
+// health insurance certificate. Addressed to the PHL specimen (JUAN).
+// ---------------------------------------------------------------------------
+
+const DOCUMENTS = [
+  {
+    key: 'drvRefundDecision',
+    file: 'drv-refund-decision.pdf',
+    issuer: 'Deutsche Rentenversicherung Bund',
+    drvOffice: 'Deutsche Rentenversicherung Bund',
+    decisionDate: '2025-03-14',
+    lines: [
+      'Deutsche Rentenversicherung Bund',
+      'SPECIMEN — FOR SOFTWARE TESTING ONLY — NOT A REAL DECISION',
+      'Datum: 14.03.2025',
+      'Versicherungsnummer: 00 000000 S 000 (SPECIMEN)',
+      'Herrn JUAN SPECIMEN, 1 Specimen Street, 1000 Sample City, Philippines',
+      'Bescheid über die Erstattung der Beiträge zur gesetzlichen Rentenversicherung',
+      'Sehr geehrter Herr SPECIMEN,',
+      'auf Ihren Antrag werden Ihnen die zur gesetzlichen Rentenversicherung gezahlten Beiträge nach § 210 SGB VI erstattet.',
+      'Der Erstattungsbetrag von 4.200,00 EUR wird auf das von Ihnen angegebene Konto überwiesen.',
+      'Mit der Erstattung ist das bisherige Versicherungsverhältnis aufgelöst.',
+      'SPECIMEN — FOR SOFTWARE TESTING ONLY',
+    ],
+  },
+  {
+    key: 'healthInsurance',
+    file: 'health-insurance-certificate.pdf',
+    issuer: 'SPECIMEN Krankenkasse (fictional)',
+    type: 'statutory',
+    providerName: 'SPECIMEN Krankenkasse',
+    insuredSince: { month: 'July', year: '2016', de: '01.07.2016' },
+    insuranceNumber: 'X000000000',
+    lines: [
+      'SPECIMEN Krankenkasse (fictional) — gesetzliche Krankenversicherung',
+      'SPECIMEN — FOR SOFTWARE TESTING ONLY — NOT A REAL CERTIFICATE',
+      'Musterstraße 1, 10115 Berlin',
+      'Versicherungsbescheinigung / Certificate of health insurance',
+      'Versicherte Person: SPECIMEN, JUAN (fictional), geboren am 03.11.1985 in SAMPLE CITY',
+      'Krankenversichertennummer: X000000000',
+      'Art der Versicherung: gesetzlich pflichtversichert (statutory)',
+      'Versichert seit: 01.07.2016',
+      'Versichert bis: 15.07.2024',
+      'SPECIMEN — FOR SOFTWARE TESTING ONLY',
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
 
 function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
+}
+
+async function writeDocuments(page, manifest) {
+  await page.setViewportSize({ width: 900, height: 1200 });
+  manifest.documents = {};
+  for (const d of DOCUMENTS) {
+    await page.setContent(
+      statementHtml({ institution: d.lines[0] }, d.lines.slice(1))
+    );
+    const pdf = join(OUT, d.file);
+    await page.pdf({ path: pdf, format: 'A4', printBackground: true });
+    const { lines, key, ...data } = d;
+    manifest.documents[key] = {
+      ...data,
+      ocrText: lines.join('\n'),
+      sha256: sha256(pdf),
+    };
+  }
 }
 
 async function main() {
@@ -320,6 +396,20 @@ async function main() {
   const page = await browser.newPage({
     viewport: { width: 1000, height: 700 },
   });
+  const documentsOnly = process.argv.includes('--documents-only');
+  if (documentsOnly) {
+    const manifest = JSON.parse(
+      readFileSync(join(OUT, 'specimens.json'), 'utf8')
+    );
+    await writeDocuments(page, manifest);
+    await browser.close();
+    writeFileSync(
+      join(OUT, 'specimens.json'),
+      `${JSON.stringify(manifest, null, 2)}\n`
+    );
+    console.log(`Wrote ${DOCUMENTS.length} bAV documents to ${OUT}`);
+    return;
+  }
   const manifest = { passports: {}, statements: {} };
 
   for (const p of PASSPORTS) {
@@ -356,6 +446,7 @@ async function main() {
       sha256: sha256(pdf),
     };
   }
+  await writeDocuments(page, manifest);
 
   await browser.close();
   writeFileSync(
@@ -363,7 +454,8 @@ async function main() {
     `${JSON.stringify(manifest, null, 2)}\n`
   );
   console.log(
-    `Wrote ${PASSPORTS.length} passports and ${STATEMENTS.length} statements to ${OUT}`
+    `Wrote ${PASSPORTS.length} passports, ${STATEMENTS.length} statements ` +
+      `and ${DOCUMENTS.length} bAV documents to ${OUT}`
   );
 }
 
