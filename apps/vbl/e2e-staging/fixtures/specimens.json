@@ -134,5 +134,29 @@
       "ocrText": "Versorgungsanstalt der deutschen Bühnen (VddB) — SPECIMEN\nVersicherungsnachweis / Statement of insurance — SPECIMEN\nVersicherte Person: SPECIMEN, ERIKA (fictional)\nVersicherungsnummer: 0000000000 (SPECIMEN)\nArbeitgeber (Sitz): Musterbetrieb, Bayern\nPflichtversicherung vom 01.01.2019 bis 31.12.2020\nEnde des Arbeitsverhältnisses: 31.12.2020\nDurchschnittliches zusatzversorgungspflichtiges Entgelt: 4200 EUR monatlich\nSPECIMEN — FOR SOFTWARE TESTING ONLY",
       "sha256": "a51e9b3d8a6c4a0730bbca32b6bbf3d7ee1226a8ba6ed9c7869cec5853a0e9ac"
     }
+  },
+  "documents": {
+    "drvRefundDecision": {
+      "file": "drv-refund-decision.pdf",
+      "issuer": "Deutsche Rentenversicherung Bund",
+      "drvOffice": "Deutsche Rentenversicherung Bund",
+      "decisionDate": "2025-03-14",
+      "ocrText": "Deutsche Rentenversicherung Bund\nSPECIMEN — FOR SOFTWARE TESTING ONLY — NOT A REAL DECISION\nDatum: 14.03.2025\nVersicherungsnummer: 00 000000 S 000 (SPECIMEN)\nHerrn JUAN SPECIMEN, 1 Specimen Street, 1000 Sample City, Philippines\nBescheid über die Erstattung der Beiträge zur gesetzlichen Rentenversicherung\nSehr geehrter Herr SPECIMEN,\nauf Ihren Antrag werden Ihnen die zur gesetzlichen Rentenversicherung gezahlten Beiträge nach § 210 SGB VI erstattet.\nDer Erstattungsbetrag von 4.200,00 EUR wird auf das von Ihnen angegebene Konto überwiesen.\nMit der Erstattung ist das bisherige Versicherungsverhältnis aufgelöst.\nSPECIMEN — FOR SOFTWARE TESTING ONLY",
+      "sha256": "1cb229f5000ae1e653010e0751aad48df3adc60cec1e8c8ecacb03af49e223b4"
+    },
+    "healthInsurance": {
+      "file": "health-insurance-certificate.pdf",
+      "issuer": "SPECIMEN Krankenkasse (fictional)",
+      "type": "statutory",
+      "providerName": "SPECIMEN Krankenkasse",
+      "insuredSince": {
+        "month": "July",
+        "year": "2016",
+        "de": "01.07.2016"
+      },
+      "insuranceNumber": "X000000000",
+      "ocrText": "SPECIMEN Krankenkasse (fictional) — gesetzliche Krankenversicherung\nSPECIMEN — FOR SOFTWARE TESTING ONLY — NOT A REAL CERTIFICATE\nMusterstraße 1, 10115 Berlin\nVersicherungsbescheinigung / Certificate of health insurance\nVersicherte Person: SPECIMEN, JUAN (fictional), geboren am 03.11.1985 in SAMPLE CITY\nKrankenversichertennummer: X000000000\nArt der Versicherung: gesetzlich pflichtversichert (statutory)\nVersichert seit: 01.07.2016\nVersichert bis: 15.07.2024\nSPECIMEN — FOR SOFTWARE TESTING ONLY",
+      "sha256": "3ddcac8e2cd6872650646265c9e10747d9c94c64bfc65dfdff67ccb070f72d2a"
+    }
   }
 }
