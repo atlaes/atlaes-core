@@ -133,14 +133,16 @@ test(
     await expect(
       page.getByRole('heading', { name: 'Review your bAV cash-out request' })
     ).toBeVisible({ timeout: 20_000 });
-    for (const section of [
-      'Employment',
-      'Health insurance',
-      'Cash-out basis',
+    // The bAV-only review sections, each complete (an incomplete health
+    // insurance section would carry an extra error label in its name).
+    for (const [id, title] of [
+      ['bav-employment', 'Employment'],
+      ['health-insurance', 'Health insurance'],
+      ['cash-out-basis', 'Cash-out basis'],
     ]) {
-      await expect(
-        page.getByRole('button', { name: section, exact: true })
-      ).toBeVisible();
+      await expect(page.locator(`#review-section-toggle-${id}`)).toHaveText(
+        title
+      );
     }
     const submitButton = page.getByRole('button', {
       name: /Submit lump-sum settlement request/i,
