@@ -25,9 +25,11 @@ on:
         type: string
         required: false
         default: ''
-  # Nightly run, enable once the suite has been stable for a while:
-  # schedule:
-  #   - cron: '0 3 * * *'
+  # Nightly at 03:00 UTC (05:00 Berlin). GitHub runs schedules from the
+  # default branch (main), so the checkout below pins scheduled runs to the
+  # staging branch, where the suite and the deployed code live.
+  schedule:
+    - cron: '0 3 * * *'
 
 concurrency:
   group: e2e-staging
@@ -48,6 +50,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'staging' || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
