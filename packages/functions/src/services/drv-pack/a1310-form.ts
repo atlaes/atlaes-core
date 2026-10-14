@@ -8,10 +8,9 @@
  * (section 3). Two signatures: the client (beneficiary, X_DAT_1) and the
  * lawyer (person receiving benefits, X_DAT_4).
  *
- * The client's message and the PoA still call this form "A1313"; the file
- * delivered is A1310 and the client's own A1310 guide (8 Sep 2026) lists
- * A1313 as retired — the cover-letter bullet therefore says "(A1310)"; the
- * owner confirms.
+ * A1310 replaces the retired A1313 (owner, 13 Oct 2026: "use A1310 and
+ * change the wording everywhere"); it needs both signatures. The client
+ * date is the day the client signed online.
  */
 
 import { PDFDocument } from 'pdf-lib';
@@ -34,7 +33,10 @@ export interface A1310Data {
   street: string;
   /** "Postal code, place of residence, state, country" as one line. */
   postalCodeCityCountry: string;
+  /** Pack date: the lawyer's date (person receiving benefits). */
   date: Date;
+  /** Day the client signed online; defaults to `date`. */
+  clientDate?: Date | null;
   clientSignaturePng?: Uint8Array | null;
   lawyerSignaturePng?: Uint8Array;
 }
@@ -64,9 +66,8 @@ export function fillA1310Fields(doc: PDFDocument, data: A1310Data): void {
   );
 
   // Dates: client (1) and person receiving benefits (4)
-  const date = formatDateDe(data.date);
-  setTextField(form, 'X_DAT_1', date);
-  setTextField(form, 'X_DAT_4', date);
+  setTextField(form, 'X_DAT_1', formatDateDe(data.clientDate ?? data.date));
+  setTextField(form, 'X_DAT_4', formatDateDe(data.date));
 }
 
 export async function fillA1310(data: A1310Data): Promise<PDFDocument> {

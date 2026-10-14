@@ -20,6 +20,8 @@ import { loadGprAsset } from './assets';
 export const VIVIDIUS = {
   name: 'Vividius Rechtsanwälte',
   lawyer: 'Katja Chudoba',
+  /** "Last, First" as DRV forms list names (V0901 section 4). */
+  lawyerFormal: 'Chudoba, Katja',
   lawyerTitle: 'Rechtsanwältin',
   street: 'Gneisenaustr. 115',
   streetLong: 'Gneisenaustraße 115',

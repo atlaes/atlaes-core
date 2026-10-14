@@ -80,6 +80,11 @@ export interface PackClient {
   germanContributionMonths: number;
   /** PNG of the client's e-signature; omitted when signing on paper. */
   signaturePng?: Uint8Array | null;
+  /**
+   * When the client signed online. Client-signed documents (A1310 client
+   * date, PoA, reply slip) carry this date; the pack date is the fallback.
+   */
+  signedAt?: Date | null;
 }
 
 export interface PackAttachment {
@@ -246,6 +251,8 @@ export async function buildSubmissionPack(
     await appendDoc(out, v0901)
   );
 
+  const clientDate = c.signedAt ?? input.date;
+
   // 3 A1310
   const a1310 = await fillA1310({
     vsnr: c.vsnr,
@@ -254,6 +261,7 @@ export async function buildSubmissionPack(
     street: c.street,
     postalCodeCityCountry: `${c.postalCode} ${c.city}, ${c.countryLabel}`,
     date: input.date,
+    clientDate,
     clientSignaturePng: c.signaturePng,
   });
   await add('a1310', 'A1310 Zahlungserklärung', await appendDoc(out, a1310));
@@ -265,7 +273,8 @@ export async function buildSubmissionPack(
     lastName: c.lastName,
     dateOfBirth: c.dateOfBirth,
     passportNumber: c.passportNumber,
-    date: input.date,
+    placeOfResidence: `${c.city}, ${c.countryLabel}`,
+    date: clientDate,
     clientSignaturePng: c.signaturePng,
   });
   await add('poa', 'Vollmacht', out.getPageCount() - before);
@@ -299,7 +308,7 @@ export async function buildSubmissionPack(
     await appendRueckantwort(out, {
       vsnr: c.vsnr,
       city: c.city,
-      date: input.date,
+      date: clientDate,
       clientSignaturePng: c.signaturePng,
     });
     await add('reply', 'Rückantwort', out.getPageCount() - b);
@@ -308,7 +317,7 @@ export async function buildSubmissionPack(
     await renderWillenserklaerung(out, {
       vsnr: c.vsnr,
       city: c.city,
-      date: input.date,
+      date: clientDate,
       clientSignaturePng: c.signaturePng,
     });
     await add(
