@@ -4,8 +4,11 @@
  *
  * Field names and the pre-filled values follow the client's annotated copy
  * (V0901_commented.pdf, 21 Sep 2026): the insured person's data in
- * section 2, Vividius as the filing party in section 4, the escrow account
- * in section 11, "Berlin, <date>" in section 13. Questions 5.1 (record
+ * section 2, Vividius as the filing party in section 4 (lawyer, firm and
+ * the firm's Aktenzeichen on three lines, per the owner's screenshot of
+ * 13 Oct 2026), the escrow account in section 11, "Berlin, <date>" in
+ * section 13. The lawyer signs V0901 by hand after downloading the pack
+ * (owner, 13 Oct 2026), so no signature image is stamped. Questions 5.1 (record
  * issued / correct) default to "ja", 5.3–8.2 default to "nein" as annotated;
  * every default is overridable through `V0901Defaults` because the owner
  * still has to confirm whether 5.1 / 6.1 / 6.3 / 8.1 are data-driven.
@@ -19,7 +22,6 @@ import { loadGprAsset } from './assets';
 import { VIVIDIUS } from './cover-letter';
 import { compactVsnr } from './register';
 import {
-  fieldRect,
   finalizeForm,
   formatDateCompactDe,
   formatDateDe,
@@ -95,8 +97,6 @@ export interface V0901Data {
   aktenzeichen: string;
   date: Date;
   defaults?: Partial<V0901Defaults>;
-  /** Lawyer's signature image (PNG) — defaults to the Vividius asset. */
-  lawyerSignaturePng?: Uint8Array;
 }
 
 const SEX_EXPORT: Record<Sex, string> = {
@@ -150,11 +150,15 @@ export function fillV0901Fields(doc: PDFDocument, data: V0901Data): void {
   );
   setTextField(form, 'VERS_LASTADR_1', data.lastGermanAddress);
 
-  // 4 Claim filed by third parties — Vividius (annotated values).
+  // 4 Claim filed by third parties — lawyer, firm, firm's Aktenzeichen.
   setTextField(
     form,
     'VERT_N_VN_D_1',
-    `${VIVIDIUS.name}, AZ ${data.aktenzeichen}`
+    [
+      `${VIVIDIUS.lawyerFormal}, ${VIVIDIUS.lawyerTitle}`,
+      VIVIDIUS.name,
+      `Az. ${data.aktenzeichen}`,
+    ].join('\n')
   );
   selectButton(form, 'AW_EIGENSCHAFT_1', d.representativeCapacity);
   setTextField(form, 'VERT_ADR_1', VIVIDIUS.street);
@@ -199,26 +203,13 @@ export function fillV0901Fields(doc: PDFDocument, data: V0901Data): void {
   );
 }
 
-/** Loads the template, fills it, stamps the lawyer's signature, flattens. */
+/**
+ * Loads the template, fills it and flattens. The signature line under
+ * "Ort, Datum" stays empty for the lawyer's handwritten signature.
+ */
 export async function fillV0901(data: V0901Data): Promise<PDFDocument> {
   const doc = await PDFDocument.load(loadGprAsset('v0901'));
   fillV0901Fields(doc, data);
-
-  // Signature row sits directly under "Ort, Datum" on page 14.
-  const form = doc.getForm();
-  const rect = fieldRect(form, 'VERS_O_DAT_1');
-  const sig = await doc.embedPng(
-    data.lawyerSignaturePng ?? loadGprAsset('signature')
-  );
-  const height = 26;
-  const page = doc.getPages()[13];
-  page.drawImage(sig, {
-    x: rect.x + 4,
-    y: rect.y - height - 3,
-    width: sig.width * (height / sig.height),
-    height,
-  });
-
   await finalizeForm(doc);
   return doc;
 }

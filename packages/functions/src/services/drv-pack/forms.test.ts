@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { PDFDocument, PDFName } from 'pdf-lib';
+import { inflateSync } from 'zlib';
+import {
+  PDFArray,
+  PDFDict,
+  PDFDocument,
+  PDFName,
+  PDFRawStream,
+  PDFRef,
+} from 'pdf-lib';
 import { loadGprAsset } from './assets';
 import { buttonOnValues, selectButton } from './acroform';
 import { a1002LanguageForResidence, buildA1002 } from './a1002-form';
@@ -62,8 +70,10 @@ describe('V0901', () => {
     expect(form.getTextField('Q_PAF_Vers_GebDat_trim').getText()).toBe(
       '12031990'
     );
+    // Section 4 per the owner's screenshot (13 Oct 2026): lawyer, firm,
+    // then the firm's Aktenzeichen.
     expect(form.getTextField('VERT_N_VN_D_1').getText()).toBe(
-      'Vividius Rechtsanwälte, AZ 06152-26'
+      'Chudoba, Katja, Rechtsanwältin\nVividius Rechtsanwälte\nAz. 06152-26'
     );
     expect(form.getTextField('IBAN_1').getText()).toBe('46100500000670012467'); // after pre-printed DE
     expect(form.getTextField('VERS_O_DAT_1').getText()).toBe(
@@ -94,6 +104,13 @@ describe('V0901', () => {
     expect(doc.getPageCount()).toBe(14);
     expect(doc.getForm().getFields()).toHaveLength(0);
   });
+
+  it('leaves the signature line empty for the lawyer to sign by hand', async () => {
+    const template = await PDFDocument.load(loadGprAsset('v0901'));
+    const doc = await fillV0901(v0901Data);
+    // Only the template's own artwork, no signature image on top.
+    expect(imageXObjectCount(doc, 13)).toBe(imageXObjectCount(template, 13));
+  });
 });
 
 describe('A1310', () => {
@@ -116,6 +133,14 @@ describe('A1310', () => {
     expect(selected(doc, 'X_AW_KONTO')).toBe('nicht innehabende Person');
     expect(form.getCheckBox('AW_EURO').isChecked()).toBe(true);
     expect(form.getTextField('X_DAT_1').getText()).toBe('21.09.2026');
+    expect(form.getTextField('X_DAT_4').getText()).toBe('21.09.2026');
+  });
+
+  it('dates the client signature on the day the client signed online', async () => {
+    const doc = await PDFDocument.load(loadGprAsset('a1310'));
+    fillA1310Fields(doc, { ...data, clientDate: new Date(2026, 8, 3) });
+    const form = doc.getForm();
+    expect(form.getTextField('X_DAT_1').getText()).toBe('03.09.2026');
     expect(form.getTextField('X_DAT_4').getText()).toBe('21.09.2026');
   });
 
@@ -173,9 +198,15 @@ describe('generated single pages', () => {
       lastName: 'Sharma',
       dateOfBirth: '1990-03-12',
       passportNumber: 'Z1234567',
+      placeOfResidence: 'Pune, Indien',
       date,
     });
     expect(doc.getPageCount()).toBe(1);
+    const text = await pageText(doc, 0);
+    // Place of residence and signing date on one line (owner, 13 Oct 2026).
+    expect(text).toContain('Pune, Indien, 21.09.2026');
+    expect(text).toContain('Zahlungserklärung A1310');
+    expect(text).not.toContain('A1313');
   });
 
   it('Willenserklärung renders one page', async () => {
@@ -195,3 +226,44 @@ describe('generated single pages', () => {
     expect(Math.round(doc.getPage(0).getWidth())).toBe(612);
   });
 });
+
+/** Image XObjects drawn directly on a page (a stamped signature is one). */
+function imageXObjectCount(doc: PDFDocument, pageIndex: number): number {
+  const resources = doc.getPage(pageIndex).node.Resources();
+  const xobjects = resources?.lookupMaybe(PDFName.of('XObject'), PDFDict);
+  if (!xobjects) return 0;
+  return xobjects
+    .entries()
+    .map(([, ref]) => doc.context.lookup(ref as PDFRef))
+    .filter(
+      (obj) =>
+        obj instanceof PDFRawStream &&
+        obj.dict.get(PDFName.of('Subtype')) === PDFName.of('Image')
+    ).length;
+}
+
+/** Text shown by a generated page (pdf-lib writes WinAnsi hex strings). */
+async function pageText(
+  original: PDFDocument,
+  pageIndex: number
+): Promise<string> {
+  // Saving turns the in-memory content streams into raw (encoded) ones.
+  const doc = await PDFDocument.load(await original.save());
+  const contents = doc.getPage(pageIndex).node.Contents();
+  const streams: unknown[] =
+    contents instanceof PDFArray
+      ? contents.asArray().map((ref) => doc.context.lookup(ref))
+      : [contents];
+  const decoded = streams
+    .filter((st): st is PDFRawStream => st instanceof PDFRawStream)
+    .map((st: PDFRawStream) => {
+      const filter = st.dict.get(PDFName.of('Filter'));
+      return filter === PDFName.of('FlateDecode')
+        ? inflateSync(Buffer.from(st.contents)).toString('latin1')
+        : Buffer.from(st.contents).toString('latin1');
+    })
+    .join('\n');
+  return [...decoded.matchAll(/<([0-9A-Fa-f]+)>\s*Tj/g)]
+    .map((m) => Buffer.from(m[1], 'hex').toString('latin1'))
+    .join('\n');
+}

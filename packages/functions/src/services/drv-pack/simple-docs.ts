@@ -93,6 +93,9 @@ export interface PoaData {
   lastName: string;
   dateOfBirth: string; // YYYY-MM-DD
   passportNumber: string;
+  /** Place of residence, e.g. "Lagos, Nigeria" (owner, 13 Oct 2026). */
+  placeOfResidence: string;
+  /** Day the client signed online. */
   date: Date;
   clientSignaturePng?: Uint8Array | null;
 }
@@ -134,7 +137,7 @@ export async function renderPoa(
   for (const b of [
     'Antragstellung und Vornahme von sonstigen Rechtshandlungen,',
     'Abgabe und Entgegennahme von Willenserklärungen',
-    'Entgegennahme von Geld (insbesondere gem. Zahlungserklärung A1313)',
+    'Entgegennahme von Geld (insbesondere gem. Zahlungserklärung A1310)',
     'Entgegennahme von Zustellungen,',
     'Einlegung und Rücknahme von Rechtsmitteln sowie Verzicht auf solche,',
     'Gerichtliche Vertretung in allen Instanzen',
@@ -173,7 +176,7 @@ export async function renderPoa(
   } else {
     w.blank(3);
   }
-  w.line(formatDateDe(data.date));
+  w.line(`${data.placeOfResidence}, ${formatDateDe(data.date)}`);
   w.line(name);
 }
 

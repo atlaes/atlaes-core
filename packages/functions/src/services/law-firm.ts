@@ -20,6 +20,7 @@ import {
   lawFirmMembers,
   lawFirms,
   profiles,
+  signatures,
   users,
   type LawFirmMemberRole,
 } from '../drizzle/schema/shared';
@@ -1116,10 +1117,17 @@ export class LawFirmService {
         residence: mapping.residenceIso!,
       });
       const docs = await this.loadClaimAttachments(claim.id);
+      // The client signs the PoA, A1310 and reply slip online (owner,
+      // 13 Oct 2026); their signature and its date go into the pack.
+      const signature = await this.loadClientSignature(claim.signatureId);
       const pack = await buildSubmissionPack({
         aktenzeichen: claim.lawFirmRef!,
         date: generatedAt,
-        client: mapping.client,
+        client: {
+          ...mapping.client,
+          signaturePng: signature?.png ?? null,
+          signedAt: signature?.signedAt ?? null,
+        },
         resolution,
         payslipPdf: docs.payslip,
         idCopyPdf: docs.passport,
@@ -1143,6 +1151,38 @@ export class LawFirmService {
   }
 
   /** Passport, payslip and Abmeldung uploads as PDF bytes (images wrapped). */
+  /**
+   * The client's online signature as PNG bytes plus the day it was made.
+   * Null when the claim has none or it is not a PNG data URL (the pack then
+   * leaves the client signature lines empty).
+   */
+  private static async loadClientSignature(
+    signatureId: string | null
+  ): Promise<{ png: Uint8Array; signedAt: Date | null } | null> {
+    if (!signatureId) return null;
+    const [row] = await db
+      .select({
+        data: signatures.signatureData,
+        createdAt: signatures.createdAt,
+      })
+      .from(signatures)
+      .where(eq(signatures.id, signatureId))
+      .limit(1);
+    const match = row?.data.match(/^data:image\/png;base64,(.+)$/is);
+    if (!match) {
+      if (row) {
+        logger.warn('Client signature is not a PNG data URL; left empty', {
+          signatureId,
+        });
+      }
+      return null;
+    }
+    return {
+      png: new Uint8Array(Buffer.from(match[1], 'base64')),
+      signedAt: row.createdAt ?? null,
+    };
+  }
+
   private static async loadClaimAttachments(claimId: string): Promise<{
     passport: Uint8Array | null;
     payslip: Uint8Array | null;
