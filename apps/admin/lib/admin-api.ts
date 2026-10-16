@@ -459,3 +459,47 @@ export async function getOverview(): Promise<AdminOverview> {
   const { data } = await apiClient.get('/admin/overview');
   return data;
 }
+
+// ------------------------------------------------------------ integrations
+
+export type IntegrationKeySource = 'admin' | 'env' | 'none';
+
+export interface LexofficeStatus {
+  source: IntegrationKeySource;
+  last4: string | null;
+  companyName: string | null;
+  updatedAt: string | null;
+  updatedByEmail: string | null;
+  baseUrl: string;
+}
+
+export interface LexofficeTestResult {
+  source: IntegrationKeySource;
+  ok: boolean;
+  companyName: string | null;
+  error: string | null;
+}
+
+export async function getLexofficeStatus(): Promise<LexofficeStatus> {
+  const { data } = await apiClient.get('/admin/integrations/lexoffice');
+  return data;
+}
+
+export async function setLexofficeKey(
+  apiKey: string
+): Promise<LexofficeStatus> {
+  const { data } = await apiClient.put('/admin/integrations/lexoffice', {
+    apiKey,
+  });
+  return data;
+}
+
+export async function removeLexofficeKey(): Promise<LexofficeStatus> {
+  const { data } = await apiClient.delete('/admin/integrations/lexoffice');
+  return data;
+}
+
+export async function testLexoffice(): Promise<LexofficeTestResult> {
+  const { data } = await apiClient.post('/admin/integrations/lexoffice/test');
+  return data;
+}

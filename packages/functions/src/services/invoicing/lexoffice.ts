@@ -85,6 +85,14 @@ export class LexofficeError extends Error {
   }
 }
 
+export interface LexofficeProfile {
+  organizationId: string | null;
+  companyName: string | null;
+  subscriptionStatus: string | null;
+  taxType: string | null;
+  smallBusiness: boolean | null;
+}
+
 export class LexofficeInvoiceProvider implements InvoiceProvider {
   readonly name = 'lexoffice' as const;
   private readonly baseUrl: string;
@@ -135,6 +143,27 @@ export class LexofficeInvoiceProvider implements InvoiceProvider {
   ) {
     const res = await this.request(path, init);
     return (await res.json()) as T;
+  }
+
+  /**
+   * GET /v1/profile — the cheapest call that proves the key works; the
+   * admin uses it as the connection check before storing a key.
+   */
+  async profile(): Promise<LexofficeProfile> {
+    const p = await this.json<{
+      organizationId?: string;
+      companyName?: string;
+      subscriptionStatus?: string;
+      taxType?: string;
+      smallBusiness?: boolean;
+    }>('/profile');
+    return {
+      organizationId: p.organizationId ?? null,
+      companyName: p.companyName ?? null,
+      subscriptionStatus: p.subscriptionStatus ?? null,
+      taxType: p.taxType ?? null,
+      smallBusiness: p.smallBusiness ?? null,
+    };
   }
 
   private async pdf(path: string): Promise<Buffer | null> {
