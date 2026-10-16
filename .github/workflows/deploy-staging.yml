@@ -52,6 +52,7 @@ jobs:
           MINDEE_API: ${{ secrets.MINDEE_API }}
           NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
           TOTP_ENCRYPTION_KEY: ${{ secrets.TOTP_ENCRYPTION_KEY }}
+          LEXOFFICE_API_KEY: ${{ secrets.LEXOFFICE_API_KEY }}
           # Non-secret settings for the GPR site, lead capture and client
           # updates (GitHub environment variables; empty = feature logs
           # instead of sending). See resources/services/index.ts.
