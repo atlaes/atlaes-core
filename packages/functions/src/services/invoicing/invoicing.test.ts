@@ -42,6 +42,8 @@ describe('invoice amounts (brief Part 2 §1 check figures)', () => {
       taxRatePercent: 19,
       amountBasis: 'atlaes_share',
       lexofficeApiKey: null,
+      // The api.lexoffice.io gateway was retired after the Lexware rebrand.
+      lexofficeBaseUrl: 'https://api.lexware.io/v1',
     });
     expect(
       invoicingConfig({

@@ -3,7 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { FileText, Scale, LogOut, ExternalLink, Home } from 'lucide-react';
+import {
+  FileText,
+  Scale,
+  LogOut,
+  ExternalLink,
+  Home,
+  Settings,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getStats } from '@/lib/admin-api';
@@ -39,6 +46,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
       icon: Scale,
       count: stats.data?.lawFirm,
       active: pathname.startsWith('/law-firms'),
+    },
+    {
+      href: '/settings',
+      label: 'Settings',
+      icon: Settings,
+      count: undefined,
+      active: pathname.startsWith('/settings'),
     },
   ];
 
@@ -99,11 +113,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
       <div className="min-w-0 flex-1">
         {/* Phone header */}
-        <header className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-2 md:hidden">
-          <span className="text-sm font-semibold text-brand-dark">
+        <header className="flex items-center justify-between gap-4 border-b border-gray-200 bg-white px-4 py-2 md:hidden">
+          <span className="flex-none text-sm font-semibold text-brand-dark">
             CompanyPension
           </span>
-          <nav className="flex gap-3 text-sm">
+          {/* Scrolls on its own rather than widening the page. */}
+          <nav className="flex min-w-0 gap-3 overflow-x-auto whitespace-nowrap text-sm">
             <Link href="/home" className="text-gray-700">
               Home
             </Link>
@@ -112,6 +127,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
             </Link>
             <Link href="/law-firms" className="text-gray-700">
               Law firms
+            </Link>
+            <Link href="/settings" className="text-gray-700">
+              Settings
             </Link>
             <Link href="/portal" className="text-gray-700">
               Portal

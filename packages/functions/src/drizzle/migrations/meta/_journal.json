@@ -169,6 +169,13 @@
       "when": 1790324254025,
       "tag": "0023_claim_submission_hold",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790410654025,
+      "tag": "0024_integration_settings",
+      "breakpoints": true
     }
   ]
 }

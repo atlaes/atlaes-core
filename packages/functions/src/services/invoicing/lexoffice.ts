@@ -1,10 +1,11 @@
 /**
  * Lexoffice (Lexware Office) public API client — fetch only, no SDK.
- * Docs: https://developers.lexoffice.io/docs/
+ * Docs: https://developers.lexware.io/docs/ (the old api.lexoffice.io
+ * gateway was retired after December 2025)
  *
  *  - Invoice: POST /v1/invoices?finalize=true → { id }; GET /v1/invoices/{id}
  *    → voucherNumber (the sequential number Lexoffice assigns);
- *    GET /v1/invoices/{id}/file (Accept: application/pdf) → PDF.
+ *    GET /v1/invoices/{id}/file (Accept: any type, as documented) → PDF.
  *  - Cancellation: POST /v1/credit-notes?finalize=true&precedingSalesVoucherId={id}
  *    (a credit note linked to the invoice; Lexoffice's cancellation path).
  *  - Payment status: the public API has no endpoint to book a payment;
@@ -84,13 +85,21 @@ export class LexofficeError extends Error {
   }
 }
 
+export interface LexofficeProfile {
+  organizationId: string | null;
+  companyName: string | null;
+  subscriptionStatus: string | null;
+  taxType: string | null;
+  smallBusiness: boolean | null;
+}
+
 export class LexofficeInvoiceProvider implements InvoiceProvider {
   readonly name = 'lexoffice' as const;
   private readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
 
   constructor(private readonly opts: LexofficeOptions) {
-    this.baseUrl = (opts.baseUrl ?? 'https://api.lexoffice.io/v1').replace(
+    this.baseUrl = (opts.baseUrl ?? 'https://api.lexware.io/v1').replace(
       /\/$/,
       ''
     );
@@ -136,9 +145,30 @@ export class LexofficeInvoiceProvider implements InvoiceProvider {
     return (await res.json()) as T;
   }
 
+  /**
+   * GET /v1/profile — the cheapest call that proves the key works; the
+   * admin uses it as the connection check before storing a key.
+   */
+  async profile(): Promise<LexofficeProfile> {
+    const p = await this.json<{
+      organizationId?: string;
+      companyName?: string;
+      subscriptionStatus?: string;
+      taxType?: string;
+      smallBusiness?: boolean;
+    }>('/profile');
+    return {
+      organizationId: p.organizationId ?? null,
+      companyName: p.companyName ?? null,
+      subscriptionStatus: p.subscriptionStatus ?? null,
+      taxType: p.taxType ?? null,
+      smallBusiness: p.smallBusiness ?? null,
+    };
+  }
+
   private async pdf(path: string): Promise<Buffer | null> {
     try {
-      const res = await this.request(path, { accept: 'application/pdf' });
+      const res = await this.request(path, { accept: '*/*' });
       return Buffer.from(await res.arrayBuffer());
     } catch {
       return null;
