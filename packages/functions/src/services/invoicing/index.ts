@@ -25,6 +25,7 @@ import { invoicingConfig } from './config';
 import { buildInvoiceInput } from './build';
 import { LexofficeInvoiceProvider } from './lexoffice';
 import { NoopInvoiceProvider } from './noop';
+import { resolveLexofficeKey } from '../integration-settings';
 import type { CreatedInvoice, InvoiceProvider } from './types';
 
 export * from './types';
@@ -33,14 +34,17 @@ export { buildInvoiceInput, invoiceAmount } from './build';
 
 let providerOverride: InvoiceProvider | null = null;
 
-/** Lexoffice when LEXOFFICE_API_KEY is set; otherwise the no-op provider. */
-export function getInvoiceProvider(): InvoiceProvider {
+/**
+ * Lexoffice when a key is configured (set in the admin, else the
+ * LEXOFFICE_API_KEY env secret); otherwise the no-op provider.
+ */
+export async function getInvoiceProvider(): Promise<InvoiceProvider> {
   if (providerOverride) return providerOverride;
-  const cfg = invoicingConfig();
-  return cfg.lexofficeApiKey
+  const { key } = await resolveLexofficeKey();
+  return key
     ? new LexofficeInvoiceProvider({
-        apiKey: cfg.lexofficeApiKey,
-        baseUrl: cfg.lexofficeBaseUrl,
+        apiKey: key,
+        baseUrl: invoicingConfig().lexofficeBaseUrl,
       })
     : new NoopInvoiceProvider();
 }
@@ -91,7 +95,7 @@ export class InvoicingService {
     if (!claim) throw new Error('Claim not found');
 
     const cfg = invoicingConfig();
-    const provider = getInvoiceProvider();
+    const provider = await getInvoiceProvider();
     const voucherDate = todayIso();
     const input = buildInvoiceInput(
       claim,
@@ -255,7 +259,7 @@ export class InvoicingService {
     let syncedAt: Date | null = null;
     let note: string | undefined;
     if (row.providerId) {
-      const res = await getInvoiceProvider()
+      const res = await (await getInvoiceProvider())
         .markPaid(row.providerId, paidOn)
         .catch((e: unknown) => ({
           synced: false,
@@ -319,7 +323,7 @@ export class InvoicingService {
     if (!claim) throw new Error('Claim not found');
 
     const cfg = invoicingConfig();
-    const provider = getInvoiceProvider();
+    const provider = await getInvoiceProvider();
     const voucherDate = todayIso();
     const input = {
       ...buildInvoiceInput(

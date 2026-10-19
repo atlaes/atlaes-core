@@ -64,6 +64,9 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
     // Encrypts law-firm 2FA secrets (AES-256-GCM, 64 hex chars). GitHub
     // environment secret; unset = fallback key derived from JWT_SECRET.
     TOTP_ENCRYPTION_KEY: process.env.TOTP_ENCRYPTION_KEY ?? '',
+    // Lexoffice invoicing for payouts. GitHub environment secret; unset =
+    // no-op provider (invoices stay pending).
+    LEXOFFICE_API_KEY: process.env.LEXOFFICE_API_KEY ?? '',
     ADMIN_MIGRATION_TOKEN: adminMigrationToken.value,
     MISTRAL_API_KEY: mistralApiKey.value,
     MISTRAL_OCR_MODEL: process.env.MISTRAL_OCR_MODEL ?? 'mistral-ocr-latest',

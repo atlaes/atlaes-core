@@ -29,6 +29,7 @@ import account from './routes/account';
 import clientUpdatesAdmin from './routes/client-updates-admin';
 import payout from './routes/payout';
 import payoutAdmin from './routes/payout-admin';
+import integrationsAdmin from './routes/integrations-admin';
 import e2e from './routes/e2e';
 
 // Fail fast before serving traffic if this backend would expose
@@ -67,6 +68,7 @@ app.route('/api/account', account);
 app.route('/api/admin/client-updates', clientUpdatesAdmin);
 app.route('/api/account/payout', payout);
 app.route('/api/admin/payout', payoutAdmin);
+app.route('/api/admin/integrations', integrationsAdmin);
 // Staging e2e support; 404 unless the e2e guard passes (utils/e2e.ts).
 app.route('/api/e2e', e2e);
 

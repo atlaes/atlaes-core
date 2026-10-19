@@ -36,6 +36,6 @@ export function invoicingConfig(
     lineItemName: envVars.INVOICE_LINE_ITEM_NAME?.trim() || 'Servicegebühr',
     lexofficeApiKey: envVars.LEXOFFICE_API_KEY?.trim() || null,
     lexofficeBaseUrl:
-      envVars.LEXOFFICE_API_BASE_URL?.trim() || 'https://api.lexoffice.io/v1',
+      envVars.LEXOFFICE_API_BASE_URL?.trim() || 'https://api.lexware.io/v1',
   };
 }
