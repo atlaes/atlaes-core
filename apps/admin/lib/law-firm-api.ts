@@ -157,9 +157,18 @@ export interface FirmCaseDetail {
     caseType?: LawFirmClaimCaseType;
     caseTypeLabel?: string;
     caseIdentifier?: { label: string; value: string | null } | null;
-    visibility?: 'not_released' | 'visible' | 'submitted' | 'rereleased';
+    visibility?:
+      | 'not_released'
+      | 'visible'
+      | 'redownload'
+      | 'submitted'
+      | 'rereleased';
     releasedAt?: string | null;
     rereleasedUntil?: string | null;
+    /** When the firm saved the submission date. */
+    submissionSavedAt?: string | null;
+    /** End of the 24-hour re-download window after saving it. */
+    redownloadUntil?: string | null;
     submissionDeadline?: string | null;
     aktenzeichenValid?: boolean;
     download?: { allowed: true } | { allowed: false; reason: string };
@@ -168,6 +177,12 @@ export interface FirmCaseDetail {
       generatedAt: string | null;
       manifest: FirmPackManifest | null;
       missingData: string[];
+    };
+    /** Copy fields in the agreed order (see caseCopyFields, backend). */
+    copyFields?: {
+      address: FirmCopyField[];
+      details: FirmCopyField[];
+      german: FirmCopyField[];
     };
     copyBlock?: string;
     claimant: {
@@ -319,4 +334,10 @@ export function apiErrorMessage(error: unknown, fallback: string): string {
     message?: string;
   };
   return e?.response?.data?.error ?? e?.message ?? fallback;
+}
+
+export interface FirmCopyField {
+  key: string;
+  label: string;
+  value: string | null;
 }

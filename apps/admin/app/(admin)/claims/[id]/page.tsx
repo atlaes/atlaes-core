@@ -17,6 +17,7 @@ import {
   ClaimHandlingRoute,
   ClaimPayoutTarget,
 } from '@/lib/admin-api';
+import { V0901AnswersCard } from '@/components/V0901AnswersCard';
 import {
   Button,
   CLAIM_STATUS_LABEL,
@@ -225,6 +226,9 @@ export default function ClaimDetailPage() {
       }
       if (meta.action === 'bav_recipient_update') {
         return { id: entry.id, at: entry.createdAt, kind: 'handling', title: `Letter recipient set${meta.savedToProviderMatrix ? ' (saved to the provider matrix)' : ''}`, body: meta.recipient ? [meta.recipient.bavRecipientName, meta.recipient.bavRecipientStreet, [meta.recipient.bavRecipientPostalCode, meta.recipient.bavRecipientCity].filter(Boolean).join(' ')].filter(Boolean).join(', ') : null, actor: 'ops' };
+      }
+      if (meta.action === 'v0901_answers_update') {
+        return { id: entry.id, at: entry.createdAt, kind: 'handling', title: 'V0901 answers changed', body: null, actor: 'ops' };
       }
       if (meta.action === 'handling_route_update') {
         return { id: entry.id, at: entry.createdAt, kind: 'handling', title: `Handling changed to ${meta.handlingRoute === 'law_firm' ? 'law firm' : 'direct'}${meta.payoutTarget === 'law_firm' ? ', payout to Anderkonto' : ''}`, body: meta.note ?? null, actor: 'ops' };
@@ -453,6 +457,11 @@ export default function ClaimDetailPage() {
               </div>
             </dl>
           </Section>
+
+          <V0901AnswersCard
+            claimId={claim.id}
+            wrap={(body) => <Section title="V0901 answers (5.1, 6.1, 6.3, 8.1)">{body}</Section>}
+          />
 
           <Section title="Bank and payment">
             <dl className="grid gap-x-8 sm:grid-cols-2">

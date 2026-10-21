@@ -503,3 +503,51 @@ export async function testLexoffice(): Promise<LexofficeTestResult> {
   const { data } = await apiClient.post('/admin/integrations/lexoffice/test');
   return data;
 }
+
+// ------------------------------------------------------------ V0901 answers
+
+export type V0901AnswerKey =
+  | 'insuranceRecordIssued'
+  | 'insuranceRecordCorrect'
+  | 'foreignContributions'
+  | 'currentlyInsuredAbroad'
+  | 'germanBenefitsReceived';
+
+export interface V0901AnswerView {
+  key: V0901AnswerKey;
+  number: string;
+  field: string;
+  textDe: string;
+  label: string;
+  defaultValue: boolean;
+  override: boolean | null;
+  effective: boolean;
+}
+
+export interface V0901AnswersState {
+  applicable: boolean;
+  frozen: boolean;
+  packGeneratedAt: string | null;
+  questions: V0901AnswerView[];
+}
+
+export async function getV0901Answers(
+  claimId: string
+): Promise<V0901AnswersState> {
+  const { data } = await apiClient.get(
+    `/admin/claims/${claimId}/v0901-answers`
+  );
+  return data;
+}
+
+/** true/false sets an override, null resets the question to its default. */
+export async function setV0901Answers(
+  claimId: string,
+  answers: Partial<Record<V0901AnswerKey, boolean | null>>
+): Promise<V0901AnswersState> {
+  const { data } = await apiClient.put(
+    `/admin/claims/${claimId}/v0901-answers`,
+    answers
+  );
+  return data;
+}

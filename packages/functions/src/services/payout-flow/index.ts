@@ -50,13 +50,10 @@ import {
 import { payoutNotification } from '../gpr-payout/notifications';
 import { sendPayoutNotificationEmail } from '../gpr-payout/email-templates/send';
 import { sendOpsLawFirmActivityEmail } from '../email';
+import { PayoutAccountsService } from '../payout-accounts';
 import { sendClientUpdateEmail } from '../client-updates/emails/send';
 import { accountUrl, adminCaseUrl } from '../client-updates';
-import {
-  atlaesIban,
-  payoutFeeConfig,
-  ROUTE_DISCLOSURE_VERSION,
-} from './config';
+import { payoutFeeConfig, ROUTE_DISCLOSURE_VERSION } from './config';
 import { isIsoDate, reviewDates, todayBerlin, type IsoDate } from './deadlines';
 import { buildFeePanel, SMALL_REFUND_FLAG, type FeePanel } from './fee-panel';
 import {
@@ -241,17 +238,30 @@ function intakeAccount(c: ClaimRow): PayoutAccount {
   };
 }
 
-function signingBlockers(c: ClaimRow, r: ReleaseRow): string[] {
+/** The ATLAES IBAN ops set in the admin (or the legacy env value). */
+async function currentAtlaesIban(): Promise<string | null> {
+  return (await PayoutAccountsService.get('atlaes'))?.iban ?? null;
+}
+
+function signingBlockers(
+  c: ClaimRow,
+  r: ReleaseRow,
+  atlaesIban: string | null
+): string[] {
   const out: string[] = [];
   if (!r.account) out.push('bank_details_missing');
   if (!r.route) out.push('route_missing');
   if (!r.invoiceNumber) out.push('invoice_missing');
   if (!c.lawFirmRef) out.push('aktenzeichen_missing');
-  if (!atlaesIban()) out.push('atlaes_iban_missing');
+  if (!atlaesIban) out.push('atlaes_iban_missing');
   return out;
 }
 
-function releaseView(c: ClaimRow, r: ReleaseRow): ReleaseView {
+function releaseView(
+  c: ClaimRow,
+  r: ReleaseRow,
+  atlaesIban: string | null
+): ReleaseView {
   const cfg = payoutFeeConfig();
   return {
     id: r.id,
@@ -266,7 +276,7 @@ function releaseView(c: ClaimRow, r: ReleaseRow): ReleaseView {
     reviewRequired: r.reviewRequired,
     signedAt: r.signedAt ? r.signedAt.toISOString() : null,
     zeDocumentNumber: r.zeDocumentNumber ?? null,
-    blockers: r.status === 'open' ? signingBlockers(c, r) : [],
+    blockers: r.status === 'open' ? signingBlockers(c, r, atlaesIban) : [],
   };
 }
 
@@ -798,6 +808,7 @@ export class PayoutFlowService {
   }
 
   static async getAdminState(claimId: string) {
+    const atlaesIban = await currentAtlaesIban();
     const claim = await this.getClaim(claimId);
     const [decisions, rows, inputs] = await Promise.all([
       db
@@ -826,7 +837,7 @@ export class PayoutFlowService {
         extractionError: d.extractionError,
       })),
       releases: rows.map((r) => ({
-        ...releaseView(claim, r),
+        ...releaseView(claim, r, atlaesIban),
         invoiceNumber: r.invoiceNumber,
         reviewReasons: r.reviewReasons,
         auditRecord: r.auditRecord,
@@ -912,6 +923,7 @@ export class PayoutFlowService {
   // ---------------- client ----------------
 
   static async getClientState(userId: string): Promise<ClientPayoutState> {
+    const atlaesIban = await currentAtlaesIban();
     const claim = await this.claimForUser(userId);
     const decision = await this.latestDecision(claim.id);
     const rows = await this.releases(claim.id);
@@ -947,7 +959,7 @@ export class PayoutFlowService {
       client: { firstName: claim.firstName, lastName: claim.lastName },
       tasks,
       decision: decision ? decisionView(decision) : null,
-      release: release ? releaseView(claim, release) : null,
+      release: release ? releaseView(claim, release, atlaesIban) : null,
       report: report
         ? {
             id: report.id,
@@ -1083,6 +1095,7 @@ export class PayoutFlowService {
     releaseId: string,
     input: BankDetailsInput
   ): Promise<{ validation: BankValidationResult; release: ReleaseView }> {
+    const atlaesIban = await currentAtlaesIban();
     const { claim, release } = await this.releaseForUser(userId, releaseId);
     if (release.status !== 'open')
       throw new PayoutFlowError('This release is no longer open', 409);
@@ -1090,7 +1103,7 @@ export class PayoutFlowService {
     const route: PayoutRouteCode = currency === 'EUR' ? 'A' : 'B';
     const validation = validateBankDetails(input, route);
     if (!validation.ok || !validation.account) {
-      return { validation, release: releaseView(claim, release) };
+      return { validation, release: releaseView(claim, release, atlaesIban) };
     }
     const account: PayoutAccount = validation.account;
     const reasons: PayoutReviewReason[] = reviewReasons(
@@ -1157,7 +1170,7 @@ export class PayoutFlowService {
         })
       );
     }
-    return { validation, release: releaseView(claim, updated) };
+    return { validation, release: releaseView(claim, updated, atlaesIban) };
   }
 
   private static async notifyDetailsReview(
@@ -1225,6 +1238,7 @@ export class PayoutFlowService {
     needsEurAccount: boolean;
     errors?: BankValidationResult['errors'];
   }> {
+    const atlaesIban = await currentAtlaesIban();
     const { claim, release } = await this.releaseForUser(userId, releaseId);
     if (release.status !== 'open')
       throw new PayoutFlowError('This release is no longer open', 409);
@@ -1237,7 +1251,10 @@ export class PayoutFlowService {
       throw new PayoutFlowError('This payout option is not available');
     const route = routeForOption(option);
     if (route === 'A' && account.currency !== 'EUR') {
-      return { release: releaseView(claim, release), needsEurAccount: true };
+      return {
+        release: releaseView(claim, release, atlaesIban),
+        needsEurAccount: true,
+      };
     }
     if (route === 'C') {
       const v = validateBankDetails(
@@ -1267,7 +1284,7 @@ export class PayoutFlowService {
       );
       if (!v.ok)
         return {
-          release: releaseView(claim, release),
+          release: releaseView(claim, release, atlaesIban),
           needsEurAccount: false,
           errors: v.errors,
         };
@@ -1294,14 +1311,18 @@ export class PayoutFlowService {
       releaseId,
       ...log,
     });
-    return { release: releaseView(claim, updated), needsEurAccount: false };
+    return {
+      release: releaseView(claim, updated, atlaesIban),
+      needsEurAccount: false,
+    };
   }
 
   private static zeInput(
     claim: ClaimRow,
     release: ReleaseRow,
     now: Date,
-    docNumber: string
+    docNumber: string,
+    atlaesIban: string | null
   ): ZahlungserklaerungInput {
     const account = release.account as PayoutAccount;
     return {
@@ -1310,7 +1331,7 @@ export class PayoutFlowService {
       aktenzeichen: claim.lawFirmRef ?? '[AZ]',
       amountReceivedEur: Number(release.amountReceivedEur),
       invoiceNumber: release.invoiceNumber ?? '[Rechnungsnummer]',
-      atlaesIban: atlaesIban() ?? '[ATLAES-IBAN]',
+      atlaesIban: atlaesIban ?? '[ATLAES-IBAN]',
       route: (release.route as PayoutRouteCode) ?? 'A',
       account: {
         accountHolder: account.accountHolder,
@@ -1333,11 +1354,12 @@ export class PayoutFlowService {
     userId: string,
     releaseId: string
   ): Promise<{ text: ZahlungserklaerungText; blockers: string[] }> {
+    const atlaesIban = await currentAtlaesIban();
     const { claim, release } = await this.releaseForUser(userId, releaseId);
     if (!release.account)
       throw new PayoutFlowError('Confirm your bank details first', 409);
     const text = buildZahlungserklaerungText(
-      this.zeInput(claim, release, new Date(), '[ID]')
+      this.zeInput(claim, release, new Date(), '[ID]', atlaesIban)
     );
     // Before signing the timestamp and signature do not exist yet; show the
     // template placeholders (Figma 12).
@@ -1361,7 +1383,7 @@ export class PayoutFlowService {
         german: mapSections(text.german),
         english: mapSections(text.english),
       },
-      blockers: signingBlockers(claim, release),
+      blockers: signingBlockers(claim, release, atlaesIban),
     };
   }
 
@@ -1375,10 +1397,11 @@ export class PayoutFlowService {
     releaseId: string,
     input: { signatureDataUrl: string; ip: string | null }
   ): Promise<{ release: ReleaseView; url: string | null }> {
+    const atlaesIban = await currentAtlaesIban();
     const { claim, release } = await this.releaseForUser(userId, releaseId);
     if (release.status !== 'open')
       throw new PayoutFlowError('This release is no longer open', 409);
-    const blockers = signingBlockers(claim, release);
+    const blockers = signingBlockers(claim, release, atlaesIban);
     if (blockers.length)
       throw new PayoutFlowError(
         'The payment instruction cannot be signed yet',
@@ -1395,7 +1418,7 @@ export class PayoutFlowService {
 
     const now = new Date();
     const docNumber = documentNumber(now);
-    const zeInput = this.zeInput(claim, release, now, docNumber);
+    const zeInput = this.zeInput(claim, release, now, docNumber, atlaesIban);
     const pdf = await PDFDocument.create();
     pdf.setTitle(`Zahlungserklärung ${docNumber}`);
     const text = await renderZahlungserklaerung(
@@ -1482,7 +1505,7 @@ export class PayoutFlowService {
       docNumber,
     });
     return {
-      release: releaseView(claim, updated),
+      release: releaseView(claim, updated, atlaesIban),
       url: await getPresignedUrl(s3Key, 900),
     };
   }

@@ -9,9 +9,9 @@
  * 13 Oct 2026), the escrow account in section 11, "Berlin, <date>" in
  * section 13. The lawyer signs V0901 by hand after downloading the pack
  * (owner, 13 Oct 2026), so no signature image is stamped. Questions 5.1 (record
- * issued / correct) default to "ja", 5.3–8.2 default to "nein" as annotated;
- * every default is overridable through `V0901Defaults` because the owner
- * still has to confirm whether 5.1 / 6.1 / 6.3 / 8.1 are data-driven.
+ * issued / correct) default to "ja", 5.3–8.2 default to "nein" as annotated.
+ * The defaults stay fixed, but ops can override 5.1 / 6.1 / 6.3 / 8.1 per
+ * case (owner, 20 Oct 2026; v0901-answers.ts, claims.v0901_answers).
  *
  * Claim type is always 1.1 (refund to the insured person). Survivor claims
  * (1.2, sections 3 and 9) are out of scope for the automated pack.

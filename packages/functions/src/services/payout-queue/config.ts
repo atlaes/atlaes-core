@@ -1,10 +1,17 @@
 /**
- * Payout-queue configuration. Fee rate / cap / law-firm fee and the
- * ATLAES IBAN come from the single source in services/payout-flow/config
- * (brief Part 2 §1); the rest is environment with brief defaults.
+ * Payout-queue configuration. Fee rate / cap / law-firm fee come from the
+ * single source in services/payout-flow/config (brief Part 2 §1); the
+ * ATLAES and collection accounts are set by ops in the admin
+ * (services/payout-accounts.ts); the rest is environment with brief
+ * defaults.
  */
 
-import { atlaesIban, payoutFeeConfig } from '../payout-flow/config';
+import { payoutFeeConfig } from '../payout-flow/config';
+import {
+  PayoutAccountsService,
+  type PayoutAccountKey,
+} from '../payout-accounts';
+import type { CollectionAccount } from './lines';
 
 export { payoutFeeConfig };
 
@@ -15,13 +22,30 @@ export interface AtlaesAccount {
   bank: string | null;
 }
 
-export function atlaesAccount(): AtlaesAccount {
+export async function atlaesAccount(): Promise<AtlaesAccount> {
+  const a = await PayoutAccountsService.get('atlaes');
   return {
-    holder: process.env.ATLAES_ACCOUNT_HOLDER?.trim() || 'ATLAES GmbH',
-    iban: atlaesIban(),
-    bic: process.env.ATLAES_BIC?.trim() || null,
-    bank: process.env.ATLAES_BANK?.trim() || null,
+    holder: a?.holder || 'ATLAES GmbH',
+    iban: a?.iban ?? null,
+    bic: a?.bic ?? null,
+    bank: a?.bank ?? null,
   };
+}
+
+/** A provider collection account from the admin, in queue-line form. */
+export async function collectionAccount(
+  key: Exclude<PayoutAccountKey, 'atlaes'>
+): Promise<CollectionAccount | null> {
+  const a = await PayoutAccountsService.get(key);
+  return a
+    ? {
+        holder: a.holder,
+        iban: a.iban,
+        bic: a.bic,
+        bank: a.bank,
+        reference: a.reference,
+      }
+    : null;
 }
 
 /** The firm's daily online-banking transfer limit (brief §5: EUR 50,000). */

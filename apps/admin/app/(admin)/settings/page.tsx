@@ -20,6 +20,7 @@ import {
   formatDate,
   inputClass,
 } from '@/components/ui';
+import { PayoutAccountsCard } from '@/components/PayoutAccountsCard';
 
 const SOURCE_LABEL: Record<LexofficeStatus['source'], string> = {
   admin: 'Connected (key set here)',
@@ -32,9 +33,10 @@ export default function SettingsPage() {
     <div>
       <PageHeader
         title="Settings"
-        subtitle="Integrations the platform uses. Keys are stored encrypted and are never shown again after saving."
+        subtitle="Integrations and payout accounts the platform uses. API keys are stored encrypted and are never shown again after saving."
       />
-      <div className="max-w-2xl">
+      <div className="max-w-2xl space-y-6">
+        <PayoutAccountsCard />
         <LexwareCard />
       </div>
     </div>

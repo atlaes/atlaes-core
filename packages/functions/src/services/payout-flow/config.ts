@@ -2,8 +2,9 @@
  * Payout configuration (brief Part 2 §1: rate, cap, law-firm fee and the
  * ATLAES IBAN are configuration values, rendered into the ZE, the release
  * panel and the payout queue from this single source). Environment
- * overrides; defaults mirror the brief. The ATLAES IBAN has no default —
- * signing is refused until it is configured.
+ * overrides; defaults mirror the brief. The ATLAES account itself is set
+ * by ops in the admin (services/payout-accounts.ts); signing is refused
+ * until it is configured.
  */
 
 import { DEFAULT_FEE_CONFIG, type FeeConfig } from '../drv-pack/fee';
@@ -24,11 +25,6 @@ export function payoutFeeConfig(): FeeConfig {
       DEFAULT_FEE_CONFIG.lawFirmFeeEur
     ),
   };
-}
-
-export function atlaesIban(): string | null {
-  const v = process.env.ATLAES_IBAN?.trim();
-  return v ? v : null;
 }
 
 /** Version tag of the route-panel disclosure text (text F, provisional). */

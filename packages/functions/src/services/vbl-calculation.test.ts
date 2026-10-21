@@ -611,6 +611,31 @@ describe('VBLCalculationService', () => {
       expect(result.baseRefundAmount).toBeCloseTo(540, 2);
       expect(result.totalAmount).toBeCloseTo(540, 2);
     });
+
+    it('Stage period ending before 2001 uses the earliest table year (2004)', async () => {
+      // 1998–2000 are not in the table: 2004 vddb=4.5%, west cap 5150 →
+      // 36 × 3000 × 0.045 = 4860 (before: 0)
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeStageInput({
+          employmentStart: '1998-01-01',
+          employmentEnd: '2000-12-01',
+          currentAge: 55,
+          monthsContributed: 36,
+          hasOccupationalDisability: false,
+          isMandatoryInsuranceRequired: false,
+          periods: [
+            {
+              startDate: '1998-01-01',
+              endDate: '2000-12-01',
+              state: 'Bavaria',
+              grossMonthlySalary: 3000,
+              institution: 'vddb',
+            },
+          ],
+        })
+      );
+      expect(result.baseRefundAmount).toBeCloseTo(4860, 2);
+    });
   });
 
   // ============================================================

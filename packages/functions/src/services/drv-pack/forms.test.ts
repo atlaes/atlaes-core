@@ -14,6 +14,11 @@ import { a1002LanguageForResidence, buildA1002 } from './a1002-form';
 import { fillA1310, fillA1310Fields } from './a1310-form';
 import { fillV0901, fillV0901Fields, type V0901Data } from './v0901-form';
 import {
+  applyV0901Answers,
+  sanitizeV0901Overrides,
+  V0901_QUESTIONS,
+} from './v0901-answers';
+import {
   appendRueckantwort,
   renderPoa,
   renderWillenserklaerung,
@@ -97,6 +102,40 @@ describe('V0901', () => {
     });
     expect(selected(doc, 'AW_BEITR_AUSL_VT')).toBe('ja');
     expect(selected(doc, 'AW_EIGENSCHAFT_1')).toBe('Bevollmächtigter');
+  });
+
+  it('fills the ops overrides for 5.1 / 6.1 / 6.3 / 8.1', async () => {
+    const overrides = applyV0901Answers(null, {
+      insuranceRecordIssued: false,
+      insuranceRecordCorrect: false,
+      foreignContributions: true,
+      currentlyInsuredAbroad: true,
+      germanBenefitsReceived: true,
+    });
+    const doc = await PDFDocument.load(loadGprAsset('v0901'));
+    fillV0901Fields(doc, {
+      ...v0901Data,
+      defaults: sanitizeV0901Overrides(overrides),
+    });
+    expect(selected(doc, 'AW_VV_1')?.trim()).toBe('nein');
+    expect(selected(doc, 'AW_VV_2')?.trim()).toBe('nein');
+    expect(selected(doc, 'AW_BEITR_AUSL_VT')).toBe('ja');
+    expect(selected(doc, 'AW_AUSLAND_VP_1')).toBe('ja');
+    expect(selected(doc, 'AW_SACH_GELD')).toBe('ja');
+    // Questions ops cannot edit keep their annotated answers.
+    expect(selected(doc, 'AW_AUFENTHALT_AUSL')).toBe('nein');
+  });
+
+  it('every editable question maps to a ja/nein button on the form', async () => {
+    const doc = await PDFDocument.load(loadGprAsset('v0901'));
+    const form = doc.getForm();
+    for (const q of V0901_QUESTIONS) {
+      expect(
+        buttonOnValues(form, q.field)
+          .map((v) => v.trim())
+          .sort()
+      ).toEqual(['ja', 'nein']);
+    }
   });
 
   it('renders a flattened 14-page document', async () => {

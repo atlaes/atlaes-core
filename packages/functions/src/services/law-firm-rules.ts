@@ -6,16 +6,19 @@
  *  - Aktenzeichen (AZ) is mandatory and has the pattern 12345-YY
  *  - the pack is generated at download time and frozen on the case
  *  - the firm sees a case only while it is released and not yet submitted;
- *    saving the submission date hides it
+ *    saving the submission date hides it 24 hours later (re-download of
+ *    the frozen pack until then; owner's answer 20 Oct 2026)
  *  - no submission date 7 days after the first download → warning to ops,
  *    the case stays visible
- *  - ops can re-release a submitted case for 48 hours
+ *  - ops can re-release a submitted case for 24 hours
  */
 
 export const AKTENZEICHEN_PATTERN = /^\d{5}-\d{2}$/;
 
 export const OVERDUE_SUBMISSION_DAYS = 7;
-export const RERELEASE_HOURS = 48;
+export const RERELEASE_HOURS = 24;
+/** Re-download window after the submission date is saved. */
+export const REDOWNLOAD_HOURS = 24;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
@@ -36,6 +39,12 @@ export interface VisibilityInput {
   releasedAt: Date | null | undefined;
   /** Submission date saved by the firm (law_firm_submitted_at). */
   firmSubmittedAt: Date | null | undefined;
+  /**
+   * When the firm saved that date (law_firm_submission_saved_at). The
+   * entered date can lie in the past, so the re-download window counts
+   * from here. Null on cases submitted before migration 0026.
+   */
+  submissionSavedAt?: Date | null | undefined;
   rereleasedUntil: Date | null | undefined;
   now?: Date;
 }
@@ -43,13 +52,24 @@ export interface VisibilityInput {
 export type CaseVisibility =
   | 'not_released'
   | 'visible'
+  | 'redownload'
   | 'submitted'
   | 'rereleased';
 
+/** End of the re-download window, or null when there is none. */
+export function redownloadUntil(
+  submissionSavedAt: Date | null | undefined,
+  hours = REDOWNLOAD_HOURS
+): Date | null {
+  return submissionSavedAt
+    ? new Date(submissionSavedAt.getTime() + hours * HOUR_MS)
+    : null;
+}
+
 /**
- * Visibility of a case for the firm. Ops release makes it visible; the
- * saved submission date hides it; a re-release re-opens it until the
- * window closes.
+ * Visibility of a case for the firm. Ops release makes it visible; saving
+ * the submission date leaves it open for re-download for 24 hours, then
+ * hides it; a re-release re-opens it until that window closes.
  */
 export function caseVisibility(input: VisibilityInput): CaseVisibility {
   const now = input.now ?? new Date();
@@ -61,12 +81,14 @@ export function caseVisibility(input: VisibilityInput): CaseVisibility {
   ) {
     return 'rereleased';
   }
+  const grace = redownloadUntil(input.submissionSavedAt);
+  if (grace && grace.getTime() > now.getTime()) return 'redownload';
   return 'submitted';
 }
 
 export function isVisibleToFirm(input: VisibilityInput): boolean {
   const v = caseVisibility(input);
-  return v === 'visible' || v === 'rereleased';
+  return v === 'visible' || v === 'redownload' || v === 'rereleased';
 }
 
 export interface DownloadGateInput extends VisibilityInput {
@@ -149,17 +171,16 @@ export interface CopyBlockField {
 }
 
 /**
- * "Copy all" text for the firm's own system: one `Label: value` line per
- * field, empty values skipped, no trailing whitespace.
+ * "Copy all" text for the firm's own system: the values only, one line
+ * per field in the order shown, so the firm can paste them field by field
+ * or all at once into its input mask. An empty value keeps its (empty)
+ * line so every field stays on the same line number.
  */
 export function caseCopyBlock(fields: CopyBlockField[]): string {
   return fields
-    .filter(
-      (f) =>
-        f.value !== null &&
-        f.value !== undefined &&
-        String(f.value).trim() !== ''
+    .map((f) =>
+      f.value === null || f.value === undefined ? '' : String(f.value).trim()
     )
-    .map((f) => `${f.label}: ${String(f.value).trim()}`)
-    .join('\n');
+    .join('\n')
+    .replace(/\n+$/, '');
 }

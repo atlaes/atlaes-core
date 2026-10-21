@@ -19,6 +19,7 @@ export interface CollectionAccount {
   holder: string;
   iban: string;
   bic: string | null;
+  bank?: string | null;
   reference: string | null;
 }
 
@@ -139,7 +140,7 @@ export function buildPayoutLines(input: {
       amount: round2(f.clientAmount),
       account: col?.iban ?? MISSING.collection,
       bic: col?.bic ?? null,
-      bank: null,
+      bank: col?.bank ?? null,
       transferMethod: 'SEPA',
       reference: col?.reference ?? clientReference(input.clientName),
       currency,

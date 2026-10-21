@@ -103,9 +103,10 @@ test.describe('eligibility · stage', () => {
     await expectNotEligibleResult(page);
   });
 
-  test('pre-2001 end dates cannot be entered (years start at 2004)', async ({
+  test('36–119 months ending before 2001: no extra question → eligible', async ({
     page,
   }) => {
+    // Owner answer 20 Oct 2026: the pre-2001 band must be selectable.
     await startStage(page, 'VddB');
     await selectStageContributionDuration(page, '36 to 119 months');
     const years = await page
@@ -113,9 +114,10 @@ test.describe('eligibility · stage', () => {
       .nth(1)
       .locator('option')
       .allTextContents();
-    expect(years).toContain('2004');
-    expect(years).not.toContain('2003');
-    expect(years).not.toContain('2000');
+    expect(years).toContain('2000');
+    expect(years).toContain('1960');
+    await selectEmploymentEndDate(page, 'June', '1999');
+    await expectEligibleResult(page);
   });
 
   test('inside the 24-month wait → waiting screen with the start date', async ({

@@ -52,6 +52,8 @@ import {
   isSubmissionOverdue,
   isValidAktenzeichen,
   normalizeAktenzeichen,
+  redownloadUntil,
+  REDOWNLOAD_HOURS,
   rereleaseUntil,
   submissionDeadline,
   submissionPackFileName,
@@ -59,6 +61,7 @@ import {
 } from './law-firm-rules';
 import {
   attachmentAsPdf,
+  caseCopyFields,
   drvPackClientFromClaim,
   submissionPackKey,
 } from './law-firm-pack';
@@ -268,14 +271,15 @@ export function firmClaimScope(firmId: string) {
 }
 
 /**
- * What the firm can see: released, and either not yet submitted or inside
- * an ops re-release window (see `caseVisibility` in law-firm-rules).
+ * What the firm can see: released, and either not yet submitted, inside
+ * the 24-hour re-download window after the submission date was saved, or
+ * inside an ops re-release window (see `caseVisibility` in law-firm-rules).
  */
 export function firmVisibleScope(firmId: string) {
   return and(
     firmClaimScope(firmId),
     sql`${claimsTable.lawFirmReleasedAt} is not null`,
-    sql`(${claimsTable.lawFirmSubmittedAt} is null or ${claimsTable.lawFirmRereleasedUntil} > now())`
+    sql`(${claimsTable.lawFirmSubmittedAt} is null or ${claimsTable.lawFirmRereleasedUntil} > now() or ${claimsTable.lawFirmSubmissionSavedAt} > now() - make_interval(hours => ${REDOWNLOAD_HOURS}))`
   );
 }
 
@@ -285,46 +289,35 @@ function visibilityOf(claim: ClaimRow, now = new Date()): CaseVisibility {
   return caseVisibility({
     releasedAt: claim.lawFirmReleasedAt,
     firmSubmittedAt: claim.lawFirmSubmittedAt,
+    submissionSavedAt: claim.lawFirmSubmissionSavedAt,
     rereleasedUntil: claim.lawFirmRereleasedUntil,
     now,
   });
 }
 
-/** "Copy all" block for the firm's own system (field order = case screen). */
-export function caseCopyBlockFor(claim: ClaimRow): string {
+/**
+ * Copy fields of the case screen (order set by the owner on 20 Oct 2026)
+ * and the "Copy all" text built from them (values only, one per line).
+ * The responsible office / mailing address rows come from the pack
+ * manifest in the portal and sit between `details` and `german` there.
+ */
+export function caseCopyFieldsFor(claim: ClaimRow) {
   const ident = caseIdentifier(claim);
-  return caseCopyBlock([
-    { label: 'Case type', value: caseTypeLabel(resolveCaseType(claim)) },
-    ...(ident && ident.label !== 'VSNR'
-      ? [{ label: ident.label, value: ident.value }]
-      : []),
-    { label: 'Name', value: claimantName(claim) },
-    { label: 'Date of birth', value: claim.dateOfBirth },
-    { label: 'Nationality', value: claim.nationality },
-    {
-      label: 'Address',
-      value: [
-        claim.currentAddressLine1,
-        claim.currentAddressLine2,
-        [claim.currentPostalCode, claim.currentCity].filter(Boolean).join(' '),
-        claim.currentCountry,
-      ]
-        .filter(Boolean)
-        .join(', '),
-    },
-    { label: 'Insurance number (VSNR)', value: claim.vsnr },
-    {
-      label: 'Last German address',
-      value: [
-        claim.germanStreet,
-        [claim.germanPostalCode, claim.germanCity].filter(Boolean).join(' '),
-      ]
-        .filter(Boolean)
-        .join(', '),
-    },
-    { label: 'Left Germany', value: claim.moveOutDate },
-    { label: 'Aktenzeichen', value: claim.lawFirmRef },
-  ]);
+  return caseCopyFields({
+    ...claim,
+    identifier: ident
+      ? {
+          label:
+            ident.label === 'VSNR' ? 'Insurance number (VSNR)' : ident.label,
+          value: ident.value,
+        }
+      : null,
+  });
+}
+
+export function caseCopyBlockFor(claim: ClaimRow): string {
+  const f = caseCopyFieldsFor(claim);
+  return caseCopyBlock([...f.address, ...f.details, ...f.german]);
 }
 
 function claimantName(row: {
@@ -893,6 +886,7 @@ export class LawFirmService {
     const gate = downloadGate({
       releasedAt: claim.lawFirmReleasedAt,
       firmSubmittedAt: claim.lawFirmSubmittedAt,
+      submissionSavedAt: claim.lawFirmSubmissionSavedAt,
       rereleasedUntil: claim.lawFirmRereleasedUntil,
       lawFirmRef: claim.lawFirmRef,
     });
@@ -927,6 +921,8 @@ export class LawFirmService {
         visibility: visibilityOf(claim),
         releasedAt: claim.lawFirmReleasedAt,
         rereleasedUntil: claim.lawFirmRereleasedUntil,
+        submissionSavedAt: claim.lawFirmSubmissionSavedAt,
+        redownloadUntil: redownloadUntil(claim.lawFirmSubmissionSavedAt),
         submissionDeadline: claim.lawFirmDownloadedAt
           ? submissionDeadline(claim.lawFirmDownloadedAt)
           : null,
@@ -941,6 +937,7 @@ export class LawFirmService {
             null) as PackManifest | null,
           missingData: drv?.missing ?? [],
         },
+        copyFields: caseCopyFieldsFor(claim),
         copyBlock: caseCopyBlockFor(claim),
         claimant: {
           name: claimantName(claim),
@@ -1019,6 +1016,7 @@ export class LawFirmService {
       const gate = downloadGate({
         releasedAt: claim.lawFirmReleasedAt,
         firmSubmittedAt: claim.lawFirmSubmittedAt,
+        submissionSavedAt: claim.lawFirmSubmissionSavedAt,
         rereleasedUntil: claim.lawFirmRereleasedUntil,
         lawFirmRef: claim.lawFirmRef,
       });
@@ -1276,7 +1274,7 @@ export class LawFirmService {
     return { releasedAt: now };
   }
 
-  /** Ops: make a submitted case visible again for 48 hours. */
+  /** Ops: make a submitted case visible again for 24 hours. */
   static async rereleaseToFirm(
     claimId: string,
     adminUserId: string
@@ -1463,6 +1461,9 @@ export class LawFirmService {
     }
     if (input.event === 'submitted') {
       patch.lawFirmSubmittedAt = when;
+      // The re-download window counts from saving, not from the entered
+      // date (which may lie in the past).
+      patch.lawFirmSubmissionSavedAt = now;
       patch.lawFirmSubmissionChannel = input.channel ?? null;
     }
     if (input.event === 'response_received') patch.lawFirmResponseAt = when;

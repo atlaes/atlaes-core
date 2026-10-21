@@ -590,6 +590,11 @@ export const claimsTable = claims.table(
     lawFirmSubmittedAt: timestamp('law_firm_submitted_at', {
       withTimezone: true,
     }),
+    // When the firm saved the submission date (migration 0026); the
+    // 24-hour re-download window counts from here.
+    lawFirmSubmissionSavedAt: timestamp('law_firm_submission_saved_at', {
+      withTimezone: true,
+    }),
     lawFirmSubmissionChannel: varchar('law_firm_submission_channel', {
       length: 20,
     }),
@@ -599,8 +604,8 @@ export const claimsTable = claims.table(
     lawFirmClosedAt: timestamp('law_firm_closed_at', { withTimezone: true }),
 
     // Release to the firm (platform brief 2026-09-16): the firm sees a case
-    // only between release and the saved submission date; ops can
-    // re-release a submitted case for 48 hours. The overdue warning goes
+    // from release until 24 hours after the submission date is saved; ops
+    // can re-release a submitted case for 24 hours. The overdue warning goes
     // out once when no submission date exists 7 days after the download.
     lawFirmReleasedAt: timestamp('law_firm_released_at', {
       withTimezone: true,
@@ -620,6 +625,9 @@ export const claimsTable = claims.table(
     birthName: varchar('birth_name', { length: 255 }),
     phone: varchar('phone', { length: 50 }),
     germanContributionMonths: integer('german_contribution_months'),
+    // Per-case V0901 answer overrides set by ops (5.1/6.1/6.3/8.1, see
+    // services/drv-pack/v0901-answers.ts); NULL = annotated defaults.
+    v0901Answers: jsonb('v0901_answers').$type<Record<string, boolean>>(),
 
     // Submission pack generated at the firm's first download and frozen as
     // the submitted version (later client-data corrections do not touch it).

@@ -706,6 +706,38 @@ test.describe('Manual VBL calculator', () => {
     await expect(page.getByText('€ 9,000')).toBeVisible();
   });
 
+  test('goes straight to the salary step when the stage employment ended before 2001', async ({
+    page,
+  }) => {
+    await mockCalculation(page, 4000);
+
+    await chooseStageProvider(page, 'VddB');
+    // 36 contribution months ending December 1999 — the pre-2001 band
+    // (selectable since the owner's answer of 20 Oct 2026).
+    await enterContributionPeriod(page, 'January', '1997', 'December', '1999');
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'What was your average gross monthly salary?',
+      })
+    ).toBeVisible();
+    await page.getByLabel('Average monthly gross salary (€)').fill('3000');
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Your estimated VddB refund' })
+    ).toBeVisible();
+  });
+
+  test('stage year pickers reach back to 1960', async ({ page }) => {
+    await chooseStageProvider(page, 'VddB');
+    await page.getByRole('button', { name: /End year/ }).click();
+    const stageYears = (await page.getByRole('option').allTextContents()).map(
+      Number
+    );
+    expect(Math.min(...stageYears)).toBe(1960);
+  });
+
   test('blocks the stage flow at 60 or more contribution months since 2001', async ({
     page,
   }) => {

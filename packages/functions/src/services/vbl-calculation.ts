@@ -790,6 +790,14 @@ export class VBLCalculationService {
     // same as public sector. The scheme is national but the BBG cap is regional.
     const isWest = westStates.includes(period.state);
 
+    // The table starts in 2004. Stage periods can reach back before 2001
+    // (VddB/VddKO "ended before 2001" band), so earlier years use the
+    // earliest year in the table instead of contributing nothing.
+    const tableYears = Object.keys(years)
+      .map(Number)
+      .filter(Number.isFinite);
+    const earliestYear = tableYears.length ? Math.min(...tableYears) : null;
+
     let sum = 0;
     for (let year = startYear; year <= endYear; year++) {
       const segStart = year === startYear ? startMonth : 0;
@@ -797,7 +805,12 @@ export class VBLCalculationService {
       const months = segEnd - segStart + 1;
       if (months <= 0) continue;
 
-      const yearCfg = years[String(year)] || {};
+      const yearCfg =
+        years[String(year)] ||
+        (earliestYear !== null && year < earliestYear
+          ? years[String(earliestYear)]
+          : null) ||
+        {};
       const cap = isWest ? yearCfg.westCap : yearCfg.eastCap;
       const rates = yearCfg.rates || {};
 
