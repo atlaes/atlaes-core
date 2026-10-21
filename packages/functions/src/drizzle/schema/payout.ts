@@ -172,6 +172,13 @@ export const payoutReleases = claims.table(
       precision: 12,
       scale: 2,
     }).notNull(),
+    // Deregistration surcharge included in fee/ATLAES share (migration 0028).
+    deregistrationSurchargeEur: decimal('deregistration_surcharge_eur', {
+      precision: 12,
+      scale: 2,
+    })
+      .notNull()
+      .default('0'),
     // Lexoffice invoice number (invoicing stream); required before signing.
     invoiceNumber: varchar('invoice_number', { length: 50 }),
     // Client's confirmation.

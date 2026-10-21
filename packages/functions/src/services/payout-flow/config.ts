@@ -24,6 +24,10 @@ export function payoutFeeConfig(): FeeConfig {
       'PAYOUT_LAW_FIRM_FEE_EUR',
       DEFAULT_FEE_CONFIG.lawFirmFeeEur
     ),
+    deregistrationSurchargeEur: num(
+      'PAYOUT_DEREGISTRATION_SURCHARGE_EUR',
+      DEFAULT_FEE_CONFIG.deregistrationSurchargeEur ?? 50
+    ),
   };
 }
 

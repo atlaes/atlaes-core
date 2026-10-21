@@ -69,6 +69,33 @@ describe('buildZahlungserklaerungText', () => {
     expect(de).toContain('2. Auszahlung des Restbetrags: 1.353,75 EUR');
   });
 
+  it('shows the deregistration surcharge inside the ATLAES transfer', () => {
+    const t = buildZahlungserklaerungText({
+      ...base,
+      deregistrationSurchargeEur: 50,
+    });
+    expect(t.split).toMatchObject({
+      fee: 2550,
+      atlaesShare: 2371.5,
+      clientAmount: 27051.9,
+    });
+    const de = flat(t.german);
+    expect(de).toContain('1. Überweisung an ATLAES GmbH: 2.371,50 EUR');
+    expect(de).toContain(
+      'darin enthalten: Zusatzleistung Abmeldung in Deutschland 50,00 EUR einschließlich Umsatzsteuer'
+    );
+    expect(de).toContain('3. Auszahlung des Restbetrags: 27.051,90 EUR');
+    const en = flat(t.english);
+    expect(en).toContain(
+      'including the optional German deregistration service: EUR 50.00 including VAT'
+    );
+    expect(
+      flat(buildZahlungserklaerungText(base).german).some((l) =>
+        l.includes('Abmeldung')
+      )
+    ).toBe(false);
+  });
+
   it('uses route B wording with currency and routing fields', () => {
     const t = buildZahlungserklaerungText({
       ...base,

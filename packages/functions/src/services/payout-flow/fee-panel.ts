@@ -9,14 +9,18 @@
  *    no "Included:" lines, no expander. The case is flagged
  *    "small refund – annual settlement".
  *
- * "capped at €2,500" appears only when the cap applies.
+ * "capped at €2,500" appears only when the cap applies. A deregistration
+ * surcharge (drv-pack/fee.ts) shows as its own deduction after the service
+ * fee; the "Included:" lines break down the service fee only.
  */
 
 import {
   computeFeeSplit,
   DEFAULT_FEE_CONFIG,
+  round2,
   type FeeConfig,
   type FeeSplit,
+  type FeeSplitOptions,
 } from '../drv-pack/fee';
 
 export const SMALL_REFUND_FLAG = 'small refund – annual settlement';
@@ -83,11 +87,15 @@ export function feeLabel(split: FeeSplit, cfg: FeeConfig): string {
     : `Service fee — ${percent(cfg.rate)}, including VAT`;
 }
 
+export const DEREGISTRATION_LABEL =
+  'Optional service — German deregistration, including VAT';
+
 export function buildFeePanel(
   amountReceivedEur: number,
-  cfg: FeeConfig = DEFAULT_FEE_CONFIG
+  cfg: FeeConfig = DEFAULT_FEE_CONFIG,
+  opts: FeeSplitOptions = {}
 ): FeePanel {
-  const split = computeFeeSplit(amountReceivedEur, cfg);
+  const split = computeFeeSplit(amountReceivedEur, cfg, opts);
   const rows: FeePanelRow[] = [
     {
       kind: 'refund',
@@ -98,10 +106,22 @@ export function buildFeePanel(
     {
       kind: 'fee',
       label: feeLabel(split, cfg),
-      amount: `− ${eur(split.fee)}`,
-      value: split.fee,
+      amount: `− ${eur(split.percentageFee)}`,
+      value: split.percentageFee,
     },
   ];
+  if (split.deregistrationSurcharge > 0) {
+    rows.push({
+      kind: 'fee',
+      label: DEREGISTRATION_LABEL,
+      amount: `− ${eur(split.deregistrationSurcharge)}`,
+      value: split.deregistrationSurcharge,
+    });
+  }
+  // ATLAES share without the surcharge (shown as its own row above).
+  const atlaesService = round2(
+    split.atlaesShare - split.deregistrationSurcharge
+  );
   if (!split.smallRefund) {
     rows.push(
       {
@@ -113,8 +133,8 @@ export function buildFeePanel(
       {
         kind: 'included',
         label: 'Included: Germany Pension Refund service — ATLAES GmbH',
-        amount: eur(split.atlaesShare),
-        value: split.atlaesShare,
+        amount: eur(atlaesService),
+        value: atlaesService,
       }
     );
   }

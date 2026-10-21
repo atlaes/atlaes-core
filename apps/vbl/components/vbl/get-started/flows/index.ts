@@ -129,6 +129,8 @@ export interface WaitingInfo {
   title: string;
   message: string;
   eligibleDate: string;
+  // First day of the eligible month, YYYY-MM-DD (for the reminder).
+  eligibleOn: string;
 }
 
 export interface ReviewInfo {

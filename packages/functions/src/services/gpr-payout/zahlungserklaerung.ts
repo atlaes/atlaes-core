@@ -51,6 +51,8 @@ export interface ZahlungserklaerungInput {
   signedAt: Date;
   documentId: string;
   feeConfig?: FeeConfig;
+  /** Deregistration surcharge frozen on the release (0 = none). */
+  deregistrationSurchargeEur?: number;
 }
 
 export interface ZeSection {
@@ -145,7 +147,10 @@ function routeSentence(
 export function buildZahlungserklaerungText(
   input: ZahlungserklaerungInput
 ): ZahlungserklaerungText {
-  const split = computeFeeSplit(input.amountReceivedEur, input.feeConfig);
+  const split = computeFeeSplit(input.amountReceivedEur, input.feeConfig, {
+    deregistrationSurchargeEur: input.deregistrationSurchargeEur ?? 0,
+  });
+  const surcharge = split.deregistrationSurcharge;
   const name = `${input.firstName} ${input.lastName}`;
   const de = (n: number) => EUR_DE.format(n);
   const en = (n: number) => EUR_EN.format(n);
@@ -166,6 +171,11 @@ export function buildZahlungserklaerungText(
     {
       lines: [
         `1. Überweisung an ATLAES GmbH: ${de(split.atlaesShare)} EUR`,
+        ...(surcharge > 0
+          ? [
+              `darin enthalten: Zusatzleistung Abmeldung in Deutschland ${de(surcharge)} EUR einschließlich Umsatzsteuer`,
+            ]
+          : []),
         `IBAN: ${input.atlaesIban} · Verwendungszweck: ${input.invoiceNumber}`,
       ],
     },
@@ -211,6 +221,11 @@ export function buildZahlungserklaerungText(
     {
       lines: [
         `1. Transfer to ATLAES GmbH: EUR ${en(split.atlaesShare)}`,
+        ...(surcharge > 0
+          ? [
+              `including the optional German deregistration service: EUR ${en(surcharge)} including VAT`,
+            ]
+          : []),
         `IBAN: ${input.atlaesIban} · Payment reference: ${input.invoiceNumber}`,
       ],
     },

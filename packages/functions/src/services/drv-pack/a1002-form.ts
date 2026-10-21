@@ -7,8 +7,10 @@
  * Language by residence (client rule): EN default; SP for South America and
  * Mexico (except Brazil); PG for Brazil and Mozambique. The Spanish file is
  * an AcroForm; the English file is flat (text overlay at measured label
- * positions); the Portuguese file is a scan without a text layer — it is
- * included blank and flagged `manualFill` until a fillable original arrives.
+ * positions). The Portuguese file is a scan without a text layer, so Part A
+ * is drawn at positions measured on the scan (owner, 20 Oct 2026: "Can we
+ * create one?"). Drawn text instead of added AcroForm fields: the pack is
+ * flattened anyway, and a coordinate table is one place to adjust.
  */
 
 import { PDFDocument, StandardFonts } from 'pdf-lib';
@@ -53,6 +55,8 @@ export interface A1002Data {
   firstName: string;
   dateOfBirth: string; // YYYY-MM-DD
   birthName?: string | null;
+  /** Only the PG form has a place-of-birth box. */
+  placeOfBirth?: string | null;
   address: string; // street + postal code + city on one line
   country: string;
   language: A1002Language;
@@ -61,7 +65,7 @@ export interface A1002Data {
 export interface A1002Result {
   doc: PDFDocument;
   language: A1002Language;
-  /** True when the template could not be filled (PG scan). */
+  /** True when the template could not be filled. */
   manualFill: boolean;
 }
 
@@ -78,6 +82,29 @@ const EN_LAYOUT = {
   address: { x: 172, yTop: 207 },
   country: { x: 172, yTop: 236 },
   size: 10,
+} as const;
+
+/**
+ * Measured on the a1002-pg.pdf scan (A4 595.2 × 841.8, top-origin pt) from
+ * the rule and tick positions of a 144 dpi render. The VSNR comb has 17
+ * cells of 20.6 pt from x 69; like the EN form, the first three and the
+ * last two are not part of the 12-character VSNR, which starts at the tall
+ * tick at x 131. The date-of-birth comb has 8 cells of 21 pt from x 379.
+ * Part A rows: name box x 91–309 / y 136–227; birth name and place of birth
+ * x 309–547 under their labels; Anschrift y 227–252 and Land y 252–274
+ * with the text right of the label.
+ */
+const PG_LAYOUT = {
+  vsnrComb: { left: 131.0, cell: 20.6, baselineTop: 97.5, size: 10 },
+  dobComb: { left: 379.0, cell: 21.0, baselineTop: 166.5, size: 10 },
+  name: { x: 95, yTop: 168, lineGap: 13 },
+  birthName: { x: 314, yTop: 187 },
+  placeOfBirth: { x: 314, yTop: 213 },
+  address: { x: 175, yTop: 235 },
+  country: { x: 175, yTop: 256 },
+  size: 10,
+  /** Name box and right column widths: longer text is shrunk to fit. */
+  maxWidth: { name: 208, right: 230, line: 365 },
 } as const;
 
 async function fillSpanish(data: A1002Data): Promise<PDFDocument> {
@@ -128,15 +155,58 @@ async function fillEnglish(data: A1002Data): Promise<PDFDocument> {
   return doc;
 }
 
+async function fillPortuguese(data: A1002Data): Promise<PDFDocument> {
+  const doc = await PDFDocument.load(loadGprAsset('a1002Pg'));
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const page = doc.getPages()[0];
+  const h = page.getHeight();
+  const L = PG_LAYOUT;
+  const draw = (
+    text: string,
+    pos: { x: number; yTop: number },
+    maxWidth: number
+  ) => {
+    let size: number = L.size;
+    while (size > 6 && font.widthOfTextAtSize(text, size) > maxWidth)
+      size -= 0.5;
+    page.drawText(text, {
+      x: pos.x,
+      y: h - pos.yTop - font.heightAtSize(size, { descender: false }),
+      size,
+      font,
+    });
+  };
+  drawComb(page, font, compactVsnr(data.vsnr), L.vsnrComb);
+  // The name box is tall enough for two lines: wrap before shrinking.
+  const name = `${data.lastName}, ${data.firstName}`;
+  if (font.widthOfTextAtSize(name, L.size) <= L.maxWidth.name) {
+    draw(name, L.name, L.maxWidth.name);
+  } else {
+    draw(`${data.lastName},`, L.name, L.maxWidth.name);
+    draw(
+      data.firstName,
+      { x: L.name.x, yTop: L.name.yTop + L.name.lineGap },
+      L.maxWidth.name
+    );
+  }
+  drawComb(page, font, formatDateCompactDe(data.dateOfBirth), L.dobComb);
+  if (data.birthName) draw(data.birthName, L.birthName, L.maxWidth.right);
+  if (data.placeOfBirth)
+    draw(data.placeOfBirth, L.placeOfBirth, L.maxWidth.right);
+  draw(data.address, L.address, L.maxWidth.line);
+  draw(data.country, L.country, L.maxWidth.line);
+  return doc;
+}
+
 export async function buildA1002(data: A1002Data): Promise<A1002Result> {
   if (data.language === 'sp') {
     return { doc: await fillSpanish(data), language: 'sp', manualFill: false };
   }
   if (data.language === 'pg') {
     return {
-      doc: await PDFDocument.load(loadGprAsset('a1002Pg')),
+      doc: await fillPortuguese(data),
       language: 'pg',
-      manualFill: true,
+      manualFill: false,
     };
   }
   return { doc: await fillEnglish(data), language: 'en', manualFill: false };

@@ -16,6 +16,8 @@ export interface InvoiceReceiptData {
   fee: number;
   atlaesShare: number;
   valueDate: string;
+  /** Deregistration surcharge included in fee and atlaesShare (EUR). */
+  deregistrationSurcharge?: number;
 }
 
 /** Amount invoiced for a receipt under the configured basis. */
@@ -26,7 +28,11 @@ export function invoiceAmount(
   return cfg.amountBasis === 'fee' ? receipt.fee : receipt.atlaesShare;
 }
 
-/** Client name and address from the case (brief §6). */
+/**
+ * Client name and address from the case (brief §6). A deregistration
+ * surcharge becomes its own line (gross, same VAT rate); the service line
+ * carries the rest so the lines add up to the invoiced amount.
+ */
 export function buildInvoiceInput(
   claim: InvoiceClaimData,
   receipt: InvoiceReceiptData,
@@ -39,6 +45,8 @@ export function buildInvoiceInput(
   const street = [claim.currentAddressLine1, claim.currentAddressLine2]
     .filter(Boolean)
     .join(', ');
+  const total = invoiceAmount(receipt, cfg);
+  const surcharge = Math.min(receipt.deregistrationSurcharge ?? 0, total);
   return {
     customer: {
       name,
@@ -50,7 +58,18 @@ export function buildInvoiceInput(
     },
     voucherDate,
     lineItemName: cfg.lineItemName,
-    grossAmount: invoiceAmount(receipt, cfg),
+    grossAmount: total,
     taxRatePercent: cfg.taxRatePercent,
+    ...(surcharge > 0
+      ? {
+          lines: [
+            {
+              name: cfg.lineItemName,
+              grossAmount: Math.round((total - surcharge) * 100) / 100,
+            },
+            { name: cfg.deregistrationLineItemName, grossAmount: surcharge },
+          ],
+        }
+      : {}),
   };
 }

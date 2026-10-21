@@ -9,7 +9,6 @@
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { logger, toErrorMeta } from '../../../utils/logger';
 import { env } from '../../../utils/env';
-import { DEFAULT_COMMUNICATION_OWNER } from '../../client-updates/case-columns';
 import type { PayoutNotification } from '../notifications';
 import { GPR_BRAND } from './layout';
 
@@ -20,13 +19,12 @@ export async function sendPayoutNotificationEmail(
   to: string,
   mail: PayoutNotification,
   opts: {
-    /** Display name; defaults to "<owner> — Germany Pension Refund". */
+    /** Display name; defaults to "Germany Pension Refund" (owner, 20 Oct 2026). */
     fromName?: string | null;
     replyTo?: string | null;
   } = {}
 ): Promise<boolean> {
-  const fromName =
-    opts.fromName || `${DEFAULT_COMMUNICATION_OWNER} — ${GPR_BRAND}`;
+  const fromName = opts.fromName || GPR_BRAND;
   if (!isSesAvailable) {
     logger.info(`[Email] Would send payout e-mail ${mail.kind} to: ${to}`, {
       subject: mail.subject,

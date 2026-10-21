@@ -20,6 +20,7 @@ import {
   bavProviders,
   claimsTable,
   claimWorkflowStates,
+  isVblPensionProvider,
 } from '../drizzle/schema/claims';
 import {
   auditLogs,
@@ -593,6 +594,66 @@ describe('public (VBL) submission', () => {
     expect(lettershop).toHaveBeenCalledTimes(1);
     expect(notify).not.toHaveBeenCalled();
     pdf.mockRestore();
+  });
+});
+
+describe('ZVK / KVBW submission', () => {
+  it.each(['ZVK (KVBW)', 'ZVK (BayZVK / BVK)', 'RZVK Köln'])(
+    '%s: holds for manual submission, never builds the L203 or mails VBL',
+    async (provider) => {
+      const { userId, claimId } = await signedClaim({
+        pensionType: 'public',
+        pensionProvider: provider,
+        svNummer: '1234567890',
+      });
+      const pdf = vi.spyOn(ClaimPdfService, 'generateAndStoreForClaim');
+
+      const claim = await ClaimsApplicationService.submitClaim(claimId, userId);
+
+      expect(claim.status).toBe('submitted');
+      expect(claim.pensionProvider).toBe(provider);
+      expect(claim.submissionHold).toBe('manual_submission_required');
+      expect(claim.submissionHoldReason).toContain(`${provider} claim`);
+      expect(claim.submissionHoldReason).toContain('VBL L203');
+      expect(claim.pdfS3Key).toBeNull();
+      expect(claim.lettershopSubmissionId).toBeNull();
+      expect(pdf).not.toHaveBeenCalled();
+      expect(lettershop).not.toHaveBeenCalled();
+      expect(notify).toHaveBeenCalledTimes(1);
+      pdf.mockRestore();
+    }
+  );
+
+  it('never builds the VBL L203 for a ZVK claim', async () => {
+    const { userId, claimId } = await signedClaim({
+      pensionType: 'public',
+      pensionProvider: 'ZVK (KVBW)',
+      svNummer: '1234567890',
+    });
+    await expect(
+      ClaimPdfService.generateAndStoreForClaim(claimId, userId)
+    ).rejects.toThrow(
+      /^Cannot generate PDF: there is no claim form for ZVK \(KVBW\)/
+    );
+  });
+});
+
+describe('isVblPensionProvider', () => {
+  it('accepts VBL plans and legacy rows without a provider only', () => {
+    for (const p of ['VBL', 'VBLklassik', 'VBLextra', '', null, undefined]) {
+      expect(isVblPensionProvider(p)).toBe(true);
+    }
+    for (const p of [
+      'ZVK (KVBW)',
+      'KVBW',
+      'ZVK Darmstadt',
+      'ZVK Kassel (KVK)',
+      'RZVK Saar',
+      'VddB',
+      'VddKO',
+    ]) {
+      expect(isVblPensionProvider(p)).toBe(false);
+    }
   });
 });
 

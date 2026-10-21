@@ -30,6 +30,32 @@ async function chooseDropdownOption(page: Page, label: string, option: string) {
   await page.getByRole('option', { name: option }).click();
 }
 
+type ReminderPayload = {
+  email: string;
+  eligibleOn: string;
+  source: string;
+  pensionProvider?: string;
+};
+
+// Mocks POST /api/vbl/reminders and records what the page sent.
+async function mockReminder(page: Page, status = 200) {
+  const payloads: ReminderPayload[] = [];
+  await page.route('**/api/vbl/reminders', async (route) => {
+    const body = route.request().postDataJSON() as ReminderPayload;
+    payloads.push(body);
+    await route.fulfill({
+      status,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        status === 200
+          ? { success: true, reminderDueOn: body.eligibleOn }
+          : { success: false, error: 'Failed to set reminder' }
+      ),
+    });
+  });
+  return payloads;
+}
+
 async function mockCalculation(page: Page, amount = 12000) {
   let payload: CalculatePayload | null = null;
 
@@ -838,6 +864,7 @@ test.describe('Manual VBL calculator', () => {
       page.getByText(`You can return on or after January ${currentYear + 2}.`)
     ).toBeVisible();
 
+    const reminders = await mockReminder(page);
     await page
       .getByRole('button', { name: 'Notify me when I can start' })
       .click();
@@ -850,6 +877,55 @@ test.describe('Manual VBL calculator', () => {
     await expect(
       page.getByText("We'll email you when you can start your refund.")
     ).toBeVisible();
+    expect(reminders).toEqual([
+      {
+        email: 'tester@example.com',
+        eligibleOn: `${currentYear + 2}-01-01`,
+        source: 'calculator',
+        pensionProvider: 'VddB',
+      },
+    ]);
+  });
+
+  test('keeps the reminder form and shows an error when saving fails', async ({
+    page,
+  }) => {
+    await mockCalculation(page, 9000);
+    const currentYear = new Date().getFullYear();
+
+    await chooseStageProvider(page, 'VddB');
+    await enterContributionPeriod(
+      page,
+      'February',
+      String(currentYear - 1),
+      'January',
+      String(currentYear)
+    );
+    await page.getByLabel('Average monthly gross salary (€)').fill('5000');
+    await continueButton(page).click();
+    await page.getByRole('button', { name: 'Start VddB refund' }).click();
+    await answerEligibilityQuestions(page, 'No');
+    await continueButton(page).click();
+
+    const reminders = await mockReminder(page, 500);
+    await page
+      .getByRole('button', { name: 'Notify me when I can start' })
+      .click();
+    await page.getByLabel('Email address').fill('tester@example.com');
+    await page.getByRole('button', { name: 'Set reminder' }).click();
+
+    await expect(
+      page
+        .getByRole('alert')
+        .filter({ hasText: 'We could not save your reminder' })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Reminder set' })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'Set reminder' })
+    ).toBeEnabled();
+    expect(reminders).toHaveLength(1);
   });
 
   test('lets a stage refund start once the 24-month wait has passed', async ({

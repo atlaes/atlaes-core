@@ -139,6 +139,13 @@ export const fundsReceipts = claims.table(
       precision: 12,
       scale: 2,
     }).notNull(),
+    // Deregistration surcharge included in fee/atlaesShare (migration 0028).
+    deregistrationSurcharge: decimal('deregistration_surcharge', {
+      precision: 12,
+      scale: 2,
+    })
+      .notNull()
+      .default('0'),
     feeConfig: jsonb('fee_config').notNull(),
     // Decision (Bescheid) amount at the time of the check; OCR, informational.
     decisionAmount: decimal('decision_amount', { precision: 12, scale: 2 }),

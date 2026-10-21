@@ -103,6 +103,7 @@ export class InvoicingService {
         fee: Number(receipt.fee),
         atlaesShare: Number(receipt.atlaesShare),
         valueDate: receipt.valueDate,
+        deregistrationSurcharge: Number(receipt.deregistrationSurcharge ?? 0),
       },
       cfg,
       voucherDate
@@ -322,6 +323,15 @@ export class InvoicingService {
       .limit(1);
     if (!claim) throw new Error('Claim not found');
 
+    // The credit note mirrors the invoice lines (surcharge line included).
+    const [receipt] = row.fundsReceiptId
+      ? await db
+          .select({ surcharge: fundsReceipts.deregistrationSurcharge })
+          .from(fundsReceipts)
+          .where(eq(fundsReceipts.id, row.fundsReceiptId))
+          .limit(1)
+      : [];
+
     const cfg = invoicingConfig();
     const provider = await getInvoiceProvider();
     const voucherDate = todayIso();
@@ -332,6 +342,7 @@ export class InvoicingService {
           fee: Number(row.grossAmount),
           atlaesShare: Number(row.grossAmount),
           valueDate: voucherDate,
+          deregistrationSurcharge: Number(receipt?.surcharge ?? 0),
         },
         cfg,
         voucherDate

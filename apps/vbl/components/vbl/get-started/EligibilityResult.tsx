@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Check, X, ArrowRight, ArrowLeft, Clock, Bell } from 'lucide-react';
 import { useEligibility } from '@/contexts/EligibilityContext';
+import { setVblReminder } from '@/lib/vbl-reminders-api';
 
 export const EligibilityResult: React.FC = () => {
   const {
@@ -20,6 +21,8 @@ export const EligibilityResult: React.FC = () => {
     'initial' | 'form' | 'set'
   >('initial');
   const [reminderEmail, setReminderEmail] = useState('');
+  const [reminderSaving, setReminderSaving] = useState(false);
+  const [reminderError, setReminderError] = useState<string | null>(null);
 
   const handleContinueSecurely = () => {
     confirmEligibility();
@@ -169,6 +172,26 @@ export const EligibilityResult: React.FC = () => {
   }
 
   if (result === 'waiting' && waitingInfo) {
+    const submitReminder = async () => {
+      setReminderSaving(true);
+      setReminderError(null);
+      try {
+        await setVblReminder({
+          email: reminderEmail.trim(),
+          eligibleOn: waitingInfo.eligibleOn,
+          source: 'get-started',
+          pensionProvider: data.pensionProvider || undefined,
+        });
+        setStageReminderStep('set');
+      } catch {
+        setReminderError(
+          'We could not save your reminder. Please check your email address and try again.'
+        );
+      } finally {
+        setReminderSaving(false);
+      }
+    };
+
     if (isStage) {
       if (stageReminderStep === 'set') {
         return (
@@ -233,13 +256,22 @@ export const EligibilityResult: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => setStageReminderStep('set')}
-              disabled={!reminderEmail}
+              onClick={submitReminder}
+              disabled={!reminderEmail || reminderSaving}
+              aria-busy={reminderSaving}
               className="flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-[6px] bg-[#9FE870] px-6 text-[16px] font-bold text-[#163300] shadow-sm transition hover:bg-[#8AD860] disabled:cursor-not-allowed disabled:opacity-45"
             >
-              Set reminder
+              {reminderSaving ? 'Saving…' : 'Set reminder'}
               <ArrowRight className="h-5 w-5" />
             </button>
+            {reminderError && (
+              <p
+                role="alert"
+                className="mt-3 max-w-[400px] text-[14px] text-red-600"
+              >
+                {reminderError}
+              </p>
+            )}
             <p className="mt-4 max-w-[430px] text-[14px] italic leading-5 text-[#6B7280]">
               We&apos;ll send you an email reminder when you can start your
               refund.

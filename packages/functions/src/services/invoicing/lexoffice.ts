@@ -41,6 +41,15 @@ export function buildLexofficeVoucher(
   unitName = 'Stück'
 ) {
   const { customer } = input;
+  const lines = input.lines?.length
+    ? input.lines
+    : [
+        {
+          name: input.lineItemName,
+          description: input.lineItemDescription,
+          grossAmount: input.grossAmount,
+        },
+      ];
   return {
     archived: false,
     voucherDate: lexofficeDate(input.voucherDate),
@@ -51,22 +60,18 @@ export function buildLexofficeVoucher(
       ...(customer.city ? { city: customer.city } : {}),
       countryCode: customer.countryCode,
     },
-    lineItems: [
-      {
-        type: 'custom',
-        name: input.lineItemName,
-        ...(input.lineItemDescription
-          ? { description: input.lineItemDescription }
-          : {}),
-        quantity: 1,
-        unitName,
-        unitPrice: {
-          currency: 'EUR',
-          grossAmount: Math.round(input.grossAmount * 100) / 100,
-          taxRatePercentage: input.taxRatePercent,
-        },
+    lineItems: lines.map((line) => ({
+      type: 'custom',
+      name: line.name,
+      ...(line.description ? { description: line.description } : {}),
+      quantity: 1,
+      unitName,
+      unitPrice: {
+        currency: 'EUR',
+        grossAmount: Math.round(line.grossAmount * 100) / 100,
+        taxRatePercentage: input.taxRatePercent,
       },
-    ],
+    })),
     totalPrice: { currency: 'EUR' },
     taxConditions: { taxType: 'gross' },
     shippingConditions: {
