@@ -157,7 +157,13 @@ export async function ocrDocumentText({
       'MISTRAL_API_KEY is not configured'
     );
   }
-  return requestMistralOcr({ fileBuffer, fileName, mimeType, apiKey, ocrModel });
+  return requestMistralOcr({
+    fileBuffer,
+    fileName,
+    mimeType,
+    apiKey,
+    ocrModel,
+  });
 }
 
 async function requestMistralOcr({

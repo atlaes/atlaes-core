@@ -267,7 +267,9 @@ export function LetterUpload() {
     pump();
   };
 
-  const done = items.filter((i) => i.state.kind === 'done');
+  const done = items.filter(
+    (i) => i.state.kind === 'done' && !i.state.duplicate
+  );
   const matched = done.filter(
     (i) => i.state.kind === 'done' && i.state.letter.status === 'matched'
   ).length;
@@ -280,10 +282,10 @@ export function LetterUpload() {
     <PortalColumn>
       <PageHead eyebrow="Return channel" title="Letter upload" wide>
         Upload the letters the Deutsche Rentenversicherung sends you for our
-        clients — Bescheide, requests for documents, rejections. You do not
-        need to pick the case: each letter is read and filed to the case by
-        VSNR plus client name, or by your Aktenzeichen. Letters without a safe
-        match go to ATLAES for review.
+        clients — Bescheide, requests for documents, rejections. You do not need
+        to pick the case: each letter is read and filed to the case by VSNR plus
+        client name, or by your Aktenzeichen. Letters without a safe match go to
+        ATLAES for review.
       </PageHead>
 
       <DropZone onFiles={addFiles} />

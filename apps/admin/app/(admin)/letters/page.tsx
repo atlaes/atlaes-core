@@ -110,7 +110,9 @@ export default function LettersPage() {
         />
       )}
       <div className="space-y-3">
-        {letters.data?.map((l) => <LetterCard key={l.id} letter={l} />)}
+        {letters.data?.map((l) => (
+          <LetterCard key={l.id} letter={l} />
+        ))}
       </div>
     </div>
   );
@@ -357,7 +359,11 @@ function CaseSection({ letter: l }: { letter: AdminLetter }) {
             <ErrorText error={assign.error} fallback="Could not file" />
           )}
           {l.case && (
-            <Button size="sm" variant="ghost" onClick={() => setChanging(false)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setChanging(false)}
+            >
               Cancel
             </Button>
           )}
@@ -466,8 +472,8 @@ function NextStep({ letter: l }: { letter: AdminLetter }) {
         <>
           <p className="text-sm text-gray-600">
             Records this Bescheid on the case (objection deadline and client
-            review run from the date the firm received it) and starts the
-            payout flow.
+            review run from the date the firm received it) and starts the payout
+            flow.
           </p>
           <Field label="Received by the firm on" htmlFor={`rec-${l.id}`}>
             <input
@@ -484,9 +490,9 @@ function NextStep({ letter: l }: { letter: AdminLetter }) {
       {action === 'notify_client' && (
         <>
           <p className="text-sm text-gray-600">
-            Logs the DRV request on the client-update case and drafts the
-            update (E2A when the client must act, E2B when we answer from the
-            file). You still review and send it on the claim page.
+            Logs the DRV request on the client-update case and drafts the update
+            (E2A when the client must act, E2B when we answer from the file).
+            You still review and send it on the claim page.
           </p>
           <Field label="What the DRV asks for" htmlFor={`ca-${l.id}`}>
             <textarea

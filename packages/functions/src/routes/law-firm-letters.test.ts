@@ -135,7 +135,13 @@ const upload = async (
   token: string,
   key: keyof typeof SPECIMEN_LETTERS | null,
   fileName?: string
-) => request('POST', '/api/law-firm/letters', token, await letterForm(key, fileName));
+) =>
+  request(
+    'POST',
+    '/api/law-firm/letters',
+    token,
+    await letterForm(key, fileName)
+  );
 
 describe('Return channel', () => {
   let firmA: typeof lawFirms.$inferSelect;
@@ -165,16 +171,16 @@ describe('Return channel', () => {
 
     firmA = await makeFirm(`Letters Firm A ${stamp}`);
     firmB = await makeFirm(`Letters Firm B ${stamp}`);
-    memberA = await makeUser(
-      'law_firm',
-      `test-letters-a-${stamp}@example.com`
+    memberA = await makeUser('law_firm', `test-letters-a-${stamp}@example.com`);
+    memberB = await makeUser('law_firm', `test-letters-b-${stamp}@example.com`);
+    adminUser = await makeUser(
+      'admin',
+      `test-letters-admin-${stamp}@example.com`
     );
-    memberB = await makeUser(
-      'law_firm',
-      `test-letters-b-${stamp}@example.com`
+    claimant = await makeUser(
+      'user',
+      `test-letters-client-${stamp}@example.com`
     );
-    adminUser = await makeUser('admin', `test-letters-admin-${stamp}@example.com`);
-    claimant = await makeUser('user', `test-letters-client-${stamp}@example.com`);
     await testDb.insert(lawFirmMembers).values([
       { lawFirmId: firmA.id, userId: memberA.user.id, role: 'member' },
       { lawFirmId: firmB.id, userId: memberB.user.id, role: 'member' },
@@ -488,7 +494,9 @@ describe('Return channel', () => {
 
     it('record decision: hands the Bescheid to the payout flow', async () => {
       deps.download = async () =>
-        Buffer.from(await specimenLetterPdf(SPECIMEN_LETTERS.refundDecision.text));
+        Buffer.from(
+          await specimenLetterPdf(SPECIMEN_LETTERS.refundDecision.text)
+        );
       const res = await request(
         'POST',
         `/api/admin/letters/${matchedId}/complete`,
@@ -550,7 +558,9 @@ describe('Return channel', () => {
       const corr =
         await testClient`SELECT id FROM claims.claim_correspondence WHERE claim_id = ${okafor.id}::uuid`;
       expect(corr).toHaveLength(1);
-      created.userIds = created.userIds.filter((id) => id !== e2eMember.user.id);
+      created.userIds = created.userIds.filter(
+        (id) => id !== e2eMember.user.id
+      );
     });
   });
 });

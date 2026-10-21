@@ -1,11 +1,18 @@
 import apiClient from './api';
-import type { CaseRef, LetterStatus, LetterType } from '@/components/portal-letters/api';
+import type {
+  CaseRef,
+  LetterStatus,
+  LetterType,
+} from '@/components/portal-letters/api';
 
 // Client for /api/admin/letters — the return-channel "needs attention"
 // queue (letters law firms uploaded that wait for ATLAES).
 
 export type { CaseRef, LetterStatus, LetterType };
-export type LetterNextStep = 'record_decision' | 'notify_client' | 'mark_handled';
+export type LetterNextStep =
+  | 'record_decision'
+  | 'notify_client'
+  | 'mark_handled';
 
 export interface AdminLetter {
   id: string;

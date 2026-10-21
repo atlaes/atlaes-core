@@ -185,7 +185,9 @@ async function casesById(ids: string[]): Promise<Map<string, CaseRef>> {
     .select(CASE_COLUMNS)
     .from(claimsTable)
     .where(inArray(claimsTable.id, ids));
-  return new Map(rows.map((r: (typeof rows)[number]) => [r.claimId, caseRef(r)]));
+  return new Map(
+    rows.map((r: (typeof rows)[number]) => [r.claimId, caseRef(r)])
+  );
 }
 
 async function loadLetter(letterId: string): Promise<LetterRow> {
@@ -268,7 +270,8 @@ export class LawFirmLettersService {
     ip?: string | null;
   }): Promise<UploadResult> {
     const { firmId, userId, file } = input;
-    if (file.size === 0) throw new LetterError('Invalid file: the file is empty');
+    if (file.size === 0)
+      throw new LetterError('Invalid file: the file is empty');
     if (file.size > CORRESPONDENCE_MAX_BYTES) {
       throw new LetterError('Invalid file: size exceeds 10MB limit');
     }
@@ -699,7 +702,11 @@ export class LawFirmLettersService {
   static async complete(
     letterId: string,
     input:
-      | { action: 'record_decision'; receivedAt?: string | null; note?: string | null }
+      | {
+          action: 'record_decision';
+          receivedAt?: string | null;
+          note?: string | null;
+        }
       | {
           action: 'notify_client';
           customerAction: string;

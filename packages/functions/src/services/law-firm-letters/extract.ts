@@ -25,7 +25,8 @@ import {
 
 // 2-digit area + 6-digit birth date + birth-name initial + 2-digit serial
 // + check digit; usually printed "65 170839 J 003" or run together.
-const VSNR_PATTERN = /\b(\d{2})\s{0,2}(\d{6})\s{0,2}([A-Z])\s{0,2}(\d{2})\s?(\d)\b/g;
+const VSNR_PATTERN =
+  /\b(\d{2})\s{0,2}(\d{6})\s{0,2}([A-Z])\s{0,2}(\d{2})\s?(\d)\b/g;
 const AZ_PATTERN = /\b(\d{5}-\d{2})\b/g;
 
 const MONTHS: Record<string, number> = {

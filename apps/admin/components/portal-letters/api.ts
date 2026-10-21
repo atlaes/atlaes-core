@@ -3,7 +3,11 @@ import apiClient from '@/lib/api';
 // Client for /api/law-firm/letters — the return-channel bulk upload.
 // Scoped server-side to the caller's firm.
 
-export type LetterStatus = 'matched' | 'needs_review' | 'resolved' | 'dismissed';
+export type LetterStatus =
+  | 'matched'
+  | 'needs_review'
+  | 'resolved'
+  | 'dismissed';
 export type LetterType =
   | 'refund_decision'
   | 'document_request'

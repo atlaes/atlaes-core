@@ -139,7 +139,10 @@ export default function PortalLayout({
                 Law-firm portal
               </span>
             </Link>
-            <nav aria-label="Portal" className="flex items-center gap-5">
+            <nav
+              aria-label="Portal"
+              className="flex flex-wrap items-center gap-x-5 gap-y-1"
+            >
               {NAV.map((item) => {
                 const active = item.match(pathname);
                 return (
