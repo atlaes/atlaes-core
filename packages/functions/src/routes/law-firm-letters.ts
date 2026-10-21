@@ -14,7 +14,7 @@ import { logger, toErrorMeta } from '../utils/logger';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
 import { validateUuidParams } from '../middleware/validate-uuid';
-import { LawFirmService } from '../services/law-firm';
+import { LawFirmService, type FirmContext } from '../services/law-firm';
 import {
   portalClientIp,
   requirePortalSecurity,
@@ -24,6 +24,12 @@ import {
   LetterError,
 } from '../services/law-firm-letters';
 import { PayoutFlowError } from '../services/payout-flow';
+
+declare module 'hono' {
+  interface ContextVariableMap {
+    firm: FirmContext;
+  }
+}
 
 const firmScope = async (c: Context, next: Next) => {
   const user = c.get('user');

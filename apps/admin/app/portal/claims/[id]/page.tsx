@@ -885,6 +885,16 @@ function ReturnChannelCard({
           ? 'Upload letters from the pension provider or employer for this case here, one letter per file. They are filed to the case and ATLAES is notified.'
           : 'Upload DRV letters and Bescheide for this case here, one letter per file. They are filed to the case and ATLAES is notified.'}
       </p>
+      <p className="text-[13px] leading-[1.5] text-[#4b4f58]">
+        Several letters for different cases?{' '}
+        <Link
+          href="/portal/letters"
+          className="font-semibold text-[#002691] hover:underline"
+        >
+          Use the letter upload
+        </Link>
+        .
+      </p>
 
       {letters.length > 0 && (
         <ul className="flex w-full flex-col">

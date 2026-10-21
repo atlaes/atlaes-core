@@ -205,7 +205,7 @@ async function loadLetter(letterId: string): Promise<LetterRow> {
 async function fileToCase(
   tx: any,
   letter: LetterRow,
-  claim: { claimId: string; status: string },
+  claim: { claimId: string; status: string | null },
   by: { userId: string | null; role: 'law_firm' | 'admin' },
   method: LetterMatchMethod
 ): Promise<string> {
@@ -224,7 +224,7 @@ async function fileToCase(
     .returning({ id: claimCorrespondence.id });
   await tx.insert(claimWorkflowStates).values({
     claimId: claim.claimId,
-    state: claim.status,
+    state: claim.status ?? 'submitted',
     previousState: claim.status,
     triggeredBy: by.role,
     metadata: {

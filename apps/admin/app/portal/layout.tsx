@@ -23,6 +23,11 @@ const NAV: { href: string; label: string; match: (p: string) => boolean }[] = [
     match: (p) => p === '/portal' || p.startsWith('/portal/claims'),
   },
   {
+    href: '/portal/letters',
+    label: 'Letter upload',
+    match: (p) => p.startsWith('/portal/letters'),
+  },
+  {
     href: '/portal/payouts',
     label: 'Payout queue',
     match: (p) => p.startsWith('/portal/payouts'),
