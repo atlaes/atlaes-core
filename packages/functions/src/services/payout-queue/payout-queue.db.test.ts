@@ -16,6 +16,7 @@ import {
   statementLines,
 } from '../../drizzle/schema/payout-queue';
 import { claimPayoutColumns } from './claim-columns';
+import { clearPayoutAccountCache } from '../payout-accounts';
 import { StatementImportService } from '../statement-import';
 import {
   InvoicingService,
@@ -59,6 +60,7 @@ const fakeProvider: InvoiceProvider = {
 
 beforeAll(async () => {
   process.env.ATLAES_IBAN = 'DE02100100100006820101';
+  clearPayoutAccountCache();
   setInvoiceProviderForTests(fakeProvider);
   const [client] = await db
     .insert(users)
@@ -281,7 +283,7 @@ describe('statement → payout queue (DB)', () => {
       ['client', 2742.24, 'SEPA'],
     ]);
     expect(c.lines[0].reference).toBe(c.invoiceNumber);
-    expect(c.lines[0].account).toBe('DE02100100100006820101');
+    expect(c.lines[0].account).toBe('DE02 1001 0010 0006 8201 01');
     expect(c.lines[1].reference).toBe(`Beitragserstattung Anita Sharma${tag}`);
     // Not-yet-signed case (Okafor) stays hidden.
     expect(view.cases.some((x) => x.claimId === claimIds[1])).toBe(false);
