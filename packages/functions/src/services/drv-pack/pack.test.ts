@@ -132,6 +132,29 @@ describe('buildSubmissionPack', () => {
     );
   });
 
+  it('fills the Portuguese A1002 for a client living in Brazil', async () => {
+    const resolution = resolveCarrier({
+      lastOffice: 'UNKNOWN',
+      vsnr: sampleClient.vsnr,
+      citizenship: 'BR',
+      residence: 'BR',
+    });
+    const pack = await buildSubmissionPack({
+      aktenzeichen: '06155-26',
+      date: new Date(),
+      client: {
+        ...sampleClient,
+        citizenshipIso: 'BR',
+        residenceIso: 'BR',
+        countryLabel: 'Brasilien',
+      },
+      resolution,
+    });
+    expect(pack.manifest.a1002Language).toBe('pg');
+    expect(pack.manifest.documents.map((d) => d.key)).toContain('a1002');
+    expect(pack.manifest.warnings.some((w) => w.includes('A1002'))).toBe(false);
+  });
+
   it('uses the Willenserklärung and Spanish A1002 when the rules say so', async () => {
     const resolution = resolveCarrier({
       lastOffice: 'UNKNOWN',

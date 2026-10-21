@@ -96,6 +96,56 @@ describe('invoice input + Lexoffice voucher', () => {
     expect(v.address.countryCode).toBe('IN');
   });
 
+  it('deregistration surcharge is a separate 50 € gross line at 19 %', () => {
+    const withSurcharge = computeFeeSplit(3038.49, undefined, {
+      deregistrationSurchargeEur: 50,
+    });
+    const cfg = invoicingConfig({});
+    const inv = buildInvoiceInput(
+      claim,
+      { ...withSurcharge, valueDate: '2026-09-18' },
+      cfg,
+      '2026-09-18'
+    );
+    // ATLAES share 117.75 + 50 = 167.75 invoiced in total.
+    expect(inv.grossAmount).toBe(167.75);
+    expect(inv.lines).toEqual([
+      {
+        name: 'Servicedienstleistungen zur Beitragserstattung',
+        grossAmount: 117.75,
+      },
+      { name: 'Zusatzleistung: Abmeldung in Deutschland', grossAmount: 50 },
+    ]);
+    const v = buildLexofficeVoucher(inv);
+    expect(v.lineItems).toHaveLength(2);
+    expect(v.lineItems[1]).toMatchObject({
+      type: 'custom',
+      name: 'Zusatzleistung: Abmeldung in Deutschland',
+      quantity: 1,
+      unitPrice: { currency: 'EUR', grossAmount: 50, taxRatePercentage: 19 },
+    });
+    expect(
+      v.lineItems.reduce((a, l) => a + l.unitPrice.grossAmount, 0)
+    ).toBeCloseTo(inv.grossAmount, 2);
+    // Fee basis: the full fee incl. the surcharge, same split.
+    const feeBasis = buildInvoiceInput(
+      claim,
+      { ...withSurcharge, valueDate: '2026-09-18' },
+      { ...cfg, amountBasis: 'fee' },
+      '2026-09-18'
+    );
+    expect(feeBasis.grossAmount).toBe(346.25);
+    expect(feeBasis.lines?.map((l) => l.grossAmount)).toEqual([296.25, 50]);
+    // No surcharge: one line, as before.
+    expect(input.lines).toBeUndefined();
+    expect(buildLexofficeVoucher(input).lineItems).toHaveLength(1);
+    expect(
+      invoicingConfig({
+        INVOICE_DEREGISTRATION_LINE_ITEM_NAME: ' Abmeldung ',
+      }).deregistrationLineItemName
+    ).toBe('Abmeldung');
+  });
+
   it('creates, reads the number and the PDF via fetch', async () => {
     const calls: { url: string; method: string; body?: unknown }[] = [];
     const fetchImpl = vi.fn(async (url: string, init: RequestInit) => {

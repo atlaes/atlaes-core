@@ -14,15 +14,28 @@ export interface InvoiceCustomer {
   countryCode: string;
 }
 
+export interface CreateInvoiceLine {
+  name: string;
+  description?: string | null;
+  /** Gross amount incl. VAT, EUR. */
+  grossAmount: number;
+}
+
 export interface CreateInvoiceInput {
   customer: InvoiceCustomer;
   /** Voucher date, YYYY-MM-DD. */
   voucherDate: string;
   lineItemName: string;
   lineItemDescription?: string | null;
-  /** Gross amount incl. VAT, EUR. */
+  /** Gross amount incl. VAT, EUR (invoice total). */
   grossAmount: number;
   taxRatePercent: number;
+  /**
+   * Separate lines when the invoice has more than one (deregistration
+   * surcharge); they sum to `grossAmount`. Absent = one line of
+   * `lineItemName` over `grossAmount`.
+   */
+  lines?: CreateInvoiceLine[];
 }
 
 export interface CreatedInvoice {

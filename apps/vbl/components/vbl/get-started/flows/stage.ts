@@ -1,4 +1,5 @@
 import { FlowConfig, EligibilityData, StepId } from './index';
+import { monthIndexToIsoDate } from '@/lib/vbl-reminders-api';
 
 const MONTHS = [
   'January',
@@ -146,6 +147,7 @@ function getStageWaiting(data: EligibilityData) {
     title: 'Your refund cannot be started yet',
     message: 'You can return on or after',
     eligibleDate: formattedDate,
+    eligibleOn: monthIndexToIsoDate(eligibleIndex),
   };
 }
 

@@ -14,6 +14,7 @@ import {
   payoutReleases,
 } from '../../drizzle/schema/payout';
 import { PayoutFlowService } from '.';
+import { clearPayoutAccountCache } from '../payout-accounts';
 
 const tag = Math.random().toString(36).slice(2, 8);
 let userId = '';
@@ -54,6 +55,7 @@ function png(w = 120, h = 40): string {
 
 beforeAll(async () => {
   process.env.ATLAES_IBAN = 'DE02 1001 0010 0006 8201 01';
+  clearPayoutAccountCache();
   const [u] = await db
     .insert(users)
     .values({ email: `p1-client-${tag}@example.com`, emailVerified: true })

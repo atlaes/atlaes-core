@@ -31,6 +31,8 @@ export interface ReleaseFigures {
   lawFirmFee: number;
   atlaesShare: number;
   clientAmount: number;
+  /** Deregistration surcharge included in fee/atlaesShare (0 = none). */
+  deregistrationSurcharge?: number;
   invoiceNumber: string | null;
   route: RouteCode | null;
   account: PayoutAccount | null;
@@ -110,6 +112,10 @@ export function buildPayoutLines(input: {
   if (f.feeCapped)
     atlaesRemarks.push(`Fee capped at ${fmtEur(input.feeCapEur)}`);
   if (f.smallRefund) atlaesRemarks.push('Small refund — annual settlement');
+  if ((f.deregistrationSurcharge ?? 0) > 0)
+    atlaesRemarks.push(
+      `Incl. ${fmtEur(f.deregistrationSurcharge ?? 0)} deregistration service`
+    );
 
   const lines: PayoutLineDraft[] = [
     {

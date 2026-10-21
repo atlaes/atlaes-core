@@ -317,9 +317,10 @@ export type CorrespondenceSource = (typeof CORRESPONDENCE_SOURCES)[number];
 // awaiting_provider_data — bAV claim whose letter recipient (provider
 //   address) is incomplete; ops enter it in the admin, then the package is
 //   generated. No package, lettershop job or law-firm release before that.
-// manual_submission_required — VddB/VddKO claim: there is no VddB/VddKO
-//   claim form in the system yet, so ops submit it by hand. Never sent to
-//   the lettershop (the VBL L203 is the wrong institution's form).
+// manual_submission_required — VddB/VddKO or ZVK/KVBW claim: the only
+//   claim form in the system is the VBL L203, so ops submit it by hand.
+//   Never sent to the lettershop (the L203 and its VBL Karlsruhe address
+//   belong to the wrong institution).
 // package_generation_failed — the claim package could not be built after
 //   submission (reason holds the error); ops fix the data and regenerate.
 export const CLAIM_SUBMISSION_HOLDS = [
@@ -344,6 +345,19 @@ export function isStagePensionProvider(
   return (STAGE_PENSION_PROVIDERS as readonly string[]).includes(
     (provider ?? '').trim()
   );
+}
+
+/**
+ * True when the public-sector claim belongs to the VBL itself (VBL,
+ * VBLklassik, VBLextra), the only institution the L203 package and its
+ * "VBL. Kundenservice, 76240 Karlsruhe" address are for. Rows without a
+ * provider predate the provider choice, when every public claim was VBL.
+ */
+export function isVblPensionProvider(
+  provider: string | null | undefined
+): boolean {
+  const value = (provider ?? '').trim();
+  return value === '' || /^VBL/i.test(value);
 }
 
 // Task 15: type of health insurance selected/confirmed on the Health
@@ -674,6 +688,20 @@ export const claimsTable = claims.table(
     payoutAmountMismatch: boolean('payout_amount_mismatch')
       .notNull()
       .default(false), // OCR amount ≠ received amount (non-blocking)
+
+    // Deregistration surcharge (migration 0028, drv-pack/fee.ts): set by ops
+    // when the client cannot provide an Abmeldebestätigung; adds EUR 50 incl.
+    // VAT to the ATLAES fee at "funds received".
+    deregistrationSurcharge: boolean('deregistration_surcharge')
+      .notNull()
+      .default(false),
+    deregistrationSurchargeReason: text('deregistration_surcharge_reason'),
+    deregistrationSurchargeSetBy: uuid(
+      'deregistration_surcharge_set_by'
+    ).references(() => users.id, { onDelete: 'set null' }),
+    deregistrationSurchargeSetAt: timestamp('deregistration_surcharge_set_at', {
+      withTimezone: true,
+    }),
 
     // Submission hold (migration 0023, see ClaimSubmissionHold): the claim
     // is submitted and paid but nothing goes out automatically until ops

@@ -101,7 +101,7 @@ function envAtlaes(): PayoutAccountView | null {
     key: 'atlaes',
     source: 'env',
     holder: process.env.ATLAES_ACCOUNT_HOLDER?.trim() || 'ATLAES GmbH',
-    iban,
+    iban: formatIban(iban),
     bic: process.env.ATLAES_BIC?.trim() || null,
     bank: process.env.ATLAES_BANK?.trim() || null,
     reference: null,

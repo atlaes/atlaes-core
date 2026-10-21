@@ -44,6 +44,43 @@ function figures(
 }
 
 describe('payout lines (brief §5)', () => {
+  it('deregistration surcharge: ATLAES line +50, client line −50, sum check holds', () => {
+    for (const amount of [3038.49, 29601.9, 1500]) {
+      const s = computeFeeSplit(amount, undefined, {
+        deregistrationSurchargeEur: 50,
+      });
+      const f = figures(amount, {
+        fee: s.fee,
+        lawFirmFee: s.lawFirmFee,
+        atlaesShare: s.atlaesShare,
+        clientAmount: s.clientAmount,
+        deregistrationSurcharge: s.deregistrationSurcharge,
+      });
+      const base = figures(amount);
+      expect(sumCheck(f)).toBe(true);
+      const lines = buildPayoutLines({
+        clientName: 'Joseph Okafor',
+        figures: f,
+        atlaes,
+        feeCapEur: 2500,
+      });
+      expect(lines[0].amount).toBeCloseTo(base.atlaesShare + 50, 2);
+      expect(lines[0].remarks).toContain('Incl. €50 deregistration service');
+      expect(lines[lines.length - 1].amount).toBeCloseTo(
+        base.clientAmount - 50,
+        2
+      );
+    }
+    expect(
+      buildPayoutLines({
+        clientName: 'Joseph Okafor',
+        figures: figures(3038.49),
+        atlaes,
+        feeCapEur: 2500,
+      })[0].remarks ?? ''
+    ).not.toContain('deregistration');
+  });
+
   it('route A: ATLAES share to the ATLAES IBAN with the invoice number; client remainder by SEPA', () => {
     const lines = buildPayoutLines({
       clientName: 'Joseph Okafor',
