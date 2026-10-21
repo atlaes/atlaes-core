@@ -84,6 +84,11 @@ Allgemeine Information zu unseren Öffnungszeiten.
 
 export async function specimenLetterPdf(text: string): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
+  // Fixed dates: the same text always gives the same bytes (dedupe tests).
+  pdf.setCreationDate(new Date('2026-10-01T00:00:00Z'));
+  pdf.setModificationDate(new Date('2026-10-01T00:00:00Z'));
+  pdf.setProducer('ATLAES specimen');
+  pdf.setCreator('ATLAES specimen');
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const page = pdf.addPage([595, 842]);
   let y = 790;
