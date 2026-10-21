@@ -134,6 +134,32 @@ export async function extractDrvRefundDecisionDetails({
   return normalizeExtraction(parsed, `${ocrModel}+${model}`, rawText);
 }
 
+/**
+ * Mistral OCR only, no field extraction: the letter text as markdown
+ * (return channel, services/law-firm-letters). Throws the config/provider
+ * errors above.
+ */
+export async function ocrDocumentText({
+  fileBuffer,
+  fileName,
+  mimeType,
+  apiKey = process.env.MISTRAL_API_KEY,
+  ocrModel = process.env.MISTRAL_OCR_MODEL || DEFAULT_OCR_MODEL,
+}: {
+  fileBuffer: Buffer;
+  fileName: string;
+  mimeType: string;
+  apiKey?: string;
+  ocrModel?: string;
+}): Promise<string> {
+  if (!apiKey) {
+    throw new DrvRefundDecisionExtractionConfigError(
+      'MISTRAL_API_KEY is not configured'
+    );
+  }
+  return requestMistralOcr({ fileBuffer, fileName, mimeType, apiKey, ocrModel });
+}
+
 async function requestMistralOcr({
   fileBuffer,
   fileName,
