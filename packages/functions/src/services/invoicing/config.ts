@@ -32,8 +32,10 @@ export function invoicingConfig(
         : 19,
     amountBasis:
       envVars.INVOICE_AMOUNT_BASIS === 'fee' ? 'fee' : 'atlaes_share',
-    // PLACEHOLDER line text until the client confirms the invoice wording.
-    lineItemName: envVars.INVOICE_LINE_ITEM_NAME?.trim() || 'Servicegebühr',
+    // The owner's existing Lexoffice template for DRV refunds (20 Oct 2026).
+    lineItemName:
+      envVars.INVOICE_LINE_ITEM_NAME?.trim() ||
+      'Servicedienstleistungen zur Beitragserstattung',
     lexofficeApiKey: envVars.LEXOFFICE_API_KEY?.trim() || null,
     lexofficeBaseUrl:
       envVars.LEXOFFICE_API_BASE_URL?.trim() || 'https://api.lexware.io/v1',

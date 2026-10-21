@@ -85,6 +85,19 @@ export interface PackClient {
    * date, PoA, reply slip) carry this date; the pack date is the fallback.
    */
   signedAt?: Date | null;
+  /** Per-case V0901 answer overrides set by ops (v0901-answers.ts). */
+  v0901Answers?: Partial<V0901Defaults> | null;
+}
+
+/**
+ * V0901 answers for the pack: the case's ops overrides (claims.v0901_answers)
+ * over the annotated defaults; an explicit `v0901Defaults` wins over both.
+ */
+export function v0901DefaultsFor(input: PackInput): Partial<V0901Defaults> {
+  return {
+    ...(input.client.v0901Answers ?? {}),
+    ...(input.v0901Defaults ?? {}),
+  };
 }
 
 export interface PackAttachment {
@@ -243,7 +256,7 @@ export async function buildSubmissionPack(
     lastGermanAddress: c.lastGermanAddress,
     aktenzeichen: input.aktenzeichen,
     date: input.date,
-    defaults: input.v0901Defaults,
+    defaults: v0901DefaultsFor(input),
   });
   await add(
     'v0901',

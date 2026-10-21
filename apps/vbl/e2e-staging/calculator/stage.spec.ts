@@ -158,17 +158,33 @@ test.describe('calculator · stage · contribution bands', () => {
     ).toBeVisible();
   });
 
-  test('pre-2001 end dates cannot be entered (years start at 2004)', async ({
+  test('stage year pickers reach back to 1960 (pre-2001 band)', async ({
     page,
   }) => {
-    // The "ended before 2001" band in getNextScreenAfterPeriod is
-    // unreachable from the UI today: the year pickers begin in 2004.
+    // Owner answer 20 Oct 2026: the "ended before 2001" band must be
+    // selectable (it was unreachable while the pickers began in 2004).
     await chooseStageProvider(page, 'VddB');
     await page.getByRole('button', { name: /End year/ }).click();
     const years = (await page.getByRole('option').allTextContents()).map(
       Number
     );
-    expect(Math.min(...years)).toBe(2004);
+    expect(Math.min(...years)).toBe(1960);
+  });
+
+  test('36–119 months ending before 2001: no extra question, estimates', async ({
+    page,
+  }) => {
+    await chooseStageProvider(page, 'VddB');
+    await enterContributionPeriod(page, 'January', '1997', 'December', '1999');
+    await expect(
+      page.getByRole('heading', { name: /since 1 January 20(01|18)/ })
+    ).toHaveCount(0);
+    await enterSalary(page, '4200');
+    // Years before the rate table (2004) use the 2004 rates, so the
+    // estimate is not zero.
+    expect(
+      await expectEstimate(page, 'Your estimated VddB refund')
+    ).toBeGreaterThan(0);
   });
 });
 

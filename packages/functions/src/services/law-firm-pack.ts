@@ -7,9 +7,11 @@
 
 import { PDFDocument } from 'pdf-lib';
 import { appendImageAsA4Page } from './claim-pdf/normalize-a4';
+import { splitStreetHouseNumber } from './claim-pdf/format';
 import { COUNTRY_NAME_DE } from './drv-pack/register';
 import type { PackClient } from './drv-pack/pack';
 import type { Sex } from './drv-pack/v0901-form';
+import { sanitizeV0901Overrides } from './drv-pack/v0901-answers';
 
 /** Minimal claim shape the mapper needs (subset of claims.$inferSelect). */
 export interface DrvClaimFields {
@@ -33,6 +35,8 @@ export interface DrvClaimFields {
   birthName: string | null;
   phone: string | null;
   germanContributionMonths: number | null;
+  /** Ops overrides of the V0901 answers (claims.v0901_answers). */
+  v0901Answers?: unknown;
 }
 
 const ENGLISH_COUNTRY_ISO: Record<string, string> = {
@@ -90,6 +94,135 @@ export function countryIso(value: string | null | undefined): string | null {
     if (de.toLowerCase() === lower) return iso;
   }
   return null;
+}
+
+/**
+ * German country name for the firm's copy screen ("Indien", "Brasilien"):
+ * the DRV register's name, else the ICU name, else the stored value.
+ */
+export function countryNameDe(value: string | null | undefined): string | null {
+  const v = (value ?? '').trim();
+  if (!v) return null;
+  const iso = countryIso(v);
+  if (!iso) return v;
+  if (COUNTRY_NAME_DE[iso]) return COUNTRY_NAME_DE[iso];
+  try {
+    const name = new Intl.DisplayNames(['de'], { type: 'region' }).of(iso);
+    return name && name !== iso ? name : v;
+  } catch {
+    return v;
+  }
+}
+
+/** YYYY-MM-DD → DD.MM.YYYY; anything else passes through. */
+function dateDe(value: string | null | undefined): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value ?? '');
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : (value ?? null);
+}
+
+export interface CopyField {
+  key: string;
+  label: string;
+  value: string | null;
+}
+
+export interface CopyFieldsInput {
+  firstName: string | null;
+  lastName: string | null;
+  currentAddressLine1: string | null;
+  currentAddressLine2: string | null;
+  currentPostalCode: string | null;
+  currentCity: string | null;
+  currentCountry: string | null;
+  dateOfBirth: string | null;
+  nationality: string | null;
+  germanStreet: string | null;
+  germanPostalCode: string | null;
+  germanCity: string | null;
+  moveOutDate: string | null;
+  lawFirmRef: string | null;
+  /** VSNR for DRV cases, contract number for bAV (claims.caseIdentifier). */
+  identifier: { label: string; value: string | null } | null;
+}
+
+/**
+ * Copy fields of the firm's case screen, in the order the owner set on
+ * 20 Oct 2026: first name, last name, street, house number, postal code,
+ * city, country (German), then the remaining case data. Street and house
+ * number are split from the stored address line; an address supplement
+ * (line 2) follows the house number only when the client gave one.
+ */
+export function caseCopyFields(c: CopyFieldsInput): {
+  address: CopyField[];
+  details: CopyField[];
+  german: CopyField[];
+} {
+  const split = c.currentAddressLine1
+    ? splitStreetHouseNumber(c.currentAddressLine1)
+    : { street: '', houseNumber: '' };
+  const address: CopyField[] = [
+    { key: 'firstName', label: 'First name', value: c.firstName },
+    { key: 'lastName', label: 'Last name', value: c.lastName },
+    { key: 'street', label: 'Street', value: split.street || null },
+    {
+      key: 'houseNumber',
+      label: 'House number',
+      value: split.houseNumber || null,
+    },
+    ...(c.currentAddressLine2?.trim()
+      ? [
+          {
+            key: 'addressSupplement',
+            label: 'Address supplement',
+            value: c.currentAddressLine2.trim(),
+          },
+        ]
+      : []),
+    { key: 'postalCode', label: 'Postal code', value: c.currentPostalCode },
+    { key: 'city', label: 'City', value: c.currentCity },
+    {
+      key: 'country',
+      label: 'Country',
+      value: countryNameDe(c.currentCountry),
+    },
+  ];
+  const details: CopyField[] = [
+    {
+      key: 'dateOfBirth',
+      label: 'Date of birth',
+      value: dateDe(c.dateOfBirth),
+    },
+    {
+      key: 'nationality',
+      label: 'Nationality',
+      value: countryNameDe(c.nationality),
+    },
+    ...(c.identifier
+      ? [
+          {
+            key: 'identifier',
+            label: c.identifier.label,
+            value: c.identifier.value,
+          },
+        ]
+      : []),
+  ];
+  const german: CopyField[] = [
+    {
+      key: 'lastGermanAddress',
+      label: 'Last German address',
+      value:
+        [
+          c.germanStreet,
+          [c.germanPostalCode, c.germanCity].filter(Boolean).join(' '),
+        ]
+          .filter(Boolean)
+          .join(', ') || null,
+    },
+    { key: 'leftGermany', label: 'Left Germany', value: dateDe(c.moveOutDate) },
+    { key: 'aktenzeichen', label: 'Aktenzeichen', value: c.lawFirmRef },
+  ];
+  return { address, details, german };
 }
 
 const SEXES: readonly Sex[] = ['male', 'female', 'none', 'diverse'];
@@ -163,6 +296,7 @@ export function drvPackClientFromClaim(c: DrvClaimFields): DrvPackMapping {
       .join(', '),
     passportNumber: c.passportNumber!,
     germanContributionMonths: c.germanContributionMonths!,
+    v0901Answers: sanitizeV0901Overrides(c.v0901Answers) ?? null,
   };
   return { client, citizenshipIso, residenceIso, missing: [] };
 }

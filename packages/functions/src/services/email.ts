@@ -715,3 +715,37 @@ export async function sendOpsClaimAttentionEmail(details: {
     'ops claim attention'
   );
 }
+
+/**
+ * Ops notice when a payout account is changed in the admin. Payout
+ * destinations are high impact, so every change is mailed to
+ * OPS_NOTIFICATION_EMAIL (logged when unset) in addition to the audit row.
+ */
+export async function sendOpsPayoutAccountChangedEmail(details: {
+  accountLabel: string;
+  changedBy: string;
+  detailLines: string[];
+  settingsUrl: string;
+}): Promise<boolean> {
+  const to = env.OPS_NOTIFICATION_EMAIL;
+  if (!to) {
+    logger.warn(
+      '[Email] OPS_NOTIFICATION_EMAIL unset; payout account change not mailed',
+      { account: details.accountLabel, changedBy: details.changedBy }
+    );
+    return false;
+  }
+  return sendBrandedEmail(
+    to,
+    {
+      subject: `Payout account changed: ${details.accountLabel}`,
+      heading: `${details.changedBy} changed the ${details.accountLabel}`,
+      paragraphs: [
+        ...details.detailLines,
+        'If you did not expect this change, check it in the admin now.',
+      ],
+      cta: { label: 'Open payout accounts', url: details.settingsUrl },
+    },
+    'ops payout account changed'
+  );
+}

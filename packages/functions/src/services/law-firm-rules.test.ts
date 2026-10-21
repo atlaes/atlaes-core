@@ -6,6 +6,7 @@ import {
   isSubmissionOverdue,
   isValidAktenzeichen,
   normalizeAktenzeichen,
+  redownloadUntil,
   rereleaseUntil,
   submissionDeadline,
   submissionPackFileName,
@@ -158,7 +159,7 @@ describe('overdue submission', () => {
       '2026-09-29T09:00:00.000Z'
     );
     expect(rereleaseUntil(d('2026-09-24T10:00:00Z')).toISOString()).toBe(
-      '2026-09-26T10:00:00.000Z'
+      '2026-09-25T10:00:00.000Z'
     );
   });
 });
@@ -178,6 +179,60 @@ describe('copy helpers', () => {
         { label: 'Phone', value: '' },
         { label: 'Tax ID', value: null },
       ])
-    ).toBe('Name: Priya Sharma\nVSNR: 65 120390 S 512');
+    ).toBe('Priya Sharma\n65 120390 S 512');
+    // Empty values keep their line so later fields stay in place.
+    expect(
+      caseCopyBlock([
+        { label: 'First name', value: 'Priya' },
+        { label: 'House number', value: '' },
+        { label: 'City', value: 'Pune' },
+      ])
+    ).toBe('Priya\n\nPune');
+  });
+});
+
+describe('re-download window after the submission date is saved', () => {
+  const base = {
+    releasedAt: d('2026-10-01T00:00:00Z'),
+    // Entered date in the past; the window counts from saving.
+    firmSubmittedAt: d('2026-09-10T12:00:00Z'),
+    submissionSavedAt: d('2026-10-20T08:00:00Z'),
+    rereleasedUntil: null,
+  };
+
+  it('stays visible and downloadable for 24 hours from saving', () => {
+    const now = d('2026-10-21T07:59:00Z');
+    expect(caseVisibility({ ...base, now })).toBe('redownload');
+    expect(downloadGate({ ...base, now, lawFirmRef: '06152-26' })).toEqual({
+      ok: true,
+    });
+    expect(redownloadUntil(base.submissionSavedAt)?.toISOString()).toBe(
+      '2026-10-21T08:00:00.000Z'
+    );
+  });
+
+  it('closes after 24 hours; a re-release opens it again', () => {
+    const now = d('2026-10-21T08:00:01Z');
+    expect(caseVisibility({ ...base, now })).toBe('submitted');
+    expect(downloadGate({ ...base, now, lawFirmRef: '06152-26' }).ok).toBe(
+      false
+    );
+    expect(
+      caseVisibility({
+        ...base,
+        rereleasedUntil: d('2026-10-22T09:00:00Z'),
+        now,
+      })
+    ).toBe('rereleased');
+  });
+
+  it('has no window for cases saved before the column existed', () => {
+    expect(
+      caseVisibility({
+        ...base,
+        submissionSavedAt: null,
+        now: d('2026-10-20T09:00:00Z'),
+      })
+    ).toBe('submitted');
   });
 });

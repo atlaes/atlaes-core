@@ -16,6 +16,11 @@ import { getPresignedUrl } from '../utils/s3';
 import { LawFirmService } from '../services/law-firm';
 import { AdminOverviewService } from '../services/admin-overview';
 import { BavProviderService } from '../services/bav-letters/providers';
+import {
+  V0901AnswersError,
+  V0901AnswersService,
+} from '../services/v0901-answers-admin';
+import { v0901AnswersSchema } from '../services/drv-pack/v0901-answers';
 import { LAW_FIRM_MEMBER_ROLES } from '../drizzle/schema/shared';
 
 const admin = new Hono();
@@ -440,6 +445,53 @@ admin.put('/claims/:id/bav-recipient', validateUuidParams('id'), async (c) => {
         : 500;
     if (statusCode === 500) logger.error('Admin bAV recipient error:', error);
     return c.json({ success: false, error: message }, statusCode);
+  }
+});
+
+// V0901 answers 5.1/6.1/6.3/8.1 per case (owner answer, 20 Oct 2026).
+// Body: { [key]: true | false | null } — null resets to the default.
+admin.get('/claims/:id/v0901-answers', validateUuidParams('id'), async (c) => {
+  try {
+    return c.json({
+      success: true,
+      ...(await V0901AnswersService.get(c.req.param('id') as string)),
+    });
+  } catch (error) {
+    if (error instanceof V0901AnswersError) {
+      return c.json({ success: false, error: error.message }, error.status);
+    }
+    logger.error('Admin V0901 answers error', toErrorMeta(error));
+    return c.json({ success: false, error: 'Failed to load answers' }, 500);
+  }
+});
+
+admin.put('/claims/:id/v0901-answers', validateUuidParams('id'), async (c) => {
+  try {
+    const parsed = await parseJsonBody(c, v0901AnswersSchema);
+    if (!parsed.success) {
+      return c.json(
+        {
+          success: false,
+          error: 'Invalid answers',
+          details: parsed.error.flatten(),
+        },
+        400
+      );
+    }
+    return c.json({
+      success: true,
+      ...(await V0901AnswersService.update(
+        c.req.param('id') as string,
+        c.get('user').id,
+        parsed.data
+      )),
+    });
+  } catch (error) {
+    if (error instanceof V0901AnswersError) {
+      return c.json({ success: false, error: error.message }, error.status);
+    }
+    logger.error('Admin V0901 answers update error', toErrorMeta(error));
+    return c.json({ success: false, error: 'Failed to save answers' }, 500);
   }
 });
 

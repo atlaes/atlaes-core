@@ -13,6 +13,7 @@ import {
   setFirmReference,
   uploadFirmCorrespondence,
   type FirmCaseDetail,
+  type FirmCopyField,
 } from '@/lib/law-firm-api';
 import { Spinner, formatBytes } from '@/components/ui';
 import {
@@ -40,15 +41,18 @@ import {
  *   03 before AZ (1032:5127) → 04 AZ saved (1033:5127) → 05 submitted
  *   (1034:5127). Platform brief Part 1: AZ mandatory (12345-YY), download
  *   disabled until it is saved, saving the submission date creates the
- *   event "Submitted" and removes the case from the firm's view.
+ *   event "Submitted"; the frozen pack stays downloadable for 24 hours
+ *   from that moment, then the case leaves the firm's view (owner's
+ *   answer 20 Oct 2026).
  */
 
 const AZ_PATTERN = /^\d{5}-\d{2}$/;
 
+const REDOWNLOAD_HOURS = 24;
 const VISIBILITY_TEXT =
-  'Case appears on “Ready for submission”; disappears from the firm’s view when the submission date is saved. No submission date after 7 days → warning to ATLAES, case stays visible. ATLAES Admin can re-release a submitted case for 48 hours.';
+  'Case appears on “Ready for submission”. After the submission date is saved, the pack can be re-downloaded for 24 hours; then the case disappears from the firm’s view. No submission date after 7 days → warning to ATLAES, case stays visible. ATLAES Admin can re-release a submitted case for 24 hours.';
 const FROZEN_TEXT =
-  'The generated PDF is stored on the case as the frozen submitted version; later client-data corrections do not change it. Re-download allowed while the case is visible.';
+  'The generated PDF is stored on the case as the frozen submitted version; later client-data corrections do not change it. Re-download allowed for 24 hours after the submission date is saved.';
 
 /** DRV refund print order (brief Part 1; labels as in Figma). */
 const DRV_PACK_CONTENTS = [
@@ -88,7 +92,8 @@ export default function PortalCasePage() {
     savedAt: Date;
   } | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<'ok' | 'fail' | null>(null);
+  // 'all' or a copy-field key; 'fail' when the browser blocks copying.
+  const [copied, setCopied] = useState<string | null>(null);
 
   const caseQuery = useQuery({
     queryKey: ['firm-case', id],
@@ -119,6 +124,8 @@ export default function PortalCasePage() {
     onSuccess: (_r, date) => {
       setSubmittedLocal({ date, savedAt: new Date() });
       setSubError(null);
+      // Still visible for the 24-hour re-download window.
+      queryClient.invalidateQueries({ queryKey: ['firm-case', id] });
       refreshLists();
     },
     onError: (e) =>
@@ -131,8 +138,7 @@ export default function PortalCasePage() {
       const r = await fn();
       if (r.downloadUrl) {
         window.open(r.downloadUrl, '_blank', 'noopener');
-        if (!submittedLocal)
-          queryClient.invalidateQueries({ queryKey: ['firm-case', id] });
+        queryClient.invalidateQueries({ queryKey: ['firm-case', id] });
       } else {
         setDownloadError('No download is available in this environment.');
       }
@@ -150,8 +156,8 @@ export default function PortalCasePage() {
           Case not available
         </h1>
         <p className="text-[15px] leading-[1.5] text-[#4b4f58]">
-          This case is no longer released to your firm. If you need it back,
-          ask ATLAES to re-release it.
+          This case is no longer released to your firm. If you need it back, ask
+          ATLAES to re-release it.
         </p>
       </PortalColumn>
     );
@@ -168,10 +174,19 @@ export default function PortalCasePage() {
   const rereleased = claim.visibility === 'rereleased';
   const releasedAt = claim.releasedAt ?? claim.assignedAt;
 
+  const redownloadUntil =
+    claim.redownloadUntil ??
+    (submittedLocal
+      ? new Date(
+          submittedLocal.savedAt.getTime() + REDOWNLOAD_HOURS * 3600_000
+        ).toISOString()
+      : null);
+  const inRedownloadWindow =
+    !!redownloadUntil && new Date(redownloadUntil).getTime() > Date.now();
   const downloadAllowed =
     (claim.download ? claim.download.allowed : azValid && claim.packageReady) &&
     !showAzForm &&
-    (!submittedLocal || rereleased);
+    (!isSubmitted || rereleased || inRedownloadWindow);
   const downloadReason =
     claim.download && !claim.download.allowed
       ? 'Enter and save the Aktenzeichen first'
@@ -208,18 +223,29 @@ export default function PortalCasePage() {
     submitMutation.mutate(iso);
   };
 
-  const copyAll = async () => {
-    const ok = await copyText(claim.copyBlock ?? buildCopyBlock(claim));
-    setCopied(ok ? 'ok' : 'fail');
+  const rows = caseDataRows(claim, isSubmitted);
+  const copy = async (key: string, text: string) => {
+    const ok = await copyText(text);
+    setCopied(ok ? key : 'fail');
     window.setTimeout(() => setCopied(null), 2500);
   };
+  // Values only, one per line, in the order shown (multi-line values such
+  // as the mailing address collapse to one line).
+  const copyAll = () =>
+    copy(
+      'all',
+      rows
+        .map((r) => r.copy ?? '')
+        .join('\n')
+        .replace(/\n+$/, '')
+    );
 
   const caseData = (
     <PortalCard
       title="Case data"
       action={
         <PillButton variant="outline" size="sm" onClick={copyAll}>
-          {copied === 'ok' ? (
+          {copied === 'all' ? (
             <>
               <CopyIcon /> Copied
             </>
@@ -229,7 +255,31 @@ export default function PortalCasePage() {
         </PillButton>
       }
     >
-      <CaseDataRows claim={claim} compact={isSubmitted} />
+      <dl className="flex w-full flex-col gap-3">
+        {rows.map((r) => (
+          <DataRow
+            key={r.key}
+            label={r.label}
+            value={
+              r.value ? (
+                <span className="flex items-start justify-between gap-3">
+                  <span className="min-w-0">{r.value}</span>
+                  {r.copy && (
+                    <button
+                      type="button"
+                      onClick={() => copy(r.key, r.copy!)}
+                      aria-label={`Copy ${r.label}`}
+                      className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold text-[#8c8c8c] hover:bg-[#f1f1f1] hover:text-[#002691]"
+                    >
+                      {copied === r.key ? 'Copied' : <CopyIcon />}
+                    </button>
+                  )}
+                </span>
+              ) : null
+            }
+          />
+        ))}
+      </dl>
       {copied === 'fail' && (
         <Note tone="error">
           Copying is blocked in this browser. Select the fields and copy them
@@ -238,8 +288,8 @@ export default function PortalCasePage() {
       )}
       {!azValid && !isSubmitted && (
         <Note>
-          Read-only. “Copy all” copies these fields as one block in the order
-          agreed with the firm.
+          Read-only. Copy each field on its own, or “Copy all” to copy the
+          values one per line in the order shown.
         </Note>
       )}
     </PortalCard>
@@ -302,8 +352,9 @@ export default function PortalCasePage() {
             ●
           </span>
           <p className="flex-1 text-[15px] font-semibold">
-            Submitted on {fmtDay(submittedDate)} — this case will disappear
-            from your view
+            {inRedownloadWindow && !rereleased
+              ? `Submitted on ${fmtDay(submittedDate)} — re-download available until ${fmtDayTime(redownloadUntil)}, then the case disappears from your view`
+              : `Submitted on ${fmtDay(submittedDate)} — this case will disappear from your view`}
           </p>
         </div>
       )}
@@ -351,6 +402,17 @@ export default function PortalCasePage() {
                   </PillButton>
                 </div>
                 {downloadError && <Note tone="error">{downloadError}</Note>}
+                {rereleased && claim.rereleasedUntil ? (
+                  <Note>
+                    Available until {fmtDayTime(claim.rereleasedUntil)}{' '}
+                    (re-released by ATLAES).
+                  </Note>
+                ) : inRedownloadWindow ? (
+                  <Note>
+                    Available until {fmtDayTime(redownloadUntil)} — 24 hours
+                    after the submission date was saved.
+                  </Note>
+                ) : null}
                 <Note>{FROZEN_TEXT}</Note>
               </PortalCard>
 
@@ -365,7 +427,9 @@ export default function PortalCasePage() {
                 <Note>
                   Saved{' '}
                   {fmtDayTime(
-                    submittedLocal?.savedAt ?? submittedEvent?.createdAt
+                    submittedLocal?.savedAt ??
+                      claim.submissionSavedAt ??
+                      submittedEvent?.createdAt
                   )}
                   {submittedLocal && user?.email ? ` by ${user.email}` : ''} ·
                   event “Submitted” recorded on the case.
@@ -566,12 +630,12 @@ export default function PortalCasePage() {
             <>
               <PortalCard title="Re-release window" tone="blue">
                 <p className="text-[14px] font-semibold leading-[1.5] text-[#002691]">
-                  ATLAES Admin can re-release a submitted case for 48 hours.
+                  ATLAES Admin can re-release a submitted case for 24 hours.
                 </p>
                 <p className="text-[14px] leading-[1.5] text-[#002691]">
                   {rereleased && claim.rereleasedUntil
                     ? `Re-released until ${fmtDayTime(claim.rereleasedUntil)}. After that the case disappears again.`
-                    : 'If you need the case back after it has disappeared, ask ATLAES to re-release it. It will show here again for 48 hours with the same frozen pack.'}
+                    : 'If you need the pack again after the 24-hour re-download window, ask ATLAES to re-release the case. It will show here again for 24 hours with the same frozen pack.'}
                 </p>
               </PortalCard>
               {downloadsCard}
@@ -580,12 +644,11 @@ export default function PortalCasePage() {
                 isBav={isBav}
                 incoming={incoming}
                 onOpen={open}
-                onUploaded={() => {
-                  if (!submittedLocal)
-                    queryClient.invalidateQueries({
-                      queryKey: ['firm-case', id],
-                    });
-                }}
+                onUploaded={() =>
+                  queryClient.invalidateQueries({
+                    queryKey: ['firm-case', id],
+                  })
+                }
               />
             </>
           ) : (
@@ -659,62 +722,101 @@ function counterparty(claim: Claim): {
   };
 }
 
-function addressLine(claim: Claim): string | null {
-  const a = claim.claimant.address;
-  return (
-    [a.line1, a.line2, [a.postalCode, a.city].filter(Boolean).join(' '), a.country]
-      .filter(Boolean)
-      .join(', ') || null
-  );
+interface CaseRow {
+  key: string;
+  label: string;
+  /** What the row shows. */
+  value: React.ReactNode;
+  /** What its copy button (and "Copy all") copies; null = nothing. */
+  copy: string | null;
 }
 
-function CaseDataRows({
-  claim,
-  compact,
-}: {
-  claim: Claim;
-  compact: boolean;
-}) {
+const fieldRow = (f: FirmCopyField): CaseRow => ({
+  key: f.key,
+  label: f.label,
+  value: f.value,
+  copy: f.value?.trim() ? f.value.trim() : null,
+});
+
+/** Fallback for an API without `copyFields` (older backend). */
+function fallbackCopyFields(claim: Claim) {
+  const c = claim.claimant;
+  const f = (key: string, label: string, value: string | null) => ({
+    key,
+    label,
+    value,
+  });
+  return {
+    address: [
+      f('firstName', 'First name', c.firstName),
+      f('lastName', 'Last name', c.lastName),
+      f('street', 'Street', c.address.line1),
+      f('houseNumber', 'House number', null),
+      f('postalCode', 'Postal code', c.address.postalCode),
+      f('city', 'City', c.address.city),
+      f('country', 'Country', c.address.country),
+    ],
+    details: [
+      f('dateOfBirth', 'Date of birth', c.dateOfBirth),
+      f('nationality', 'Nationality', c.nationality),
+      ...(claim.caseIdentifier
+        ? [
+            f(
+              'identifier',
+              caseIdentifierLabel(claim.caseIdentifier.label),
+              claim.caseIdentifier.value
+            ),
+          ]
+        : []),
+    ],
+    german: [f('aktenzeichen', 'Aktenzeichen', claim.lawFirmRef)],
+  };
+}
+
+/**
+ * Rows of the case-data card in the order agreed with the owner (20 Oct
+ * 2026): first name, last name, street, house number, postal code, city,
+ * country (German), then date of birth, nationality, case identifier,
+ * responsible office and its mailing address, last German address, date
+ * of leaving Germany, AZ. After submission only the names, identifier and
+ * office remain.
+ */
+function caseDataRows(claim: Claim, compact: boolean): CaseRow[] {
+  const fields = claim.copyFields ?? fallbackCopyFields(claim);
   const cp = counterparty(claim);
-  const ident = claim.caseIdentifier;
-  return (
-    <dl className="flex w-full flex-col gap-3">
-      <DataRow label="Case type" value={caseTypeChip(claim.caseType).label} />
-      <DataRow label="Name" value={claim.claimant.name} />
-      {!compact && (
-        <>
-          <DataRow label="Address" value={addressLine(claim)} />
-          <DataRow
-            label="Date of birth"
-            value={
-              claim.claimant.dateOfBirth
-                ? fmtDay(claim.claimant.dateOfBirth)
-                : null
-            }
-          />
-          <DataRow label="Nationality" value={claim.claimant.nationality} />
-        </>
-      )}
-      {ident && (
-        <DataRow label={caseIdentifierLabel(ident.label)} value={ident.value} />
-      )}
-      <DataRow label={cp.label} value={cp.name} />
-      <DataRow
-        label="Mailing address"
-        value={
-          cp.mailing.length > 0 ? (
-            <>
-              {cp.mailing.map((l, i) => (
-                <span key={i} className="block">
-                  {l}
-                </span>
-              ))}
-            </>
-          ) : null
-        }
-      />
-    </dl>
-  );
+  const office: CaseRow[] = [
+    { key: 'office', label: cp.label, value: cp.name, copy: cp.name },
+    {
+      key: 'mailing',
+      label: 'Mailing address',
+      value:
+        cp.mailing.length > 0 ? (
+          <>
+            {cp.mailing.map((l, i) => (
+              <span key={i} className="block">
+                {l}
+              </span>
+            ))}
+          </>
+        ) : null,
+      copy: cp.mailing.length > 0 ? cp.mailing.join(', ') : null,
+    },
+  ];
+  if (compact) {
+    return [
+      ...fields.address
+        .filter((f) => f.key === 'firstName' || f.key === 'lastName')
+        .map(fieldRow),
+      ...fields.details.filter((f) => f.key === 'identifier').map(fieldRow),
+      ...office,
+    ];
+  }
+  return [
+    ...fields.address.map(fieldRow),
+    ...fields.details.map(fieldRow),
+    ...office,
+    ...fields.german.map(fieldRow),
+  ];
 }
 
 function packContentLabels(claim: Claim, isBav: boolean): string[] {
@@ -732,29 +834,6 @@ function packSummary(claim: Claim): string {
   if (Array.isArray(m?.documents) && m!.documents!.length > 0)
     parts.push(`${m!.documents!.length} documents, 1 PDF`);
   return parts.join(' · ');
-}
-
-/** Client-side fallback when the API has no `copyBlock` yet. */
-function buildCopyBlock(claim: Claim): string {
-  const cp = counterparty(claim);
-  const rows: [string, string | null | undefined][] = [
-    ['Case type', caseTypeChip(claim.caseType).label],
-    ['Name', claim.claimant.name],
-    ['Address', addressLine(claim)],
-    ['Date of birth', claim.claimant.dateOfBirth],
-    ['Nationality', claim.claimant.nationality],
-    [
-      caseIdentifierLabel(claim.caseIdentifier?.label),
-      claim.caseIdentifier?.value,
-    ],
-    [cp.label, cp.name],
-    ['Mailing address', cp.mailing.join(', ')],
-    ['Aktenzeichen', claim.lawFirmRef],
-  ];
-  return rows
-    .filter(([, v]) => v && String(v).trim())
-    .map(([l, v]) => `${l}: ${String(v).trim()}`)
-    .join('\n');
 }
 
 function ReturnChannelCard({

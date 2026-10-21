@@ -5,9 +5,10 @@
  *
  * Option 2 is offered only for currencies the register lists, and only
  * when a mid-market reference rate is available at display time (daily
- * ECB rate). The currency list, executing institution and collection
- * accounts are PROVISIONAL until the client supplies the register; the
- * payout queue reads `collectionAccount` for route B lines.
+ * ECB rate). The currency list and executing institution are PROVISIONAL
+ * until the client supplies the register. The collection account for
+ * route B lines is set by ops in the admin (services/payout-accounts.ts,
+ * key summitfx_collection); `collectionAccount` here stays null.
  */
 
 import { round2 } from '../drv-pack/fee';

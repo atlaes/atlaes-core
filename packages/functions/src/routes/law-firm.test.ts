@@ -342,7 +342,7 @@ describe('Law firm portal routes', () => {
       expect(res.status).toBe(400);
     });
 
-    it('needs a submission date, then records it and hides the case', async () => {
+    it('needs a submission date, then records it and keeps the case for a 24 h re-download', async () => {
       const missing = await request(
         'POST',
         `/api/law-firm/claims/${claimSubmit.id}/events`,
@@ -360,25 +360,50 @@ describe('Law firm portal routes', () => {
       expect(ok.status).toBe(200);
       expect((await ok.json()).caseState).toBe('submitted');
 
-      // Saving the submission date removes the case from the firm's view.
+      // The entered date lies in the past; the re-download window counts
+      // from saving, so the case stays visible for 24 hours.
+      const grace = await request(
+        'GET',
+        `/api/law-firm/claims/${claimSubmit.id}`,
+        memberA.token
+      );
+      expect(grace.status).toBe(200);
+      const graceBody = await grace.json();
+      expect(graceBody.claim.visibility).toBe('redownload');
+      const until = new Date(graceBody.claim.redownloadUntil).getTime();
+      expect(until - Date.now()).toBeGreaterThan(23.9 * 3600_000);
+      expect(until - Date.now()).toBeLessThanOrEqual(24 * 3600_000);
+
+      const [row] = await testDb
+        .select({
+          caseState: claimsTable.lawFirmCaseState,
+          submittedAt: claimsTable.lawFirmSubmittedAt,
+          savedAt: claimsTable.lawFirmSubmissionSavedAt,
+        })
+        .from(claimsTable)
+        .where(eq(claimsTable.id, claimSubmit.id));
+      expect(row.caseState).toBe('submitted');
+      expect(row.submittedAt?.toISOString().slice(0, 10)).toBe('2026-09-10');
+      expect(row.savedAt).not.toBeNull();
+
+      // 24 hours later the case leaves the firm's view.
+      await testDb
+        .update(claimsTable)
+        .set({
+          lawFirmSubmissionSavedAt: new Date(
+            Date.now() - 24 * 3600_000 - 60_000
+          ),
+        })
+        .where(eq(claimsTable.id, claimSubmit.id));
       const hidden = await request(
         'GET',
         `/api/law-firm/claims/${claimSubmit.id}`,
         memberA.token
       );
       expect(hidden.status).toBe(404);
-      const [row] = await testDb
-        .select({
-          caseState: claimsTable.lawFirmCaseState,
-          submittedAt: claimsTable.lawFirmSubmittedAt,
-        })
-        .from(claimsTable)
-        .where(eq(claimsTable.id, claimSubmit.id));
-      expect(row.caseState).toBe('submitted');
-      expect(row.submittedAt).not.toBeNull();
     });
 
-    it('ops can re-release a submitted case for 48 hours', async () => {
+    it('ops can re-release a submitted case for 24 hours', async () => {
       const res = await request(
         'POST',
         `/api/admin/claims/${claimSubmit.id}/law-firm/rerelease`,
@@ -391,7 +416,11 @@ describe('Law firm portal routes', () => {
         memberA.token
       );
       expect(detail.status).toBe(200);
-      expect((await detail.json()).claim.visibility).toBe('rereleased');
+      const body = await detail.json();
+      expect(body.claim.visibility).toBe('rereleased');
+      const until = new Date(body.claim.rereleasedUntil).getTime();
+      expect(until - Date.now()).toBeGreaterThan(23.9 * 3600_000);
+      expect(until - Date.now()).toBeLessThanOrEqual(24 * 3600_000);
     });
 
     it('cannot record events on another firm’s case', async () => {

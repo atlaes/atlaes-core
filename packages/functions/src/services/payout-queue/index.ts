@@ -27,6 +27,7 @@ import { InvoicingService } from '../invoicing';
 import { claimPayoutColumns } from './claim-columns';
 import {
   atlaesAccount,
+  collectionAccount,
   dailyTransferLimitEur,
   payoutFeeConfig,
 } from './config';
@@ -173,9 +174,13 @@ export class PayoutQueueService {
         route,
         account: release.account ?? null,
       },
-      atlaes: atlaesAccount(),
+      atlaes: await atlaesAccount(),
       feeCapEur: payoutFeeConfig().capEur,
-      collectionAccount: reg?.collectionAccount ?? null,
+      // Route B pays into the SummitFX (TransferMate) collection account
+      // for every currency SummitFX converts.
+      collectionAccount: reg
+        ? await collectionAccount('summitfx_collection')
+        : null,
       providerName: PROVIDER_REGISTER.B.provider.name,
     });
 

@@ -8,6 +8,10 @@
  *                            sealed; the key is never returned
  *   DELETE /lexoffice        remove the admin key (env secret applies again)
  *   POST   /lexoffice/test   check the key invoicing would use right now
+ *
+ *   GET    /payout-accounts         ATLAES + provider collection accounts
+ *   PUT    /payout-accounts/:key    { holder, iban, bic?, bank?, reference? }
+ *                                   — IBAN/BIC validated, audited, ops mailed
  */
 
 import { Hono, type Context } from 'hono';
@@ -20,6 +24,12 @@ import {
   IntegrationSettingsService,
   type Actor,
 } from '../services/integration-settings';
+import {
+  PAYOUT_ACCOUNT_KEYS,
+  PayoutAccountError,
+  PayoutAccountsService,
+  type PayoutAccountKey,
+} from '../services/payout-accounts';
 
 const router = new Hono();
 router.use('*', authMiddleware, adminMiddleware);
@@ -91,6 +101,58 @@ router.post('/lexoffice/test', async (c) => {
     });
   } catch (error) {
     return fail(c, error, 'Checking the Lexware connection');
+  }
+});
+
+const payoutAccountSchema = z.object({
+  holder: z.string().max(200),
+  iban: z.string().max(60),
+  bic: z.string().max(20).nullish(),
+  bank: z.string().max(200).nullish(),
+  reference: z.string().max(140).nullish(),
+});
+
+router.get('/payout-accounts', async (c) => {
+  try {
+    return c.json({
+      success: true,
+      accounts: await PayoutAccountsService.list(),
+    });
+  } catch (error) {
+    return fail(c, error, 'Loading the payout accounts');
+  }
+});
+
+router.put('/payout-accounts/:key', async (c) => {
+  const key = c.req.param('key');
+  if (!(PAYOUT_ACCOUNT_KEYS as readonly string[]).includes(key)) {
+    return c.json({ success: false, error: 'Unknown payout account' }, 404);
+  }
+  const parsed = payoutAccountSchema.safeParse(
+    await c.req.json().catch(() => ({}))
+  );
+  if (!parsed.success) {
+    return c.json(
+      { success: false, error: 'Holder and IBAN are required' },
+      400
+    );
+  }
+  try {
+    const user = c.get('user') as { id: string; email: string };
+    const account = await PayoutAccountsService.set(
+      key as PayoutAccountKey,
+      parsed.data,
+      { ...actorOf(c), email: user.email }
+    );
+    return c.json({ success: true, account });
+  } catch (error) {
+    if (error instanceof PayoutAccountError) {
+      return c.json(
+        { success: false, error: error.message, field: error.field ?? null },
+        400
+      );
+    }
+    return fail(c, error, 'Saving the payout account');
   }
 });
 

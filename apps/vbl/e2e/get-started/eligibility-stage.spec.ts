@@ -192,6 +192,19 @@ test.describe('Stage / Performing Arts Eligibility', () => {
     await expectEligibleResult(page);
   });
 
+  // Employment that ended before 2001 asks neither threshold question
+  // (owner answer 20 Oct 2026: the pickers must reach those years).
+  for (const provider of ['VddB', 'VddKO'] as const) {
+    test(`${provider} 36-119mo ending 1999 → no extra question → eligible`, async ({
+      page,
+    }) => {
+      await selectStagePensionDetails(page, provider);
+      await selectStageContributionDuration(page, '36 to 119 months');
+      await selectEmploymentEndDate(page, 'June', '1999');
+      await expectEligibleResult(page);
+    });
+  }
+
   // End dates from 2018 onwards ask the since-2018 question first and only
   // then the since-2001 one — for both providers.
   test('VddB 36-119mo ending after 2018 asks since-2018 then since-2001 → eligible', async ({
