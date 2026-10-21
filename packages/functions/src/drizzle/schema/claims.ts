@@ -310,6 +310,7 @@ export const CORRESPONDENCE_SOURCES = [
   'portal_upload',
   'email',
   'ops',
+  'return_channel', // bulk letter upload, matched to the case (0029)
 ] as const;
 export type CorrespondenceSource = (typeof CORRESPONDENCE_SOURCES)[number];
 
