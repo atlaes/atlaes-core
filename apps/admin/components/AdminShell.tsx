@@ -11,6 +11,7 @@ import {
   Home,
   Settings,
   Inbox,
+  Newspaper,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -60,6 +61,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
       icon: Scale,
       count: stats.data?.lawFirm,
       active: pathname.startsWith('/law-firms'),
+    },
+    {
+      href: '/blog',
+      label: 'Blog',
+      icon: Newspaper,
+      count: undefined,
+      active: pathname.startsWith('/blog'),
     },
     {
       href: '/settings',
@@ -145,6 +153,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
             </Link>
             <Link href="/law-firms" className="text-gray-700">
               Law firms
+            </Link>
+            <Link href="/blog" className="text-gray-700">
+              Blog
             </Link>
             <Link href="/settings" className="text-gray-700">
               Settings

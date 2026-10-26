@@ -308,7 +308,14 @@ export const BlogService = {
     if (!seo.canPublish) {
       throw new BlogError('Fix the SEO errors before publishing', 422, seo);
     }
-    const when = publishedAt ?? before.publishedAt ?? new Date();
+    // Without a date: keep the original date of a post that was live
+    // before (re-publish after unpublishing); an old schedule never sticks.
+    const now = new Date();
+    const when =
+      publishedAt ??
+      (before.publishedAt && before.publishedAt <= now
+        ? before.publishedAt
+        : now);
     const [row] = await db
       .update(blogPosts)
       .set({

@@ -269,6 +269,23 @@ describe('blog CMS', () => {
       (p: { id: string }) => p.id === created.post.id
     );
     expect(row.scheduled).toBe(true);
+
+    // Unpublish, then publish without a date: live now, not on the old date.
+    await call(
+      'POST',
+      `/api/admin/blog/${created.post.id}/unpublish`,
+      adminToken
+    );
+    await call(
+      'POST',
+      `/api/admin/blog/${created.post.id}/publish`,
+      adminToken,
+      {}
+    );
+    expect(
+      (await call('GET', `/api/blog/vbl/posts/${slug('scheduled')}`, null))
+        .status
+    ).toBe(200);
   });
 
   it('unpublishes and deletes', async () => {
