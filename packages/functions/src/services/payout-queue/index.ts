@@ -170,6 +170,7 @@ export class PayoutQueueService {
         lawFirmFee: n(release.lawFirmFeeEur),
         atlaesShare: n(release.atlaesShareEur),
         clientAmount: n(release.clientAmountEur),
+        deregistrationSurcharge: n(release.deregistrationSurchargeEur),
         invoiceNumber,
         route,
         account: release.account ?? null,

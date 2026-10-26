@@ -10,6 +10,9 @@
  *   POST  /claims/:id/funds               { amountEur, valueDate, reference? } —
  *                                          manual E1 via FundsService (receipt,
  *                                          release, invoice), like the statement upload
+ *   PUT   /claims/:id/deregistration-surcharge  { enabled, reason? } — EUR 50
+ *                                          surcharge flag (no Abmeldebestätigung);
+ *                                          409 once funds are recorded
  *   PUT   /releases/:id/invoice           { invoiceNumber }
  *   POST  /releases/:id/clear-review      clears "payout details need review"
  *   GET   /customer-inputs                open missing-period reports
@@ -170,6 +173,30 @@ router.post('/claims/:id/funds', validateUuidParams('id'), async (c) => {
     return payoutFail(c, error, 'Admin payout funds');
   }
 });
+
+router.put(
+  '/claims/:id/deregistration-surcharge',
+  validateUuidParams('id'),
+  async (c) => {
+    const parsed = z
+      .object({
+        enabled: z.boolean(),
+        reason: z.string().trim().max(500).nullish(),
+      })
+      .safeParse(await json(c));
+    if (!parsed.success) return bad(c, parsed.error.flatten());
+    try {
+      const surcharge = await PayoutFlowService.setDeregistrationSurcharge(
+        pid(c, 'id'),
+        parsed.data,
+        actorOf(c)
+      );
+      return c.json({ success: true, deregistrationSurcharge: surcharge });
+    } catch (error) {
+      return payoutFail(c, error, 'Admin deregistration surcharge');
+    }
+  }
+);
 
 router.put('/releases/:id/invoice', validateUuidParams('id'), async (c) => {
   const parsed = z

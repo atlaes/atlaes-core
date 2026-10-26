@@ -89,12 +89,12 @@ const SHORT_MONTHS = [
 ];
 
 /**
- * "14 October 2026" (default) or "14 Oct 2026" (`'short'`, as in the
- * Figma e-mails).
+ * "14 Oct 2026" (default: the payout e-mails, owner 20 Oct 2026, as in the
+ * Figma e-mails) or "14 October 2026" (`'long'`).
  */
 export function formatReviewDate(
   d: Date,
-  style: 'long' | 'short' = 'long'
+  style: 'long' | 'short' = 'short'
 ): string {
   if (style === 'short')
     return `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]} ${d.getFullYear()}`;

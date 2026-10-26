@@ -107,6 +107,8 @@ describe('payout e-mails A1–A3', () => {
     expect(formatReviewDate(reviewDeadlineFromReceipt(new Date(2026, 8, 10)), 'short')).toBe('3 Oct 2026');
     // 31 Jan + 1 month clamps to 28 Feb, − 7 days = 21 Feb.
     expect(formatReviewDate(reviewDeadlineFromReceipt(new Date(2027, 0, 31)), 'short')).toBe('21 Feb 2027');
+    // Payout e-mails print "14 Oct 2026" by default (owner, 20 Oct 2026).
+    expect(formatReviewDate(new Date(2026, 9, 14))).toBe('14 Oct 2026');
     const m = payoutNotification('A2', {
       ...base,
       reviewBy: null,

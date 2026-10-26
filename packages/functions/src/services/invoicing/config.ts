@@ -8,6 +8,8 @@
  *    receives on payout line 1, paid against the invoice number; the
  *    law-firm fee is invoiced by the firm itself) or 'fee' (full fee).
  *  - INVOICE_LINE_ITEM_NAME: line text on the Lexoffice invoice.
+ *  - INVOICE_DEREGISTRATION_LINE_ITEM_NAME: text of the separate line for
+ *    the deregistration surcharge (drv-pack/fee.ts), same VAT rate.
  *  - LEXOFFICE_API_KEY / LEXOFFICE_API_BASE_URL.
  */
 
@@ -17,6 +19,7 @@ export interface InvoicingConfig {
   taxRatePercent: number;
   amountBasis: InvoiceAmountBasis;
   lineItemName: string;
+  deregistrationLineItemName: string;
   lexofficeApiKey: string | null;
   lexofficeBaseUrl: string;
 }
@@ -36,6 +39,9 @@ export function invoicingConfig(
     lineItemName:
       envVars.INVOICE_LINE_ITEM_NAME?.trim() ||
       'Servicedienstleistungen zur Beitragserstattung',
+    deregistrationLineItemName:
+      envVars.INVOICE_DEREGISTRATION_LINE_ITEM_NAME?.trim() ||
+      'Zusatzleistung: Abmeldung in Deutschland',
     lexofficeApiKey: envVars.LEXOFFICE_API_KEY?.trim() || null,
     lexofficeBaseUrl:
       envVars.LEXOFFICE_API_BASE_URL?.trim() || 'https://api.lexware.io/v1',

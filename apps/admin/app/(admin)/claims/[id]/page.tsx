@@ -18,6 +18,7 @@ import {
   ClaimPayoutTarget,
 } from '@/lib/admin-api';
 import { V0901AnswersCard } from '@/components/V0901AnswersCard';
+import { DeregistrationSurchargeCard } from '@/components/DeregistrationSurchargeCard';
 import {
   Button,
   CLAIM_STATUS_LABEL,
@@ -68,6 +69,7 @@ const FIRM_EVENT_LABELS: Record<string, string> = {
   closed: 'closed the case',
   reference_set: 'set the file number',
   correspondence_uploaded: 'uploaded correspondence',
+  drv_letter_received: 'filed a DRV letter (return channel)',
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -461,6 +463,11 @@ export default function ClaimDetailPage() {
           <V0901AnswersCard
             claimId={claim.id}
             wrap={(body) => <Section title="V0901 answers (5.1, 6.1, 6.3, 8.1)">{body}</Section>}
+          />
+
+          <DeregistrationSurchargeCard
+            claimId={claim.id}
+            wrap={(body) => <Section title="Deregistration surcharge">{body}</Section>}
           />
 
           <Section title="Bank and payment">

@@ -24,6 +24,7 @@ import {
   deriveCaseTypeOnCreate,
   resolveCaseType,
   isStagePensionProvider,
+  isVblPensionProvider,
   type ClaimSubmissionHold,
 } from '../drizzle/schema/claims';
 import {
@@ -1467,6 +1468,19 @@ export class ClaimsApplicationService {
         `${provider} claim: there is no ${provider} claim form in the system yet, so the claim was not sent to the lettershop. Submit it to ${provider} manually.`,
         [
           `${provider} membership number: ${row.svNummer || 'not given'}`,
+          'Mark the claim as manually submitted in the admin once it has been sent.',
+        ]
+      );
+      return;
+    }
+
+    if (!isVblPensionProvider(row.pensionProvider)) {
+      const provider = row.pensionProvider as string;
+      await hold(
+        'manual_submission_required',
+        `${provider} claim: the only claim form in the system is the VBL L203, which is VBL's form and addressed to VBL in Karlsruhe, so the claim was not sent to the lettershop. Submit it to ${provider} manually.`,
+        [
+          `${provider} insurance number: ${row.svNummer || 'not given'}`,
           'Mark the claim as manually submitted in the admin once it has been sent.',
         ]
       );

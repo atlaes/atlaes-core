@@ -882,8 +882,18 @@ function ReturnChannelCard({
     <PortalCard title="Return channel">
       <p className="text-[14px] leading-[1.5] text-[#4b4f58]">
         {isBav
-          ? 'Scan letters from the pension provider or employer for this case to the platform intake mailbox — one letter per scan. The platform matches them on name plus contract number and files them to the case.'
-          : 'Scan DRV letters and Bescheide for this case to the platform intake mailbox — one letter per scan. The platform matches them on name plus VSNR and files them to the case.'}
+          ? 'Upload letters from the pension provider or employer for this case here, one letter per file. They are filed to the case and ATLAES is notified.'
+          : 'Upload DRV letters and Bescheide for this case here, one letter per file. They are filed to the case and ATLAES is notified.'}
+      </p>
+      <p className="text-[13px] leading-[1.5] text-[#4b4f58]">
+        Several letters for different cases?{' '}
+        <Link
+          href="/portal/letters"
+          className="font-semibold text-[#002691] hover:underline"
+        >
+          Use the letter upload
+        </Link>
+        .
       </p>
 
       {letters.length > 0 && (
@@ -985,7 +995,7 @@ function ReturnChannelCard({
           className="self-start"
           onClick={() => setOpenForm(true)}
         >
-          Upload a letter instead
+          Upload a letter
         </PillButton>
       )}
     </PortalCard>

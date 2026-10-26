@@ -22,6 +22,10 @@ import apiClient from '../../lib/api';
 import { yearOptions } from '../../lib/year-options';
 import { createPendingCalculatorSession } from '../../lib/vbl-pending-calculator-sessions-api';
 import {
+  monthIndexToIsoDate,
+  setVblReminder,
+} from '../../lib/vbl-reminders-api';
+import {
   extractPensionDocument,
   PensionDocumentExtractionDetails,
   PensionDocumentType,
@@ -981,6 +985,28 @@ export const ManualVBLCalculator: React.FC = () => {
     'initial' | 'form' | 'set'
   >('initial');
   const [reminderEmail, setReminderEmail] = React.useState('');
+  const [reminderSaving, setReminderSaving] = React.useState(false);
+  const [reminderError, setReminderError] = React.useState<string | null>(null);
+
+  const submitReminder = async () => {
+    setReminderSaving(true);
+    setReminderError(null);
+    try {
+      await setVblReminder({
+        email: reminderEmail.trim(),
+        eligibleOn: monthIndexToIsoDate(getEmploymentEndIndex(form) + 24),
+        source: 'calculator',
+        pensionProvider: form.stageProvider || undefined,
+      });
+      setReminderStep('set');
+    } catch {
+      setReminderError(
+        'We could not save your reminder. Please check your email address and try again.'
+      );
+    } finally {
+      setReminderSaving(false);
+    }
+  };
 
   const updateForm = (updates: Partial<ManualFormData>) => {
     setForm((previous) => ({ ...previous, ...updates }));
@@ -2125,13 +2151,22 @@ export const ManualVBLCalculator: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => setReminderStep('set')}
-                  disabled={!reminderEmail}
+                  onClick={submitReminder}
+                  disabled={!reminderEmail || reminderSaving}
+                  aria-busy={reminderSaving}
                   className="flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-md bg-[#9FE870] font-semibold text-[#163300] shadow-md transition hover:bg-[#8AD860] disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  Set reminder
+                  {reminderSaving ? 'Saving…' : 'Set reminder'}
                   <ArrowRight className="h-5 w-5" />
                 </button>
+                {reminderError && (
+                  <p
+                    role="alert"
+                    className="mt-3 max-w-[400px] text-sm text-red-600"
+                  >
+                    {reminderError}
+                  </p>
+                )}
                 <p className="mt-4 max-w-[430px] text-sm italic leading-5 text-[#6B7280]">
                   We&apos;ll send you an email reminder when you can start your
                   refund.

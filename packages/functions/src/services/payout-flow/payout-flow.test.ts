@@ -98,6 +98,29 @@ describe('fee panel selection', () => {
     expect(p.flags).toEqual(['small refund – annual settlement']);
   });
 
+  it('deregistration surcharge: own deduction row, included lines unchanged', () => {
+    const p = buildFeePanel(29601.9, undefined, {
+      deregistrationSurchargeEur: 50,
+    });
+    expect(p.rows.map((r) => [r.kind, r.amount])).toEqual([
+      ['refund', '€29,601.90'],
+      ['fee', '− €2,500.00'],
+      ['fee', '− €50.00'],
+      ['included', '€178.50'],
+      ['included', '€2,321.50'],
+      ['total', '€27,051.90'],
+    ]);
+    expect(p.rows[2].label).toBe(
+      'Optional service — German deregistration, including VAT'
+    );
+    expect(p.split.atlaesShare).toBe(2371.5);
+    const small = buildFeePanel(1500, undefined, {
+      deregistrationSurchargeEur: 50,
+    });
+    expect(small.variant).toBe('small');
+    expect(small.rows.map((r) => r.value)).toEqual([1500, 146.25, 50, 1303.75]);
+  });
+
   it('threshold: fee exactly €178.50 is a small refund', () => {
     expect(buildFeePanel(1830.77).variant).toBe('small');
     // fee rounds to 178.50 up to 1,830.82; the rule is on the fee

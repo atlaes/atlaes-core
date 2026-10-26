@@ -11,6 +11,7 @@ import {
   enterSalary,
   expectEstimate,
   monthsAgo,
+  MONTHS,
 } from '../support/calculator';
 import specimens from '../fixtures/specimens.json';
 
@@ -235,11 +236,11 @@ test.describe('calculator · stage · 24-month wait', () => {
     ).toBeVisible();
   });
 
-  test('reminder e-mail is not built yet: "Set reminder" sends nothing @pending-client', async ({
+  test('"Set reminder" stores the reminder with its due date', async ({
     page,
   }) => {
-    // Pending client decision (August): the waiting-period reminder e-mail
-    // was never built. Today the form only flips to "Reminder set".
+    // The reminder is stored (gpr.leads, type vbl-reminder); the e-mail
+    // itself is still owed by the owner and not sent yet.
     const end = monthsAgo(3);
     const start = monthsAgo(20);
     await chooseStageProvider(page, 'VddKO');
@@ -256,19 +257,33 @@ test.describe('calculator · stage · 24-month wait', () => {
     await answerEligibilityQuestions(page, 'No');
     await continueButton(page).click();
 
-    const apiCalls: string[] = [];
-    page.on('request', (r) => {
-      if (r.url().includes('/api/')) apiCalls.push(r.url());
-    });
     await page
       .getByRole('button', { name: 'Notify me when I can start' })
       .click();
     await page.getByLabel('Email address').fill('vbl-reminder@e2e.test');
+    const saved = page.waitForResponse(
+      (r) =>
+        r.url().includes('/api/vbl/reminders') &&
+        r.request().method() === 'POST'
+    );
     await page.getByRole('button', { name: 'Set reminder' }).click();
+    const response = await saved;
+    expect(response.status()).toBe(200);
+    const due = new Date(Number(end.year), MONTHS.indexOf(end.month) + 24, 1);
+    const dueOn = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-01`;
+    expect(response.request().postDataJSON()).toMatchObject({
+      email: 'vbl-reminder@e2e.test',
+      eligibleOn: dueOn,
+      source: 'calculator',
+      pensionProvider: 'VddKO',
+    });
+    expect(await response.json()).toEqual({
+      success: true,
+      reminderDueOn: dueOn,
+    });
     await expect(
       page.getByRole('heading', { name: 'Reminder set' })
     ).toBeVisible();
-    expect(apiCalls).toEqual([]);
   });
 });
 

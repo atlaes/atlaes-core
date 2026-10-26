@@ -10,10 +10,12 @@ import {
   ExternalLink,
   Home,
   Settings,
+  Inbox,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getStats } from '@/lib/admin-api';
+import { getLetterCount } from '@/lib/letters-api';
 
 /**
  * Persistent left rail for the ops side. Queues carry their count; the
@@ -24,6 +26,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const stats = useQuery({ queryKey: ['admin-stats'], queryFn: getStats });
+  const letters = useQuery({
+    queryKey: ['admin-letter-count'],
+    queryFn: getLetterCount,
+    refetchInterval: 60_000,
+  });
 
   const items = [
     {
@@ -39,6 +46,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
       icon: FileText,
       count: stats.data?.submitted,
       active: pathname.startsWith('/claims'),
+    },
+    {
+      href: '/letters',
+      label: 'DRV letters',
+      icon: Inbox,
+      count: letters.data,
+      active: pathname.startsWith('/letters'),
     },
     {
       href: '/law-firms',
@@ -124,6 +138,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
             </Link>
             <Link href="/claims" className="text-gray-700">
               Claims
+            </Link>
+            <Link href="/letters" className="text-gray-700">
+              DRV letters
+              {letters.data ? ` (${letters.data})` : ''}
             </Link>
             <Link href="/law-firms" className="text-gray-700">
               Law firms

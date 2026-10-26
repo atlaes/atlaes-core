@@ -300,13 +300,14 @@ export async function buildSubmissionPack(
       firstName: c.firstName,
       dateOfBirth: c.dateOfBirth,
       birthName: c.birthName,
+      placeOfBirth: c.placeOfBirth,
       address: `${c.street}, ${c.postalCode} ${c.city}`,
       country: c.countryLabel,
       language: a1002Language,
     });
     if (a1002.manualFill)
       warnings.push(
-        'A1002 (PG) is a scan without form fields and was enclosed blank; fill Part A by hand.'
+        `A1002 (${a1002Language.toUpperCase()}) was enclosed blank; fill Part A by hand.`
       );
     await add(
       'a1002',

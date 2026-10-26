@@ -23,7 +23,11 @@ import {
   fundsReceipts,
   type FundsReceiptRow,
 } from '../../drizzle/schema/payout-queue';
-import { computeFeeSplit, type FeeSplit } from '../drv-pack/fee';
+import {
+  computeFeeSplit,
+  deregistrationSurchargeFor,
+  type FeeSplit,
+} from '../drv-pack/fee';
 import { payoutFeeConfig } from './config';
 import { InvoicingService } from '../invoicing';
 import { isAmountMismatch } from './lines';
@@ -54,14 +58,22 @@ export class FundsService {
     input: RecordFundsInput
   ): Promise<RecordFundsResult> {
     const [claim] = await db
-      .select({ id: claimsTable.id })
+      .select({
+        id: claimsTable.id,
+        deregistrationSurcharge: claimsTable.deregistrationSurcharge,
+      })
       .from(claimsTable)
       .where(eq(claimsTable.id, input.claimId))
       .limit(1);
     if (!claim) throw new Error('Claim not found');
 
     const cfg = payoutFeeConfig();
-    const split = computeFeeSplit(input.amountEur, cfg);
+    const split = computeFeeSplit(input.amountEur, cfg, {
+      deregistrationSurchargeEur: deregistrationSurchargeFor(
+        claim.deregistrationSurcharge,
+        cfg
+      ),
+    });
 
     const [decision] = await db
       .select({ amount: payoutDecisions.refundAmountEur })
@@ -99,6 +111,7 @@ export class FundsService {
         lawFirmFee: split.lawFirmFee.toFixed(2),
         atlaesShare: split.atlaesShare.toFixed(2),
         clientAmount: split.clientAmount.toFixed(2),
+        deregistrationSurcharge: split.deregistrationSurcharge.toFixed(2),
         feeConfig: cfg,
         decisionAmount:
           decisionAmount != null ? decisionAmount.toFixed(2) : null,
@@ -124,6 +137,7 @@ export class FundsService {
         atlaesShare: split.atlaesShare,
         lawFirmFee: split.lawFirmFee,
         clientAmount: split.clientAmount,
+        deregistrationSurcharge: split.deregistrationSurcharge,
         decisionAmount,
         amountMismatch,
       },

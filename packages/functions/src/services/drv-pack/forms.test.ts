@@ -221,9 +221,52 @@ describe('A1002', () => {
     expect(r.doc.getPageCount()).toBeGreaterThanOrEqual(1);
   });
 
-  it('flags the Portuguese scan for manual fill', async () => {
-    const r = await buildA1002({ ...data, language: 'pg' });
-    expect(r.manualFill).toBe(true);
+  it('fills Part A of the Portuguese scan at the measured positions', async () => {
+    const r = await buildA1002({
+      ...data,
+      lastName: 'Silva',
+      firstName: 'Maria',
+      birthName: 'Souza',
+      placeOfBirth: 'Campinas, São Paulo',
+      address: 'Rua das Flores 123, 13010-000 Campinas',
+      country: 'Brasilien',
+      language: 'pg',
+    });
+    expect(r.manualFill).toBe(false);
+    expect(r.doc.getPageCount()).toBe(1);
+    const text = await pageText(r.doc, 0);
+    for (const v of [
+      'Silva, Maria',
+      'Souza',
+      'Campinas, São Paulo',
+      'Rua das Flores 123, 13010-000 Campinas',
+      'Brasilien',
+    ])
+      expect(text).toContain(v);
+    // Comb cells are drawn one character each, in order.
+    expect(text.replace(/\n/g, '')).toContain('65120390S512');
+    expect(text.replace(/\n/g, '')).toContain('12031990');
+  });
+
+  it('wraps a long name onto two lines on the Portuguese scan', async () => {
+    const r = await buildA1002({
+      ...data,
+      lastName: 'Albuquerque de Vasconcelos',
+      firstName: 'Maria Aparecida Conceição',
+      language: 'pg',
+    });
+    const lines = (await pageText(r.doc, 0)).split('\n');
+    expect(lines).toContain('Albuquerque de Vasconcelos,');
+    expect(lines).toContain('Maria Aparecida Conceição');
+  });
+
+  it('English and Spanish forms ignore the place of birth', async () => {
+    const en = await buildA1002({
+      ...data,
+      placeOfBirth: 'Nashik',
+      language: 'en',
+    });
+    expect(await pageText(en.doc, 0)).not.toContain('Nashik');
   });
 });
 

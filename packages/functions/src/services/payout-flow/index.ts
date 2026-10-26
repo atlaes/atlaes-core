@@ -39,7 +39,7 @@ import {
   type PayoutReviewReason,
   type PayoutRouteChoiceLog,
 } from '../../drizzle/schema/payout';
-import { computeFeeSplit } from '../drv-pack/fee';
+import { computeFeeSplit, deregistrationSurchargeFor } from '../drv-pack/fee';
 import { extractDrvRefundDecisionDetails } from '../drv-refund-decision-extraction';
 import {
   buildZahlungserklaerungText,
@@ -268,7 +268,9 @@ function releaseView(
     status: r.status,
     valueDate: r.valueDate,
     amountReceivedEur: Number(r.amountReceivedEur),
-    panel: buildFeePanel(Number(r.amountReceivedEur), cfg),
+    panel: buildFeePanel(Number(r.amountReceivedEur), cfg, {
+      deregistrationSurchargeEur: Number(r.deregistrationSurchargeEur ?? 0),
+    }),
     account: (r.account as PayoutAccount | null) ?? null,
     prefill: intakeAccount(c),
     route: (r.route as PayoutRouteCode | null) ?? null,
@@ -277,6 +279,37 @@ function releaseView(
     signedAt: r.signedAt ? r.signedAt.toISOString() : null,
     zeDocumentNumber: r.zeDocumentNumber ?? null,
     blockers: r.status === 'open' ? signingBlockers(c, r, atlaesIban) : [],
+  };
+}
+
+export interface DeregistrationSurchargeView {
+  enabled: boolean;
+  reason: string | null;
+  setAt: string | null;
+  setBy: string | null;
+  /** Configured amount (EUR incl. VAT) added when enabled. */
+  amountEur: number;
+  /** Amount frozen on the live release, when funds are recorded. */
+  appliedEur: number | null;
+  /** True once a live (open/signed) release exists. */
+  locked: boolean;
+}
+
+function deregistrationSurchargeView(
+  c: ClaimRow,
+  rows: ReleaseRow[]
+): DeregistrationSurchargeView {
+  const live = rows.find((r) => r.status !== 'cancelled') ?? null;
+  return {
+    enabled: c.deregistrationSurcharge,
+    reason: c.deregistrationSurchargeReason ?? null,
+    setAt: c.deregistrationSurchargeSetAt
+      ? c.deregistrationSurchargeSetAt.toISOString()
+      : null,
+    setBy: c.deregistrationSurchargeSetBy ?? null,
+    amountEur: deregistrationSurchargeFor(true, payoutFeeConfig()),
+    appliedEur: live ? Number(live.deregistrationSurchargeEur ?? 0) : null,
+    locked: live !== null,
   };
 }
 
@@ -480,7 +513,13 @@ export class PayoutFlowService {
     if (!isIsoDate(input.valueDate))
       throw new PayoutFlowError('Invalid value date');
     const claim = await this.getClaim(claimId);
-    const split = computeFeeSplit(input.amountEur, payoutFeeConfig());
+    const cfg = payoutFeeConfig();
+    const split = computeFeeSplit(input.amountEur, cfg, {
+      deregistrationSurchargeEur: deregistrationSurchargeFor(
+        claim.deregistrationSurcharge,
+        cfg
+      ),
+    });
     const [release] = await db
       .insert(payoutReleases)
       .values({
@@ -494,6 +533,7 @@ export class PayoutFlowService {
         lawFirmFeeEur: split.lawFirmFee.toFixed(2),
         atlaesShareEur: split.atlaesShare.toFixed(2),
         clientAmountEur: split.clientAmount.toFixed(2),
+        deregistrationSurchargeEur: split.deregistrationSurcharge.toFixed(2),
       })
       .returning();
     await db
@@ -831,6 +871,7 @@ export class PayoutFlowService {
         amountMismatch: claim.payoutAmountMismatch,
         releasedAt: claim.payoutReleasedAt,
       },
+      deregistrationSurcharge: deregistrationSurchargeView(claim, rows),
       decisions: decisions.map((d) => ({
         ...decisionView(d),
         extraction: d.extraction,
@@ -844,6 +885,45 @@ export class PayoutFlowService {
       })),
       customerInputs: inputs,
     };
+  }
+
+  /**
+   * ATLAES Admin: flag (or unflag) the EUR 50 deregistration surcharge for
+   * a client without an Abmeldebestätigung. The amount is frozen at "funds
+   * received", so the flag is locked once a live release exists; to change
+   * it later, cancel the invoice and record the funds again.
+   */
+  static async setDeregistrationSurcharge(
+    claimId: string,
+    input: { enabled: boolean; reason?: string | null },
+    actor: Actor
+  ): Promise<DeregistrationSurchargeView> {
+    const claim = await this.getClaim(claimId);
+    const rows = await this.releases(claimId);
+    if (deregistrationSurchargeView(claim, rows).locked)
+      throw new PayoutFlowError(
+        'Funds are already recorded for this case; the surcharge is fixed on the release',
+        409
+      );
+    const reason = input.reason?.trim() || null;
+    const [updated] = await db
+      .update(claimsTable)
+      .set({
+        deregistrationSurcharge: input.enabled,
+        deregistrationSurchargeReason: input.enabled ? reason : null,
+        deregistrationSurchargeSetBy: actor.id,
+        deregistrationSurchargeSetAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(claimsTable.id, claimId))
+      .returning();
+    await this.audit(actor, 'deregistration_surcharge_set', claimId, {
+      enabled: input.enabled,
+      previous: claim.deregistrationSurcharge,
+      reason,
+      amountEur: deregistrationSurchargeFor(true, payoutFeeConfig()),
+    });
+    return deregistrationSurchargeView(updated, rows);
   }
 
   /** Invoicing stream / admin: Lexoffice number, required before signing. */
@@ -1346,6 +1426,9 @@ export class PayoutFlowService {
       signedAt: berlinWallClock(now),
       documentId: docNumber,
       feeConfig: payoutFeeConfig(),
+      deregistrationSurchargeEur: Number(
+        release.deregistrationSurchargeEur ?? 0
+      ),
     };
   }
 

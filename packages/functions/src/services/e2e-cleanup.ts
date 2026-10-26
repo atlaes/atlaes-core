@@ -49,6 +49,7 @@ import {
   statementLines,
 } from '../drizzle/schema/payout-queue';
 import { lawFirmIpAllowlist } from '../drizzle/schema/two-factor';
+import { lawFirmLetters } from '../drizzle/schema/law-firm-letters';
 
 /**
  * Deletes the data the staging e2e suite creates. Only ever touches rows
@@ -61,6 +62,8 @@ import { lawFirmIpAllowlist } from '../drizzle/schema/two-factor';
  * shared.signatures / gpr+vbl applications was taken from the migrated
  * database (information_schema), not just the Drizzle schema, so the
  * transaction does not fail halfway. Order inside the transaction:
+ *   0. return-channel letters a test user uploaded, with the
+ *      correspondence entries that point at their documents;
  *   1. null "actor" columns that point at a test user from rows that
  *      survive (e.g. a test user recorded as uploader) — defensive, these
  *      only ever reference test users on test claims;
@@ -88,6 +91,7 @@ export interface E2eCleanupResult {
   signatures: number;
   auditLogs: number;
   contractWithdrawals: number;
+  lawFirmLetters: number;
   gprApplications: number;
   vblApplications: number;
   pendingSessions: number;
@@ -115,6 +119,7 @@ function emptyResult(rejectedEmails: string[]): E2eCleanupResult {
     signatures: 0,
     auditLogs: 0,
     contractWithdrawals: 0,
+    lawFirmLetters: 0,
     gprApplications: 0,
     vblApplications: 0,
     pendingSessions: 0,
@@ -225,6 +230,22 @@ export class E2eCleanupService {
 
     await db.transaction(async (tx: any) => {
       if (userIds.length) {
+        // 0. Letters uploaded by a test firm user (their document rows go
+        // in step 4, so the correspondence entries filing them go first).
+        const letters = await tx
+          .delete(lawFirmLetters)
+          .where(inArray(lawFirmLetters.uploadedBy, userIds))
+          .returning({ documentId: lawFirmLetters.documentId });
+        const letterDocIds = letters
+          .map((l: { documentId: string | null }) => l.documentId)
+          .filter(Boolean);
+        if (letterDocIds.length) {
+          await tx
+            .delete(claimCorrespondence)
+            .where(inArray(claimCorrespondence.documentId, letterDocIds));
+        }
+        result.lawFirmLetters = letters.length;
+
         // 1. Actor columns on rows that may survive.
         const actorColumns: Array<[any, any, string]> = [
           [claimsTable, claimsTable.handlingRouteSetBy, 'handlingRouteSetBy'],
@@ -247,6 +268,7 @@ export class E2eCleanupService {
           [payoutCustomerInputs, payoutCustomerInputs.resolvedBy, 'resolvedBy'],
           [payoutReleases, payoutReleases.reviewClearedBy, 'reviewClearedBy'],
           [lawFirmIpAllowlist, lawFirmIpAllowlist.createdBy, 'createdBy'],
+          [lawFirmLetters, lawFirmLetters.handledBy, 'handledBy'],
         ];
         for (const [table, column, key] of actorColumns) {
           await tx
