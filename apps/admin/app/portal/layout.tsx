@@ -23,6 +23,11 @@ const NAV: { href: string; label: string; match: (p: string) => boolean }[] = [
     match: (p) => p === '/portal' || p.startsWith('/portal/claims'),
   },
   {
+    href: '/portal/letters',
+    label: 'Letter upload',
+    match: (p) => p.startsWith('/portal/letters'),
+  },
+  {
     href: '/portal/payouts',
     label: 'Payout queue',
     match: (p) => p.startsWith('/portal/payouts'),
@@ -134,7 +139,10 @@ export default function PortalLayout({
                 Law-firm portal
               </span>
             </Link>
-            <nav aria-label="Portal" className="flex items-center gap-5">
+            <nav
+              aria-label="Portal"
+              className="flex flex-wrap items-center gap-x-5 gap-y-1"
+            >
               {NAV.map((item) => {
                 const active = item.match(pathname);
                 return (

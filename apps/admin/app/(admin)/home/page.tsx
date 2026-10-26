@@ -21,6 +21,7 @@ const FIRM_EVENT_LABELS: Record<string, string> = {
   closed: 'closed the case',
   reference_set: 'set the file number',
   correspondence_uploaded: 'uploaded correspondence',
+  drv_letter_received: 'filed a DRV letter (return channel)',
 };
 
 function describe(a: ActivityItem): string {
