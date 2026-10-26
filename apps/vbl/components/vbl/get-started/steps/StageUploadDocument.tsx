@@ -12,7 +12,7 @@ import {
   UploadCloud,
 } from 'lucide-react';
 import { useEligibility } from '@/contexts/EligibilityContext';
-import { STAGE_EARLIEST_YEAR, yearOptions } from '@/lib/year-options';
+import { yearOptions } from '@/lib/year-options';
 import {
   StageContributionDurationType,
   StagePost2001ContributionDurationType,
@@ -59,7 +59,7 @@ const MONTHS = [
 ];
 
 // Stage pensions also cover employment that ended before 2001.
-const YEARS = yearOptions(STAGE_EARLIEST_YEAR);
+const YEARS = yearOptions();
 
 const EMPTY_FORM: StageUploadForm = {
   provider: '',

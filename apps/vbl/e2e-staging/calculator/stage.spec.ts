@@ -180,8 +180,7 @@ test.describe('calculator · stage · contribution bands', () => {
       page.getByRole('heading', { name: /since 1 January 20(01|18)/ })
     ).toHaveCount(0);
     await enterSalary(page, '4200');
-    // Years before the rate table (2004) use the 2004 rates, so the
-    // estimate is not zero.
+    // 1997–1999 are in the rate table (DEM caps converted to EUR).
     expect(
       await expectEstimate(page, 'Your estimated VddB refund')
     ).toBeGreaterThan(0);

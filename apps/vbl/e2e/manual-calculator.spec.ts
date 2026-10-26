@@ -729,6 +729,20 @@ test.describe('Manual VBL calculator', () => {
     ).toBeVisible();
   });
 
+  test('public year pickers reach back to 1960', async ({ page }) => {
+    await chooseManual(page, 'VBL / ZVK refund');
+    await chooseDropdownOption(page, 'Employer’s federal state', 'Bavaria');
+    await continueButton(page).click();
+    await chooseDropdownOption(page, 'Company pension', 'VBL');
+    await page.getByRole('button', { name: 'VBLklassik' }).click();
+    await continueButton(page).click();
+    await page.getByRole('button', { name: /Start year/ }).click();
+    const publicYears = (await page.getByRole('option').allTextContents()).map(
+      Number
+    );
+    expect(Math.min(...publicYears)).toBe(1960);
+  });
+
   test('stage year pickers reach back to 1960', async ({ page }) => {
     await chooseStageProvider(page, 'VddB');
     await page.getByRole('button', { name: /End year/ }).click();

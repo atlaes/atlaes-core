@@ -57,6 +57,21 @@ test.describe('calculator · public sector · every state and provider', () => {
 });
 
 test.describe('calculator · public sector · outcomes', () => {
+  test('year pickers reach back to 1960 and 1980s periods estimate', async ({
+    page,
+  }) => {
+    // Owner request 26 Oct 2026: public-sector years from 1960, priced from
+    // the 1975–2003 rows of the contribution table.
+    expect(
+      await publicManualEstimate(page, {
+        state: 'Bavaria',
+        provider: 'VBL',
+        plan: 'VBLklassik',
+        period: ['January', '1985', 'December', '1987'],
+      })
+    ).toBeGreaterThan(0);
+  });
+
   test('one contribution month is still eligible (VBL, Jan 2024 only)', async ({
     page,
   }) => {
