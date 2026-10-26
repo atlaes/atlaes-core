@@ -2,11 +2,13 @@
 
 import {
   BadgeCheck,
+  Briefcase,
   Contact as IdCard,
   FileText,
   Landmark,
   MapPin,
   PenLine,
+  Scale,
   ShieldPlus,
   UserRound,
   type LucideIcon,
@@ -20,7 +22,9 @@ export type OnboardingSubStepIconName =
   | 'document'
   | 'confirm'
   | 'pen'
-  | 'health';
+  | 'health'
+  | 'briefcase'
+  | 'scale';
 
 export const ONBOARDING_SUB_STEP_GLYPHS: Record<
   OnboardingSubStepIconName,
@@ -34,6 +38,8 @@ export const ONBOARDING_SUB_STEP_GLYPHS: Record<
   confirm: BadgeCheck,
   pen: PenLine,
   health: ShieldPlus,
+  briefcase: Briefcase,
+  scale: Scale,
 };
 
 export function getOnboardingSubStepGlyph(

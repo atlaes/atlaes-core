@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
+import { homeForRole, useAuth } from '@/contexts/AuthContext';
 
 export default function MagicLinkPage() {
-  const { verifyMagicLink, isAuthenticated, error: authError } = useAuth();
+  const { verifyMagicLink, isAuthenticated, user, error: authError } =
+    useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +22,12 @@ export default function MagicLinkPage() {
 
     const verify = async () => {
       try {
-        await verifyMagicLink(token);
+        const result = await verifyMagicLink(token);
+        // Law-firm accounts finish with the 6-digit code.
+        if (result?.twoFactorRequired) {
+          router.replace('/auth/portal-sign-in');
+          return;
+        }
         // If authError is set after verify, it means role check failed
       } catch (err: any) {
         setError(err.message);
@@ -31,13 +37,13 @@ export default function MagicLinkPage() {
     };
 
     verify();
-  }, [searchParams, verifyMagicLink]);
+  }, [searchParams, verifyMagicLink, router]);
 
   useEffect(() => {
     if (!verifying && isAuthenticated) {
-      router.replace('/claims');
+      router.replace(homeForRole(user?.role));
     }
-  }, [verifying, isAuthenticated, router]);
+  }, [verifying, isAuthenticated, user?.role, router]);
 
   if (verifying) {
     return (

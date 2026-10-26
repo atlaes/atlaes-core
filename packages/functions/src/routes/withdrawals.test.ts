@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, beforeAll, afterAll } from 'vitest';
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
+import { eq } from 'drizzle-orm';
 import * as schema from '../drizzle/schema';
 import { users, profiles } from '../drizzle/schema/shared';
 import { claimsTable } from '../drizzle/schema/claims';
@@ -277,6 +278,75 @@ describe('Contract withdrawal endpoints', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.success).toBe(true);
+  });
+
+  it('identify (authenticated owner) works without a profile name', async () => {
+    // Magic-link sign-up leaves the profile name empty; the name lives on
+    // the claim. The logged-in page sends the e-mail as the name.
+    const email = `test-withdraw-${Date.now()}-f@example.com`;
+    const { userId, claimId, token } = await createUserWithClaim({
+      email,
+      firstName: 'Lena',
+      lastName: 'Vogel',
+    });
+    // Same as auth.ts magic-link sign-up: the profile exists with empty names.
+    await testDb
+      .update(profiles)
+      .set({ firstName: '', lastName: '' })
+      .where(eq(profiles.userId, userId));
+
+    const res = await request(
+      'POST',
+      '/api/withdrawals/identify',
+      {
+        fullName: email,
+        email,
+        claimId,
+        pensionTypeOrInstitution: 'VBL',
+      },
+      { Authorization: `Bearer ${token}` }
+    );
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.contract.claimId).toBe(claimId);
+    expect(data.contract.fullName).toBe('Lena Vogel');
+
+    // Without the token the same payload still fails the public match.
+    const anon = await request('POST', '/api/withdrawals/identify', {
+      fullName: email,
+      email,
+      claimId,
+      pensionTypeOrInstitution: 'VBL',
+    });
+    expect(anon.status).toBe(404);
+  });
+
+  it("identify with another user's token still needs the public match", async () => {
+    const owner = await createUserWithClaim({
+      email: `test-withdraw-${Date.now()}-g@example.com`,
+      firstName: 'Jonas',
+      lastName: 'Brandt',
+    });
+    const other = await createUserWithClaim({
+      email: `test-withdraw-${Date.now()}-h@example.com`,
+      firstName: 'Mia',
+      lastName: 'Kurz',
+    });
+
+    const res = await request(
+      'POST',
+      '/api/withdrawals/identify',
+      {
+        fullName: 'Mia Kurz',
+        email: `test-withdraw-other@example.com`,
+        claimId: owner.claimId,
+        pensionTypeOrInstitution: 'VBL',
+      },
+      { Authorization: `Bearer ${other.token}` }
+    );
+    expect(res.status).toBe(404);
+    const data = await res.json();
+    expect(data.error).toBe(WITHDRAWAL_NOT_FOUND_MESSAGE);
   });
 
   it('identify on a non-existent claim returns the generic message (404)', async () => {

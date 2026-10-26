@@ -16,6 +16,7 @@ import { UserService } from '../services/user';
 import { authMiddleware } from '../middleware/auth';
 import { GPRApplicationService } from '../services/gpr-application';
 import { sendMagicLinkEmail } from '../services/email';
+import { isE2eRequest } from '../utils/e2e';
 import { db } from '../utils/db';
 import { users } from '../drizzle/schema/shared';
 import { eq } from 'drizzle-orm';
@@ -337,7 +338,9 @@ auth.post(
       // If GPR session data is provided, save it to pending sessions
       if (gprSessionData) {
         const ipAddress =
-          c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+          c.req.header('x-forwarded-for') ||
+          c.req.header('x-real-ip') ||
+          'unknown';
         const userAgent = c.req.header('user-agent') || 'unknown';
 
         try {
@@ -361,23 +364,27 @@ auth.post(
         callbackUrl && ALLOWED_ORIGINS.includes(callbackUrl)
           ? callbackUrl
           : env.FRONTEND_URL;
-      const baseMagicLinkUrl = AuthService.generateMagicLinkUrl(
-        token,
-        baseUrl
-      );
+      const baseMagicLinkUrl = AuthService.generateMagicLinkUrl(token, baseUrl);
       const magicLinkUrl = redirectUrl
         ? `${baseMagicLinkUrl}&redirect=${encodeURIComponent(redirectUrl)}`
         : baseMagicLinkUrl;
 
+      // Staging e2e login (utils/e2e.ts): a secret-bearing request for an
+      // @e2e.test address gets the link in the response instead of by mail.
+      const isE2e = isE2eRequest(c, email);
+
       // Send magic link email (skips in local dev, sends via SES in prod)
-      await sendMagicLinkEmail(email, magicLinkUrl);
+      if (!isE2e) {
+        await sendMagicLinkEmail(email, magicLinkUrl);
+      }
       logger.info(`Magic link for ${email}: ${magicLinkUrl}`);
 
-      // Only include magic link in response during development (for auto-verify)
+      // Only include the magic link in the response outside production:
+      // local dev auto-verifies with it and the test suite extracts the token.
       const response: Record<string, string> = {
         message: 'Magic link sent to your email address.',
       };
-      if (env.NODE_ENV === 'development') {
+      if (env.NODE_ENV === 'development' || env.NODE_ENV === 'test' || isE2e) {
         response.magicLink = magicLinkUrl;
       }
 
@@ -425,13 +432,16 @@ auth.post(
         logger.info(`New user created via magic link: ${user.email}`);
       }
 
-      // Auto-assign admin role for allowed domains
+      // Auto-assign admin role for allowed domains. Invited law-firm
+      // members keep their role even on these domains, or they would be
+      // flipped to admin at first login and lose the portal.
       const ADMIN_DOMAINS = ['atlaes.de', 'alibuas.com'];
       const emailDomain = email.split('@')[1]?.toLowerCase();
       if (
         emailDomain &&
         ADMIN_DOMAINS.includes(emailDomain) &&
-        user.role !== 'admin'
+        user.role !== 'admin' &&
+        user.role !== 'law_firm'
       ) {
         await db
           .update(users)
@@ -439,6 +449,42 @@ auth.post(
           .where(eq(users.id, user.id));
         user = { ...user, role: 'admin' };
         logger.info(`Auto-assigned admin role to ${email}`);
+      }
+
+      // Law-firm members: record the first portal sign-in so ops can tell
+      // an invited member from one who is in.
+      if (user.role === 'law_firm' || user.role === 'admin') {
+        try {
+          const { LawFirmService } = await import('../services/law-firm');
+          await LawFirmService.markSignedIn(user.id);
+        } catch (signInError) {
+          logger.warn('Could not stamp law-firm first sign-in', {
+            error:
+              signInError instanceof Error
+                ? signInError.message
+                : String(signInError),
+          });
+        }
+      }
+
+      // Law-firm members get no session from the link alone: they finish
+      // with a TOTP code at /api/auth/2fa (portal brief: 2FA required).
+      if (user.role === 'law_firm') {
+        const { createChallengeToken, TotpService } = await import(
+          '../services/totp/service'
+        );
+        return c.json({
+          message: 'Two-factor sign-in required',
+          twoFactorRequired: true,
+          enrolmentRequired: !(await TotpService.isEnrolled(user.id)),
+          user: { id: user.id, email: user.email },
+          ...createChallengeToken({
+            userId: user.id,
+            email: user.email,
+            emailVerified: !!user.emailVerified,
+            role: user.role,
+          }),
+        });
       }
 
       // Generate authentication tokens
@@ -452,9 +498,14 @@ auth.post(
       // Migrate any pending GPR session to application
       let gprApplication = null;
       try {
-        gprApplication = await GPRApplicationService.migrateToApplication(email, user.id);
+        gprApplication = await GPRApplicationService.migrateToApplication(
+          email,
+          user.id
+        );
         if (gprApplication) {
-          logger.info(`GPR session migrated to application ${gprApplication.id} for user ${user.id}`);
+          logger.info(
+            `GPR session migrated to application ${gprApplication.id} for user ${user.id}`
+          );
         }
       } catch (migrationError) {
         logger.error('Failed to migrate GPR session:', migrationError);
@@ -476,11 +527,17 @@ auth.post(
         gprApplication, // Include the migrated application if available
       });
     } catch (error) {
-      if (error instanceof Error && error.message === 'Invalid or expired magic link') {
+      if (
+        error instanceof Error &&
+        error.message === 'Invalid or expired magic link'
+      ) {
         return c.json({ error: 'Invalid or expired magic link' }, 400);
       }
       logger.error('Magic link verification error:', error);
-      return c.json({ error: 'Account creation failed. Please try again.' }, 500);
+      return c.json(
+        { error: 'Account creation failed. Please try again.' },
+        500
+      );
     }
   }
 );

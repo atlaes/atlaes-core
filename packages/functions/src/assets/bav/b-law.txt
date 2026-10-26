@@ -1,0 +1,83 @@
+{{law_firm_letterhead}}
+
+{{recipient_name}}
+[[IF recipient_department]]{{recipient_department}}[[/IF]]
+{{recipient_street}}
+{{recipient_postal_code}} {{recipient_city}}
+
+{{law_firm_city}}, den {{letter_date}}
+Unser Zeichen: {{law_firm_ref}}
+[[IF recipient_ref]]Ihr Zeichen: {{recipient_ref}}[[/IF]]
+
+
+Antrag auf Abfindung einer Kleinstanwartschaft nach § 3 Abs. 2 BetrAVG
+
+Name: {{client_full_name}}, geb. {{client_dob}}
+[[IF employer_personnel_number]]Personalnummer: {{employer_personnel_number}}[[/IF]]
+[[IF contract_reference]]{{contract_reference_label}}: {{contract_reference}}[[/IF]]
+[[IF addressee_type == provider]]Ehemaliger Arbeitgeber: {{employer_name}}[[/IF]]
+
+
+Sehr geehrte Damen und Herren,
+
+in der vorbezeichneten Angelegenheit zeigen wir an, dass wir {{g:Herrn|Frau}} {{client_full_name}} anwaltlich vertreten. Eine auf uns lautende Vollmacht ist im Original beigefügt.
+
+Das Arbeitsverhältnis {{g:unseres Mandanten|unserer Mandantin}} mit {{employer_name}} endete zum {{employment_end_date}}. Aus diesem Arbeitsverhältnis besteht eine unverfallbare Anwartschaft auf Leistungen der betrieblichen Altersversorgung ({{durchfuehrungsweg}}[[IF provider_name]] über {{provider_name}}[[/IF]][[IF contract_reference]], {{contract_reference_label}} {{contract_reference}}[[/IF]]). {{g:Unser Mandant|Unsere Mandantin}} hat Deutschland zum {{de_departure_date}} dauerhaft verlassen und lebt in {{residence_country}}.
+
+[[IF benefit_form == pension]]Nach der {{g:unserem Mandanten|unserer Mandantin}} vorliegenden {{statement_type}} vom {{statement_date}} beträgt der Monatsbetrag der bei Erreichen der vorgesehenen Altersgrenze zu erwartenden laufenden Leistung {{benefit_amount}} EUR. Die Anwartschaft übersteigt damit nicht die Grenze des § 3 Abs. 2 Satz 1 BetrAVG von 1,5 Prozent der monatlichen Bezugsgröße nach § 18 SGB IV (im Jahr {{letter_year}}: {{threshold_pension}} EUR monatlich).[[/IF]][[IF benefit_form == capital]]Nach der {{g:unserem Mandanten|unserer Mandantin}} vorliegenden {{statement_type}} vom {{statement_date}} beträgt die bei Erreichen der vorgesehenen Altersgrenze zu erwartende Kapitalleistung {{benefit_amount}} EUR. Die Anwartschaft übersteigt damit nicht die Grenze des § 3 Abs. 2 Satz 1 BetrAVG von achtzehn Zehnteln der monatlichen Bezugsgröße nach § 18 SGB IV (im Jahr {{letter_year}}: {{threshold_capital}} EUR).[[/IF]][[IF benefit_form == unknown]]Nach den {{g:unserem Mandanten|unserer Mandantin}} vorliegenden Unterlagen übersteigt die Anwartschaft nicht die Grenze des § 3 Abs. 2 Satz 1 BetrAVG von 1,5 Prozent (laufende Leistung) bzw. achtzehn Zehnteln (Kapitalleistung) der monatlichen Bezugsgröße nach § 18 SGB IV (im Jahr {{letter_year}}: {{threshold_pension}} EUR monatlich bzw. {{threshold_capital}} EUR). Wir bitten um Prüfung und Mitteilung des maßgeblichen Wertes.[[/IF]]
+
+Namens und in Vollmacht {{g:unseres Mandanten|unserer Mandantin}} beantragen wir, die Anwartschaft gemäß § 3 Abs. 2 BetrAVG durch einmalige Kapitalzahlung abzufinden. {{g:Unser Mandant|Unsere Mandantin}} ist mit der Abfindung ausdrücklich einverstanden.
+
+Die Voraussetzungen des § 3 Abs. 2 BetrAVG liegen vor: Das Arbeitsverhältnis ist beendet, die Anwartschaft liegt unterhalb der gesetzlichen Wertgrenze, {{g:unser Mandant|unsere Mandantin}} hat nach Beendigung des Arbeitsverhältnisses kein neues Arbeitsverhältnis in einem anderen Mitgliedstaat der Europäischen Union begründet (§ 3 Abs. 2 Satz 3 BetrAVG) und macht von dem Recht auf Übertragung der Anwartschaft nach § 4 Abs. 3 BetrAVG keinen Gebrauch (§ 3 Abs. 2 Satz 4 BetrAVG).
+
+Die Entscheidung über die Abfindung nach § 3 Abs. 2 BetrAVG liegt beim Arbeitgeber. Da {{g:unser Mandant|unsere Mandantin}} dauerhaft im Ausland lebt und die Verwaltung einer Kleinstanwartschaft über Jahrzehnte für alle Beteiligten unverhältnismäßig aufwendig wäre, bitten wir um Durchführung der Abfindung.
+
+Die Höhe der Abfindung bemisst sich nach § 3 Abs. 5 i. V. m. § 4 Abs. 5 BetrAVG[[IF durchfuehrungsweg in (Direktversicherung, Pensionskasse, Pensionsfonds)]] und entspricht dem im Zeitpunkt der Abfindung gebildeten Kapital[[/IF]][[IF durchfuehrungsweg in (Direktzusage, Unterstützungskasse)]] und entspricht dem Barwert der nach § 2 BetrAVG bemessenen künftigen Versorgungsleistung[[/IF]]. Die Abfindung ist gesondert auszuweisen und einmalig zu zahlen (§ 3 Abs. 6 BetrAVG). Wir bitten um Übersendung einer nachvollziehbaren Berechnung des Abfindungsbetrages.
+
+[[IF provider_form_enclosed]]Das von Ihnen vorgesehene Antragsformular „{{provider_form_title}}“ ist von {{g:unserem Mandanten|unserer Mandantin}} ausgefüllt und unterschrieben beigefügt.[[/IF]]
+
+[[IF addressee_type == provider]]Soweit Sie für die Durchführung der Abfindung die Zustimmung des ehemaligen Arbeitgebers benötigen, [[IF employer_consent_enclosed]]ist diese beigefügt.[[ELSE]]bitten wir Sie, diese unmittelbar bei {{employer_name}} einzuholen[[IF send_copy]]; {{employer_name}} erhält eine Kopie dieses Schreibens[[/IF]].[[/IF]][[/IF]]
+[[IF addressee_type == employer and provider_name]]Wir bitten Sie, der Abfindung zuzustimmen, diese gegenüber {{provider_name}} freizugeben und die Auszahlung zu veranlassen[[IF send_copy]]; {{provider_name}} erhält eine Kopie dieses Schreibens[[/IF]].[[/IF]]
+
+Bitte überweisen Sie den Abfindungsbetrag auf folgendes Konto:
+[[IF payout_target == law_firm]]
+Kontoinhaber: {{law_firm_name}} – Anderkonto
+IBAN: {{law_firm_iban}}
+BIC: {{law_firm_bic}}
+Bank: {{law_firm_bank}}
+Verwendungszweck: {{law_firm_ref}} – {{client_full_name}}
+[[ELSE]]
+Kontoinhaber: {{account_holder}}
+IBAN: {{iban}}
+BIC: {{bic}}
+Bank: {{bank_name}}[[IF bank_address]], {{bank_address}}[[/IF]]
+[[IF account_holder_is_client]]Das Konto lautet auf den Namen {{g:unseres Mandanten|unserer Mandantin}}.[[/IF]]
+[[/IF]]
+
+Steuerliche Hinweise: {{g:Unser Mandant|Unsere Mandantin}} hat {{g:seinen|ihren}} Wohnsitz und gewöhnlichen Aufenthalt seit {{de_departure_date}} in {{residence_country}} und ist in Deutschland nicht unbeschränkt steuerpflichtig. [[IF tax_id]]Steuerliche Identifikationsnummer: {{tax_id}}.[[ELSE]]Die steuerliche Identifikationsnummer liegt {{g:unserem Mandanten|unserer Mandantin}} derzeit nicht vor.[[/IF]] Soweit die Abfindung dem Lohnsteuerabzug unterliegt, bitten wir um Prüfung, ob die Voraussetzungen der Tarifermäßigung nach § 34 Abs. 1, Abs. 2 Nr. 4 EStG vorliegen, und um gesonderten Ausweis der Abfindung als Vergütung für eine mehrjährige Tätigkeit in der Lohnsteuerbescheinigung. Bitte übersenden Sie uns nach Auszahlung eine Abrechnung über den Abfindungsbetrag und die einbehaltenen Abzüge sowie die Lohnsteuerbescheinigung bzw. die Leistungsmitteilung nach § 22 Nr. 5 EStG.
+
+Krankenversicherung: {{g:Unser Mandant|Unsere Mandantin}} ist seit {{de_health_insurance_end_date}} nicht mehr in der deutschen gesetzlichen Krankenversicherung versichert. Beiträge zur gesetzlichen Kranken- und Pflegeversicherung aus dem Abfindungsbetrag (§ 229 SGB V) sind daher nicht einzubehalten[[IF foreign_health_insurance_proof]]; ein Nachweis über die in {{residence_country}} bestehende Krankenversicherung ist beigefügt[[/IF]].
+
+Bitte bestätigen Sie den Eingang dieses Schreibens sowie Ihre Entscheidung über die Abfindung und den voraussichtlichen Auszahlungstermin innerhalb von vier Wochen nach Zugang. Sollten Sie für die Bearbeitung weitere Unterlagen oder eigene Formulare benötigen, bitten wir um umgehende Mitteilung.
+
+Für Rückfragen stehen wir gerne zur Verfügung.
+
+Mit freundlichen Grüßen
+
+
+{{lawyer_name}}
+{{lawyer_title}}
+
+[[IF send_copy]]Kopie an: {{copy_recipient_name}}[[/IF]]
+
+Anlagen
+[[ANLAGEN]]
+Vollmacht (Original)
+[[IF last_statement_enclosed]]{{statement_type}} vom {{statement_date}} (Kopie)[[/IF]]
+Kopie Reisepass {{g:unseres Mandanten|unserer Mandantin}}
+[[IF provider_form_enclosed]]Antragsformular „{{provider_form_title}}“ (ausgefüllt und unterschrieben)[[/IF]]
+[[IF employer_consent_enclosed]]Zustimmungserklärung des ehemaligen Arbeitgebers[[/IF]]
+[[IF employment_end_proof]]Nachweis über die Beendigung des Arbeitsverhältnisses[[/IF]]
+[[IF foreign_health_insurance_proof]]Nachweis der Krankenversicherung in {{residence_country}}[[/IF]]
+[[IF bank_proof]]Nachweis der Bankverbindung[[/IF]]
+[[/ANLAGEN]]

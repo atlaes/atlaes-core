@@ -27,6 +27,13 @@ export interface IdentifyInput {
   email: string;
   claimId: string;
   pensionTypeOrInstitution: string;
+  /**
+   * Signed-in user, when the request carries a valid token. The owner of the
+   * claim is identified by the account itself, so the name/email match is
+   * skipped (same rule as confirm). Magic-link accounts often have no profile
+   * name, which made the name match fail for the owner.
+   */
+  actorUserId?: string;
 }
 
 export interface WithdrawalContractDetails {
@@ -229,19 +236,24 @@ export class ContractWithdrawalService {
       const resolved = await resolveClaim(input.claimId);
       if (!resolved) return null;
 
-      if (!emailsMatch(input.email, resolved.ownerEmail)) return null;
+      const isOwner =
+        !!input.actorUserId && resolved.claim.userId === input.actorUserId;
 
-      const candidates = [
-        [resolved.profileFirstName, resolved.profileLastName]
-          .filter(Boolean)
-          .join(' '),
-        [resolved.claim.firstName, resolved.claim.lastName]
-          .filter(Boolean)
-          .join(' '),
-      ].filter((c) => c.trim().length > 0);
+      if (!isOwner) {
+        if (!emailsMatch(input.email, resolved.ownerEmail)) return null;
 
-      const nameOk = candidates.some((c) => namesMatch(input.fullName, c));
-      if (!nameOk) return null;
+        const candidates = [
+          [resolved.profileFirstName, resolved.profileLastName]
+            .filter(Boolean)
+            .join(' '),
+          [resolved.claim.firstName, resolved.claim.lastName]
+            .filter(Boolean)
+            .join(' '),
+        ].filter((c) => c.trim().length > 0);
+
+        const nameOk = candidates.some((c) => namesMatch(input.fullName, c));
+        if (!nameOk) return null;
+      }
 
       const alreadyWithdrawn = await hasExistingWithdrawal(resolved.claim.id);
       return buildContractDetails(

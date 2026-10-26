@@ -2,12 +2,25 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import apiClient from '../lib/api';
+import { saveChallenge } from '../lib/two-factor-api';
+
+// Roles this app serves. Admins land on /claims, law-firm users on /portal.
+export type AppRole = 'admin' | 'law_firm';
+const APP_ROLES: AppRole[] = ['admin', 'law_firm'];
+
+export function isAppRole(role: unknown): role is AppRole {
+  return typeof role === 'string' && APP_ROLES.includes(role as AppRole);
+}
+
+export function homeForRole(role: AppRole | null | undefined): string {
+  return role === 'law_firm' ? '/portal' : '/home';
+}
 
 export interface AdminUser {
   id: string;
   email: string;
   emailVerified: boolean;
-  role: string;
+  role: AppRole;
   profile?: {
     id: string;
     firstName: string;
@@ -21,7 +34,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   error: string | null;
   requestMagicLink: (email: string) => Promise<{ magicLink?: string }>;
-  verifyMagicLink: (token: string) => Promise<void>;
+  // twoFactorRequired: law-firm sign-in continues at /auth/portal-sign-in.
+  verifyMagicLink: (token: string) => Promise<{ twoFactorRequired?: boolean }>;
   logout: () => void;
 }
 
@@ -36,23 +50,35 @@ export const useAuth = () => {
       isAuthenticated: false,
       error: null,
       requestMagicLink: async () => ({ magicLink: undefined }),
-      verifyMagicLink: async () => {},
+      verifyMagicLink: async () => ({}),
       logout: () => {},
     } as AuthContextType;
   }
   return context;
 };
 
+/**
+ * Redirect guard for role-gated pages. Sends anonymous users to the login
+ * page and signed-in users of the wrong role to their own home.
+ */
+export function useRequireRole(role: AppRole) {
+  const auth = useAuth();
+  const allowed = auth.user?.role === role;
+  return { ...auth, allowed };
+}
+
 function decodeJwtPayload(token: string): Record<string, any> | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
-    const payload = JSON.parse(atob(parts[1]));
-    return payload;
+    return JSON.parse(atob(parts[1]));
   } catch {
     return null;
   }
 }
+
+const ACCESS_DENIED =
+  'Access denied — this sign-in is for ops and partner law firm accounts';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -63,7 +89,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const isAuthenticated = !!user;
 
-  // Check for existing auth on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -73,12 +98,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         }
 
-        // Decode token to check role before making API call
         const payload = decodeJwtPayload(token);
-        if (!payload || payload.role !== 'admin') {
+        if (!payload || !isAppRole(payload.role)) {
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
-          setError('Access denied — admin only');
+          setError(ACCESS_DENIED);
           setIsLoading(false);
           return;
         }
@@ -118,18 +142,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         token,
       });
 
-      const { user: userData, tokens } = response.data;
+      // Law-firm accounts: no session yet, the 2FA step issues it.
+      if (response.data.twoFactorRequired) {
+        saveChallenge({
+          challengeToken: response.data.challengeToken,
+          challengeExpiresAt: response.data.challengeExpiresAt,
+          email: response.data.user?.email ?? '',
+          enrolmentRequired: !!response.data.enrolmentRequired,
+        });
+        return { twoFactorRequired: true };
+      }
 
-      // Check role from the access token
+      const { user: userData, tokens } = response.data;
       const payload = decodeJwtPayload(tokens.accessToken);
-      if (!payload || payload.role !== 'admin') {
-        setError('Access denied — admin only');
-        return;
+      if (!payload || !isAppRole(payload.role)) {
+        setError(ACCESS_DENIED);
+        return {};
       }
 
       localStorage.setItem('accessToken', tokens.accessToken);
       localStorage.setItem('refreshToken', tokens.refreshToken);
       setUser({ ...userData, role: payload.role });
+      return {};
     } catch (error: any) {
       throw new Error(
         error.response?.data?.error || 'Magic link verification failed'

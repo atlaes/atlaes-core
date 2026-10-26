@@ -202,6 +202,25 @@ export async function completePublicFinalQuestions(
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
 }
 
+// Figma 2346-5922: the upload path ends on a two-question screen instead of
+// the manual four-question one.
+export async function completePublicUploadFinalQuestions(
+  page: Page,
+  answers: ('Yes' | 'No')[] = ['No', 'No']
+) {
+  await expect(
+    page.getByRole('heading', {
+      name: /A few more details about your (VBL|ZVK|VBL\/ZVK) insurance/,
+    })
+  ).toBeVisible({ timeout: 5_000 });
+  const fieldsets = page.locator('fieldset');
+  await expect(fieldsets).toHaveCount(answers.length);
+  for (let i = 0; i < answers.length; i++) {
+    await fieldsets.nth(i).getByLabel(answers[i], { exact: true }).check();
+  }
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+}
+
 export async function selectStagePensionDetails(
   page: Page,
   provider: 'VddB' | 'VddKO'
@@ -477,6 +496,14 @@ export async function completeIdentityUpload(page: Page) {
   const genderSelect = selects.nth(1);
   if ((await genderSelect.inputValue()) === '') {
     await genderSelect.selectOption('male');
+  }
+  // bAV/private only: the salutation select follows gender and is prefilled
+  // from it (male → Herr); pick explicitly if it is still empty.
+  if ((await selects.count()) > 2) {
+    const salutationSelect = selects.nth(2);
+    if ((await salutationSelect.inputValue()) === '') {
+      await salutationSelect.selectOption('herr');
+    }
   }
   const nationalityInput = page.getByPlaceholder('e.g. Australian');
   if ((await nationalityInput.inputValue()) === '') {

@@ -1,0 +1,1 @@
+ALTER TABLE "shared"."law_firm_members" ADD COLUMN IF NOT EXISTS "first_sign_in_at" timestamp with time zone;

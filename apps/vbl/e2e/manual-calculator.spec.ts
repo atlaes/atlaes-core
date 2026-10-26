@@ -30,6 +30,32 @@ async function chooseDropdownOption(page: Page, label: string, option: string) {
   await page.getByRole('option', { name: option }).click();
 }
 
+type ReminderPayload = {
+  email: string;
+  eligibleOn: string;
+  source: string;
+  pensionProvider?: string;
+};
+
+// Mocks POST /api/vbl/reminders and records what the page sent.
+async function mockReminder(page: Page, status = 200) {
+  const payloads: ReminderPayload[] = [];
+  await page.route('**/api/vbl/reminders', async (route) => {
+    const body = route.request().postDataJSON() as ReminderPayload;
+    payloads.push(body);
+    await route.fulfill({
+      status,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        status === 200
+          ? { success: true, reminderDueOn: body.eligibleOn }
+          : { success: false, error: 'Failed to set reminder' }
+      ),
+    });
+  });
+  return payloads;
+}
+
 async function mockCalculation(page: Page, amount = 12000) {
   let payload: CalculatePayload | null = null;
 
@@ -171,8 +197,20 @@ async function chooseUpload(page: Page, pensionName: string) {
       name: 'Upload a pension document or enter details manually',
     })
   ).toBeVisible();
-  const fileChooserPromise = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: /Upload document/ }).click();
+  await continueButton(page).click();
+
+  // The dedicated upload step (Figma 1428:1295 / 1428:1395) sits between the
+  // entry-method choice and the extracted-details review.
+  await expect(
+    page.getByRole('heading', {
+      name: /Upload your (VBL\/ZVK|VddB\/VddKO) document/,
+    })
+  ).toBeVisible();
+  await expect(page.getByText('Accepted formats: PDF, JPG, PNG')).toBeVisible();
+
+  const fileChooserPromise = page.waitForEvent('filechooser');
+  await page.getByTestId('calculator-upload-dropzone').click();
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles({
     name: 'vbl-statement.pdf',
@@ -412,6 +450,55 @@ test.describe('Manual VBL calculator', () => {
     });
   });
 
+  test('offers VBL and ZVK in every public state and estimates a ZVK refund', async ({
+    page,
+  }) => {
+    const api = await mockCalculation(page, 8000);
+
+    await chooseManual(page, 'VBL / ZVK refund');
+    // Bremen used to be a VBL-only state; the dropdown must still list both.
+    await chooseDropdownOption(page, 'Employer’s federal state', 'Bremen');
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Select your company pension' })
+    ).toBeVisible();
+    await page.getByRole('button', { name: /Company pension/ }).click();
+    await expect(page.getByRole('option')).toHaveText(['VBL', 'ZVK']);
+    await page.getByRole('option', { name: 'ZVK' }).click();
+    // The VBLklassik / VBLextra plan choice only applies to VBL.
+    await expect(page.getByRole('button', { name: 'VBLklassik' })).toHaveCount(
+      0
+    );
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'When did you pay into this pension?' })
+    ).toBeVisible();
+    await enterContributionPeriod(page, 'January', '2020', 'December', '2021');
+    await page.getByLabel('Average monthly gross salary (€)').fill('3500');
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Your estimated VBL/ZVK refund' })
+    ).toBeVisible();
+    await expect(page.getByText('€ 8,000')).toBeVisible();
+
+    expect(api.getPayload()).toEqual({
+      jobs: [
+        {
+          employmentType: 'Public sector',
+          supplementaryPensions: ['ZVK'],
+          startDate: '2020-01',
+          endDate: '2021-12',
+          averageMonthlyGrossSalary: '3500',
+          germanFederalState: 'Bremen',
+        },
+      ],
+      userType: 'insured_person',
+    });
+  });
+
   test('asks the public eligibility questions and hands the real contribution period to onboarding', async ({
     page,
   }) => {
@@ -466,6 +553,64 @@ test.describe('Manual VBL calculator', () => {
       .poll(() => session.getPayload()?.calculationResult?.totalMonths ?? null)
       .toBe(24);
     await expect(page).toHaveURL(/\/calculator\/onboarding/);
+  });
+
+  test('drops the sidebar on the final public-pension questionnaire', async ({
+    page,
+  }) => {
+    await mockCalculation(page);
+    await mockPendingSession(page);
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    await chooseManual(page, 'VBL / ZVK refund');
+    await chooseDropdownOption(page, 'Employer’s federal state', 'Bavaria');
+    await continueButton(page).click();
+    await chooseDropdownOption(page, 'Company pension', 'VBL');
+    await page.getByRole('button', { name: 'VBLklassik' }).click();
+    await continueButton(page).click();
+    await enterContributionPeriod(page, 'January', '2020', 'December', '2021');
+    await page.getByLabel('Average monthly gross salary (€)').fill('3500');
+    await continueButton(page).click();
+
+    // The estimate screen keeps the three-step sidebar and has no journey
+    // header (Figma Screen 7A, 1428:2570).
+    await expect(
+      page.getByRole('heading', { name: 'Your estimated VBL/ZVK refund' })
+    ).toBeVisible();
+    await expect(page.getByTestId('calculator-sidebar')).toBeVisible();
+    await expect(page.getByTestId('calculator-journey-header')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Start VBL/ZVK refund' }).click();
+
+    // From the questionnaire onward the shells swap: sidebar out, four-step
+    // journey header in (Figma 1858:1682).
+    await expect(
+      page.getByRole('heading', {
+        name: 'A few more details about your public-sector pension',
+      })
+    ).toBeVisible();
+    await expect(page.getByTestId('calculator-sidebar')).toHaveCount(0);
+    const header = page.getByTestId('calculator-journey-header');
+    await expect(header).toBeVisible();
+    for (const label of [
+      'Check',
+      'Secure Claim',
+      'Complete Details',
+      'Sign & Submit',
+    ]) {
+      await expect(header.getByText(label, { exact: true })).toBeVisible();
+    }
+
+    // ... and the outcome screen keeps that same shell (Figma 1858:1868).
+    await answerEligibilityQuestions(page, 'No');
+    await continueButton(page).click();
+    await expect(
+      page.getByRole('heading', {
+        name: 'Your refund can be started with CompanyPension',
+      })
+    ).toBeVisible();
+    await expect(page.getByTestId('calculator-journey-header')).toBeVisible();
+    await expect(page.getByTestId('calculator-sidebar')).toHaveCount(0);
   });
 
   test('stops the public flow when an eligibility question is answered yes', async ({
@@ -587,6 +732,52 @@ test.describe('Manual VBL calculator', () => {
     await expect(page.getByText('€ 9,000')).toBeVisible();
   });
 
+  test('goes straight to the salary step when the stage employment ended before 2001', async ({
+    page,
+  }) => {
+    await mockCalculation(page, 4000);
+
+    await chooseStageProvider(page, 'VddB');
+    // 36 contribution months ending December 1999 — the pre-2001 band
+    // (selectable since the owner's answer of 20 Oct 2026).
+    await enterContributionPeriod(page, 'January', '1997', 'December', '1999');
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'What was your average gross monthly salary?',
+      })
+    ).toBeVisible();
+    await page.getByLabel('Average monthly gross salary (€)').fill('3000');
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Your estimated VddB refund' })
+    ).toBeVisible();
+  });
+
+  test('public year pickers reach back to 1960', async ({ page }) => {
+    await chooseManual(page, 'VBL / ZVK refund');
+    await chooseDropdownOption(page, 'Employer’s federal state', 'Bavaria');
+    await continueButton(page).click();
+    await chooseDropdownOption(page, 'Company pension', 'VBL');
+    await page.getByRole('button', { name: 'VBLklassik' }).click();
+    await continueButton(page).click();
+    await page.getByRole('button', { name: /Start year/ }).click();
+    const publicYears = (await page.getByRole('option').allTextContents()).map(
+      Number
+    );
+    expect(Math.min(...publicYears)).toBe(1960);
+  });
+
+  test('stage year pickers reach back to 1960', async ({ page }) => {
+    await chooseStageProvider(page, 'VddB');
+    await page.getByRole('button', { name: /End year/ }).click();
+    const stageYears = (await page.getByRole('option').allTextContents()).map(
+      Number
+    );
+    expect(Math.min(...stageYears)).toBe(1960);
+  });
+
   test('blocks the stage flow at 60 or more contribution months since 2001', async ({
     page,
   }) => {
@@ -687,6 +878,7 @@ test.describe('Manual VBL calculator', () => {
       page.getByText(`You can return on or after January ${currentYear + 2}.`)
     ).toBeVisible();
 
+    const reminders = await mockReminder(page);
     await page
       .getByRole('button', { name: 'Notify me when I can start' })
       .click();
@@ -699,6 +891,55 @@ test.describe('Manual VBL calculator', () => {
     await expect(
       page.getByText("We'll email you when you can start your refund.")
     ).toBeVisible();
+    expect(reminders).toEqual([
+      {
+        email: 'tester@example.com',
+        eligibleOn: `${currentYear + 2}-01-01`,
+        source: 'calculator',
+        pensionProvider: 'VddB',
+      },
+    ]);
+  });
+
+  test('keeps the reminder form and shows an error when saving fails', async ({
+    page,
+  }) => {
+    await mockCalculation(page, 9000);
+    const currentYear = new Date().getFullYear();
+
+    await chooseStageProvider(page, 'VddB');
+    await enterContributionPeriod(
+      page,
+      'February',
+      String(currentYear - 1),
+      'January',
+      String(currentYear)
+    );
+    await page.getByLabel('Average monthly gross salary (€)').fill('5000');
+    await continueButton(page).click();
+    await page.getByRole('button', { name: 'Start VddB refund' }).click();
+    await answerEligibilityQuestions(page, 'No');
+    await continueButton(page).click();
+
+    const reminders = await mockReminder(page, 500);
+    await page
+      .getByRole('button', { name: 'Notify me when I can start' })
+      .click();
+    await page.getByLabel('Email address').fill('tester@example.com');
+    await page.getByRole('button', { name: 'Set reminder' }).click();
+
+    await expect(
+      page
+        .getByRole('alert')
+        .filter({ hasText: 'We could not save your reminder' })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Reminder set' })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'Set reminder' })
+    ).toBeEnabled();
+    expect(reminders).toHaveLength(1);
   });
 
   test('lets a stage refund start once the 24-month wait has passed', async ({
@@ -843,6 +1084,59 @@ test.describe('Manual VBL calculator', () => {
           endDate: '2021-12',
           averageMonthlyGrossSalary: '3500',
           germanFederalState: 'Berlin',
+        },
+      ],
+      userType: 'insured_person',
+    });
+  });
+
+  test('offers VBL and ZVK on the upload review and keeps the extracted ZVK provider', async ({
+    page,
+  }) => {
+    const api = await mockCalculation(page, 6500);
+    await mockExtraction(page, {
+      provider: 'ZVK',
+      vblPlan: null,
+      federalState: 'Bremen',
+    });
+
+    await chooseUpload(page, 'VBL / ZVK refund');
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'We found these details in your document',
+      })
+    ).toBeVisible();
+    const providerField = page.getByRole('button', {
+      name: /Company pension provider ZVK/,
+    });
+    await expect(providerField).toBeVisible();
+    await providerField.click();
+    await expect(page.getByRole('option')).toHaveText(['VBL', 'ZVK']);
+    await page.getByRole('option', { name: 'ZVK' }).click();
+    await expect(page.getByRole('button', { name: 'VBLklassik' })).toHaveCount(
+      0
+    );
+    // Changing the state must not wipe the provider read from the document.
+    await chooseDropdownOption(page, 'German federal state', 'Hesse');
+    await expect(
+      page.getByRole('button', { name: /Company pension provider ZVK/ })
+    ).toBeVisible();
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Your estimated VBL/ZVK refund' })
+    ).toBeVisible();
+    await expect(page.getByText('€ 6,500')).toBeVisible();
+    expect(api.getPayload()).toEqual({
+      jobs: [
+        {
+          employmentType: 'Public sector',
+          supplementaryPensions: ['ZVK'],
+          startDate: '2020-01',
+          endDate: '2021-12',
+          averageMonthlyGrossSalary: '3500',
+          germanFederalState: 'Hesse',
         },
       ],
       userType: 'insured_person',

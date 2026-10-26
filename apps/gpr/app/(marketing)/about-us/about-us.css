@@ -1,0 +1,251 @@
+/* ---- /about-us (Figma 255:243) ---- */
+
+/* hero */
+.mk-about-lead .mk-p {
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--mk-ink);
+}
+.mk-about-photo {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.mk-about-photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 616 / 449;
+  object-fit: cover;
+  border-radius: var(--mk-r-card);
+  background: var(--mk-tint);
+}
+.mk-about-photo figcaption {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--mk-ink);
+}
+
+/* what we do: accent-bar rows (668:4936) */
+.mk-about-services {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.mk-about-services li {
+  position: relative;
+  padding-left: 20px;
+}
+.mk-about-services li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--mk-tint);
+}
+.mk-about-service-n {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--mk-blue);
+}
+.mk-about-services .mk-p {
+  margin: 0;
+  color: var(--mk-ink);
+}
+
+/* why complex */
+.mk-about-complex-lead .mk-p {
+  font-size: 18px;
+  line-height: 1.5;
+  color: #fff;
+  margin-bottom: 24px;
+}
+
+/* track record (671:5063) */
+.mk-about-track-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.mk-about-track-cards li {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 28px 36px;
+  border-radius: var(--mk-r-card);
+  background: var(--mk-tint);
+}
+.mk-about-track-cards li + li {
+  background: #fff;
+}
+.mk-about-track-figure {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -1px;
+  color: var(--mk-navy);
+}
+.mk-about-track-caption {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--mk-body);
+}
+@media (min-width: 768px) {
+  .mk-about-track-figure {
+    font-size: 48px;
+  }
+}
+
+/* company information (678:5144) */
+.mk-about-company-card {
+  background: #fff;
+  border: 1px solid var(--mk-stroke);
+  border-radius: var(--mk-r-card);
+  box-shadow: 0 8px 24px rgba(0, 38, 145, 0.06);
+  padding: 24px;
+}
+.mk-about-company-card > p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--mk-ink);
+}
+.mk-about-company-lead {
+  font-weight: 700;
+}
+.mk-about-company-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px !important;
+  padding-bottom: 16px;
+  font-size: 22px !important;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--mk-ink);
+}
+.mk-about-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--mk-navy);
+  flex: 0 0 10px;
+}
+.mk-about-company-row {
+  padding: 16px 0;
+  border-top: 1px solid var(--mk-surface);
+}
+.mk-about-company-row:last-child {
+  padding-bottom: 0;
+}
+.mk-about-company-copy .mk-p {
+  color: var(--mk-ink);
+}
+.mk-about-disclaimer {
+  margin-top: 24px;
+  padding: 8px 0 8px 24px;
+  border-left: 3px solid var(--mk-blue);
+}
+.mk-about-disclaimer .mk-p {
+  margin: 0;
+  color: var(--mk-body);
+}
+
+/* how we work (688:5239): navy, 2×2 cards */
+.mk-about-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+.mk-about-steps li {
+  background: #fff;
+  border-radius: var(--mk-r-card);
+  padding: 32px;
+}
+.mk-about-step-pill {
+  display: inline-block;
+  margin-bottom: 20px;
+  padding: 6px 12px;
+  border-radius: var(--mk-r-pill);
+  background: var(--mk-tint);
+  color: var(--mk-navy);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 1px;
+}
+.mk-about-steps .mk-p {
+  margin: 0;
+  color: var(--mk-ink);
+}
+.mk-about-steps-after {
+  margin-top: 32px;
+}
+.mk-about-steps-after .mk-p {
+  color: #fff;
+  font-weight: 700;
+}
+@media (min-width: 768px) {
+  .mk-about-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* educational approach (693:5291) */
+.mk-about-edu {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border: 1px solid var(--mk-stroke);
+  border-radius: var(--mk-r-card);
+  overflow: hidden;
+}
+.mk-about-edu-left,
+.mk-about-edu-right {
+  padding: 32px 24px;
+}
+.mk-about-edu-left .mk-rail {
+  margin-bottom: 32px;
+}
+.mk-about-edu-left .mk-h2 {
+  margin-bottom: 32px;
+}
+.mk-about-edu-left > :last-child,
+.mk-about-edu-right > :last-child {
+  margin-bottom: 0;
+}
+.mk-about-edu-right .mk-p {
+  color: var(--mk-ink);
+}
+.mk-about-edu-note {
+  margin-top: 20px;
+}
+.mk-about-edu-note .mk-p {
+  font-size: 13px;
+  color: var(--mk-muted);
+  margin: 0;
+}
+@media (min-width: 900px) {
+  .mk-about-edu {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mk-about-edu-left,
+  .mk-about-edu-right {
+    padding: 64px;
+  }
+}

@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '../../utils/db';
 import { downloadFile, uploadFile } from '../../utils/s3';
 import { auditLogs, signatures } from '../../drizzle/schema/shared';
-import { claimsTable } from '../../drizzle/schema/claims';
+import { claimsTable, isVblPensionProvider } from '../../drizzle/schema/claims';
 import { ClaimsApplicationService, Claim } from '../claims-application';
 import { assembleClaimPdf } from './assemble';
 
@@ -52,6 +52,14 @@ export class ClaimPdfService {
     const claim = await ClaimsApplicationService.getClaim(claimId, userId);
     if (!claim) {
       throw new Error('Claim not found');
+    }
+    // The L203 is VBL's form, addressed to VBL in Karlsruhe. VddB/VddKO and
+    // the ZVKs (KVBW, BVK, RZVK, …) are other institutions with no form in
+    // the system yet: those claims are submitted by ops.
+    if (!isVblPensionProvider(claim.pensionProvider)) {
+      throw new Error(
+        `Cannot generate PDF: there is no claim form for ${claim.pensionProvider} yet (the VBL L203 is for VBL claims only)`
+      );
     }
 
     const fieldErrors = this.getRequiredFieldErrors(claim);

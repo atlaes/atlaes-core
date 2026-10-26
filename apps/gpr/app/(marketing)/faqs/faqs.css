@@ -1,0 +1,57 @@
+/* ---- /faqs (Figma 945:5582) ---- */
+
+/* hero: navy "Jump to a topic" card (1002:10852), 400 wide */
+@media (min-width: 1024px) {
+  .mk-faqs-hero .mk-core-hero-row {
+    grid-template-columns: minmax(0, 816px) 400px;
+    justify-content: space-between;
+  }
+}
+.mk-faqs-topics ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.mk-faqs-topics a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: center;
+  padding: 14px 20px;
+  border-radius: 16px;
+  text-decoration: none;
+  color: #fff;
+}
+.mk-faqs-topics li:first-child a,
+.mk-faqs-topics a:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.mk-faqs-topics a::after {
+  content: '›';
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--mk-pale);
+}
+.mk-faqs-topic-t {
+  grid-column: 1;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.mk-faqs-topic-n {
+  grid-column: 1;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--mk-pale);
+}
+
+/* topic sections: 800 body as in the frame */
+.mk-faqs-topic .mk-body {
+  max-width: 800px;
+}
+.mk-faqs-topic .mk-h2 {
+  margin-bottom: 12px;
+}

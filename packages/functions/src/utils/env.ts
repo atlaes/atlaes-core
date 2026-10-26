@@ -42,7 +42,28 @@ function getDatabaseUrl(): string {
   return fallback;
 }
 
-const envSchema = z.object({
+// An empty string (how SST passes an unset `process.env.X ?? ''`) means unset.
+const emptyToUndefined = (value: unknown) => (value === '' ? undefined : value);
+
+/**
+ * Staging-only e2e test login (see utils/e2e.ts). Both optional: with either
+ * missing, or with APP_STAGE = 'production', every e2e path is off.
+ * Exported so the rules can be unit-tested without re-importing this module.
+ */
+export const e2eEnvSchema = z.object({
+  // The SST stage the backend runs in ($app.stage). Unset = e2e off.
+  APP_STAGE: z.preprocess(emptyToUndefined, z.string().optional()),
+  // Shared secret the Playwright suite sends as X-E2E-Secret.
+  E2E_LOGIN_SECRET: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .min(32, 'E2E_LOGIN_SECRET must be at least 32 characters')
+      .optional()
+  ),
+});
+
+const baseEnvSchema = z.object({
   DATABASE_URL: z.preprocess(() => getDatabaseUrl(), z.string()),
   REDIS_URL: z.string().optional().default('redis://localhost:6379'),
   JWT_SECRET: z
@@ -63,6 +84,10 @@ const envSchema = z.object({
   APPLE_PRIVATE_KEY: z.string().optional(), // Private key contents (PEM format)
   // Frontend URL for OAuth callbacks and magic links
   FRONTEND_URL: z.string().optional().default('http://localhost:3000'),
+  // Admin app origin: magic links for admin and law-firm users point here.
+  ADMIN_URL: z.string().optional().default('http://localhost:3003'),
+  // Ops mailbox for law-firm activity (uploads, case events). Unset = log only.
+  OPS_NOTIFICATION_EMAIL: z.string().optional(),
   // SES email
   SES_FROM_EMAIL: z.string().optional().default('noreply@companypension.de'),
   SES_REGION: z.string().optional().default('eu-central-1'),
@@ -96,7 +121,36 @@ const envSchema = z.object({
   // printed or billed), 'live' processes it directly. 'off' is ours, not
   // theirs — it skips the call entirely.
   LETTERSHOP_MODE: z.enum(['test', 'live', 'off']).default('test'),
+  // Lead capture (POST /api/leads) and the waiting-period reminder cron.
+  // Guide locations: an https URL is linked as-is; anything else is treated
+  // as an S3 key in the platform bucket and presigned. Unset = the delivery
+  // e-mail links the guide's web page instead.
+  LEADS_V0900_GUIDE_URL: z.string().optional(),
+  LEADS_WEGZUG_GUIDE_URL: z.string().optional(),
+  // Team notice mailbox (was NOTIFY_EMAIL in the Apps Script). Unset = the
+  // notice is logged only.
+  LEADS_NOTIFY_EMAIL: z.string().optional(),
+  // Sender identity for lead mail. LEADS_FROM_EMAIL must be a verified SES
+  // identity; it falls back to SES_FROM_EMAIL.
+  LEADS_FROM_EMAIL: z.string().optional(),
+  LEADS_SENDER_NAME: z
+    .string()
+    .optional()
+    .default('Johannes Kühn | Germany Pension Refund'),
+  LEADS_REPLY_TO: z
+    .string()
+    .optional()
+    .default('refund@germanypensionrefund.com'),
+  LEADS_SITE_URL: z
+    .string()
+    .optional()
+    .default('https://www.germanypensionrefund.com'),
+  // Optional public URL of the signature photo shown in the widget welcome
+  // e-mail (was an inline Drive image). Unset = no photo.
+  LEADS_SIGNATURE_PHOTO_URL: z.string().optional(),
 });
+
+const envSchema = baseEnvSchema.merge(e2eEnvSchema);
 
 export const env = envSchema.parse(process.env);
 

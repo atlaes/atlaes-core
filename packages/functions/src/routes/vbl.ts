@@ -21,7 +21,13 @@ import {
   HealthInsuranceDocumentExtractionConfigError,
   HealthInsuranceDocumentExtractionProviderError,
 } from '../services/health-insurance-document-extraction';
+import {
+  extractDrvRefundDecisionDetails,
+  DrvRefundDecisionExtractionConfigError,
+  DrvRefundDecisionExtractionProviderError,
+} from '../services/drv-refund-decision-extraction';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
+import { validateUuidParams } from '../middleware/validate-uuid';
 import { db } from '../utils/db';
 import { applications, calculationLogs } from '../drizzle/schema/vbl';
 import { eq, and } from 'drizzle-orm';
@@ -522,7 +528,7 @@ vbl.get('/applications', authMiddleware, async (c) => {
 });
 
 // Get specific application
-vbl.get('/applications/:id', authMiddleware, async (c) => {
+vbl.get('/applications/:id', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const applicationId = c.req.param('id');
@@ -568,6 +574,7 @@ vbl.get('/applications/:id', authMiddleware, async (c) => {
 vbl.put(
   '/applications/:id',
   authMiddleware,
+  validateUuidParams('id'),
   zValidator('json', applicationUpdateSchema),
   async (c) => {
     try {
@@ -625,7 +632,7 @@ vbl.put(
 );
 
 // Get calculation history for an application
-vbl.get('/applications/:id/calculations', authMiddleware, async (c) => {
+vbl.get('/applications/:id/calculations', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const applicationId = c.req.param('id');
@@ -672,7 +679,7 @@ vbl.get('/applications/:id/calculations', authMiddleware, async (c) => {
 });
 
 // Submit application for processing
-vbl.post('/applications/:id/submit', authMiddleware, async (c) => {
+vbl.post('/applications/:id/submit', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const applicationId = c.req.param('id');
@@ -806,6 +813,80 @@ vbl.get('/rules', async (c) => {
       {
         success: false,
         error: 'Failed to get rules',
+      },
+      500
+    );
+  }
+});
+
+/**
+ * Extract fields from a DRV Erstattungsbescheid (bAV cash-out, route A)
+ * POST /api/vbl/extract-drv-refund-decision
+ *
+ * multipart/form-data with `file` (PDF/JPG/PNG/WEBP, max 10MB). Returns
+ * the issuing DRV office, the decision date (YYYY-MM-DD) and whether the
+ * document reads as a refund decision at all.
+ */
+vbl.post('/extract-drv-refund-decision', authMiddleware, async (c) => {
+  try {
+    const formData = await c.req.formData();
+    const file = formData.get('file');
+
+    if (!file || !(file instanceof File)) {
+      return c.json({ success: false, error: 'No file provided' }, 400);
+    }
+    if (file.size > maxPensionDocumentSize) {
+      return c.json(
+        { success: false, error: 'File size exceeds 10MB limit' },
+        400
+      );
+    }
+    if (
+      !allowedPensionDocumentMimeTypes.includes(
+        file.type as (typeof allowedPensionDocumentMimeTypes)[number]
+      )
+    ) {
+      return c.json(
+        {
+          success: false,
+          error: 'Invalid file type. Allowed: PDF, JPG, PNG, WEBP',
+        },
+        400
+      );
+    }
+
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const extraction = await extractDrvRefundDecisionDetails({
+      fileBuffer,
+      fileName: file.name,
+      mimeType: file.type,
+    });
+
+    return c.json({
+      success: true,
+      extraction: {
+        details: extraction.details,
+        confidence: extraction.confidence,
+        missingFields: extraction.missingFields,
+        model: extraction.model,
+      },
+    });
+  } catch (error) {
+    logger.error('DRV refund decision extraction error:', error);
+
+    if (error instanceof DrvRefundDecisionExtractionConfigError) {
+      return c.json({ success: false, error: error.message }, 503);
+    }
+    if (error instanceof DrvRefundDecisionExtractionProviderError) {
+      return c.json({ success: false, error: error.message }, 502);
+    }
+    return c.json(
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to extract DRV refund decision details',
       },
       500
     );

@@ -12,6 +12,55 @@ import {
   monthsAgo,
 } from './helpers';
 
+type ReminderPayload = {
+  email: string;
+  eligibleOn: string;
+  source: string;
+  pensionProvider?: string;
+};
+
+// Mocks POST /api/vbl/reminders and records what the page sent.
+async function mockReminder(page: Page, status = 200) {
+  const payloads: ReminderPayload[] = [];
+  await page.route('**/api/vbl/reminders', async (route) => {
+    const body = route.request().postDataJSON() as ReminderPayload;
+    payloads.push(body);
+    await route.fulfill({
+      status,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        status === 200
+          ? { success: true, reminderDueOn: body.eligibleOn }
+          : { success: false, error: 'Failed to set reminder' }
+      ),
+    });
+  });
+  return payloads;
+}
+
+// First day of the month 24 months after the employment ended.
+function reminderDueOn(end: { month: string; year: string }) {
+  const due = new Date(
+    Date.UTC(Number(end.year), MONTH_NAMES.indexOf(end.month) + 24, 1)
+  );
+  return due.toISOString().slice(0, 10);
+}
+
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
 type StageUploadProvider = 'VddB' | 'VddKO' | null;
 
 async function mockStageUploadExtraction(
@@ -192,6 +241,19 @@ test.describe('Stage / Performing Arts Eligibility', () => {
     await expectEligibleResult(page);
   });
 
+  // Employment that ended before 2001 asks neither threshold question
+  // (owner answer 20 Oct 2026: the pickers must reach those years).
+  for (const provider of ['VddB', 'VddKO'] as const) {
+    test(`${provider} 36-119mo ending 1999 → no extra question → eligible`, async ({
+      page,
+    }) => {
+      await selectStagePensionDetails(page, provider);
+      await selectStageContributionDuration(page, '36 to 119 months');
+      await selectEmploymentEndDate(page, 'June', '1999');
+      await expectEligibleResult(page);
+    });
+  }
+
   // End dates from 2018 onwards ask the since-2018 question first and only
   // then the since-2001 one — for both providers.
   test('VddB 36-119mo ending after 2018 asks since-2018 then since-2001 → eligible', async ({
@@ -298,6 +360,7 @@ test.describe('Stage / Performing Arts Eligibility', () => {
     await selectEmploymentEndDate(page, date.month, date.year);
     await expectWaitingResult(page);
 
+    const reminders = await mockReminder(page);
     await page
       .getByRole('button', { name: /Notify me when I can start/i })
       .click();
@@ -312,6 +375,39 @@ test.describe('Stage / Performing Arts Eligibility', () => {
     await expect(
       page.getByText("We'll email you when you can start your refund.")
     ).toBeVisible();
+    expect(reminders).toEqual([
+      {
+        email: 'stage-test@example.com',
+        eligibleOn: reminderDueOn(date),
+        source: 'get-started',
+        pensionProvider: 'VddB',
+      },
+    ]);
+  });
+
+  test('Reminder failure keeps the form and shows an error', async ({
+    page,
+  }) => {
+    await selectStagePensionDetails(page, 'VddB');
+    await selectStageContributionDuration(page, '12 to 35 months');
+    const date = monthsAgo(6);
+    await selectEmploymentEndDate(page, date.month, date.year);
+    await expectWaitingResult(page);
+
+    await mockReminder(page, 500);
+    await page
+      .getByRole('button', { name: /Notify me when I can start/i })
+      .click();
+    await page.getByPlaceholder('Email').fill('stage-test@example.com');
+    await page.getByRole('button', { name: 'Set reminder' }).click();
+    await expect(
+      page
+        .getByRole('alert')
+        .filter({ hasText: 'We could not save your reminder' })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Reminder set' })
+    ).toHaveCount(0);
   });
 
   // ============================================================
@@ -408,6 +504,7 @@ test.describe('Stage / Performing Arts Eligibility', () => {
         'Enter your email and we will remind you when the waiting period has passed.'
       )
     ).toBeVisible();
+    const reminders = await mockReminder(page);
     await page.getByPlaceholder('Email').fill('stage-upload@example.com');
     await page.getByRole('button', { name: 'Set reminder' }).click();
     await expect(
@@ -418,6 +515,11 @@ test.describe('Stage / Performing Arts Eligibility', () => {
         'We will remind you when your VddKO refund can be started with CompanyPension.'
       )
     ).toBeVisible();
+    expect(reminders).toHaveLength(1);
+    expect(reminders[0]).toMatchObject({
+      email: 'stage-upload@example.com',
+      source: 'get-started',
+    });
   });
 
   test('uploaded stage document with missing dates asks for missing details', async ({

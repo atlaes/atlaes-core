@@ -57,6 +57,160 @@
       "when": 1783500000000,
       "tag": "0007_contract_withdrawals",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789351976590,
+      "tag": "0008_bav_intake",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789355584262,
+      "tag": "0009_claim_handling_route",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789358999878,
+      "tag": "0010_law_firm_portal",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789366811870,
+      "tag": "0011_law_firm_member_sign_in",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789952432989,
+      "tag": "0012_law_firm_release_pack",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790324244025,
+      "tag": "0013_bav_default_route_law_firm",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790324245025,
+      "tag": "0014_claim_case_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790324246025,
+      "tag": "0015_bav_payout_extra_docs_providers",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790324247025,
+      "tag": "0016_gpr_leads",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790324248025,
+      "tag": "0017_client_updates",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790324249025,
+      "tag": "0018_claim_attribution",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790324250025,
+      "tag": "0019_lead_message",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790324251025,
+      "tag": "0020_payout_flow",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790324252025,
+      "tag": "0021_payout_queue",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790324253025,
+      "tag": "0022_law_firm_2fa",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790324254025,
+      "tag": "0023_claim_submission_hold",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790410654025,
+      "tag": "0024_integration_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790497054025,
+      "tag": "0025_claim_v0901_answers",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790583454025,
+      "tag": "0026_law_firm_submission_saved_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1790669854025,
+      "tag": "0027_payout_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1790756254025,
+      "tag": "0028_deregistration_surcharge",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1790842654025,
+      "tag": "0029_law_firm_letters",
+      "breakpoints": true
     }
   ]
 }

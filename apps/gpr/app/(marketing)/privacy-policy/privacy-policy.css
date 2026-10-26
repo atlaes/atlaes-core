@@ -1,0 +1,17 @@
+/* ---- /privacy-policy (Figma 926:2217) ---- */
+.mk-privacy-section .mk-body > div > .mk-h2 {
+  margin: 56px 0 20px;
+  font-size: 26px;
+}
+.mk-privacy-section .mk-body > div:first-of-type > .mk-h2 {
+  margin-top: 40px;
+}
+.mk-privacy-section .mk-p,
+.mk-privacy-section .mk-ul {
+  font-size: 15px;
+}
+@media (min-width: 768px) {
+  .mk-privacy-section .mk-body > div > .mk-h2 {
+    font-size: 28px;
+  }
+}

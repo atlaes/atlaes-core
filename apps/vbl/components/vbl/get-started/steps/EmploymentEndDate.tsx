@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 import { useEligibility } from '@/contexts/EligibilityContext';
+import { yearOptions } from '@/lib/year-options';
 
 const MONTHS = [
   'January',
@@ -19,11 +20,7 @@ const MONTHS = [
   'December',
 ];
 
-// Client #2: mirror calculator — earliest supported year is 2004.
-const YEARS = Array.from(
-  { length: new Date().getFullYear() - 2004 + 1 },
-  (_, i) => (2004 + i).toString()
-).reverse();
+const YEARS = yearOptions();
 
 export const EmploymentEndDate: React.FC = () => {
   const { data, goNext } = useEligibility();

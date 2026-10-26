@@ -43,11 +43,16 @@ const confirmSchema = z.object({
 withdrawals.post(
   '/identify',
   rateLimiter({ windowMs: 15 * 60 * 1000, max: 20 }),
+  optionalAuthMiddleware,
   zValidator('json', identifySchema),
   async (c) => {
     try {
       const input = c.req.valid('json');
-      const contract = await ContractWithdrawalService.identify(input);
+      const user = c.get('user'); // set when a valid token is sent
+      const contract = await ContractWithdrawalService.identify({
+        ...input,
+        actorUserId: user?.id,
+      });
 
       if (!contract) {
         // Never reveal which field (or whether the claim) matched.

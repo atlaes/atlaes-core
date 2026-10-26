@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export const apiClient = axios.create({
   baseURL: `${API_BASE_URL}/api`,
@@ -29,6 +28,18 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // Law-firm portal: the session lacks the second factor (admin opening
+    // the portal, or an old token) → two-factor step, then back here.
+    if (
+      error.response?.status === 403 &&
+      error.response?.data?.code === 'two_factor_required' &&
+      typeof window !== 'undefined' &&
+      !window.location.pathname.startsWith('/auth/portal-sign-in')
+    ) {
+      const next = encodeURIComponent(window.location.pathname);
+      window.location.href = `/auth/portal-sign-in?next=${next}`;
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;

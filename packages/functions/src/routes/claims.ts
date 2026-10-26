@@ -3,12 +3,19 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { logger } from '../utils/logger';
 import { authMiddleware } from '../middleware/auth';
+import { validateUuidParams } from '../middleware/validate-uuid';
 import {
   ClaimsApplicationService,
   ClaimData,
 } from '../services/claims-application';
 import {
+  BAV_DURCHFUEHRUNGSWEGE,
+  BAV_STATEMENT_TYPES,
+  CLAIM_CASE_TYPES,
+  CLAIM_DOCUMENT_ROLES,
   ClaimDocumentRole,
+  deriveCaseTypeOnCreate,
+  MULTI_DOCUMENT_ROLES,
   ClaimStepName,
   ClaimWorkflowState,
 } from '../drizzle/schema/claims';
@@ -21,9 +28,30 @@ const claims = new Hono();
 // Validation Schemas
 // ============================================================
 
-// Create claim schema
+// Create claim schema. `caseType` is optional: the GPR app passes an
+// applicationId (→ drv_refund) or nothing (→ drv_refund by request origin);
+// the VBL app passes nothing (→ vbl_refund, later bav_cashout when it saves
+// pensionType 'private').
+const attributionSchema = z
+  .object({
+    utmSource: z.string().max(200).optional(),
+    utmMedium: z.string().max(200).optional(),
+    utmCampaign: z.string().max(200).optional(),
+    utmTerm: z.string().max(200).optional(),
+    utmContent: z.string().max(200).optional(),
+    gclid: z.string().max(200).optional(),
+    fbclid: z.string().max(200).optional(),
+    via: z.string().max(200).optional(),
+    referrer: z.string().max(2000).optional(),
+    landingPage: z.string().max(2000).optional(),
+    capturedAt: z.string().max(40).optional(),
+  })
+  .strip();
+
 const createClaimSchema = z.object({
   applicationId: z.string().uuid().optional(),
+  caseType: z.enum(CLAIM_CASE_TYPES).optional(),
+  attribution: attributionSchema.nullable().optional(),
 });
 
 // Update claim schema (all fields optional for partial updates)
@@ -58,8 +86,27 @@ const updateClaimSchema = z.object({
   currentPostalCode: z.string().max(20).optional(),
   currentCountry: z.string().max(100).optional(),
 
-  // German Social Insurance
+  // German Social Insurance / VBL, ZVK, VddB or VddKO membership number
   svNummer: z.string().max(50).optional(),
+
+  // Public-sector institution (VBL, a ZVK, KVBW, VddB, VddKO) and the
+  // VddB/VddKO stage employment answers
+  pensionProvider: z.string().trim().max(100).optional(),
+  stageDetails: z
+    .object({
+      stageName: z.string().max(255).optional(),
+      rolePosition: z.string().max(255).optional(),
+      employmentEndDate: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+      permanentlyStopped: z.enum(['yes', 'no']).optional(),
+      reasonForLeaving: z.string().max(100).optional(),
+      reasonForLeavingOther: z.string().max(500).optional(),
+      currentOccupation: z.string().max(255).optional(),
+      unableToWorkHealth: z.enum(['yes', 'no']).optional(),
+    })
+    .optional(),
 
   // Last German Address
   germanStreet: z.string().max(255).optional(),
@@ -83,6 +130,58 @@ const updateClaimSchema = z.object({
   healthInsurancePlaceOfBirth: z.string().max(100).optional(),
   healthInsuranceCountryOfBirth: z.string().max(100).optional(),
   healthInsuranceNumber: z.string().max(50).optional(),
+
+  // Product discriminator
+  pensionType: z.enum(['public', 'private']).optional(),
+
+  // bAV cash-out intake (pensionType = 'private')
+  salutation: z.enum(['herr', 'frau']).optional(),
+  // German Steuer-ID: 11 digits, spaces between groups tolerated
+  // ("98 765 432 109"). Empty string clears the field.
+  taxId: z
+    .string()
+    .trim()
+    .regex(/^(\d\s?){11}$|^$/, 'Tax ID must be 11 digits')
+    .optional(),
+  healthInsuranceEndDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  employerName: z.string().max(255).optional(),
+  employmentEndDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  employerPersonnelNumber: z.string().max(50).optional(),
+  bavProviderName: z.string().max(255).optional(),
+  bavDurchfuehrungsweg: z.enum(BAV_DURCHFUEHRUNGSWEGE).optional(),
+  bavContractReferenceLabel: z.string().max(50).optional(),
+  bavContractReference: z.string().max(100).optional(),
+  bavProviderFormTitle: z.string().max(255).optional(),
+  drvRefundReceived: z.boolean().optional(),
+  drvOffice: z.string().max(255).optional(),
+  drvDecisionDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  bavStatementType: z.enum(BAV_STATEMENT_TYPES).optional(),
+  bavStatementDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  bavBenefitForm: z.enum(['pension', 'capital', 'unknown']).optional(),
+  // Decimal string in EUR with a dot as decimal separator ("41.20").
+  bavBenefitAmount: z
+    .string()
+    .regex(/^\d{1,10}(\.\d{1,2})?$/, 'Amount must be a decimal like 41.20')
+    .optional(),
+  bavAddresseeType: z.enum(['employer', 'provider']).optional(),
+  bavRecipientName: z.string().max(255).optional(),
+  bavRecipientDepartment: z.string().max(255).optional(),
+  bavRecipientStreet: z.string().max(255).optional(),
+  bavRecipientPostalCode: z.string().max(20).optional(),
+  bavRecipientCity: z.string().max(100).optional(),
+  bavRecipientRef: z.string().max(100).optional(),
 
   // Bank Details
   preferredCurrency: z.string().max(10).optional(),
@@ -114,17 +213,16 @@ const updateClaimSchema = z.object({
   confirmationAuthorizationAccepted: z.boolean().optional(),
 });
 
-// Add document schema
+// Add document schema. Ops-only roles (bav_extra) are attached through
+// the admin API, never by the claimant.
 const addDocumentSchema = z.object({
   documentId: z.string().uuid(),
-  documentRole: z.enum([
-    'passport',
-    'payslip',
-    'abmeldung',
-    'bank_statement',
-    'certified_id_form',
-    'health_insurance',
-  ]),
+  documentRole: z
+    .enum(CLAIM_DOCUMENT_ROLES)
+    .refine(
+      (r) => !MULTI_DOCUMENT_ROLES.has(r),
+      'Document role reserved for ops'
+    ),
 });
 
 // Attach signature schema
@@ -164,6 +262,8 @@ const validStepNames: ClaimStepName[] = [
   'germanSocialInsurance',
   'lastAddressInGermany',
   'healthInsurance',
+  'employment',
+  'cashOutBasis',
   'bankDetails',
   'signDocuments',
   'identityConfirmationForm',
@@ -196,11 +296,17 @@ claims.post(
   async (c) => {
     try {
       const user = c.get('user');
-      const { applicationId } = c.req.valid('json');
+      const { applicationId, caseType, attribution } = c.req.valid('json');
 
       const claim = await ClaimsApplicationService.createClaim(
         user.id,
-        applicationId
+        applicationId,
+        deriveCaseTypeOnCreate({
+          caseType,
+          applicationId,
+          origin: c.req.header('origin') ?? c.req.header('referer'),
+        }),
+        attribution ?? null
       );
 
       logger.info(`Claim created: ${claim.id} for user: ${user.id}`);
@@ -246,7 +352,7 @@ claims.get('/', authMiddleware, async (c) => {
 });
 
 // Get single claim by ID
-claims.get('/:id', authMiddleware, async (c) => {
+claims.get('/:id', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const claimId = c.req.param('id');
@@ -283,6 +389,7 @@ claims.get('/:id', authMiddleware, async (c) => {
 claims.put(
   '/:id',
   authMiddleware,
+  validateUuidParams('id'),
   zValidator('json', updateClaimSchema),
   async (c) => {
     try {
@@ -329,7 +436,7 @@ claims.put(
 );
 
 // Delete draft claim
-claims.delete('/:id', authMiddleware, async (c) => {
+claims.delete('/:id', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const claimId = c.req.param('id');
@@ -376,6 +483,7 @@ claims.delete('/:id', authMiddleware, async (c) => {
 claims.post(
   '/:id/documents',
   authMiddleware,
+  validateUuidParams('id'),
   zValidator('json', addDocumentSchema),
   async (c) => {
     try {
@@ -413,74 +521,88 @@ claims.post(
 );
 
 // Get all documents for claim
-claims.get('/:id/documents', authMiddleware, async (c) => {
-  try {
-    const user = c.get('user');
-    const claimId = c.req.param('id');
+claims.get(
+  '/:id/documents',
+  authMiddleware,
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const claimId = c.req.param('id');
 
-    const documents = await ClaimsApplicationService.getClaimDocuments(
-      claimId,
-      user.id
-    );
+      const documents = await ClaimsApplicationService.getClaimDocuments(
+        claimId,
+        user.id
+      );
 
-    return c.json({
-      success: true,
-      documents,
-    });
-  } catch (error) {
-    logger.error('Get documents error:', error);
-    return c.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : 'Failed to get documents',
-      },
-      error instanceof Error && error.message.includes('not found') ? 404 : 500
-    );
-  }
-});
-
-// Remove document from claim
-claims.delete('/:id/documents/:docId', authMiddleware, async (c) => {
-  try {
-    const user = c.get('user');
-    const claimId = c.req.param('id');
-    const documentId = c.req.param('docId');
-
-    const removed = await ClaimsApplicationService.removeDocument(
-      claimId,
-      user.id,
-      documentId
-    );
-
-    if (!removed) {
+      return c.json({
+        success: true,
+        documents,
+      });
+    } catch (error) {
+      logger.error('Get documents error:', error);
       return c.json(
         {
           success: false,
-          error: 'Document not found on claim',
+          error:
+            error instanceof Error ? error.message : 'Failed to get documents',
         },
-        404
+        error instanceof Error && error.message.includes('not found')
+          ? 404
+          : 500
       );
     }
-
-    logger.info(`Document removed from claim: ${claimId}`);
-
-    return c.json({
-      success: true,
-      message: 'Document removed successfully',
-    });
-  } catch (error) {
-    logger.error('Remove document error:', error);
-    return c.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : 'Failed to remove document',
-      },
-      500
-    );
   }
-});
+);
+
+// Remove document from claim
+claims.delete(
+  '/:id/documents/:docId',
+  authMiddleware,
+  validateUuidParams('id', 'docId'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const claimId = c.req.param('id');
+      const documentId = c.req.param('docId');
+
+      const removed = await ClaimsApplicationService.removeDocument(
+        claimId,
+        user.id,
+        documentId
+      );
+
+      if (!removed) {
+        return c.json(
+          {
+            success: false,
+            error: 'Document not found on claim',
+          },
+          404
+        );
+      }
+
+      logger.info(`Document removed from claim: ${claimId}`);
+
+      return c.json({
+        success: true,
+        message: 'Document removed successfully',
+      });
+    } catch (error) {
+      logger.error('Remove document error:', error);
+      return c.json(
+        {
+          success: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Failed to remove document',
+        },
+        500
+      );
+    }
+  }
+);
 
 // ============================================================
 // Signature Endpoint
@@ -490,6 +612,7 @@ claims.delete('/:id/documents/:docId', authMiddleware, async (c) => {
 claims.post(
   '/:id/signature',
   authMiddleware,
+  validateUuidParams('id'),
   zValidator('json', attachSignatureSchema),
   async (c) => {
     try {
@@ -547,6 +670,7 @@ claims.post(
 claims.post(
   '/:id/stop',
   authMiddleware,
+  validateUuidParams('id'),
   zValidator('json', stopClaimSchema),
   async (c) => {
     try {
@@ -614,37 +738,47 @@ claims.post(
 // ============================================================
 
 // Get step completion status
-claims.get('/:id/steps', authMiddleware, async (c) => {
-  try {
-    const user = c.get('user');
-    const claimId = c.req.param('id');
+claims.get(
+  '/:id/steps',
+  authMiddleware,
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const claimId = c.req.param('id');
 
-    const completedSteps = await ClaimsApplicationService.getCompletedSteps(
-      claimId,
-      user.id
-    );
+      const completedSteps = await ClaimsApplicationService.getCompletedSteps(
+        claimId,
+        user.id
+      );
 
-    return c.json({
-      success: true,
-      completedSteps,
-    });
-  } catch (error) {
-    logger.error('Get steps error:', error);
-    return c.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : 'Failed to get step status',
-      },
-      error instanceof Error && error.message.includes('not found') ? 404 : 500
-    );
+      return c.json({
+        success: true,
+        completedSteps,
+      });
+    } catch (error) {
+      logger.error('Get steps error:', error);
+      return c.json(
+        {
+          success: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Failed to get step status',
+        },
+        error instanceof Error && error.message.includes('not found')
+          ? 404
+          : 500
+      );
+    }
   }
-});
+);
 
 // Update step completion status
 claims.put(
   '/:id/steps/:stepName',
   authMiddleware,
+  validateUuidParams('id'),
   zValidator('json', stepCompletionSchema),
   async (c) => {
     try {
@@ -691,6 +825,8 @@ claims.put(
       return c.json({
         success: true,
         claim: updatedClaim,
+        // Kept alongside the full claim for clients that only read the map.
+        completedSteps: updatedClaim?.completedSteps ?? {},
       });
     } catch (error) {
       logger.error('Update step error:', error);
@@ -718,6 +854,7 @@ claims.put(
 claims.post(
   '/:id/workflow',
   authMiddleware,
+  validateUuidParams('id'),
   zValidator('json', workflowTransitionSchema),
   async (c) => {
     try {
@@ -765,201 +902,263 @@ claims.post(
 );
 
 // Get workflow history
-claims.get('/:id/workflow/history', authMiddleware, async (c) => {
-  try {
-    const user = c.get('user');
-    const claimId = c.req.param('id');
+claims.get(
+  '/:id/workflow/history',
+  authMiddleware,
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const claimId = c.req.param('id');
 
-    const history = await ClaimsApplicationService.getWorkflowHistory(
-      claimId,
-      user.id
-    );
+      const history = await ClaimsApplicationService.getWorkflowHistory(
+        claimId,
+        user.id
+      );
 
-    return c.json({
-      success: true,
-      history,
-    });
-  } catch (error) {
-    logger.error('Get workflow history error:', error);
-    return c.json(
-      {
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to get workflow history',
-      },
-      error instanceof Error && error.message.includes('not found') ? 404 : 500
-    );
+      return c.json({
+        success: true,
+        history,
+      });
+    } catch (error) {
+      logger.error('Get workflow history error:', error);
+      return c.json(
+        {
+          success: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Failed to get workflow history',
+        },
+        error instanceof Error && error.message.includes('not found')
+          ? 404
+          : 500
+      );
+    }
   }
-});
+);
 
 // ============================================================
 // Validation and Submission Endpoints
 // ============================================================
 
 // Validate claim for submission
-claims.get('/:id/validate', authMiddleware, async (c) => {
-  try {
-    const user = c.get('user');
-    const claimId = c.req.param('id');
+claims.get(
+  '/:id/validate',
+  authMiddleware,
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const claimId = c.req.param('id');
 
-    const validation = await ClaimsApplicationService.validateForSubmission(
-      claimId,
-      user.id
-    );
+      const validation = await ClaimsApplicationService.validateForSubmission(
+        claimId,
+        user.id
+      );
 
-    return c.json({
-      success: true,
-      validation,
-    });
-  } catch (error) {
-    logger.error('Validate claim error:', error);
-    return c.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : 'Failed to validate claim',
-      },
-      error instanceof Error && error.message.includes('not found') ? 404 : 500
-    );
+      return c.json({
+        success: true,
+        validation,
+      });
+    } catch (error) {
+      logger.error('Validate claim error:', error);
+      return c.json(
+        {
+          success: false,
+          error:
+            error instanceof Error ? error.message : 'Failed to validate claim',
+        },
+        error instanceof Error && error.message.includes('not found')
+          ? 404
+          : 500
+      );
+    }
   }
-});
+);
 
 // Submit claim
-claims.post('/:id/submit', authMiddleware, async (c) => {
-  try {
-    const user = c.get('user');
-    const claimId = c.req.param('id');
+claims.post(
+  '/:id/submit',
+  authMiddleware,
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const claimId = c.req.param('id');
 
-    const claim = await ClaimsApplicationService.submitClaim(claimId, user.id);
+      const claim = await ClaimsApplicationService.submitClaim(
+        claimId,
+        user.id
+      );
 
-    logger.info(`Claim submitted: ${claimId} by user: ${user.id}`);
+      logger.info(`Claim submitted: ${claimId} by user: ${user.id}`);
 
-    return c.json({
-      success: true,
-      claim,
-      message: 'Claim submitted successfully',
-    });
-  } catch (error) {
-    logger.error('Submit claim error:', error);
-    return c.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : 'Failed to submit claim',
-      },
-      error instanceof Error && error.message.includes('validation failed')
-        ? 400
-        : 500
-    );
+      return c.json({
+        success: true,
+        claim,
+        message: 'Claim submitted successfully',
+      });
+    } catch (error) {
+      logger.error('Submit claim error:', error);
+      return c.json(
+        {
+          success: false,
+          error:
+            error instanceof Error ? error.message : 'Failed to submit claim',
+        },
+        error instanceof Error && error.message.includes('validation failed')
+          ? 400
+          : 500
+      );
+    }
   }
-});
+);
 
 // ============================================================
 // Identity Form Download (for ID Verification step)
 // ============================================================
 
 // Record identity form download
-claims.post('/:id/identity-form-downloaded', authMiddleware, async (c) => {
-  try {
-    const user = c.get('user');
-    const claimId = c.req.param('id');
+claims.post(
+  '/:id/identity-form-downloaded',
+  authMiddleware,
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const claimId = c.req.param('id');
 
-    const claim = await ClaimsApplicationService.updateClaim(
-      claimId,
-      user.id,
-      {}
-    );
+      const claim = await ClaimsApplicationService.updateClaim(
+        claimId,
+        user.id,
+        {}
+      );
 
-    if (!claim) {
+      if (!claim) {
+        return c.json(
+          {
+            success: false,
+            error: 'Claim not found',
+          },
+          404
+        );
+      }
+
+      // Update the identity form downloaded timestamp using raw update
+      // (This is a special case - we're recording a timestamp, not user-provided data)
+      const { db } = await import('../utils/db');
+      const { claimsTable } = await import('../drizzle/schema/claims');
+      const { eq, and } = await import('drizzle-orm');
+
+      await db
+        .update(claimsTable)
+        .set({
+          identityFormDownloadedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(eq(claimsTable.id, claimId), eq(claimsTable.userId, user.id))
+        );
+
+      logger.info(`Identity form download recorded for claim: ${claimId}`);
+
+      return c.json({
+        success: true,
+        message: 'Identity form download recorded',
+      });
+    } catch (error) {
+      logger.error('Record identity form download error:', error);
       return c.json(
         {
           success: false,
-          error: 'Claim not found',
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Failed to record download',
         },
-        404
+        500
       );
     }
-
-    // Update the identity form downloaded timestamp using raw update
-    // (This is a special case - we're recording a timestamp, not user-provided data)
-    const { db } = await import('../utils/db');
-    const { claimsTable } = await import('../drizzle/schema/claims');
-    const { eq, and } = await import('drizzle-orm');
-
-    await db
-      .update(claimsTable)
-      .set({
-        identityFormDownloadedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(and(eq(claimsTable.id, claimId), eq(claimsTable.userId, user.id)));
-
-    logger.info(`Identity form download recorded for claim: ${claimId}`);
-
-    return c.json({
-      success: true,
-      message: 'Identity form download recorded',
-    });
-  } catch (error) {
-    logger.error('Record identity form download error:', error);
-    return c.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : 'Failed to record download',
-      },
-      500
-    );
   }
-});
+);
 
 // ============================================================
 // Claim PDF Generation/Download
 // ============================================================
 
 // Generate (or regenerate) the combined claim PDF and return a download URL
-claims.post('/:id/generate-pdf', authMiddleware, async (c) => {
-  try {
-    const user = c.get('user');
-    const claimId = c.req.param('id');
+claims.post(
+  '/:id/generate-pdf',
+  authMiddleware,
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const claimId = c.req.param('id');
 
-    const { pdfS3Key } = await ClaimPdfService.generateAndStoreForClaim(
-      claimId,
-      user.id
-    );
-    const downloadUrl = await getPresignedUrl(pdfS3Key);
+      // bAV cash-out claims get the Abfindung package, everything else the
+      // VBL L203 package.
+      const existing = await ClaimsApplicationService.getClaim(
+        claimId,
+        user.id
+      );
+      if (!existing) {
+        return c.json({ success: false, error: 'Claim not found' }, 404);
+      }
+      let pdfS3Key: string;
+      if (existing.pensionType === 'private') {
+        const { BavLetterPackageService } =
+          await import('../services/bav-letters');
+        ({ pdfS3Key } = await BavLetterPackageService.generateAndStoreForClaim(
+          claimId,
+          user.id
+        ));
+      } else {
+        ({ pdfS3Key } = await ClaimPdfService.generateAndStoreForClaim(
+          claimId,
+          user.id
+        ));
+      }
+      const downloadUrl = await getPresignedUrl(pdfS3Key);
 
-    logger.info(`Claim PDF generated: ${claimId} for user: ${user.id}`);
+      logger.info(`Claim PDF generated: ${claimId} for user: ${user.id}`);
 
-    return c.json({
-      success: true,
-      data: { pdfS3Key, downloadUrl },
-    });
-  } catch (error) {
-    logger.error('Generate claim PDF error:', error);
-    const message =
-      error instanceof Error ? error.message : 'Failed to generate claim PDF';
-    let status: 400 | 404 | 500 = 500;
-    if (error instanceof Error && error.message.startsWith('Claim not found')) {
-      status = 404;
-    } else if (error instanceof Error && error.message.includes('missing')) {
-      status = 400;
+      return c.json({
+        success: true,
+        data: { pdfS3Key, downloadUrl },
+      });
+    } catch (error) {
+      logger.error('Generate claim PDF error:', error);
+      const message =
+        error instanceof Error ? error.message : 'Failed to generate claim PDF';
+      let status: 400 | 404 | 500 = 500;
+      if (
+        error instanceof Error &&
+        error.message.startsWith('Claim not found')
+      ) {
+        status = 404;
+      } else if (
+        error instanceof Error &&
+        (error.message.includes('missing') ||
+          error.message.startsWith('Cannot generate'))
+      ) {
+        status = 400;
+      }
+      return c.json(
+        {
+          success: false,
+          error: message,
+          details: message,
+        },
+        status
+      );
     }
-    return c.json(
-      {
-        success: false,
-        error: message,
-        details: message,
-      },
-      status
-    );
   }
-});
+);
 
 // Get a presigned download URL for the already-generated claim PDF
-claims.get('/:id/pdf', authMiddleware, async (c) => {
+claims.get('/:id/pdf', authMiddleware, validateUuidParams('id'), async (c) => {
   try {
     const user = c.get('user');
     const claimId = c.req.param('id');

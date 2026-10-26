@@ -3,7 +3,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { ArrowRight, CreditCard, Info, User } from 'lucide-react';
-import { BankAccountOption, useOnboarding } from '@/contexts/OnboardingContext';
+import {
+  BankAccountOption,
+  isValidBic,
+  normalizeBic,
+  useOnboarding,
+} from '@/contexts/OnboardingContext';
 
 // Client #14: lightweight IBAN format validator. Accepts input with spaces
 // (they are stripped), checks country + check digits + length in the ISO
@@ -99,11 +104,22 @@ export const BankDetails: React.FC<BankDetailsProps> = ({
   const ibanIsValid = isValidIbanFormat(data.bankDetails.iban);
   const ibanShowsError = data.bankDetails.iban.length >= 4 && !ibanIsValid;
 
+  // bAV/private: the Abfindung letters and the provider's payout need the
+  // BIC and the bank's name as well (backend: validateBavClientIntake).
+  const isPrivatePensionType = data.pensionType === 'private';
+  const bicIsValid = isValidBic(data.bankDetails.swiftBic);
+  const bicShowsError =
+    normalizeBic(data.bankDetails.swiftBic).length >= 8 && !bicIsValid;
+  const bavBankOk =
+    !isPrivatePensionType ||
+    (bicIsValid && data.bankDetails.bankName.trim() !== '');
+
   const canContinueOwn =
-    data.bankDetails.accountHolder.trim() !== '' && ibanIsValid;
+    data.bankDetails.accountHolder.trim() !== '' && ibanIsValid && bavBankOk;
   const canContinueTrusted =
     data.bankDetails.accountHolder.trim() !== '' &&
     ibanIsValid &&
+    bavBankOk &&
     data.bankDetails.thirdPartyConfirmed;
   const canContinueSummit =
     data.bankDetails.phoneNumber.trim() !== '' && data.bankDetails.phoneConsent;
@@ -154,6 +170,61 @@ export const BankDetails: React.FC<BankDetailsProps> = ({
       <p className="mt-1 text-xs text-red-600">
         Please enter a valid IBAN (starts with two letters, e.g. DE89 ...).
       </p>
+    ) : null;
+
+  const renderBavBankFields = () =>
+    isPrivatePensionType ? (
+      <>
+        <div className="mb-4">
+          <label
+            htmlFor="bank-bic"
+            className="mb-1 block text-sm font-medium text-gray-700"
+          >
+            BIC / SWIFT code
+          </label>
+          <input
+            id="bank-bic"
+            type="text"
+            autoComplete="off"
+            value={data.bankDetails.swiftBic}
+            onChange={(e) =>
+              updateBankDetails({ swiftBic: e.target.value.toUpperCase() })
+            }
+            placeholder="e.g. COBADEFFXXX"
+            className={`w-full rounded-lg border px-4 py-3 outline-none focus:border-transparent focus:ring-2 focus:ring-[#9FE870] ${
+              bicShowsError ? 'border-red-400' : 'border-gray-300'
+            }`}
+          />
+          {bicShowsError && (
+            <p className="mt-1 text-xs text-red-600">
+              Please enter a valid BIC (8 or 11 characters, e.g. COBADEFFXXX).
+            </p>
+          )}
+        </div>
+        <div className="mb-6">
+          <label
+            htmlFor="bank-name"
+            className="mb-1 block text-sm font-medium text-gray-700"
+          >
+            Name of the bank
+          </label>
+          <input
+            id="bank-name"
+            type="text"
+            value={data.bankDetails.bankName}
+            onChange={(e) => updateBankDetails({ bankName: e.target.value })}
+            placeholder="e.g. Commerzbank"
+            className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#9FE870]"
+          />
+          <div className="mt-3 flex items-center gap-3 rounded-lg bg-[#F0FDE4] p-3">
+            <Info className="h-5 w-5 flex-shrink-0 text-[#163300]" />
+            <p className="text-sm text-[#163300]">
+              Your pension provider needs the BIC and the bank&rsquo;s name to
+              pay out the cash-out.
+            </p>
+          </div>
+        </div>
+      </>
     ) : null;
 
   // Item 18a: register/release the global Back override while on one of the
@@ -310,6 +381,8 @@ export const BankDetails: React.FC<BankDetailsProps> = ({
           {renderIbanError()}
         </div>
 
+        {renderBavBankFields()}
+
         <label className="mb-4 flex cursor-pointer items-start gap-3">
           <input
             type="checkbox"
@@ -397,6 +470,8 @@ export const BankDetails: React.FC<BankDetailsProps> = ({
           />
           {renderIbanError()}
         </div>
+
+        {renderBavBankFields()}
 
         <button
           onClick={onNext}

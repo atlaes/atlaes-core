@@ -6,8 +6,8 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Atlaes Admin',
-  description: 'Admin portal for managing pension refund claims',
+  title: 'CompanyPension Operations',
+  description: 'Ops admin and partner law-firm portal for pension refund claims',
 };
 
 export const dynamic = 'force-dynamic';

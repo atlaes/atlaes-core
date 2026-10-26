@@ -56,6 +56,20 @@ describe('vbl-pending-calculator-sessions routes', () => {
     expect(res.status).toBe(404);
   });
 
+  it('GET /:token returns 404 (not 500) for a non-UUID token', async () => {
+    const res = await app.request('/wpsc-session');
+    expect(res.status).toBe(404);
+  });
+
+  it('PATCH /:token/email returns 404 (not 500) for a non-UUID token', async () => {
+    const res = await app.request('/wpsc-session/email', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'test@example.com' }),
+    });
+    expect(res.status).toBe(404);
+  });
+
   it('PATCH /:token/email links an email', async () => {
     const create = await app.request('/', {
       method: 'POST',

@@ -1,4 +1,26 @@
 import apiClient from './api';
+import type {
+  CaseEventEntry,
+  CorrespondenceItem,
+  LawFirmMembership,
+  LawFirmSummary,
+} from './law-firm-api';
+
+export type ClaimHandlingRoute = 'direct' | 'law_firm';
+export type ClaimPayoutTarget = 'client' | 'law_firm';
+export type ClaimPensionType = 'public' | 'private';
+
+// Why a submitted claim waits for ops (backend: ClaimSubmissionHold).
+export type ClaimSubmissionHold =
+  | 'awaiting_provider_data'
+  | 'manual_submission_required'
+  | 'package_generation_failed';
+
+export const SUBMISSION_HOLD_LABELS: Record<ClaimSubmissionHold, string> = {
+  awaiting_provider_data: 'Waiting for provider data',
+  manual_submission_required: 'Manual submission required',
+  package_generation_failed: 'Package generation failed',
+};
 
 export interface ClaimListItem {
   id: string;
@@ -9,6 +31,13 @@ export interface ClaimListItem {
   applicantName: string | null;
   applicantEmail: string | null;
   paymentStatus: string | null;
+  pensionType: ClaimPensionType | null;
+  handlingRoute: ClaimHandlingRoute;
+  lawFirmRef: string | null;
+  lawFirmCaseState: string | null;
+  pensionProvider: string | null;
+  submissionHold: ClaimSubmissionHold | null;
+  submissionHoldReason: string | null;
   submittedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -37,6 +66,8 @@ export interface ClaimDetail {
   currentPostalCode: string | null;
   currentCountry: string | null;
   svNummer: string | null;
+  pensionProvider: string | null;
+  stageDetails: Record<string, string> | null;
   germanStreet: string | null;
   germanPostalCode: string | null;
   germanCity: string | null;
@@ -66,6 +97,61 @@ export interface ClaimDetail {
   paidAt: string | null;
   serviceFee: string | null;
   submittedAt: string | null;
+  pdfS3Key: string | null;
+  lettershopSubmissionId: string | null;
+  // Product + bAV cash-out intake
+  pensionType: ClaimPensionType | null;
+  salutation: string | null;
+  taxId: string | null;
+  healthInsuranceEndDate: string | null;
+  employerName: string | null;
+  employmentEndDate: string | null;
+  employerPersonnelNumber: string | null;
+  bavProviderName: string | null;
+  bavDurchfuehrungsweg: string | null;
+  bavContractReferenceLabel: string | null;
+  bavContractReference: string | null;
+  drvRefundReceived: boolean | null;
+  drvOffice: string | null;
+  drvDecisionDate: string | null;
+  bavStatementType: string | null;
+  bavStatementDate: string | null;
+  bavBenefitForm: string | null;
+  bavBenefitAmount: string | null;
+  bavAddresseeType: string | null;
+  bavRecipientName: string | null;
+  bavRecipientStreet: string | null;
+  bavRecipientPostalCode: string | null;
+  bavRecipientCity: string | null;
+  bavRecipientDepartment: string | null;
+  bavRecipientRef: string | null;
+  bavRecipientCountry: string | null;
+  bavProviderFormTitle: string | null;
+  // Health insurance (bAV only)
+  healthInsuranceType: string | null;
+  healthInsuranceProviderName: string | null;
+  healthInsuranceProviderAddress: string | null;
+  healthInsuranceNumber: string | null;
+  // Handling route (ops decision)
+  handlingRoute: ClaimHandlingRoute | null;
+  handlingRouteSetAt: string | null;
+  handlingRouteSetBy: string | null;
+  payoutTarget: ClaimPayoutTarget | null;
+  lawFirmRef: string | null;
+  // Law-firm assignment + the firm's case state (portal)
+  lawFirmId: string | null;
+  lawFirmAssignedAt: string | null;
+  lawFirmCaseState: string | null;
+  lawFirmDownloadedAt: string | null;
+  lawFirmSubmittedAt: string | null;
+  lawFirmSubmissionChannel: string | null;
+  lawFirmResponseAt: string | null;
+  lawFirmClosedAt: string | null;
+  copyPdfS3Key: string | null;
+  // Submission hold (nothing goes out until ops resolve it)
+  submissionHold: ClaimSubmissionHold | null;
+  submissionHoldReason: string | null;
+  submissionHoldAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -103,6 +189,7 @@ export interface ClaimStats {
   processing: number;
   completed: number;
   rejected: number;
+  lawFirm: number;
 }
 
 export interface ClaimDetailResponse {
@@ -123,8 +210,16 @@ export async function getStats(): Promise<ClaimStats> {
   return data.stats;
 }
 
+export type ClaimSort = 'submittedAt' | 'updatedAt' | 'createdAt';
+
 export async function getClaims(params?: {
   status?: string;
+  handlingRoute?: ClaimHandlingRoute;
+  pensionType?: ClaimPensionType;
+  submissionHold?: ClaimSubmissionHold | 'any';
+  search?: string;
+  sort?: ClaimSort;
+  dir?: 'asc' | 'desc';
   page?: number;
   limit?: number;
 }): Promise<{
@@ -137,9 +232,7 @@ export async function getClaims(params?: {
   return data;
 }
 
-export async function getClaimDetail(
-  id: string
-): Promise<ClaimDetailResponse> {
+export async function getClaimDetail(id: string): Promise<ClaimDetailResponse> {
   const { data } = await apiClient.get(`/admin/claims/${id}`);
   return data;
 }
@@ -156,6 +249,89 @@ export async function updateClaimStatus(
   return data.claim;
 }
 
+export interface ClaimRoutingInput {
+  handlingRoute: ClaimHandlingRoute;
+  payoutTarget?: ClaimPayoutTarget | null;
+  lawFirmRef?: string | null;
+  note?: string;
+}
+
+export async function setClaimRouting(
+  id: string,
+  input: ClaimRoutingInput
+): Promise<ClaimDetail> {
+  const { data } = await apiClient.put(`/admin/claims/${id}/routing`, input);
+  return data.claim;
+}
+
+export async function getPackageDownloadUrl(
+  id: string
+): Promise<{ pdfS3Key: string; downloadUrl: string | null }> {
+  const { data } = await apiClient.get(`/admin/claims/${id}/package`);
+  return data;
+}
+
+export async function regeneratePackage(id: string): Promise<{
+  pdfS3Key: string;
+  downloadUrl: string | null;
+  templateId: string;
+  signer: string;
+  copyS3Key: string | null;
+  missingPlaceholders: string[];
+}> {
+  const { data } = await apiClient.post(
+    `/admin/claims/${id}/package/regenerate`
+  );
+  return data;
+}
+
+export interface BavRecipientInput {
+  addresseeType: 'employer' | 'provider';
+  name: string;
+  department?: string | null;
+  street: string;
+  postalCode: string;
+  city: string;
+  country?: string | null;
+  reference?: string | null;
+  saveToProviderMatrix?: boolean;
+}
+
+export interface BavRecipientResult {
+  claim: ClaimDetail;
+  provider: { id: string; name: string } | null;
+  packageResult: {
+    generated: boolean;
+    error?: string;
+    pdfS3Key?: string;
+    sentToLettershop: boolean;
+  } | null;
+}
+
+/** Ops enter the bAV letter recipient; a submitted claim gets its package. */
+export async function saveBavRecipient(
+  id: string,
+  input: BavRecipientInput
+): Promise<BavRecipientResult> {
+  const { data } = await apiClient.put(
+    `/admin/claims/${id}/bav-recipient`,
+    input
+  );
+  return data;
+}
+
+/** Close a hold handled outside the system (e.g. manual VddB submission). */
+export async function resolveSubmissionHold(
+  id: string,
+  note: string
+): Promise<ClaimDetail> {
+  const { data } = await apiClient.post(
+    `/admin/claims/${id}/submission-hold/resolve`,
+    { note }
+  );
+  return data.claim;
+}
+
 export async function addNote(id: string, note: string): Promise<void> {
   await apiClient.post(`/admin/claims/${id}/notes`, { note });
 }
@@ -166,6 +342,212 @@ export async function getDocumentDownloadUrl(
 ): Promise<{ downloadUrl: string | null; fileName: string; fileType: string }> {
   const { data } = await apiClient.get(
     `/admin/claims/${claimId}/documents/${docId}/download`
+  );
+  return data;
+}
+
+// ============================================================
+// Law firm (ops side)
+// ============================================================
+
+export async function getClaimCorrespondence(
+  id: string
+): Promise<{ correspondence: CorrespondenceItem[]; events: CaseEventEntry[] }> {
+  const { data } = await apiClient.get(`/admin/claims/${id}/correspondence`);
+  return data;
+}
+
+export async function getCorrespondenceDownloadUrl(
+  claimId: string,
+  corrId: string
+): Promise<{ downloadUrl: string | null; fileName: string; fileType: string }> {
+  const { data } = await apiClient.get(
+    `/admin/claims/${claimId}/correspondence/${corrId}/download`
+  );
+  return data;
+}
+
+export async function getLawFirms(): Promise<LawFirmSummary[]> {
+  const { data } = await apiClient.get('/admin/law-firms');
+  return data.firms;
+}
+
+export interface LawFirmMemberRow extends LawFirmMembership {
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  invitedBy: string | null;
+}
+
+export async function getLawFirmMembers(
+  firmId: string
+): Promise<{ firm: LawFirmSummary; members: LawFirmMemberRow[] }> {
+  const { data } = await apiClient.get(`/admin/law-firms/${firmId}/members`);
+  return data;
+}
+
+export async function inviteLawFirmMember(
+  firmId: string,
+  input: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    role?: 'member' | 'firm_admin';
+  }
+): Promise<LawFirmMembership & { email: string; magicLinkUrl?: string }> {
+  const { data } = await apiClient.post(
+    `/admin/law-firms/${firmId}/members`,
+    input
+  );
+  return data.member;
+}
+
+export async function removeLawFirmMember(
+  firmId: string,
+  memberId: string
+): Promise<void> {
+  await apiClient.delete(`/admin/law-firms/${firmId}/members/${memberId}`);
+}
+
+// ============================================================
+// Ops home
+// ============================================================
+
+export interface AttentionItem {
+  id: string;
+  claimantName: string | null;
+  email: string | null;
+  pensionType: string | null;
+  status: string | null;
+  handlingRoute: string;
+  lawFirmCaseState: string | null;
+  lawFirmRef: string | null;
+  paymentStatus: string | null;
+  submittedAt: string | null;
+  updatedAt: string | null;
+  ageDays: number;
+}
+
+export interface ActivityItem {
+  id: string;
+  claimId: string;
+  claimantName: string | null;
+  state: string;
+  previousState: string | null;
+  triggeredBy: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string | null;
+}
+
+export interface AdminOverview {
+  attention: {
+    submitted: AttentionItem[];
+    responses: AttentionItem[];
+    missingPackage: AttentionItem[];
+    paymentIssues: AttentionItem[];
+  };
+  activity: ActivityItem[];
+  counts: {
+    submitted: number;
+    processing: number;
+    lawFirm: number;
+    completedThisWeek: number;
+  };
+}
+
+export async function getOverview(): Promise<AdminOverview> {
+  const { data } = await apiClient.get('/admin/overview');
+  return data;
+}
+
+// ------------------------------------------------------------ integrations
+
+export type IntegrationKeySource = 'admin' | 'env' | 'none';
+
+export interface LexofficeStatus {
+  source: IntegrationKeySource;
+  last4: string | null;
+  companyName: string | null;
+  updatedAt: string | null;
+  updatedByEmail: string | null;
+  baseUrl: string;
+}
+
+export interface LexofficeTestResult {
+  source: IntegrationKeySource;
+  ok: boolean;
+  companyName: string | null;
+  error: string | null;
+}
+
+export async function getLexofficeStatus(): Promise<LexofficeStatus> {
+  const { data } = await apiClient.get('/admin/integrations/lexoffice');
+  return data;
+}
+
+export async function setLexofficeKey(
+  apiKey: string
+): Promise<LexofficeStatus> {
+  const { data } = await apiClient.put('/admin/integrations/lexoffice', {
+    apiKey,
+  });
+  return data;
+}
+
+export async function removeLexofficeKey(): Promise<LexofficeStatus> {
+  const { data } = await apiClient.delete('/admin/integrations/lexoffice');
+  return data;
+}
+
+export async function testLexoffice(): Promise<LexofficeTestResult> {
+  const { data } = await apiClient.post('/admin/integrations/lexoffice/test');
+  return data;
+}
+
+// ------------------------------------------------------------ V0901 answers
+
+export type V0901AnswerKey =
+  | 'insuranceRecordIssued'
+  | 'insuranceRecordCorrect'
+  | 'foreignContributions'
+  | 'currentlyInsuredAbroad'
+  | 'germanBenefitsReceived';
+
+export interface V0901AnswerView {
+  key: V0901AnswerKey;
+  number: string;
+  field: string;
+  textDe: string;
+  label: string;
+  defaultValue: boolean;
+  override: boolean | null;
+  effective: boolean;
+}
+
+export interface V0901AnswersState {
+  applicable: boolean;
+  frozen: boolean;
+  packGeneratedAt: string | null;
+  questions: V0901AnswerView[];
+}
+
+export async function getV0901Answers(
+  claimId: string
+): Promise<V0901AnswersState> {
+  const { data } = await apiClient.get(
+    `/admin/claims/${claimId}/v0901-answers`
+  );
+  return data;
+}
+
+/** true/false sets an override, null resets the question to its default. */
+export async function setV0901Answers(
+  claimId: string,
+  answers: Partial<Record<V0901AnswerKey, boolean | null>>
+): Promise<V0901AnswersState> {
+  const { data } = await apiClient.put(
+    `/admin/claims/${claimId}/v0901-answers`,
+    answers
   );
   return data;
 }

@@ -1,0 +1,82 @@
+{{law_firm_letterhead}}
+
+{{recipient_name}}
+[[IF recipient_department]]{{recipient_department}}[[/IF]]
+{{recipient_street}}
+{{recipient_postal_code}} {{recipient_city}}
+
+{{law_firm_city}}, den {{letter_date}}
+Unser Zeichen: {{law_firm_ref}}
+[[IF recipient_ref]]Ihr Zeichen: {{recipient_ref}}[[/IF]]
+
+
+Antrag auf Abfindung der unverfallbaren Anwartschaft nach § 3 Abs. 3 BetrAVG nach erfolgter Erstattung der Beiträge zur gesetzlichen Rentenversicherung
+
+Name: {{client_full_name}}, geb. {{client_dob}}
+[[IF employer_personnel_number]]Personalnummer: {{employer_personnel_number}}[[/IF]]
+[[IF contract_reference]]{{contract_reference_label}}: {{contract_reference}}[[/IF]]
+[[IF addressee_type == provider]]Ehemaliger Arbeitgeber: {{employer_name}}[[/IF]]
+
+
+Sehr geehrte Damen und Herren,
+
+in der vorbezeichneten Angelegenheit zeigen wir an, dass wir {{g:Herrn|Frau}} {{client_full_name}} anwaltlich vertreten. Eine auf uns lautende Vollmacht ist im Original beigefügt.
+
+Das Arbeitsverhältnis {{g:unseres Mandanten|unserer Mandantin}} mit {{employer_name}} endete zum {{employment_end_date}}. Aus diesem Arbeitsverhältnis besteht eine unverfallbare Anwartschaft auf Leistungen der betrieblichen Altersversorgung ({{durchfuehrungsweg}}[[IF provider_name]] über {{provider_name}}[[/IF]][[IF contract_reference]], {{contract_reference_label}} {{contract_reference}}[[/IF]]).
+
+Die Deutsche Rentenversicherung hat {{g:unserem Mandanten|unserer Mandantin}} die Beiträge zur gesetzlichen Rentenversicherung auf Antrag nach § 210 SGB VI erstattet (Bescheid vom {{drv_decision_date}}, {{drv_office}}). Der Erstattungsbescheid liegt diesem Schreiben in Kopie bei.
+
+Namens und in Vollmacht {{g:unseres Mandanten|unserer Mandantin}} verlangen wir gemäß § 3 Abs. 3 BetrAVG die Abfindung {{g:seiner|ihrer}} unverfallbaren Anwartschaft durch einmalige Kapitalzahlung.
+
+Nach § 3 Abs. 3 BetrAVG ist die Anwartschaft auf Verlangen des Arbeitnehmers abzufinden, wenn die Beiträge zur gesetzlichen Rentenversicherung erstattet worden sind. Diese Voraussetzung ist erfüllt. Die Abfindung steht in diesem Fall nicht im Ermessen des Arbeitgebers oder des Versorgungsträgers; auf die Wertgrenzen des § 3 Abs. 2 BetrAVG kommt es nicht an. Die Vorschrift ist zwingendes Recht (§ 17 Abs. 3 Satz 3 BetrAVG) und kann weder durch die Versorgungsordnung noch durch Versicherungs- oder Satzungsbedingungen zu Lasten des Arbeitnehmers abbedungen werden.
+
+Die Höhe der Abfindung bemisst sich nach § 3 Abs. 5 i. V. m. § 4 Abs. 5 BetrAVG[[IF durchfuehrungsweg in (Direktversicherung, Pensionskasse, Pensionsfonds)]] und entspricht dem im Zeitpunkt der Abfindung gebildeten Kapital[[/IF]][[IF durchfuehrungsweg in (Direktzusage, Unterstützungskasse)]] und entspricht dem Barwert der nach § 2 BetrAVG bemessenen künftigen Versorgungsleistung[[/IF]]. Die Abfindung ist gesondert auszuweisen und einmalig zu zahlen (§ 3 Abs. 6 BetrAVG). Wir bitten um Übersendung einer nachvollziehbaren Berechnung des Abfindungsbetrages.
+
+[[IF provider_form_enclosed]]Das von Ihnen vorgesehene Antragsformular „{{provider_form_title}}“ ist von {{g:unserem Mandanten|unserer Mandantin}} ausgefüllt und unterschrieben beigefügt.[[/IF]]
+
+[[IF addressee_type == provider]]Soweit Sie für die Durchführung der Abfindung eine Erklärung des ehemaligen Arbeitgebers vorsehen, [[IF employer_consent_enclosed]]ist diese beigefügt.[[ELSE]]bitten wir Sie, diese unmittelbar bei {{employer_name}} einzuholen[[IF send_copy]]; {{employer_name}} erhält eine Kopie dieses Schreibens[[/IF]]. Der Arbeitgeber ist im Fall des § 3 Abs. 3 BetrAVG zur Abfindung verpflichtet.[[/IF]][[/IF]]
+[[IF addressee_type == employer and provider_name]]Wir bitten Sie, die Abfindung gegenüber {{provider_name}} freizugeben und die Auszahlung zu veranlassen[[IF send_copy]]; {{provider_name}} erhält eine Kopie dieses Schreibens[[/IF]].[[/IF]]
+
+Bitte überweisen Sie den Abfindungsbetrag auf folgendes Konto:
+[[IF payout_target == law_firm]]
+Kontoinhaber: {{law_firm_name}} – Anderkonto
+IBAN: {{law_firm_iban}}
+BIC: {{law_firm_bic}}
+Bank: {{law_firm_bank}}
+Verwendungszweck: {{law_firm_ref}} – {{client_full_name}}
+[[ELSE]]
+Kontoinhaber: {{account_holder}}
+IBAN: {{iban}}
+BIC: {{bic}}
+Bank: {{bank_name}}[[IF bank_address]], {{bank_address}}[[/IF]]
+[[IF account_holder_is_client]]Das Konto lautet auf den Namen {{g:unseres Mandanten|unserer Mandantin}}.[[/IF]]
+[[/IF]]
+
+Steuerliche Hinweise: {{g:Unser Mandant|Unsere Mandantin}} hat {{g:seinen|ihren}} Wohnsitz und gewöhnlichen Aufenthalt seit {{de_departure_date}} in {{residence_country}} und ist in Deutschland nicht unbeschränkt steuerpflichtig. [[IF tax_id]]Steuerliche Identifikationsnummer: {{tax_id}}.[[ELSE]]Die steuerliche Identifikationsnummer liegt {{g:unserem Mandanten|unserer Mandantin}} derzeit nicht vor.[[/IF]] Soweit die Abfindung dem Lohnsteuerabzug unterliegt, bitten wir um Prüfung, ob die Voraussetzungen der Tarifermäßigung nach § 34 Abs. 1, Abs. 2 Nr. 4 EStG vorliegen, und um gesonderten Ausweis der Abfindung als Vergütung für eine mehrjährige Tätigkeit in der Lohnsteuerbescheinigung. Bitte übersenden Sie uns nach Auszahlung eine Abrechnung über den Abfindungsbetrag und die einbehaltenen Abzüge sowie die Lohnsteuerbescheinigung bzw. die Leistungsmitteilung nach § 22 Nr. 5 EStG.
+
+Krankenversicherung: {{g:Unser Mandant|Unsere Mandantin}} ist seit {{de_health_insurance_end_date}} nicht mehr in der deutschen gesetzlichen Krankenversicherung versichert. Beiträge zur gesetzlichen Kranken- und Pflegeversicherung aus dem Abfindungsbetrag (§ 229 SGB V) sind daher nicht einzubehalten[[IF foreign_health_insurance_proof]]; ein Nachweis über die in {{residence_country}} bestehende Krankenversicherung ist beigefügt[[/IF]].
+
+Bitte bestätigen Sie den Eingang dieses Schreibens sowie den voraussichtlichen Auszahlungstermin innerhalb von vier Wochen nach Zugang. Sollten Sie für die Bearbeitung weitere Unterlagen oder eigene Formulare benötigen, bitten wir um umgehende Mitteilung.
+
+Für Rückfragen stehen wir gerne zur Verfügung.
+
+Mit freundlichen Grüßen
+
+
+{{lawyer_name}}
+{{lawyer_title}}
+
+[[IF send_copy]]Kopie an: {{copy_recipient_name}}[[/IF]]
+
+Anlagen
+[[ANLAGEN]]
+Vollmacht (Original)
+Erstattungsbescheid der Deutschen Rentenversicherung vom {{drv_decision_date}} (Kopie)
+Kopie Reisepass {{g:unseres Mandanten|unserer Mandantin}}
+[[IF provider_form_enclosed]]Antragsformular „{{provider_form_title}}“ (ausgefüllt und unterschrieben)[[/IF]]
+[[IF employer_consent_enclosed]]Zustimmungserklärung des ehemaligen Arbeitgebers[[/IF]]
+[[IF employment_end_proof]]Nachweis über die Beendigung des Arbeitsverhältnisses[[/IF]]
+[[IF last_statement_enclosed]]Letzte Standmitteilung / Versicherungsschein (Kopie)[[/IF]]
+[[IF foreign_health_insurance_proof]]Nachweis der Krankenversicherung in {{residence_country}}[[/IF]]
+[[IF bank_proof]]Nachweis der Bankverbindung[[/IF]]
+[[/ANLAGEN]]

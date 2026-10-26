@@ -9,7 +9,45 @@ import {
   ClaimStatus,
   ClaimDocumentRole,
   CertifyingAuthority,
+  PensionType,
+  Salutation,
+  BavDurchfuehrungsweg,
+  BavStatementType,
+  BavBenefitForm,
+  BavAddresseeType,
+  ClaimHandlingRoute,
+  defaultHandlingRoute,
+  ClaimPayoutTarget,
+  ClaimCaseType,
+  MULTI_DOCUMENT_ROLES,
+  caseTypeForPensionType,
+  deriveCaseTypeOnCreate,
+  resolveCaseType,
+  isStagePensionProvider,
+  isVblPensionProvider,
+  type ClaimSubmissionHold,
 } from '../drizzle/schema/claims';
+import {
+  validateBavClientIntake,
+  validateBavRecipient,
+} from './bav-letters/intake-validation';
+import { ClaimHoldService } from './claim-holds';
+import {
+  buildBavPayoutRecord,
+  summarizeSettlementList,
+  type BavPayoutInput,
+  type BavPayoutRecord,
+  type SettlementList,
+  type SettlementListRow,
+} from './bav-letters/payout';
+import {
+  BavProviderService,
+  providerAddressPatch,
+  type BavProvider,
+  type RecipientPatch,
+} from './bav-letters/providers';
+import { randomUUID } from 'crypto';
+import { deleteFile, uploadFile } from '../utils/s3';
 import {
   auditLogs,
   documents,
@@ -25,6 +63,9 @@ export interface CompletedSteps {
   currentAddress?: boolean;
   germanSocialInsurance?: boolean;
   lastAddressInGermany?: boolean;
+  healthInsurance?: boolean;
+  employment?: boolean;
+  cashOutBasis?: boolean;
   bankDetails?: boolean;
   signDocuments?: boolean;
   identityConfirmationForm?: boolean;
@@ -89,14 +130,62 @@ export interface ClaimBankDetails {
   bankCountry?: string;
 }
 
+// bAV cash-out intake (pensionType = 'private'). Mirrors the bAV column
+// block in drizzle/schema/claims.ts; see the comments there for the letter
+// placeholder each field feeds.
+export interface ClaimBavDetails {
+  pensionType?: PensionType;
+  salutation?: Salutation;
+  taxId?: string;
+  healthInsuranceEndDate?: string;
+  employerName?: string;
+  employmentEndDate?: string;
+  employerPersonnelNumber?: string;
+  bavProviderName?: string;
+  bavDurchfuehrungsweg?: BavDurchfuehrungsweg;
+  bavContractReferenceLabel?: string;
+  bavContractReference?: string;
+  bavProviderFormTitle?: string;
+  drvRefundReceived?: boolean;
+  drvOffice?: string;
+  drvDecisionDate?: string;
+  bavStatementType?: BavStatementType;
+  bavStatementDate?: string;
+  bavBenefitForm?: BavBenefitForm;
+  bavBenefitAmount?: string;
+  bavAddresseeType?: BavAddresseeType;
+  bavRecipientName?: string;
+  bavRecipientDepartment?: string;
+  bavRecipientStreet?: string;
+  bavRecipientPostalCode?: string;
+  bavRecipientCity?: string;
+  bavRecipientCountry?: string;
+  bavRecipientRef?: string;
+}
+
+/** VddB/VddKO stage employment answers (claims.stage_details). */
+export interface StageDetails {
+  stageName?: string;
+  rolePosition?: string;
+  employmentEndDate?: string;
+  permanentlyStopped?: 'yes' | 'no';
+  reasonForLeaving?: string;
+  reasonForLeavingOther?: string;
+  currentOccupation?: string;
+  unableToWorkHealth?: 'yes' | 'no';
+}
+
 export interface ClaimData
   extends
     ClaimPersonalInfo,
     ClaimCurrentAddress,
     ClaimGermanAddress,
     ClaimHealthInsurance,
+    ClaimBavDetails,
     ClaimBankDetails {
   svNummer?: string;
+  pensionProvider?: string;
+  stageDetails?: StageDetails;
   certifyingAuthority?: CertifyingAuthority;
   confirmationAccuracyAccepted?: boolean;
   confirmationAuthorizationAccepted?: boolean;
@@ -106,6 +195,8 @@ export interface Claim {
   id: string;
   userId: string;
   applicationId: string | null;
+  /** Product discriminator (see ClaimCaseType); resolved for legacy rows. */
+  caseType: ClaimCaseType;
   status: ClaimStatus;
   workflowState: ClaimWorkflowState;
   completedSteps: CompletedSteps;
@@ -129,8 +220,12 @@ export interface Claim {
   currentPostalCode: string | null;
   currentCountry: string | null;
 
-  // German Social Insurance
+  // German Social Insurance / membership or insurance number
   svNummer: string | null;
+  // Public-sector institution (VBL, ZVK, VddB, VddKO, …) and the VddB/
+  // VddKO stage answers (migration 0023)
+  pensionProvider: string | null;
+  stageDetails: StageDetails | null;
 
   // German Address
   germanStreet: string | null;
@@ -149,6 +244,35 @@ export interface Claim {
   healthInsurancePlaceOfBirth: string | null;
   healthInsuranceCountryOfBirth: string | null;
   healthInsuranceNumber: string | null;
+
+  // Product discriminator + bAV cash-out intake
+  pensionType: string | null;
+  salutation: string | null;
+  taxId: string | null;
+  healthInsuranceEndDate: string | null;
+  employerName: string | null;
+  employmentEndDate: string | null;
+  employerPersonnelNumber: string | null;
+  bavProviderName: string | null;
+  bavDurchfuehrungsweg: string | null;
+  bavContractReferenceLabel: string | null;
+  bavContractReference: string | null;
+  bavProviderFormTitle: string | null;
+  drvRefundReceived: boolean | null;
+  drvOffice: string | null;
+  drvDecisionDate: string | null;
+  bavStatementType: string | null;
+  bavStatementDate: string | null;
+  bavBenefitForm: string | null;
+  bavBenefitAmount: string | null;
+  bavAddresseeType: string | null;
+  bavRecipientName: string | null;
+  bavRecipientDepartment: string | null;
+  bavRecipientStreet: string | null;
+  bavRecipientPostalCode: string | null;
+  bavRecipientCity: string | null;
+  bavRecipientCountry: string | null;
+  bavRecipientRef: string | null;
 
   // Bank Details
   preferredCurrency: string | null;
@@ -187,6 +311,39 @@ export interface Claim {
 
   // Combined claim PDF
   pdfS3Key: string | null;
+  lettershopSubmissionId: string | null;
+
+  // Handling route (ops decision)
+  handlingRoute: string | null;
+  handlingRouteSetAt: Date | null;
+  handlingRouteSetBy: string | null;
+  payoutTarget: string | null;
+  lawFirmRef: string | null;
+
+  // Law-firm assignment + the firm's case state (portal)
+  lawFirmId: string | null;
+  lawFirmAssignedAt: Date | null;
+  lawFirmCaseState: string | null;
+  lawFirmDownloadedAt: Date | null;
+  lawFirmSubmittedAt: Date | null;
+  lawFirmSubmissionChannel: string | null;
+  lawFirmResponseAt: Date | null;
+  lawFirmClosedAt: Date | null;
+
+  // bAV payout on the Anderkonto (see recordBavPayout)
+  bavPayoutAmount: string | null;
+  bavPayoutValueDate: string | null;
+  bavFeeEur: string | null;
+  bavLawFirmFeeDeducted: boolean | null;
+  bavSettlementList: boolean | null;
+  bavPayoutRecordedAt: Date | null;
+  bavPayoutRecordedBy: string | null;
+  copyPdfS3Key: string | null;
+
+  // Submission hold (ops must act before anything goes out; migration 0023)
+  submissionHold: ClaimSubmissionHold | null;
+  submissionHoldReason: string | null;
+  submissionHoldAt: Date | null;
 
   // Timestamps
   createdAt: Date | null;
@@ -218,6 +375,31 @@ export interface WorkflowStateEntry {
   createdAt: Date | null;
 }
 
+/** What ops enter for a bAV letter recipient (admin claim page). */
+export interface BavRecipientInput {
+  addresseeType: BavAddresseeType;
+  name: string;
+  department?: string | null;
+  street: string;
+  postalCode: string;
+  city: string;
+  country?: string | null;
+  /** The recipient's reference ("Ihr Zeichen"). */
+  reference?: string | null;
+  saveToProviderMatrix?: boolean;
+}
+
+export interface BavPackageCompletion {
+  generated: boolean;
+  error?: string;
+  pdfS3Key?: string;
+  templateId?: string;
+  signer?: string;
+  copyS3Key?: string | null;
+  missingPlaceholders?: string[];
+  sentToLettershop: boolean;
+}
+
 export interface ValidationResult {
   isValid: boolean;
   missingSteps: ClaimStepName[];
@@ -226,10 +408,12 @@ export interface ValidationResult {
 
 // Helper function to map database row to Claim type
 function mapRowToClaim(row: any): Claim {
+  const caseType = resolveCaseType(row);
   return {
     id: row.id,
     userId: row.userId,
     applicationId: row.applicationId,
+    caseType,
     status: (row.status || 'draft') as ClaimStatus,
     workflowState: (row.workflowState || 'personal_info') as ClaimWorkflowState,
     completedSteps: (row.completedSteps || {}) as CompletedSteps,
@@ -249,6 +433,8 @@ function mapRowToClaim(row: any): Claim {
     currentPostalCode: row.currentPostalCode,
     currentCountry: row.currentCountry,
     svNummer: row.svNummer,
+    pensionProvider: row.pensionProvider ?? null,
+    stageDetails: (row.stageDetails ?? null) as StageDetails | null,
     germanStreet: row.germanStreet,
     germanPostalCode: row.germanPostalCode,
     germanCity: row.germanCity,
@@ -263,6 +449,33 @@ function mapRowToClaim(row: any): Claim {
     healthInsurancePlaceOfBirth: row.healthInsurancePlaceOfBirth,
     healthInsuranceCountryOfBirth: row.healthInsuranceCountryOfBirth,
     healthInsuranceNumber: row.healthInsuranceNumber,
+    pensionType: row.pensionType ?? null,
+    salutation: row.salutation ?? null,
+    taxId: row.taxId ?? null,
+    healthInsuranceEndDate: row.healthInsuranceEndDate ?? null,
+    employerName: row.employerName ?? null,
+    employmentEndDate: row.employmentEndDate ?? null,
+    employerPersonnelNumber: row.employerPersonnelNumber ?? null,
+    bavProviderName: row.bavProviderName ?? null,
+    bavDurchfuehrungsweg: row.bavDurchfuehrungsweg ?? null,
+    bavContractReferenceLabel: row.bavContractReferenceLabel ?? null,
+    bavContractReference: row.bavContractReference ?? null,
+    bavProviderFormTitle: row.bavProviderFormTitle ?? null,
+    drvRefundReceived: row.drvRefundReceived ?? null,
+    drvOffice: row.drvOffice ?? null,
+    drvDecisionDate: row.drvDecisionDate ?? null,
+    bavStatementType: row.bavStatementType ?? null,
+    bavStatementDate: row.bavStatementDate ?? null,
+    bavBenefitForm: row.bavBenefitForm ?? null,
+    bavBenefitAmount: row.bavBenefitAmount ?? null,
+    bavAddresseeType: row.bavAddresseeType ?? null,
+    bavRecipientName: row.bavRecipientName ?? null,
+    bavRecipientDepartment: row.bavRecipientDepartment ?? null,
+    bavRecipientStreet: row.bavRecipientStreet ?? null,
+    bavRecipientPostalCode: row.bavRecipientPostalCode ?? null,
+    bavRecipientCity: row.bavRecipientCity ?? null,
+    bavRecipientCountry: row.bavRecipientCountry ?? null,
+    bavRecipientRef: row.bavRecipientRef ?? null,
     preferredCurrency: row.preferredCurrency,
     accountHolderName: row.accountHolderName,
     bankName: row.bankName,
@@ -287,6 +500,31 @@ function mapRowToClaim(row: any): Claim {
     serviceFee: row.serviceFee,
     submittedAt: row.submittedAt,
     pdfS3Key: row.pdfS3Key,
+    lettershopSubmissionId: row.lettershopSubmissionId ?? null,
+    handlingRoute: row.handlingRoute ?? defaultHandlingRoute(caseType),
+    handlingRouteSetAt: row.handlingRouteSetAt ?? null,
+    handlingRouteSetBy: row.handlingRouteSetBy ?? null,
+    payoutTarget: row.payoutTarget ?? null,
+    lawFirmRef: row.lawFirmRef ?? null,
+    lawFirmId: row.lawFirmId ?? null,
+    lawFirmAssignedAt: row.lawFirmAssignedAt ?? null,
+    lawFirmCaseState: row.lawFirmCaseState ?? null,
+    lawFirmDownloadedAt: row.lawFirmDownloadedAt ?? null,
+    lawFirmSubmittedAt: row.lawFirmSubmittedAt ?? null,
+    lawFirmSubmissionChannel: row.lawFirmSubmissionChannel ?? null,
+    lawFirmResponseAt: row.lawFirmResponseAt ?? null,
+    lawFirmClosedAt: row.lawFirmClosedAt ?? null,
+    bavPayoutAmount: row.bavPayoutAmount ?? null,
+    bavPayoutValueDate: row.bavPayoutValueDate ?? null,
+    bavFeeEur: row.bavFeeEur ?? null,
+    bavLawFirmFeeDeducted: row.bavLawFirmFeeDeducted ?? null,
+    bavSettlementList: row.bavSettlementList ?? null,
+    bavPayoutRecordedAt: row.bavPayoutRecordedAt ?? null,
+    bavPayoutRecordedBy: row.bavPayoutRecordedBy ?? null,
+    copyPdfS3Key: row.copyPdfS3Key ?? null,
+    submissionHold: (row.submissionHold ?? null) as ClaimSubmissionHold | null,
+    submissionHoldReason: row.submissionHoldReason ?? null,
+    submissionHoldAt: row.submissionHoldAt ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -328,13 +566,19 @@ function calculateAge(dateOfBirth: string, now = new Date()): number | null {
 
 export class ClaimsApplicationService {
   /**
-   * Create a new claim for a user
+   * Create a new claim for a user. `caseType` defaults from the
+   * application link (GPR → drv_refund) else vbl_refund; the VBL app's
+   * pensionType 'private' later turns that into bav_cashout (updateClaim).
    */
   static async createClaim(
     userId: string,
-    applicationId?: string
+    applicationId?: string,
+    caseType?: ClaimCaseType,
+    attribution?: Record<string, unknown> | null
   ): Promise<Claim> {
     try {
+      const resolvedCaseType =
+        caseType ?? deriveCaseTypeOnCreate({ applicationId });
       const result = await db.transaction(async (tx: any) => {
         // Create the claim
         const [newClaim] = await tx
@@ -342,6 +586,8 @@ export class ClaimsApplicationService {
           .values({
             userId,
             applicationId: applicationId || null,
+            caseType: resolvedCaseType,
+            attribution: attribution ?? null,
             status: 'draft',
             workflowState: 'personal_info',
             completedSteps: {},
@@ -371,7 +617,7 @@ export class ClaimsApplicationService {
           action: 'claim_created',
           resource: 'claim',
           resourceId: newClaim.id,
-          details: { applicationId },
+          details: { applicationId, caseType: resolvedCaseType },
         });
 
         return newClaim;
@@ -452,10 +698,18 @@ export class ClaimsApplicationService {
         throw new Error('Cannot update a submitted claim');
       }
 
+      // Keep case_type in step with the legacy pension_type the VBL app
+      // saves ('private' → bAV cash-out). DRV refunds never change.
+      const caseTypePatch =
+        data.pensionType && existing.caseType !== 'drv_refund'
+          ? { caseType: caseTypeForPensionType(data.pensionType) }
+          : {};
+
       const result = await db
         .update(claimsTable)
         .set({
           ...data,
+          ...caseTypePatch,
           updatedAt: new Date(),
         })
         .where(and(eq(claimsTable.id, claimId), eq(claimsTable.userId, userId)))
@@ -634,6 +888,11 @@ export class ClaimsApplicationService {
 
       if (!doc) {
         throw new Error('Document not found or does not belong to user');
+      }
+
+      // Extras are attached by ops (attachExtraDocument), never here.
+      if (MULTI_DOCUMENT_ROLES.has(role)) {
+        throw new Error(`Document role ${role} is reserved for ops`);
       }
 
       // Remove any existing document with the same role (replace pattern)
@@ -940,6 +1199,30 @@ export class ClaimsApplicationService {
       const hasPassport = docs.some((d) => d.documentRole === 'passport');
       if (!hasPassport) errors.push('Passport document is required');
 
+      // bAV cash-out checks — what the client must provide for the
+      // Abfindung letters of the claim's route (A: DRV refund granted, B:
+      // Kleinstanwartschaft). The letter recipient's address is not the
+      // client's: the provider matrix fills it at submission, otherwise
+      // the claim waits for ops (see submitClaim).
+      if (claim.caseType === 'bav_cashout') {
+        errors.push(
+          ...validateBavClientIntake(
+            claim,
+            docs.map((d) => d.documentRole)
+          )
+        );
+      }
+
+      // VddB/VddKO: the institution knows the claimant by the membership /
+      // insurance number, so the stage flow asks for it.
+      if (
+        claim.caseType === 'vbl_refund' &&
+        isStagePensionProvider(claim.pensionProvider) &&
+        !claim.svNummer?.trim()
+      ) {
+        errors.push(`${claim.pensionProvider} membership number is required`);
+      }
+
       // GPR-specific checks — only for full GPR claims
       if (!isVblClaim) {
         if (!claim.claimType) errors.push('Claim type is required');
@@ -995,6 +1278,18 @@ export class ClaimsApplicationService {
    */
   static async submitClaim(claimId: string, userId: string): Promise<Claim> {
     try {
+      // bAV: fill the letter address from the provider matrix when the
+      // claim has none (non-fatal; validation reports what is still missing).
+      try {
+        await this.applyProviderAddress(claimId, userId);
+      } catch (fillError) {
+        logger.warn('Provider address fill failed', {
+          claimId,
+          error:
+            fillError instanceof Error ? fillError.message : String(fillError),
+        });
+      }
+
       // Validate first
       const validation = await this.validateForSubmission(claimId, userId);
       if (!validation.isValid) {
@@ -1051,48 +1346,190 @@ export class ClaimsApplicationService {
 
       logger.info(`Claim submitted: ${claimId}`);
 
-      // Generate the combined claim PDF after a successful submission.
-      // Failure here must NOT roll back or fail the submission — the PDF
-      // can be regenerated later via POST /api/claims/:id/generate-pdf.
-      // Uses a lazy dynamic import: './claim-pdf' imports
-      // ClaimsApplicationService from this module, so a static top-level
-      // import here would create a circular import.
-      try {
-        const { ClaimPdfService } = await import('./claim-pdf');
-        const { bytes } = await ClaimPdfService.generateAndStoreForClaim(
-          claimId,
-          userId
-        );
-
-        // Deliver the combined claim PDF to the lettershop provider
-        // (onlinebrief24.de) for printing/mailing. Same non-fatal contract
-        // as PDF generation above: a lettershop failure must never fail
-        // submission. Lazy import avoids a cycle (lettershop.ts imports
-        // the claims schema/db, and this module is imported widely).
-        try {
-          const { LettershopService } = await import('./lettershop');
-          await LettershopService.sendClaimPdf(claimId, bytes, userId);
-        } catch (lettershopError) {
-          logger.warn('Failed to submit claim PDF to lettershop', {
-            claimId,
-            error:
-              lettershopError instanceof Error
-                ? lettershopError.message
-                : String(lettershopError),
-          });
-        }
-      } catch (pdfError) {
-        logger.warn('Failed to generate claim PDF after submission', {
-          claimId,
-          error:
-            pdfError instanceof Error ? pdfError.message : String(pdfError),
-        });
-      }
-
-      return mapRowToClaim(result);
+      await this.dispatchSubmittedClaim(claimId, userId, result);
+      return (await this.getClaim(claimId, userId)) ?? mapRowToClaim(result);
     } catch (error) {
       logger.error('Error submitting claim:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Sends a just-submitted claim on its way. Never fails the submission:
+   * whatever cannot go out automatically puts the claim on a submission
+   * hold (ClaimHoldService: stored on the claim, visible in the admin,
+   * mailed to ops) instead of only being logged.
+   *
+   * - bAV cash-out: the Abfindung package (services/bav-letters), stored
+   *   for the law firm or mailed via the lettershop on direct handling.
+   *   Without a complete recipient address (no provider-matrix row) the
+   *   claim waits for ops to enter it: no package, no lettershop job.
+   * - VddB/VddKO: no claim form for these institutions exists yet, so the
+   *   claim is held for manual submission; it is never mailed with the
+   *   VBL L203.
+   * - Everything else: the VBL L203 package, mailed via the lettershop
+   *   unless the claim is handled by the law firm.
+   */
+  private static async dispatchSubmittedClaim(
+    claimId: string,
+    userId: string,
+    row: any
+  ): Promise<void> {
+    const caseType = resolveCaseType(row);
+    const handlingRoute = row.handlingRoute ?? defaultHandlingRoute(caseType);
+    const hold = (
+      kind: ClaimSubmissionHold,
+      reason: string,
+      detailLines: string[] = []
+    ) =>
+      ClaimHoldService.setHold(claimId, kind, reason, {
+        triggeredBy: 'system',
+        userId,
+        detailLines,
+      }).catch((holdError) =>
+        logger.error('Failed to put the claim on hold', {
+          claimId,
+          kind,
+          error:
+            holdError instanceof Error ? holdError.message : String(holdError),
+        })
+      );
+
+    if (caseType === 'bav_cashout') {
+      const recipientErrors = validateBavRecipient(row);
+      if (recipientErrors.length > 0) {
+        const recipient =
+          row.bavRecipientName || row.bavProviderName || 'the recipient';
+        await hold(
+          'awaiting_provider_data',
+          `No postal address for the letter recipient "${recipient}"` +
+            (row.bavProviderName
+              ? ` (the provider matrix has no complete entry for "${row.bavProviderName}")`
+              : '') +
+            '. The letter package has not been generated.',
+          [
+            'Enter the recipient in the admin claim page (optionally saving it to the provider matrix); the package is generated when it is saved.',
+          ]
+        );
+        return;
+      }
+      try {
+        const { BavLetterPackageService } = await import('./bav-letters');
+        const pkg = await BavLetterPackageService.generateAndStoreForClaim(
+          claimId,
+          userId
+        );
+        if (handlingRoute === 'law_firm') {
+          logger.info(
+            'bAV package stored for the law firm; lettershop skipped',
+            { claimId, templateId: pkg.templateId }
+          );
+        } else {
+          try {
+            const { LettershopService } = await import('./lettershop');
+            await LettershopService.sendClaimPdf(claimId, pkg.bytes, userId);
+            if (pkg.copy) {
+              await LettershopService.sendClaimPdf(
+                claimId,
+                pkg.copy.bytes,
+                userId,
+                'copy'
+              );
+            }
+          } catch (lettershopError) {
+            logger.warn('Failed to submit bAV package to lettershop', {
+              claimId,
+              error:
+                lettershopError instanceof Error
+                  ? lettershopError.message
+                  : String(lettershopError),
+            });
+          }
+        }
+      } catch (pkgError) {
+        const message =
+          pkgError instanceof Error ? pkgError.message : String(pkgError);
+        logger.warn('Failed to generate bAV package after submission', {
+          claimId,
+          error: message,
+        });
+        await hold(
+          'package_generation_failed',
+          `The bAV letter package could not be generated: ${message}`
+        );
+      }
+      return;
+    }
+
+    if (isStagePensionProvider(row.pensionProvider)) {
+      const provider = row.pensionProvider as string;
+      await hold(
+        'manual_submission_required',
+        `${provider} claim: there is no ${provider} claim form in the system yet, so the claim was not sent to the lettershop. Submit it to ${provider} manually.`,
+        [
+          `${provider} membership number: ${row.svNummer || 'not given'}`,
+          'Mark the claim as manually submitted in the admin once it has been sent.',
+        ]
+      );
+      return;
+    }
+
+    if (!isVblPensionProvider(row.pensionProvider)) {
+      const provider = row.pensionProvider as string;
+      await hold(
+        'manual_submission_required',
+        `${provider} claim: the only claim form in the system is the VBL L203, which is VBL's form and addressed to VBL in Karlsruhe, so the claim was not sent to the lettershop. Submit it to ${provider} manually.`,
+        [
+          `${provider} insurance number: ${row.svNummer || 'not given'}`,
+          'Mark the claim as manually submitted in the admin once it has been sent.',
+        ]
+      );
+      return;
+    }
+
+    // The combined VBL claim PDF (L203). Lazy imports: './claim-pdf'
+    // imports this module, and lettershop.ts the claims schema/db.
+    try {
+      const { ClaimPdfService } = await import('./claim-pdf');
+      const { bytes } = await ClaimPdfService.generateAndStoreForClaim(
+        claimId,
+        userId
+      );
+      // Claims routed to the law firm are NOT mailed: the package stays in
+      // S3 for the law firm to pick up and submit themselves. A lettershop
+      // failure is logged; the submission stands.
+      try {
+        if (handlingRoute === 'law_firm') {
+          logger.info('Lettershop skipped: claim is handled by the law firm', {
+            claimId,
+          });
+        } else {
+          const { LettershopService } = await import('./lettershop');
+          await LettershopService.sendClaimPdf(claimId, bytes, userId);
+        }
+      } catch (lettershopError) {
+        logger.warn('Failed to submit claim PDF to lettershop', {
+          claimId,
+          error:
+            lettershopError instanceof Error
+              ? lettershopError.message
+              : String(lettershopError),
+        });
+      }
+    } catch (pdfError) {
+      const message =
+        pdfError instanceof Error ? pdfError.message : String(pdfError);
+      logger.warn('Failed to generate claim PDF after submission', {
+        claimId,
+        error: message,
+      });
+      await hold(
+        'package_generation_failed',
+        `The claim PDF could not be generated, so nothing was sent to the lettershop: ${message}`,
+        [
+          'Complete the missing data and regenerate the PDF; it is not sent automatically afterwards.',
+        ]
+      );
     }
   }
 
@@ -1198,6 +1635,14 @@ export class ClaimsApplicationService {
    */
   static async getAllClaims(filters: {
     status?: string;
+    handlingRoute?: string;
+    pensionType?: string;
+    caseType?: string;
+    /** 'any' = every claim on hold, else one ClaimSubmissionHold. */
+    submissionHold?: string;
+    search?: string;
+    sort?: 'submittedAt' | 'updatedAt' | 'createdAt';
+    dir?: 'asc' | 'desc';
     page?: number;
     limit?: number;
   }): Promise<{ claims: any[]; total: number; page: number; limit: number }> {
@@ -1205,16 +1650,59 @@ export class ClaimsApplicationService {
       const page = filters.page || 1;
       const limit = filters.limit || 20;
       const offset = (page - 1) * limit;
+      const sortColumn =
+        filters.sort === 'submittedAt'
+          ? claimsTable.submittedAt
+          : filters.sort === 'updatedAt'
+            ? claimsTable.updatedAt
+            : claimsTable.createdAt;
+      const orderBy =
+        filters.dir === 'asc'
+          ? sql`${sortColumn} asc nulls last`
+          : desc(sortColumn);
 
-      // Build where clause
-      const whereClause = filters.status
-        ? eq(claimsTable.status, filters.status)
-        : undefined;
+      // Build where clause. A NULL handling_route means "not chosen", so
+      // filter on the effective route (bAV and DRV → law firm, VBL direct;
+      // same rule as defaultHandlingRoute).
+      const conditions = [];
+      if (filters.status)
+        conditions.push(eq(claimsTable.status, filters.status));
+      if (filters.handlingRoute) {
+        conditions.push(
+          sql`coalesce(${claimsTable.handlingRoute}, case when coalesce(${claimsTable.caseType}, case when ${claimsTable.pensionType} = 'private' then 'bav_cashout' when ${claimsTable.applicationId} is not null then 'drv_refund' else 'vbl_refund' end) in ('bav_cashout', 'drv_refund') then 'law_firm' else 'direct' end) = ${filters.handlingRoute}`
+        );
+      }
+      if (filters.pensionType) {
+        conditions.push(eq(claimsTable.pensionType, filters.pensionType));
+      }
+      if (filters.caseType) {
+        conditions.push(eq(claimsTable.caseType, filters.caseType));
+      }
+      if (filters.submissionHold === 'any') {
+        conditions.push(sql`${claimsTable.submissionHold} is not null`);
+      } else if (filters.submissionHold) {
+        conditions.push(eq(claimsTable.submissionHold, filters.submissionHold));
+      }
+      // Search by claimant name, account email or the law firm's file number.
+      const search = filters.search?.trim();
+      if (search) {
+        const pattern = `%${search}%`;
+        conditions.push(
+          sql`(
+            concat(coalesce(${claimsTable.firstName}, ''), ' ', coalesce(${claimsTable.lastName}, '')) ILIKE ${pattern}
+            OR ${users.email} ILIKE ${pattern}
+            OR coalesce(${claimsTable.lawFirmRef}, '') ILIKE ${pattern}
+            OR ${claimsTable.id}::text ILIKE ${pattern}
+          )`
+        );
+      }
+      const whereClause = conditions.length ? and(...conditions) : undefined;
 
-      // Get total count
+      // Get total count (joined so the email search applies here too)
       const [countResult] = await db
         .select({ value: count() })
         .from(claimsTable)
+        .leftJoin(users, eq(claimsTable.userId, users.id))
         .where(whereClause);
       const total = countResult?.value || 0;
 
@@ -1230,6 +1718,17 @@ export class ClaimsApplicationService {
           lastName: claimsTable.lastName,
           submittedAt: claimsTable.submittedAt,
           paymentStatus: claimsTable.paymentStatus,
+          pensionType: claimsTable.pensionType,
+          caseType: claimsTable.caseType,
+          applicationId: claimsTable.applicationId,
+          handlingRoute: claimsTable.handlingRoute,
+          lawFirmRef: claimsTable.lawFirmRef,
+          lawFirmCaseState: claimsTable.lawFirmCaseState,
+          bavSettlementList: claimsTable.bavSettlementList,
+          pensionProvider: claimsTable.pensionProvider,
+          bavProviderName: claimsTable.bavProviderName,
+          submissionHold: claimsTable.submissionHold,
+          submissionHoldReason: claimsTable.submissionHoldReason,
           createdAt: claimsTable.createdAt,
           updatedAt: claimsTable.updatedAt,
           userEmail: users.email,
@@ -1240,7 +1739,7 @@ export class ClaimsApplicationService {
         .leftJoin(users, eq(claimsTable.userId, users.id))
         .leftJoin(profiles, eq(profiles.userId, users.id))
         .where(whereClause)
-        .orderBy(desc(claimsTable.createdAt))
+        .orderBy(orderBy)
         .limit(limit)
         .offset(offset);
 
@@ -1250,6 +1749,7 @@ export class ClaimsApplicationService {
         status: row.status,
         workflowState: row.workflowState,
         claimType: row.claimType,
+        caseType: resolveCaseType(row),
         applicantName:
           row.firstName && row.lastName
             ? `${row.firstName} ${row.lastName}`
@@ -1258,6 +1758,19 @@ export class ClaimsApplicationService {
               : null,
         applicantEmail: row.userEmail,
         paymentStatus: row.paymentStatus,
+        pensionType: row.pensionType,
+        handlingRoute:
+          row.handlingRoute ?? defaultHandlingRoute(resolveCaseType(row)),
+        lawFirmRef: row.lawFirmRef,
+        lawFirmCaseState:
+          (row.handlingRoute ?? defaultHandlingRoute(resolveCaseType(row))) ===
+          'law_firm'
+            ? (row.lawFirmCaseState ?? 'new')
+            : null,
+        bavSettlementList: row.bavSettlementList ?? null,
+        pensionProvider: row.pensionProvider ?? row.bavProviderName ?? null,
+        submissionHold: row.submissionHold ?? null,
+        submissionHoldReason: row.submissionHoldReason ?? null,
         submittedAt: row.submittedAt,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
@@ -1295,9 +1808,7 @@ export class ClaimsApplicationService {
   /**
    * Get user info for a claim (admin only)
    */
-  static async getClaimUserInfo(
-    claimId: string
-  ): Promise<{
+  static async getClaimUserInfo(claimId: string): Promise<{
     email: string;
     firstName: string | null;
     lastName: string | null;
@@ -1411,6 +1922,121 @@ export class ClaimsApplicationService {
   }
 
   /**
+   * Set how a claim is handled after submission (admin only). Orthogonal
+   * to status: allowed in any status, but once the letter has gone to the
+   * lettershop the switch only affects future (re)sends, so that case is
+   * refused to avoid a second physical letter.
+   */
+  static async setHandlingRoute(
+    claimId: string,
+    adminUserId: string,
+    input: {
+      handlingRoute: ClaimHandlingRoute;
+      payoutTarget?: ClaimPayoutTarget | null;
+      lawFirmRef?: string | null;
+      note?: string;
+    }
+  ): Promise<Claim> {
+    try {
+      const claim = await this.getClaimAsAdmin(claimId);
+      if (!claim) {
+        throw new Error('Claim not found');
+      }
+      const previousRoute =
+        claim.handlingRoute ?? defaultHandlingRoute(claim.caseType);
+      if (
+        claim.lettershopSubmissionId &&
+        input.handlingRoute === 'law_firm' &&
+        previousRoute !== 'law_firm'
+      ) {
+        throw new Error(
+          'Invalid routing change: this claim was already sent to the lettershop'
+        );
+      }
+
+      // Direct handling always pays the client and has no law-firm file.
+      const payoutTarget =
+        input.handlingRoute === 'law_firm'
+          ? (input.payoutTarget ?? claim.payoutTarget ?? 'client')
+          : null;
+      const lawFirmRef =
+        input.handlingRoute === 'law_firm'
+          ? input.lawFirmRef?.trim() || claim.lawFirmRef || null
+          : null;
+      const now = new Date();
+
+      const result = await db.transaction(async (tx: any) => {
+        const [updatedClaim] = await tx
+          .update(claimsTable)
+          .set({
+            handlingRoute: input.handlingRoute,
+            handlingRouteSetAt: now,
+            handlingRouteSetBy: adminUserId,
+            payoutTarget,
+            lawFirmRef,
+            updatedAt: now,
+          })
+          .where(eq(claimsTable.id, claimId))
+          .returning();
+
+        await tx.insert(claimWorkflowStates).values({
+          claimId,
+          state: claim.status,
+          previousState: claim.status,
+          triggeredBy: 'admin',
+          metadata: {
+            adminUserId,
+            action: 'handling_route_update',
+            previousRoute,
+            handlingRoute: input.handlingRoute,
+            payoutTarget,
+            lawFirmRef,
+            note: input.note,
+          },
+        });
+
+        await tx.insert(auditLogs).values({
+          userId: adminUserId,
+          action: 'claim_handling_route_updated',
+          resource: 'claim',
+          resourceId: claimId,
+          details: {
+            previousRoute,
+            handlingRoute: input.handlingRoute,
+            payoutTarget,
+            lawFirmRef,
+            note: input.note,
+          },
+        });
+
+        return updatedClaim;
+      });
+
+      logger.info(
+        `Claim ${claimId} handling route updated: ${previousRoute} -> ${input.handlingRoute} by admin ${adminUserId}`
+      );
+
+      // Assign to the partner firm (regenerates the LAW package and
+      // notifies the firm) or clear the assignment. Lazy import: the
+      // law-firm service imports this module.
+      const { LawFirmService } = await import('./law-firm');
+      if (input.handlingRoute === 'law_firm' && previousRoute !== 'law_firm') {
+        await LawFirmService.assignClaimToDefaultFirm(claimId, adminUserId);
+      } else if (
+        input.handlingRoute !== 'law_firm' &&
+        previousRoute === 'law_firm'
+      ) {
+        await LawFirmService.unassignClaim(claimId, adminUserId);
+      }
+      const refreshed = await this.getClaimAsAdmin(claimId);
+      return refreshed ?? mapRowToClaim(result);
+    } catch (error) {
+      logger.error('Error updating claim handling route:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Add an admin note to a claim
    */
   static async addAdminNote(
@@ -1497,6 +2123,531 @@ export class ClaimsApplicationService {
     }
   }
 
+  // ==================== bAV: PROVIDER MATRIX ====================
+
+  /**
+   * Copies the letter address from the provider matrix onto a bAV claim
+   * whose recipient address is still empty (client answer item 7). Runs
+   * at submission; ops can still edit the recipient fields afterwards.
+   * Returns the patch applied, or null when nothing changed.
+   */
+  static async applyProviderAddress(
+    claimId: string,
+    userId?: string
+  ): Promise<RecipientPatch | null> {
+    const claim = userId
+      ? await this.getClaim(claimId, userId)
+      : await this.getClaimAsAdmin(claimId);
+    if (!claim || claim.caseType !== 'bav_cashout') return null;
+    const provider = await BavProviderService.findByName(claim.bavProviderName);
+    if (!provider) return null;
+    const patch = providerAddressPatch(claim, provider);
+    if (!patch) return null;
+    await db
+      .update(claimsTable)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(eq(claimsTable.id, claimId));
+    logger.info('bAV recipient address filled from the provider matrix', {
+      claimId,
+      provider: provider.name,
+    });
+    return patch;
+  }
+
+  // ==================== bAV: RECIPIENT (OPS) ====================
+
+  /**
+   * Ops enter or correct the Abfindung letter recipient of a bAV claim
+   * (client answer, 15 Sep 2026: the admin adds provider data per case and
+   * it is reused afterwards). With `saveToProviderMatrix` the address is
+   * also stored as the matrix row of the claim's provider (created or
+   * updated), so later claims for that provider get it at submission. A
+   * submitted claim then gets its package via completeBavPackage.
+   */
+  static async updateBavRecipientAsAdmin(
+    claimId: string,
+    adminUserId: string,
+    input: BavRecipientInput
+  ): Promise<{
+    claim: Claim;
+    provider: BavProvider | null;
+    packageResult: BavPackageCompletion | null;
+  }> {
+    const claim = await this.getClaimAsAdmin(claimId);
+    if (!claim) throw new Error('Claim not found');
+    if (claim.caseType !== 'bav_cashout') {
+      throw new Error('Invalid recipient: the claim is not a bAV cash-out');
+    }
+    const t = (v: string | null | undefined) =>
+      typeof v === 'string' && v.trim() !== '' ? v.trim() : null;
+    const patch = {
+      bavAddresseeType: input.addresseeType,
+      bavRecipientName: t(input.name),
+      bavRecipientDepartment: t(input.department),
+      bavRecipientStreet: t(input.street),
+      bavRecipientPostalCode: t(input.postalCode),
+      bavRecipientCity: t(input.city),
+      bavRecipientCountry: t(input.country),
+      bavRecipientRef: t(input.reference),
+    };
+    const missing = validateBavRecipient(patch);
+    if (missing.length > 0) {
+      throw new Error(`Invalid recipient: ${missing.join(', ')}`);
+    }
+    if (
+      input.addresseeType === 'provider' &&
+      (claim.bavDurchfuehrungsweg === 'Direktzusage' ||
+        claim.bavDurchfuehrungsweg === 'Unterstützungskasse')
+    ) {
+      throw new Error(
+        'Invalid recipient: Direktzusage and Unterstützungskasse letters must be addressed to the employer'
+      );
+    }
+    const matrixName = t(claim.bavProviderName) ?? patch.bavRecipientName!;
+    if (input.saveToProviderMatrix && input.addresseeType !== 'provider') {
+      throw new Error(
+        'Invalid recipient: only a provider address can be saved to the provider matrix'
+      );
+    }
+
+    await db.transaction(async (tx: any) => {
+      await tx
+        .update(claimsTable)
+        .set({ ...patch, updatedAt: new Date() })
+        .where(eq(claimsTable.id, claimId));
+      await tx.insert(claimWorkflowStates).values({
+        claimId,
+        state: claim.status,
+        previousState: claim.status,
+        triggeredBy: 'admin',
+        metadata: {
+          adminUserId,
+          action: 'bav_recipient_update',
+          recipient: patch,
+          savedToProviderMatrix: !!input.saveToProviderMatrix,
+        },
+      });
+      await tx.insert(auditLogs).values({
+        userId: adminUserId,
+        action: 'claim_bav_recipient_updated',
+        resource: 'claim',
+        resourceId: claimId,
+        details: {
+          recipient: patch,
+          savedToProviderMatrix: !!input.saveToProviderMatrix,
+        },
+      });
+    });
+
+    let provider: BavProvider | null = null;
+    if (input.saveToProviderMatrix) {
+      const existing = await BavProviderService.findByName(matrixName);
+      const row = {
+        name: existing?.name ?? matrixName,
+        defaultAddresseeType: 'provider' as const,
+        department: patch.bavRecipientDepartment,
+        street: patch.bavRecipientStreet,
+        postalCode: patch.bavRecipientPostalCode,
+        city: patch.bavRecipientCity,
+        country: patch.bavRecipientCountry,
+        requiresBankAddress: existing?.requiresBankAddress ?? false,
+        notes: existing?.notes ?? null,
+      };
+      provider = existing
+        ? await BavProviderService.update(existing.id, row)
+        : await BavProviderService.create(row);
+      logger.info('bAV provider matrix updated from a claim', {
+        claimId,
+        provider: row.name,
+        created: !existing,
+      });
+    }
+
+    const packageResult =
+      claim.status === 'draft'
+        ? null
+        : await this.completeBavPackage(claimId, adminUserId);
+    const refreshed = await this.getClaimAsAdmin(claimId);
+    return { claim: refreshed ?? claim, provider, packageResult };
+  }
+
+  /**
+   * (Re)generates the bAV package of a submitted claim as ops (the admin
+   * regenerate path). Refuses, like every package build, while the letter
+   * recipient is incomplete. On success a waiting claim continues where
+   * submission stopped: on direct handling the package goes to the
+   * lettershop (once), and the 'awaiting_provider_data' /
+   * 'package_generation_failed' hold is cleared. A failed build leaves the
+   * claim on hold and is returned, not thrown, unless `throwOnError`.
+   */
+  static async completeBavPackage(
+    claimId: string,
+    adminUserId: string,
+    options: { throwOnError?: boolean } = {}
+  ): Promise<BavPackageCompletion> {
+    const claim = await this.getClaimAsAdmin(claimId);
+    if (!claim) throw new Error('Claim not found');
+    const wasHeld =
+      claim.submissionHold === 'awaiting_provider_data' ||
+      claim.submissionHold === 'package_generation_failed';
+    const { BavLetterPackageService } = await import('./bav-letters');
+    let result: Awaited<
+      ReturnType<typeof BavLetterPackageService.generateAndStoreForClaim>
+    >;
+    try {
+      result = await BavLetterPackageService.generateAndStoreForClaim(
+        claimId,
+        adminUserId,
+        { asAdmin: true }
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (options.throwOnError) throw error;
+      logger.warn('bAV package generation by ops failed', {
+        claimId,
+        error: message,
+      });
+      // The recipient may be complete now while something else blocks the
+      // package: keep the claim on hold under the actual reason.
+      if (
+        claim.submissionHold === 'awaiting_provider_data' &&
+        !message.includes('Recipient')
+      ) {
+        await ClaimHoldService.setHold(
+          claimId,
+          'package_generation_failed',
+          `The bAV letter package could not be generated: ${message}`,
+          { triggeredBy: 'admin', userId: adminUserId, notify: false }
+        );
+      }
+      return { generated: false, error: message, sentToLettershop: false };
+    }
+
+    let sentToLettershop = false;
+    if (
+      wasHeld &&
+      claim.status !== 'draft' &&
+      claim.handlingRoute !== 'law_firm' &&
+      !claim.lettershopSubmissionId
+    ) {
+      try {
+        const { LettershopService } = await import('./lettershop');
+        const sent = await LettershopService.sendClaimPdf(
+          claimId,
+          result.bytes,
+          adminUserId
+        );
+        if (result.copy) {
+          await LettershopService.sendClaimPdf(
+            claimId,
+            result.copy.bytes,
+            adminUserId,
+            'copy'
+          );
+        }
+        sentToLettershop = !!sent;
+      } catch (lettershopError) {
+        logger.warn('Failed to submit bAV package to lettershop', {
+          claimId,
+          error:
+            lettershopError instanceof Error
+              ? lettershopError.message
+              : String(lettershopError),
+        });
+      }
+    }
+    if (wasHeld) {
+      await ClaimHoldService.clearHold(claimId, {
+        triggeredBy: 'admin',
+        userId: adminUserId,
+        note: 'bAV letter package generated',
+        only: ['awaiting_provider_data', 'package_generation_failed'],
+      });
+    }
+    return {
+      generated: true,
+      pdfS3Key: result.pdfS3Key,
+      templateId: result.templateId,
+      signer: result.signer,
+      copyS3Key: result.copy?.s3Key ?? null,
+      missingPlaceholders: result.missingPlaceholders,
+      sentToLettershop,
+    };
+  }
+
+  /**
+   * Ops close a submission hold that needs no package from us: a VddB/
+   * VddKO claim submitted by hand, or a failed package ops handled
+   * otherwise. A bAV claim waiting for provider data is resolved by
+   * saving its recipient instead (updateBavRecipientAsAdmin).
+   */
+  static async resolveSubmissionHold(
+    claimId: string,
+    adminUserId: string,
+    note: string
+  ): Promise<Claim> {
+    const claim = await this.getClaimAsAdmin(claimId);
+    if (!claim) throw new Error('Claim not found');
+    if (!claim.submissionHold) {
+      throw new Error('Invalid hold: the claim is not on hold');
+    }
+    if (claim.submissionHold === 'awaiting_provider_data') {
+      throw new Error(
+        'Invalid hold: enter the letter recipient to release this claim'
+      );
+    }
+    await ClaimHoldService.clearHold(claimId, {
+      triggeredBy: 'admin',
+      userId: adminUserId,
+      note,
+    });
+    return (await this.getClaimAsAdmin(claimId)) ?? claim;
+  }
+
+  // ==================== bAV: PAYOUT / FEE SPLIT ====================
+
+  /**
+   * Records the Abfindung received on the Anderkonto and the fee split
+   * (client answer item 5). Re-recording overwrites the previous figures.
+   */
+  static async recordBavPayout(
+    claimId: string,
+    adminUserId: string,
+    input: BavPayoutInput
+  ): Promise<{ claim: Claim; split: BavPayoutRecord['split'] }> {
+    const claim = await this.getClaimAsAdmin(claimId);
+    if (!claim) throw new Error('Claim not found');
+    if (claim.caseType !== 'bav_cashout') {
+      throw new Error('Invalid payout: only bAV cash-out claims have one');
+    }
+    if (claim.status === 'draft') {
+      throw new Error('Invalid payout: the claim has not been submitted');
+    }
+    const record = buildBavPayoutRecord(input);
+    const now = new Date();
+
+    const result = await db.transaction(async (tx: any) => {
+      const [updated] = await tx
+        .update(claimsTable)
+        .set({
+          ...record.columns,
+          bavPayoutRecordedAt: now,
+          bavPayoutRecordedBy: adminUserId,
+          updatedAt: now,
+        })
+        .where(eq(claimsTable.id, claimId))
+        .returning();
+      await tx.insert(claimWorkflowStates).values({
+        claimId,
+        state: claim.status,
+        previousState: claim.status,
+        triggeredBy: 'admin',
+        metadata: {
+          action: 'bav_payout_recorded',
+          adminUserId,
+          valueDate: input.valueDate,
+          ...record.split,
+        },
+      });
+      await tx.insert(auditLogs).values({
+        userId: adminUserId,
+        action: 'claim_bav_payout_recorded',
+        resource: 'claim',
+        resourceId: claimId,
+        details: { valueDate: input.valueDate, ...record.split },
+      });
+      return updated;
+    });
+
+    logger.info('bAV payout recorded', {
+      claimId,
+      amount: record.split.amountReceived,
+      fee: record.split.fee,
+      smallRefund: record.split.smallRefund,
+    });
+    // Client-update engine: funds on the Anderkonto end the waiting
+    // sequence (or flag funds-before-decision). Non-fatal.
+    try {
+      const { ClientUpdatesService } = await import('./client-updates');
+      await ClientUpdatesService.onFundsReceived(
+        claimId,
+        new Date(`${input.valueDate}T12:00:00Z`)
+      );
+    } catch (error) {
+      logger.error('Client-update funds hook failed', { claimId, error });
+    }
+    return { claim: mapRowToClaim(result), split: record.split };
+  }
+
+  /** Year-end list of small-refund cases (no law-firm fee deducted). */
+  static async getBavSettlementList(year: number): Promise<SettlementList> {
+    const rows = await db
+      .select({
+        id: claimsTable.id,
+        firstName: claimsTable.firstName,
+        lastName: claimsTable.lastName,
+        lawFirmRef: claimsTable.lawFirmRef,
+        bavProviderName: claimsTable.bavProviderName,
+        bavPayoutAmount: claimsTable.bavPayoutAmount,
+        bavFeeEur: claimsTable.bavFeeEur,
+        bavPayoutValueDate: claimsTable.bavPayoutValueDate,
+      })
+      .from(claimsTable)
+      .where(
+        and(
+          eq(claimsTable.bavSettlementList, true),
+          sql`extract(year from ${claimsTable.bavPayoutValueDate}) = ${year}`
+        )
+      )
+      .orderBy(claimsTable.bavPayoutValueDate, claimsTable.lastName);
+    const list: SettlementListRow[] = rows.map((r) => ({
+      claimId: r.id,
+      claimantName:
+        r.firstName && r.lastName ? `${r.firstName} ${r.lastName}` : null,
+      lawFirmRef: r.lawFirmRef,
+      bavProviderName: r.bavProviderName,
+      payoutAmount: Number(r.bavPayoutAmount ?? 0),
+      feeEur: Number(r.bavFeeEur ?? 0),
+      valueDate: String(r.bavPayoutValueDate),
+    }));
+    return summarizeSettlementList(year, list);
+  }
+
+  // ==================== bAV: EXTRA DOCUMENTS (ops) ====================
+
+  static readonly EXTRA_DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
+  static readonly EXTRA_DOCUMENT_TYPES = new Set([
+    'application/pdf',
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+  ]);
+
+  /**
+   * Attaches an extra document to a bAV claim (role 'bav_extra'); the
+   * package merges these after the standard enclosures in upload order.
+   * Ops regenerate the package via POST /admin/claims/:id/package/regenerate.
+   */
+  static async attachExtraDocument(
+    claimId: string,
+    adminUserId: string,
+    file: File,
+    note?: string | null
+  ): Promise<ClaimDocument> {
+    const claim = await this.getClaimAsAdmin(claimId);
+    if (!claim) throw new Error('Claim not found');
+    if (claim.caseType !== 'bav_cashout') {
+      throw new Error('Invalid document: only bAV cash-out claims take extras');
+    }
+    if (file.size > this.EXTRA_DOCUMENT_MAX_BYTES) {
+      throw new Error('Invalid file: size exceeds 10MB limit');
+    }
+    if (!this.EXTRA_DOCUMENT_TYPES.has(file.type)) {
+      throw new Error('Invalid file: allowed types are PDF, JPG, PNG');
+    }
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
+    const s3Key = `claims/${claimId}/extra/${randomUUID()}.${ext}`;
+    await uploadFile(s3Key, Buffer.from(await file.arrayBuffer()), file.type);
+
+    const { row, doc } = await db.transaction(async (tx: any) => {
+      const [doc] = await tx
+        .insert(documents)
+        .values({
+          userId: adminUserId,
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          s3Key,
+          documentType: 'bav_extra',
+          status: 'completed',
+        })
+        .returning();
+      const [row] = await tx
+        .insert(claimDocuments)
+        .values({ claimId, documentId: doc.id, documentRole: 'bav_extra' })
+        .returning();
+      await tx.insert(auditLogs).values({
+        userId: adminUserId,
+        action: 'claim_extra_document_added',
+        resource: 'claim',
+        resourceId: claimId,
+        details: {
+          claimDocumentId: row.id,
+          documentId: doc.id,
+          fileName: file.name,
+          fileSize: file.size,
+          note: note?.trim() || null,
+        },
+      });
+      return { row, doc };
+    });
+
+    logger.info('Extra document attached to bAV claim', {
+      claimId,
+      documentId: doc.id,
+    });
+    return {
+      id: row.id,
+      claimId,
+      documentId: doc.id,
+      documentRole: 'bav_extra',
+      createdAt: row.createdAt,
+      document: {
+        id: doc.id,
+        fileName: doc.fileName,
+        fileType: doc.fileType,
+        s3Key: doc.s3Key,
+        status: doc.status,
+      },
+    };
+  }
+
+  /** Detaches (and deletes) an ops-attached extra document. */
+  static async removeExtraDocument(
+    claimId: string,
+    claimDocumentId: string,
+    adminUserId: string
+  ): Promise<boolean> {
+    const [link] = await db
+      .select({
+        id: claimDocuments.id,
+        documentId: claimDocuments.documentId,
+        s3Key: documents.s3Key,
+      })
+      .from(claimDocuments)
+      .leftJoin(documents, eq(claimDocuments.documentId, documents.id))
+      .where(
+        and(
+          eq(claimDocuments.id, claimDocumentId),
+          eq(claimDocuments.claimId, claimId),
+          eq(claimDocuments.documentRole, 'bav_extra')
+        )
+      )
+      .limit(1);
+    if (!link) return false;
+    await db.transaction(async (tx: any) => {
+      await tx.delete(claimDocuments).where(eq(claimDocuments.id, link.id));
+      await tx.delete(documents).where(eq(documents.id, link.documentId));
+      await tx.insert(auditLogs).values({
+        userId: adminUserId,
+        action: 'claim_extra_document_removed',
+        resource: 'claim',
+        resourceId: claimId,
+        details: { claimDocumentId: link.id, documentId: link.documentId },
+      });
+    });
+    if (link.s3Key) {
+      await deleteFile(link.s3Key).catch((error: unknown) =>
+        logger.warn('Extra document file not deleted from S3', {
+          claimId,
+          s3Key: link.s3Key,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
+    }
+    return true;
+  }
+
   /**
    * Get workflow history without ownership check (admin only)
    */
@@ -1546,6 +2697,7 @@ export class ClaimsApplicationService {
         processing: 0,
         completed: 0,
         rejected: 0,
+        lawFirm: 0,
       };
 
       for (const row of result) {
@@ -1553,6 +2705,18 @@ export class ClaimsApplicationService {
         stats[status] = row.value;
         stats.total += row.value;
       }
+
+      // Claims handed to the partner firm (past draft), for the queue tile.
+      const [lawFirmRow] = await db
+        .select({ value: count() })
+        .from(claimsTable)
+        .where(
+          and(
+            eq(claimsTable.handlingRoute, 'law_firm'),
+            sql`${claimsTable.status} <> 'draft'`
+          )
+        );
+      stats.lawFirm = lawFirmRow?.value ?? 0;
 
       return stats;
     } catch (error) {

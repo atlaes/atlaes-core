@@ -1,0 +1,84 @@
+{{client_full_name}}
+{{client_address_block}}
+[[IF client_email]]E-Mail: {{client_email}}[[/IF]]
+
+
+{{recipient_name}}
+[[IF recipient_department]]{{recipient_department}}[[/IF]]
+{{recipient_street}}
+{{recipient_postal_code}} {{recipient_city}}
+Deutschland
+
+{{client_city}}, den {{letter_date}}
+[[IF recipient_ref]]Ihr Zeichen: {{recipient_ref}}[[/IF]]
+
+
+Antrag auf Abfindung meiner Kleinstanwartschaft nach § 3 Abs. 2 BetrAVG
+
+Name: {{client_full_name}}, geb. {{client_dob}}
+[[IF employer_personnel_number]]Personalnummer: {{employer_personnel_number}}[[/IF]]
+[[IF contract_reference]]{{contract_reference_label}}: {{contract_reference}}[[/IF]]
+[[IF addressee_type == provider]]Ehemaliger Arbeitgeber: {{employer_name}}[[/IF]]
+
+
+Sehr geehrte Damen und Herren,
+
+mein Arbeitsverhältnis mit {{employer_name}} endete zum {{employment_end_date}}. Aus diesem Arbeitsverhältnis besteht eine unverfallbare Anwartschaft auf Leistungen der betrieblichen Altersversorgung ({{durchfuehrungsweg}}[[IF provider_name]] über {{provider_name}}[[/IF]][[IF contract_reference]], {{contract_reference_label}} {{contract_reference}}[[/IF]]). Ich habe Deutschland zum {{de_departure_date}} dauerhaft verlassen und lebe in {{residence_country}}.
+
+[[IF benefit_form == pension]]Nach der mir vorliegenden {{statement_type}} vom {{statement_date}} beträgt der Monatsbetrag der bei Erreichen der vorgesehenen Altersgrenze zu erwartenden laufenden Leistung {{benefit_amount}} EUR. Die Anwartschaft übersteigt damit nicht die Grenze des § 3 Abs. 2 Satz 1 BetrAVG von 1,5 Prozent der monatlichen Bezugsgröße nach § 18 SGB IV (im Jahr {{letter_year}}: {{threshold_pension}} EUR monatlich).[[/IF]][[IF benefit_form == capital]]Nach der mir vorliegenden {{statement_type}} vom {{statement_date}} beträgt die bei Erreichen der vorgesehenen Altersgrenze zu erwartende Kapitalleistung {{benefit_amount}} EUR. Die Anwartschaft übersteigt damit nicht die Grenze des § 3 Abs. 2 Satz 1 BetrAVG von achtzehn Zehnteln der monatlichen Bezugsgröße nach § 18 SGB IV (im Jahr {{letter_year}}: {{threshold_capital}} EUR).[[/IF]][[IF benefit_form == unknown]]Nach den mir vorliegenden Unterlagen übersteigt die Anwartschaft nicht die Grenze des § 3 Abs. 2 Satz 1 BetrAVG von 1,5 Prozent (laufende Leistung) bzw. achtzehn Zehnteln (Kapitalleistung) der monatlichen Bezugsgröße nach § 18 SGB IV (im Jahr {{letter_year}}: {{threshold_pension}} EUR monatlich bzw. {{threshold_capital}} EUR). Ich bitte um Prüfung und Mitteilung des maßgeblichen Wertes.[[/IF]]
+
+Hiermit beantrage ich, meine Anwartschaft gemäß § 3 Abs. 2 BetrAVG durch einmalige Kapitalzahlung abzufinden. Mit der Abfindung bin ich ausdrücklich einverstanden.
+
+Die Voraussetzungen des § 3 Abs. 2 BetrAVG liegen vor: Mein Arbeitsverhältnis ist beendet, die Anwartschaft liegt unterhalb der gesetzlichen Wertgrenze, ich habe nach Beendigung des Arbeitsverhältnisses kein neues Arbeitsverhältnis in einem anderen Mitgliedstaat der Europäischen Union begründet (§ 3 Abs. 2 Satz 3 BetrAVG) und mache von dem Recht auf Übertragung der Anwartschaft nach § 4 Abs. 3 BetrAVG keinen Gebrauch (§ 3 Abs. 2 Satz 4 BetrAVG).
+
+Mir ist bekannt, dass die Entscheidung über die Abfindung nach § 3 Abs. 2 BetrAVG beim Arbeitgeber liegt. Da ich dauerhaft im Ausland lebe und die Verwaltung einer Kleinstanwartschaft über Jahrzehnte für alle Beteiligten unverhältnismäßig aufwendig wäre, bitte ich um Durchführung der Abfindung.
+
+Die Höhe der Abfindung bemisst sich nach § 3 Abs. 5 i. V. m. § 4 Abs. 5 BetrAVG[[IF durchfuehrungsweg in (Direktversicherung, Pensionskasse, Pensionsfonds)]] und entspricht dem im Zeitpunkt der Abfindung gebildeten Kapital[[/IF]][[IF durchfuehrungsweg in (Direktzusage, Unterstützungskasse)]] und entspricht dem Barwert der nach § 2 BetrAVG bemessenen künftigen Versorgungsleistung[[/IF]]. Die Abfindung ist gesondert auszuweisen und einmalig zu zahlen (§ 3 Abs. 6 BetrAVG). Ich bitte um Übersendung einer nachvollziehbaren Berechnung des Abfindungsbetrages.
+
+[[IF provider_form_enclosed]]Das von Ihnen vorgesehene Antragsformular „{{provider_form_title}}“ habe ich ausgefüllt und unterschrieben beigefügt.[[/IF]]
+
+[[IF addressee_type == provider]]Soweit Sie für die Durchführung der Abfindung die Zustimmung meines ehemaligen Arbeitgebers benötigen, [[IF employer_consent_enclosed]]ist diese beigefügt.[[ELSE]]bitte ich Sie, diese unmittelbar bei {{employer_name}} einzuholen[[IF send_copy]]; {{employer_name}} erhält eine Kopie dieses Schreibens[[/IF]].[[/IF]][[/IF]]
+[[IF addressee_type == employer and provider_name]]Ich bitte Sie, der Abfindung zuzustimmen, diese gegenüber {{provider_name}} freizugeben und die Auszahlung zu veranlassen[[IF send_copy]]; {{provider_name}} erhält eine Kopie dieses Schreibens[[/IF]].[[/IF]]
+
+Bitte überweisen Sie den Abfindungsbetrag auf folgendes Konto:
+Kontoinhaber: {{account_holder}}
+IBAN: {{iban}}
+BIC: {{bic}}
+Bank: {{bank_name}}[[IF bank_address]], {{bank_address}}[[/IF]]
+[[IF account_holder_is_client]]Das Konto lautet auf meinen Namen.[[/IF]]
+
+Steuerliche Hinweise: Ich habe meinen Wohnsitz und gewöhnlichen Aufenthalt seit {{de_departure_date}} in {{residence_country}} und bin in Deutschland nicht unbeschränkt steuerpflichtig. [[IF tax_id]]Meine steuerliche Identifikationsnummer lautet {{tax_id}}.[[ELSE]]Meine steuerliche Identifikationsnummer liegt mir derzeit nicht vor.[[/IF]] Soweit die Abfindung dem Lohnsteuerabzug unterliegt, bitte ich um Prüfung, ob die Voraussetzungen der Tarifermäßigung nach § 34 Abs. 1, Abs. 2 Nr. 4 EStG vorliegen, und um gesonderten Ausweis der Abfindung als Vergütung für eine mehrjährige Tätigkeit in der Lohnsteuerbescheinigung. Bitte übersenden Sie mir nach Auszahlung eine Abrechnung über den Abfindungsbetrag und die einbehaltenen Abzüge sowie die Lohnsteuerbescheinigung bzw. die Leistungsmitteilung nach § 22 Nr. 5 EStG.
+
+Krankenversicherung: Ich bin seit {{de_health_insurance_end_date}} nicht mehr in der deutschen gesetzlichen Krankenversicherung versichert. Beiträge zur gesetzlichen Kranken- und Pflegeversicherung aus dem Abfindungsbetrag (§ 229 SGB V) sind daher nicht einzubehalten[[IF foreign_health_insurance_proof]]; einen Nachweis über meine Krankenversicherung in {{residence_country}} füge ich bei[[/IF]].
+
+Korrespondenz: Da ich im Ausland lebe, bitte ich Sie, sämtliche Korrespondenz in dieser Angelegenheit – insbesondere Eingangsbestätigung, Rückfragen, Ihre Entscheidung über die Abfindung, Abrechnung und die steuerlichen Bescheinigungen – an meine Postempfangsbevollmächtigte zu richten:
+
+Frau Anna Kliem
+Kaskelstraße 46
+10317 Berlin
+Deutschland
+E-Mail: assistenz.kliem@gmail.com
+
+Die Postempfangsvollmacht ist beigefügt. Rückfragen können auch per E-Mail an Frau Kliem gerichtet werden[[IF client_email]] oder direkt an mich ({{client_email}})[[/IF]].
+
+Bitte bestätigen Sie den Eingang dieses Antrags sowie Ihre Entscheidung über die Abfindung und den voraussichtlichen Auszahlungstermin innerhalb von vier Wochen nach Zugang dieses Schreibens. Sollten Sie für die Bearbeitung weitere Unterlagen oder eigene Formulare benötigen, bitte ich um umgehende Mitteilung.
+
+Mit freundlichen Grüßen
+
+
+{{client_signature}}
+{{client_full_name}}
+
+[[IF send_copy]]Kopie an: {{copy_recipient_name}}[[/IF]]
+
+Anlagen
+[[ANLAGEN]]
+[[IF last_statement_enclosed]]{{statement_type}} vom {{statement_date}} (Kopie)[[/IF]]
+Postempfangsvollmacht (Original)
+Kopie Reisepass
+[[IF provider_form_enclosed]]Antragsformular „{{provider_form_title}}“ (ausgefüllt und unterschrieben)[[/IF]]
+[[IF employer_consent_enclosed]]Zustimmungserklärung des ehemaligen Arbeitgebers[[/IF]]
+[[IF employment_end_proof]]Nachweis über die Beendigung des Arbeitsverhältnisses[[/IF]]
+[[IF foreign_health_insurance_proof]]Nachweis der Krankenversicherung in {{residence_country}}[[/IF]]
+[[IF bank_proof]]Nachweis der Bankverbindung[[/IF]]
+[[/ANLAGEN]]

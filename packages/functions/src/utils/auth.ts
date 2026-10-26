@@ -63,6 +63,9 @@ export interface TokenPayload {
   email: string;
   emailVerified: boolean;
   role: string;
+  // Unix seconds the second factor was completed (law-firm portal 2FA).
+  // Kept across refreshes; the portal guard checks its age.
+  mfa?: number;
   iat?: number;
   exp?: number;
 }
@@ -174,6 +177,7 @@ export class AuthService {
         email: payload.email,
         emailVerified: payload.emailVerified,
         role: payload.role || 'user',
+        ...(typeof payload.mfa === 'number' ? { mfa: payload.mfa } : {}),
       };
 
       return jwt.sign(newAccessTokenPayload, getJwtSecret(), {
@@ -201,6 +205,7 @@ export class AuthService {
         email: payload.email,
         emailVerified: payload.emailVerified,
         role: payload.role || 'user',
+        ...(typeof payload.mfa === 'number' ? { mfa: payload.mfa } : {}),
       };
 
       const accessToken = jwt.sign(newAccessTokenPayload, getJwtSecret(), {
@@ -212,6 +217,7 @@ export class AuthService {
         email: payload.email,
         emailVerified: payload.emailVerified,
         role: payload.role || 'user',
+        ...(typeof payload.mfa === 'number' ? { mfa: payload.mfa } : {}),
       };
 
       const newRefreshToken = jwt.sign(refreshTokenPayload, getJwtSecret(), {

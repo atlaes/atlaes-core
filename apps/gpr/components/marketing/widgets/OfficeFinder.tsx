@@ -1,0 +1,367 @@
+'use client';
+
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
+import {
+  CARRIERS,
+  COUNTRY_OPTIONS,
+  FEATURED_COUNTRY_CODES,
+  REGIONAL_CARRIER_KEYS,
+} from '@/content/offices';
+import { FUNNEL_ENTRY } from '@/content/registries/links';
+import { Pill } from '../ui/Pill';
+import {
+  findOffice,
+  resolveWithoutNumber,
+  type LastOffice,
+  type OfficeFinderResult,
+} from './office-routing';
+import {
+  previewRoute,
+  resultRoute,
+  resultStep,
+  type RouteState,
+} from './office-route';
+import { motionAllowed } from '../motion/flag';
+import { MOTION } from '../motion/tokens';
+import './widgets.css';
+import './widgets-motion.css';
+
+/** Short names of the six rules, in evaluation order (office-routing.ts). */
+const ROUTE_LABELS = [
+  'Knappschaft-Bahn-See',
+  'DRV Bund',
+  'Citizenship liaison office',
+  'Residence liaison office',
+  'Regional carrier',
+  'No match',
+];
+/** Figma 3C: first node lights at 100ms, then one every 120ms… */
+const ROUTE_START_MS = 100;
+const ROUTE_STEP_MS = 120;
+/** …and the card ring lands 140ms after the last node (720ms for 4). */
+const ROUTE_RING_GAP_MS = 140;
+
+/**
+ * Visual route through the six rules (decorative; the result panel states
+ * the office and the reason). Lights up as answers are given, stops at
+ * the matching rule.
+ */
+function Route({
+  states,
+  mode,
+}: {
+  states: RouteState[];
+  mode: 'preview' | 'result';
+}) {
+  return (
+    <ol className="mk-route" data-mode={mode} aria-hidden="true">
+      {ROUTE_LABELS.map((label, i) => (
+        <li
+          key={label}
+          className={'mk-route-step is-' + states[i]}
+          style={{ '--i': i } as CSSProperties}
+        >
+          <span className="mk-route-dot" />
+          <span className="mk-route-label">{label}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+const T = {
+  heading: 'Where do I send my refund application?',
+  intro:
+    'Find the recommended first pension office (Verbindungsstelle) for your claim.',
+  lastOffice: 'Which pension office was last in charge of you in Germany?',
+  lastOfficeHint:
+    'Shown on your Versicherungsverlauf or any DRV letter. Important: if you EVER paid even one contribution to Knappschaft-Bahn-See, select it here — it stays responsible. Not sure? Choose "I don’t know" and we’ll use your insurance number instead.',
+  select: 'Select…',
+  unknown: 'I don’t know',
+  bund: 'DRV Bund (Berlin)',
+  kbs: 'DRV Knappschaft-Bahn-See (any contribution, ever)',
+  citizenship: 'Your citizenship',
+  residence: 'Country you currently live in',
+  prefix:
+    'First two digits of your German insurance number (Versicherungsnummer)',
+  prefixHint:
+    'Found on your payslips (SVNR), your social insurance card, or any DRV letter. Example: 13 160894 M 123 → enter 13.',
+  prefixPlaceholder: 'e.g. 13',
+  noNumber: 'I don’t know my insurance number',
+  find: 'Find my pension office',
+  reset: '← Start over',
+  resultTitle: 'Your recommended first office:',
+  noMatchTitle: 'We couldn’t determine your office automatically',
+  ctaTitle: 'Or let us prepare and route it for you',
+  ctaBody:
+    'We prepare everything with you — filing is handled by our German partner law firm. Leave your details and your next steps arrive by email.',
+  ctaButton: 'Claim my refund',
+  footnote:
+    'Based on Deutsche Rentenversicherung’s official liaison-office (Verbindungsstelle) assignments and the official insurance-number ranges. The result is a recommended first office, not a determination of legal responsibility — where several country connections exist, more than one liaison office can be relevant, and the receiving office forwards your application with the date preserved if another office is responsible. Forwarding can add time. Not legal advice.',
+};
+
+const SEPARATOR = '──────────────';
+
+function CountrySelect({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const featured = FEATURED_COUNTRY_CODES.map(
+    (code) => COUNTRY_OPTIONS.filter((c) => c.code === code)[0]
+  ).filter(Boolean);
+  return (
+    <div className="mk-field">
+      <label htmlFor={id}>{label}</label>
+      <select
+        id={id}
+        className="mk-select"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="" disabled>
+          {T.select}
+        </option>
+        {featured.map((c) => (
+          <option key={'f-' + c.code} value={c.code}>
+            {c.name}
+          </option>
+        ))}
+        <option disabled>{SEPARATOR}</option>
+        {COUNTRY_OPTIONS.map((c) => (
+          <option key={c.code} value={c.code}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/**
+ * Native office finder: latest office (incl. "I don't know"), citizenship,
+ * residence and — when needed — the first two digits of the insurance number
+ * (with an "I don't know my number" path). Rules in `office-routing.ts`,
+ * data in `content/offices.ts`. Every result is a "recommended first office"
+ * with its verified address.
+ */
+export function OfficeFinder({ as = 'h2' }: { as?: 'h2' | 'h3' }) {
+  const id = useId();
+  const [lastOffice, setLastOffice] = useState<'' | LastOffice>('');
+  const [citizenship, setCitizenship] = useState('');
+  const [residence, setResidence] = useState('');
+  const [prefix, setPrefix] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<OfficeFinderResult | null>(null);
+  const [noNumber, setNoNumber] = useState(false);
+  const Heading = as;
+
+  function show(r: OfficeFinderResult, viaNoNumber = false) {
+    if (r.kind === 'error') {
+      setError(r.message);
+      return;
+    }
+    setError(null);
+    setNoNumber(viaNoNumber);
+    setResult(r);
+  }
+
+  const parsedPrefix = prefix.trim() === '' ? null : parseInt(prefix, 10);
+  const routeInput = {
+    lastOffice,
+    citizenship,
+    residence,
+    prefix: parsedPrefix,
+  };
+  const step = result ? resultStep(routeInput, result) : null;
+  const routeStates = result
+    ? resultRoute(step, noNumber)
+    : previewRoute(routeInput);
+  const ringDelay =
+    ROUTE_START_MS +
+    (step === null ? 0 : step + 1) * ROUTE_STEP_MS +
+    ROUTE_RING_GAP_MS;
+  const cardDelay = {
+    '--mk-route-delay': ringDelay + 'ms',
+  } as CSSProperties;
+
+  // Figma 3C: once the ring has landed, keyboard focus moves to the card
+  // heading (always — at once when motion is off).
+  const resultHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (!result) return;
+    const wait = motionAllowed() ? ringDelay + MOTION.quick : 0;
+    const t = window.setTimeout(() => {
+      if (resultHeading.current) resultHeading.current.focus();
+    }, wait);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+
+  function reset() {
+    setLastOffice('');
+    setCitizenship('');
+    setResidence('');
+    setPrefix('');
+    setError(null);
+    setResult(null);
+    setNoNumber(false);
+  }
+
+  const ctaHref = FUNNEL_ENTRY + '?via=office-finder';
+
+  return (
+    <section className="mk-widget mk-widget-office" aria-label={T.heading}>
+      <div className="mk-widget-head">
+        <Heading>{T.heading}</Heading>
+        <p>{T.intro}</p>
+      </div>
+      <div className="mk-widget-body">
+        {/* Figma 3C: no route next to a no-match warning */}
+        {!result || result.kind === 'office' ? (
+          <Route states={routeStates} mode={result ? 'result' : 'preview'} />
+        ) : null}
+        {!result ? (
+          <form
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault();
+              show(
+                findOffice({
+                  lastOffice: lastOffice as LastOffice,
+                  citizenship,
+                  residence,
+                  prefix: parsedPrefix,
+                })
+              );
+            }}
+          >
+            <div className="mk-field">
+              <label htmlFor={id + '-lo'}>{T.lastOffice}</label>
+              <select
+                id={id + '-lo'}
+                className="mk-select"
+                value={lastOffice}
+                onChange={(e) => setLastOffice(e.target.value as LastOffice)}
+              >
+                <option value="" disabled>
+                  {T.select}
+                </option>
+                <option value="UNKNOWN">{T.unknown}</option>
+                <option value="BUND">{T.bund}</option>
+                <option value="KBS">{T.kbs}</option>
+                {REGIONAL_CARRIER_KEYS.map((k) => (
+                  <option key={k} value={k}>
+                    {CARRIERS[k].name}
+                  </option>
+                ))}
+              </select>
+              <p className="mk-hint">{T.lastOfficeHint}</p>
+            </div>
+            <CountrySelect
+              id={id + '-cit'}
+              label={T.citizenship}
+              value={citizenship}
+              onChange={setCitizenship}
+            />
+            <CountrySelect
+              id={id + '-res'}
+              label={T.residence}
+              value={residence}
+              onChange={setResidence}
+            />
+            {lastOffice === 'UNKNOWN' ? (
+              <div className="mk-field">
+                <label htmlFor={id + '-prefix'}>{T.prefix}</label>
+                <input
+                  id={id + '-prefix'}
+                  className="mk-input"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={99}
+                  placeholder={T.prefixPlaceholder}
+                  value={prefix}
+                  onChange={(e) => setPrefix(e.target.value)}
+                />
+                <p className="mk-hint">{T.prefixHint}</p>
+                <button
+                  type="button"
+                  className="mk-btn-link"
+                  onClick={() =>
+                    show(resolveWithoutNumber(citizenship, residence), true)
+                  }
+                >
+                  {T.noNumber}
+                </button>
+              </div>
+            ) : null}
+            <button type="submit" className="mk-btn">
+              {T.find}
+            </button>
+            {error ? (
+              <p className="mk-error" role="alert">
+                {error}
+              </p>
+            ) : null}
+          </form>
+        ) : result.kind === 'office' ? (
+          <div
+            className="mk-verdict mk-verdict-ok mk-route-card"
+            role="status"
+            style={cardDelay}
+          >
+            <h3 ref={resultHeading} tabIndex={-1}>
+              {T.resultTitle}
+            </h3>
+            <p className="mk-verdict-big">{result.name}</p>
+            <p className="mk-verdict-address">{result.address}</p>
+            <p>{result.reason}</p>
+            {result.caveats.length ? (
+              <ul className="mk-verdict-notes">
+                {result.caveats.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+            ) : null}
+            <div className="mk-verdict-cta">
+              <h3>{T.ctaTitle}</h3>
+              <p>{T.ctaBody}</p>
+              <Pill href={ctaHref}>{T.ctaButton}</Pill>
+            </div>
+            <button type="button" className="mk-btn-link" onClick={reset}>
+              {T.reset}
+            </button>
+          </div>
+        ) : (
+          <div
+            className="mk-verdict mk-verdict-warn mk-route-card"
+            role="status"
+            style={cardDelay}
+          >
+            <h3 ref={resultHeading} tabIndex={-1}>
+              {T.noMatchTitle}
+            </h3>
+            <p>{result.message}</p>
+            <button type="button" className="mk-btn-link" onClick={reset}>
+              {T.reset}
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="mk-widget-foot">{T.footnote}</div>
+    </section>
+  );
+}

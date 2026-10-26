@@ -1,9 +1,4 @@
-import { Context, Next } from 'hono';
+import { requireRole } from './roles';
 
-export const adminMiddleware = async (c: Context, next: Next) => {
-  const user = c.get('user');
-  if (!user || user.role !== 'admin') {
-    return c.json({ error: 'Forbidden: admin access required' }, 403);
-  }
-  await next();
-};
+// Kept as a named export for existing routes; new routes use requireRole.
+export const adminMiddleware = requireRole('admin');

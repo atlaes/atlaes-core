@@ -790,25 +790,68 @@ export class VBLCalculationService {
     // same as public sector. The scheme is national but the BBG cap is regional.
     const isWest = westStates.includes(period.state);
 
+    // The pickers reach back to 1960 but the table starts in 1975 (the
+    // earliest year in Calculator.md), so earlier years use the earliest
+    // year in the table instead of contributing nothing.
+    const tableYears = Object.keys(years)
+      .map(Number)
+      .filter(Number.isFinite);
+    const earliestYear = tableYears.length ? Math.min(...tableYears) : null;
+
     let sum = 0;
     for (let year = startYear; year <= endYear; year++) {
       const segStart = year === startYear ? startMonth : 0;
       const segEnd = year === endYear ? endMonth : 11;
-      const months = segEnd - segStart + 1;
-      if (months <= 0) continue;
+      if (segEnd < segStart) continue;
 
-      const yearCfg = years[String(year)] || {};
-      const cap = isWest ? yearCfg.westCap : yearCfg.eastCap;
-      const rates = yearCfg.rates || {};
+      const yearCfg =
+        years[String(year)] ||
+        (earliestYear !== null && year < earliestYear
+          ? years[String(earliestYear)]
+          : null) ||
+        {};
 
-      if (cap && rates) {
-        const cappedGross = Math.min(period.grossMonthlySalary, cap);
-        const rate = rates[pensionType] ?? 0;
-        sum += months * cappedGross * rate;
+      // Some years change rate or cap mid-year (e.g. April 1991):
+      // `fromMonth` maps a 1-based month to the values that apply from that
+      // month on, so each month is priced on its own.
+      for (let month = segStart; month <= segEnd; month++) {
+        const cfg = this.yearConfigForMonth(yearCfg, month + 1);
+        // No separate East cap: before 1990 (none existed) and from 2025
+        // (caps unified), the West cap applies.
+        const cap = isWest ? cfg.westCap : (cfg.eastCap ?? cfg.westCap);
+        const rate = cfg.rates?.[pensionType] ?? 0;
+        if (cap && rate) {
+          sum += Math.min(period.grossMonthlySalary, cap) * rate;
+        }
       }
     }
 
     return sum;
+  }
+
+  private static yearConfigForMonth(
+    yearCfg: Record<string, any>,
+    month: number
+  ): {
+    westCap?: number;
+    eastCap?: number | null;
+    rates?: Record<string, number>;
+  } {
+    const result = {
+      westCap: yearCfg.westCap,
+      eastCap: yearCfg.eastCap,
+      rates: { ...(yearCfg.rates || {}) },
+    };
+    const changes = Object.entries(yearCfg.fromMonth || {})
+      .map(([from, values]) => [Number(from), values as Record<string, any>] as const)
+      .filter(([from]) => from <= month)
+      .sort(([a], [b]) => a - b);
+    for (const [, values] of changes) {
+      if (values.westCap !== undefined) result.westCap = values.westCap;
+      if (values.eastCap !== undefined) result.eastCap = values.eastCap;
+      Object.assign(result.rates, values.rates || {});
+    }
+    return result;
   }
 
 

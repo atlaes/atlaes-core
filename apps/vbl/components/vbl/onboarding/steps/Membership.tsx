@@ -46,8 +46,8 @@ export const Membership: React.FC<MembershipProps> = ({
   // still REQUIRED, just relabeled.
   const isPrivatePensionType = data.pensionType === 'private';
 
-  // Stage / orchestra (VddB, VddKO) needs membership number plus an extended
-  // employment details form on the same step.
+  // Stage / orchestra (VddB, VddKO) needs the membership number (screen 1)
+  // plus an extended employment details form over two screens.
   const isStageProvider =
     data.membership.pensionProvider === 'VddB' ||
     data.membership.pensionProvider === 'VddKO';
@@ -62,7 +62,10 @@ export const Membership: React.FC<MembershipProps> = ({
 
   const s = data.membership.stageDetails;
 
+  // Stage screen 1 also takes the VddB/VddKO membership number: the
+  // institution knows the claimant by it (stored as the claim's svNummer).
   const screen1Valid =
+    data.membership.membershipNumber.trim() !== '' &&
     s.stageName.trim() !== '' &&
     s.rolePosition.trim() !== '' &&
     s.employmentEndDate !== '';
@@ -239,12 +242,16 @@ export const Membership: React.FC<MembershipProps> = ({
           </div>
         )}
 
-        {!isStageProvider && (
+        {!isStageScreen2 && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="membership-reference"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               {membershipNumberLabel}
             </label>
             <input
+              id="membership-reference"
               type="text"
               name="membership-reference"
               autoComplete="off"

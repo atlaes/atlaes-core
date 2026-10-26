@@ -13,24 +13,25 @@ import {
   Clock,
   FileText,
   Info,
-  Loader2,
   MessageCircle,
   Pencil,
   Upload,
   X,
 } from 'lucide-react';
 import apiClient from '../../lib/api';
+import { yearOptions } from '../../lib/year-options';
 import { createPendingCalculatorSession } from '../../lib/vbl-pending-calculator-sessions-api';
+import {
+  monthIndexToIsoDate,
+  setVblReminder,
+} from '../../lib/vbl-reminders-api';
 import {
   extractPensionDocument,
   PensionDocumentExtractionDetails,
   PensionDocumentType,
 } from '../../lib/vbl-pension-document-extraction-api';
 import { CompanyPensionLogo } from './icons/CompanyPensionLogo';
-import {
-  PUBLIC_FEDERAL_STATES,
-  PUBLIC_PENSION_PROVIDERS_BY_STATE,
-} from './company-pension-providers';
+import { PUBLIC_FEDERAL_STATES } from './company-pension-providers';
 
 type PensionType = 'public' | 'stage' | '';
 type EntryMethod = 'manual' | 'upload' | '';
@@ -43,6 +44,7 @@ type YesNo = 'yes' | 'no' | '';
 type CalculatorScreen =
   | 'pension-type'
   | 'entry-method'
+  | 'upload'
   | 'upload-review'
   | 'federal-state'
   | 'provider'
@@ -204,15 +206,16 @@ const getUploadFederalStates = (pensionType: PensionType) =>
     ? ['Berlin', ...ALL_FEDERAL_STATES]
     : ['Berlin', ...PUBLIC_FEDERAL_STATES, ...EAST_STATES];
 
-const getProviderOptions = (form: ManualFormData) =>
-  form.pensionType === 'stage'
-    ? ['VddB', 'VddKO']
-    : (PUBLIC_PENSION_PROVIDERS_BY_STATE[form.federalState] ?? ['VBL']);
+// Figma 1428:2110 ("Select your company pension"): the public dropdown always
+// offers VBL and ZVK, on both the manual and the upload-review path. The
+// state-specific institution names (e.g. 'ZVK (KVBW)') belong to the
+// onboarding membership step, not to the estimate.
+const PUBLIC_PROVIDER_OPTIONS: PublicProvider[] = ['VBL', 'ZVK'];
 
-const YEARS = Array.from(
-  { length: new Date().getFullYear() - 2004 + 1 },
-  (_, index) => String(2004 + index)
-).reverse();
+const getProviderOptions = (form: ManualFormData) =>
+  form.pensionType === 'stage' ? ['VddB', 'VddKO'] : PUBLIC_PROVIDER_OPTIONS;
+
+const YEARS = yearOptions();
 
 const INITIAL_FORM_DATA: ManualFormData = {
   pensionType: '',
@@ -240,6 +243,102 @@ const monthToNumber = (month: string) =>
   String(MONTHS.indexOf(month) + 1).padStart(2, '0');
 
 // Everything from the estimate onwards belongs to the last sidebar step.
+// Copy for the dedicated upload step (Figma "Upload screen for VBL/ZVK"
+// 1428:1295 and "Upload screen for VddB/VddKO" 1428:1395).
+const getUploadScreenTitle = (pensionType: PensionType) =>
+  pensionType === 'stage'
+    ? 'Upload your VddB/VddKO document'
+    : 'Upload your VBL/ZVK document';
+
+const getUploadScreenSubtitle = (pensionType: PensionType) =>
+  pensionType === 'stage'
+    ? 'Upload a VddB, VddKO, Bühnenversorgung or Kulturorchester document so we can pre-fill details for your estimate.'
+    : 'Upload a VBL or ZVK letter, statement or pension document so we can pre-fill details for your estimate.';
+
+// Screens the approved design draws under the four-step onboarding header
+// instead of the calculator's own three-step sidebar. Everything from the
+// post-estimate questionnaire onward sits in the "Check" stage of the wider
+// claim journey (Figma 1858:1682, 1858:1868, 1858:1991, 2073:11191 and the
+// waiting/reminder/stopped frames).
+const ONBOARDING_HEADER_SCREENS: CalculatorScreen[] = [
+  'stage-post2018',
+  'stage-post2001',
+  'eligibility-questions',
+  'ready',
+  'waiting',
+  'not-startable',
+  'blocked',
+  'vested',
+];
+
+const CALCULATOR_JOURNEY_STEPS = [
+  'Check',
+  'Secure Claim',
+  'Complete Details',
+  'Sign & Submit',
+];
+
+// The calculator only ever occupies step 1; the later steps belong to the
+// onboarding flow it hands off to.
+const CalculatorJourneyHeader: React.FC = () => (
+  <div
+    className="rounded-[18px] px-8 pt-6 pb-5"
+    style={{ backgroundColor: '#163300' }}
+    data-testid="calculator-journey-header"
+  >
+    <div className="mb-6 flex items-center justify-center gap-3">
+      <CompanyPensionLogo className="h-auto w-[220px]" />
+    </div>
+    <div className="mb-6 h-px w-full bg-white/20" />
+    <div className="flex items-center justify-center">
+      {CALCULATOR_JOURNEY_STEPS.map((label, index) => {
+        const isActive = index === 0;
+        return (
+          <React.Fragment key={label}>
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-2">
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
+                    isActive
+                      ? 'bg-[#9FE870] text-[#163300]'
+                      : 'border-2 border-white/70 text-white'
+                  }`}
+                >
+                  {index + 1}
+                </div>
+                <span
+                  className={`text-sm font-medium ${
+                    isActive ? 'text-[#9FE870]' : 'text-white'
+                  }`}
+                >
+                  {label}
+                </span>
+              </div>
+              <div className="mt-3">
+                {isActive ? (
+                  <div
+                    className="h-0 w-0"
+                    style={{
+                      borderLeft: '8px solid transparent',
+                      borderRight: '8px solid transparent',
+                      borderBottom: '8px solid white',
+                    }}
+                  />
+                ) : (
+                  <div className="h-2" />
+                )}
+              </div>
+            </div>
+            {index < CALCULATOR_JOURNEY_STEPS.length - 1 && (
+              <div className="mx-4 mb-3 h-0.5 w-20 bg-white/50" />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  </div>
+);
+
 const ESTIMATE_SECTION_SCREENS: CalculatorScreen[] = [
   'result',
   'eligibility-questions',
@@ -886,6 +985,28 @@ export const ManualVBLCalculator: React.FC = () => {
     'initial' | 'form' | 'set'
   >('initial');
   const [reminderEmail, setReminderEmail] = React.useState('');
+  const [reminderSaving, setReminderSaving] = React.useState(false);
+  const [reminderError, setReminderError] = React.useState<string | null>(null);
+
+  const submitReminder = async () => {
+    setReminderSaving(true);
+    setReminderError(null);
+    try {
+      await setVblReminder({
+        email: reminderEmail.trim(),
+        eligibleOn: monthIndexToIsoDate(getEmploymentEndIndex(form) + 24),
+        source: 'calculator',
+        pensionProvider: form.stageProvider || undefined,
+      });
+      setReminderStep('set');
+    } catch {
+      setReminderError(
+        'We could not save your reminder. Please check your email address and try again.'
+      );
+    } finally {
+      setReminderSaving(false);
+    }
+  };
 
   const updateForm = (updates: Partial<ManualFormData>) => {
     setForm((previous) => ({ ...previous, ...updates }));
@@ -962,7 +1083,8 @@ export const ManualVBLCalculator: React.FC = () => {
 
   const goBack = () => {
     if (screen === 'entry-method') setScreen('pension-type');
-    else if (screen === 'upload-review') setScreen('entry-method');
+    else if (screen === 'upload') setScreen('entry-method');
+    else if (screen === 'upload-review') setScreen('upload');
     else if (screen === 'federal-state') setScreen('entry-method');
     else if (screen === 'provider') setScreen('federal-state');
     else if (screen === 'period') setScreen('provider');
@@ -1082,10 +1204,12 @@ export const ManualVBLCalculator: React.FC = () => {
       setScreen('entry-method');
     } else if (screen === 'entry-method') {
       if (form.entryMethod === 'upload') {
-        void extractSelectedUpload();
+        setScreen('upload');
       } else {
         setScreen('federal-state');
       }
+    } else if (screen === 'upload') {
+      void extractSelectedUpload();
     } else if (screen === 'upload-review') {
       if (form.vblPlan === 'VBLextra') {
         setScreen('vested');
@@ -1169,6 +1293,7 @@ export const ManualVBLCalculator: React.FC = () => {
   const canContinue =
     (screen === 'pension-type' && form.pensionType !== '') ||
     (screen === 'entry-method' && form.entryMethod !== '') ||
+    (screen === 'upload' && selectedUploadFile !== null) ||
     (screen === 'upload-review' &&
       getSelectedProvider(form) !== '' &&
       // Extraction can return VBL without a plan; without this the VBLextra
@@ -1199,8 +1324,11 @@ export const ManualVBLCalculator: React.FC = () => {
     calculation?.totalAmount ??
     calculation?.baseRefundAmount ??
     0;
-  const showSidebar =
-    screen !== 'stage-post2018' && screen !== 'stage-post2001';
+  // From the post-estimate questionnaire onward the design swaps the
+  // calculator sidebar for the four-step journey header; the estimate itself
+  // and everything before it keep the sidebar.
+  const showJourneyHeader = ONBOARDING_HEADER_SCREENS.includes(screen);
+  const showSidebar = !showJourneyHeader;
 
   return (
     <div
@@ -1211,16 +1339,13 @@ export const ManualVBLCalculator: React.FC = () => {
       }}
     >
       <div
-        className={`flex min-h-[calc(100vh-24px)] md:min-h-[calc(100vh-32px)] ${
-          showSidebar ? 'gap-4' : ''
+        className={`flex min-h-[calc(100vh-24px)] gap-4 md:min-h-[calc(100vh-32px)] ${
+          showJourneyHeader ? 'flex-col' : ''
         }`}
       >
         {showSidebar && <CalculatorSidebar screen={screen} />}
-        <main
-          className={`flex rounded-[18px] bg-white p-6 shadow-lg md:p-10 ${
-            showSidebar ? 'flex-1' : 'w-full'
-          }`}
-        >
+        {showJourneyHeader && <CalculatorJourneyHeader />}
+        <main className="flex flex-1 rounded-[18px] bg-white p-6 shadow-lg md:p-10">
           <div className="flex min-h-full w-full items-start justify-center pt-8 md:pt-12">
             {screen === 'pension-type' && (
               <FormShell
@@ -1288,29 +1413,20 @@ export const ManualVBLCalculator: React.FC = () => {
               <FormShell
                 title="Upload a pension document or enter details manually"
                 subtitle="Upload your pension statement for a faster estimate, or answer a few questions yourself."
-                canContinue={canContinue && !isExtracting}
+                canContinue={canContinue}
                 onBack={goBack}
                 onContinue={handleContinue}
-                continueText={isExtracting ? 'Reading document' : 'Continue'}
               >
                 <div className="space-y-4">
                   <CardButton
                     selected={form.entryMethod === 'upload'}
-                    icon={
-                      isExtracting ? (
-                        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-                      ) : (
-                        <Upload className="h-8 w-8 text-gray-400" />
-                      )
-                    }
+                    icon={<Upload className="h-8 w-8 text-gray-400" />}
                     title="Upload document"
                     description="Use your pension document to pre-fill details for the estimate."
                     onClick={() => {
                       updateForm({ entryMethod: 'upload' });
                       setExtractionError('');
-                      uploadInputRef.current?.click();
                     }}
-                    disabled={isExtracting}
                     testId="entry-method-card"
                   />
                   <CardButton
@@ -1336,6 +1452,52 @@ export const ManualVBLCalculator: React.FC = () => {
                     }}
                     testId="entry-method-card"
                   />
+                  <div className="flex items-start gap-2 px-1 text-center text-sm leading-5 text-gray-600">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                    <p>
+                      You can upload only the relevant page and hide details
+                      that are not needed for this check. If you continue with a
+                      refund request, the document can be carried into your
+                      secure claim.
+                    </p>
+                  </div>
+                </div>
+              </FormShell>
+            )}
+
+            {screen === 'upload' && (
+              <FormShell
+                title={getUploadScreenTitle(form.pensionType)}
+                subtitle={getUploadScreenSubtitle(form.pensionType)}
+                canContinue={canContinue && !isExtracting}
+                onBack={goBack}
+                onContinue={handleContinue}
+                continueText={isExtracting ? 'Reading document' : 'Continue'}
+              >
+                <div className="space-y-4">
+                  <button
+                    type="button"
+                    data-testid="calculator-upload-dropzone"
+                    onClick={() => uploadInputRef.current?.click()}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const file = event.dataTransfer.files?.[0];
+                      if (!file) return;
+                      setSelectedUploadFile(file);
+                      setExtractionError('');
+                    }}
+                    disabled={isExtracting}
+                    className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-[#D7DCE8] bg-white px-6 py-10 text-center transition hover:border-[#9FE870] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Upload className="h-8 w-8 text-gray-400" />
+                    <span className="font-semibold text-[#163300]">
+                      Drag and drop your file here or browse
+                    </span>
+                    <span className="text-sm text-gray-600">
+                      Accepted formats: PDF, JPG, PNG
+                    </span>
+                  </button>
                   <input
                     ref={uploadInputRef}
                     name="pensionDocument"
@@ -1364,9 +1526,7 @@ export const ManualVBLCalculator: React.FC = () => {
                     <Info className="mt-0.5 h-4 w-4 shrink-0" />
                     <p>
                       You can upload only the relevant page and hide details
-                      that are not needed for this check. If you continue with a
-                      refund request, the document can be carried into your
-                      secure claim.
+                      that are not needed for this check.
                     </p>
                   </div>
                 </div>
@@ -1430,13 +1590,7 @@ export const ManualVBLCalculator: React.FC = () => {
                   <SelectField
                     label="German federal state"
                     value={form.federalState}
-                    onChange={(value) =>
-                      updateForm({
-                        federalState: value,
-                        publicProvider: '',
-                        vblPlan: '',
-                      })
-                    }
+                    onChange={(value) => updateForm({ federalState: value })}
                     options={getUploadFederalStates(form.pensionType)}
                     placeholder="Select federal state"
                   />
@@ -1557,13 +1711,7 @@ export const ManualVBLCalculator: React.FC = () => {
                 <SelectField
                   label="Employer’s federal state"
                   value={form.federalState}
-                  onChange={(value) =>
-                    updateForm({
-                      federalState: value,
-                      publicProvider: '',
-                      vblPlan: '',
-                    })
-                  }
+                  onChange={(value) => updateForm({ federalState: value })}
                   options={getFederalStateOptions(form.pensionType)}
                   placeholder="Select federal state"
                 />
@@ -2003,13 +2151,22 @@ export const ManualVBLCalculator: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => setReminderStep('set')}
-                  disabled={!reminderEmail}
+                  onClick={submitReminder}
+                  disabled={!reminderEmail || reminderSaving}
+                  aria-busy={reminderSaving}
                   className="flex h-12 w-full max-w-[400px] items-center justify-center gap-2 rounded-md bg-[#9FE870] font-semibold text-[#163300] shadow-md transition hover:bg-[#8AD860] disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  Set reminder
+                  {reminderSaving ? 'Saving…' : 'Set reminder'}
                   <ArrowRight className="h-5 w-5" />
                 </button>
+                {reminderError && (
+                  <p
+                    role="alert"
+                    className="mt-3 max-w-[400px] text-sm text-red-600"
+                  >
+                    {reminderError}
+                  </p>
+                )}
                 <p className="mt-4 max-w-[430px] text-sm italic leading-5 text-[#6B7280]">
                   We&apos;ll send you an email reminder when you can start your
                   refund.

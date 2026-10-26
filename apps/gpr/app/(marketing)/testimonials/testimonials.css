@@ -1,0 +1,81 @@
+/* ---- /testimonials (Figma 765:9456) ---- */
+
+/* hero: deco glyph on the left, as in the frame */
+.mk-testi-hero .mk-core-deco-hero {
+  right: auto;
+  left: -99px;
+  top: 27px;
+}
+
+/* rating card (765:9463) */
+.mk-testi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--mk-stroke);
+}
+.mk-testi-card > * {
+  margin: 0;
+}
+.mk-testi-quote {
+  margin-bottom: 12px;
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--mk-blue);
+  opacity: 0.3;
+}
+.mk-testi-score {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.mk-testi-figure {
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1.92px;
+  color: var(--mk-navy);
+}
+.mk-testi-stars {
+  font-size: 26px;
+  line-height: 1;
+  color: var(--mk-star);
+}
+.mk-testi-sentence {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--mk-body);
+}
+.mk-testi-awards {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.48px;
+  color: var(--mk-navy);
+}
+.mk .mk-testi-link {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mk-navy);
+}
+@media (min-width: 768px) {
+  .mk-testi-card {
+    padding: 32px;
+  }
+  .mk-testi-quote,
+  .mk-testi-figure {
+    font-size: 64px;
+  }
+}
+
+/* what clients tell us */
+.mk-testi-what .mk-p {
+  color: var(--mk-ink);
+}
+.mk-testi-what .mk-review-grid {
+  margin-top: 8px;
+}

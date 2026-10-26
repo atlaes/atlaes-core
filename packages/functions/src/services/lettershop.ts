@@ -54,13 +54,74 @@ export class LettershopService {
    * Unlike the retired SFTP filecode, this carries no print parameters —
    * those live in `specification` now — so it needs no 13-digit prefix.
    */
-  static buildOriginalFilename(claimId: string): string {
-    return `vbl-claim-${claimId}-${Date.now()}.pdf`;
+  static buildOriginalFilename(claimId: string, label?: string): string {
+    return `vbl-claim-${claimId}${label ? `-${label}` : ''}-${Date.now()}.pdf`;
   }
 
   /** True when both halves of the API credential pair are present. */
   private static hasCredentials(): boolean {
     return !!(env.LETTERSHOP_API_KEY && env.LETTERSHOP_API_SECRET);
+  }
+
+  /**
+   * Deletes a print job that is still parked in the vendor's shopping cart
+   * (auth.mode 'test'), via DELETE /v1/printjobs/{id} with the same `auth`
+   * block every request carries. Used by the staging e2e cleanup, which
+   * must not leave test jobs behind (they would otherwise sit in the
+   * Warenkorb for 7 days).
+   *
+   * Never throws: returns `{ deleted: false, reason }` when delivery is off
+   * or unconfigured, or when the vendor refuses, so the caller can hand the
+   * job id to ops for manual deletion in the Kundencenter.
+   */
+  static async deleteTestPrintjob(
+    printjobId: string
+  ): Promise<{ deleted: boolean; reason?: string }> {
+    const mode = env.LETTERSHOP_MODE;
+    if (mode !== 'test') {
+      // Only cart (test) jobs are ours to delete; a live job is a real letter.
+      return { deleted: false, reason: `lettershop mode is '${mode}'` };
+    }
+    if (!this.hasCredentials()) {
+      return { deleted: false, reason: 'lettershop credentials missing' };
+    }
+    if (!/^\d+$/.test(printjobId)) {
+      return { deleted: false, reason: 'not a numeric printjob id' };
+    }
+
+    try {
+      const response = await fetch(
+        `${env.LETTERSHOP_API_BASE_URL}/printjobs/${printjobId}`,
+        {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+          body: JSON.stringify({
+            auth: {
+              apiKey: env.LETTERSHOP_API_KEY,
+              apiSecret: env.LETTERSHOP_API_SECRET,
+              mode,
+            },
+          }),
+        }
+      );
+      const body = (await response
+        .json()
+        .catch(() => null)) as PrintjobResponse | null;
+      if (!response.ok || (body?.status !== undefined && body.status !== 200)) {
+        return {
+          deleted: false,
+          reason: `vendor answered HTTP ${response.status}: ${body?.message ?? 'no message'}`,
+        };
+      }
+      logger.info('Lettershop test print job deleted', { printjobId });
+      return { deleted: true };
+    } catch (error) {
+      return {
+        deleted: false,
+        reason: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   /**
@@ -83,7 +144,12 @@ export class LettershopService {
   static async sendClaimPdf(
     claimId: string,
     pdfBytes: Uint8Array,
-    userId: string
+    userId: string,
+    // A labelled send (e.g. the letter-only copy to the other party of a
+    // bAV request) is a second print job: it is audited but does NOT
+    // become the claim's lettershopSubmissionId, which stays the main
+    // package's job.
+    label?: string
   ): Promise<{ submissionId: string } | null> {
     const mode = env.LETTERSHOP_MODE;
     const hasCredentials = this.hasCredentials();
@@ -111,7 +177,7 @@ export class LettershopService {
 
     // Checksum is over the base64 STRING, not the decoded PDF bytes.
     const checksum = createHash('md5').update(base64File).digest('hex');
-    const filenameOriginal = this.buildOriginalFilename(claimId);
+    const filenameOriginal = this.buildOriginalFilename(claimId, label);
 
     const url = `${env.LETTERSHOP_API_BASE_URL}/printjobs`;
 
@@ -155,19 +221,25 @@ export class LettershopService {
       const expectedStatus = EXPECTED_JOB_STATUS[mode];
 
       await db.transaction(async (tx: any) => {
-        await tx
-          .update(claimsTable)
-          .set({ lettershopSubmissionId: submissionId, updatedAt: new Date() })
-          .where(eq(claimsTable.id, claimId));
+        if (!label) {
+          await tx
+            .update(claimsTable)
+            .set({
+              lettershopSubmissionId: submissionId,
+              updatedAt: new Date(),
+            })
+            .where(eq(claimsTable.id, claimId));
+        }
 
         await tx.insert(auditLogs).values({
           userId,
-          action: 'lettershop_submitted',
+          action: label ? 'lettershop_copy_submitted' : 'lettershop_submitted',
           resource: 'claim',
           resourceId: claimId,
           details: {
             submissionId,
             filenameOriginal,
+            label: label ?? null,
             mode,
             jobStatus,
           },

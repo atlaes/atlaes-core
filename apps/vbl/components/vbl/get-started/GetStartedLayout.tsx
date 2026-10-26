@@ -144,6 +144,38 @@ const SubStepIcon: React.FC<{
         <line x1="9" y1="11" x2="15" y2="11" />
       </svg>
     ),
+    // bAV Employment sub-step tab icon (briefcase).
+    briefcase: (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={iconColor}
+        strokeWidth="2"
+      >
+        <rect x="2" y="7" width="20" height="14" rx="2" />
+        <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+        <line x1="2" y1="13" x2="22" y2="13" />
+      </svg>
+    ),
+    // bAV Cash-out Basis sub-step tab icon (scales of justice).
+    scale: (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={iconColor}
+        strokeWidth="2"
+      >
+        <line x1="12" y1="3" x2="12" y2="21" />
+        <line x1="4" y1="7" x2="20" y2="7" />
+        <path d="M4 7l-2.5 7a3 3 0 0 0 5 0L4 7z" />
+        <path d="M20 7l-2.5 7a3 3 0 0 0 5 0L20 7z" />
+        <line x1="8" y1="21" x2="16" y2="21" />
+      </svg>
+    ),
     // Confirm sub-step tab icon (shield with a check).
     confirm: (
       <svg

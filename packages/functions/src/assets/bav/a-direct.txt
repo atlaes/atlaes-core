@@ -1,0 +1,83 @@
+{{client_full_name}}
+{{client_address_block}}
+[[IF client_email]]E-Mail: {{client_email}}[[/IF]]
+
+
+{{recipient_name}}
+[[IF recipient_department]]{{recipient_department}}[[/IF]]
+{{recipient_street}}
+{{recipient_postal_code}} {{recipient_city}}
+Deutschland
+
+{{client_city}}, den {{letter_date}}
+[[IF recipient_ref]]Ihr Zeichen: {{recipient_ref}}[[/IF]]
+
+
+Antrag auf Abfindung meiner unverfallbaren Anwartschaft nach § 3 Abs. 3 BetrAVG nach erfolgter Erstattung der Beiträge zur gesetzlichen Rentenversicherung
+
+Name: {{client_full_name}}, geb. {{client_dob}}
+[[IF employer_personnel_number]]Personalnummer: {{employer_personnel_number}}[[/IF]]
+[[IF contract_reference]]{{contract_reference_label}}: {{contract_reference}}[[/IF]]
+[[IF addressee_type == provider]]Ehemaliger Arbeitgeber: {{employer_name}}[[/IF]]
+
+
+Sehr geehrte Damen und Herren,
+
+mein Arbeitsverhältnis mit {{employer_name}} endete zum {{employment_end_date}}. Aus diesem Arbeitsverhältnis besteht eine unverfallbare Anwartschaft auf Leistungen der betrieblichen Altersversorgung ({{durchfuehrungsweg}}[[IF provider_name]] über {{provider_name}}[[/IF]][[IF contract_reference]], {{contract_reference_label}} {{contract_reference}}[[/IF]]).
+
+Die Deutsche Rentenversicherung hat mir auf meinen Antrag die Beiträge zur gesetzlichen Rentenversicherung nach § 210 SGB VI erstattet (Bescheid vom {{drv_decision_date}}, {{drv_office}}). Den Erstattungsbescheid füge ich in Kopie bei.
+
+Hiermit verlange ich gemäß § 3 Abs. 3 BetrAVG die Abfindung meiner unverfallbaren Anwartschaft durch einmalige Kapitalzahlung.
+
+Nach § 3 Abs. 3 BetrAVG ist die Anwartschaft auf Verlangen des Arbeitnehmers abzufinden, wenn die Beiträge zur gesetzlichen Rentenversicherung erstattet worden sind. Diese Voraussetzung ist erfüllt. Die Abfindung steht in diesem Fall nicht im Ermessen des Arbeitgebers oder des Versorgungsträgers; auf die Wertgrenzen des § 3 Abs. 2 BetrAVG kommt es nicht an. Die Vorschrift ist zwingendes Recht (§ 17 Abs. 3 Satz 3 BetrAVG) und kann weder durch die Versorgungsordnung noch durch Versicherungs- oder Satzungsbedingungen zu meinen Lasten abbedungen werden.
+
+Die Höhe der Abfindung bemisst sich nach § 3 Abs. 5 i. V. m. § 4 Abs. 5 BetrAVG[[IF durchfuehrungsweg in (Direktversicherung, Pensionskasse, Pensionsfonds)]] und entspricht dem im Zeitpunkt der Abfindung gebildeten Kapital[[/IF]][[IF durchfuehrungsweg in (Direktzusage, Unterstützungskasse)]] und entspricht dem Barwert der nach § 2 BetrAVG bemessenen künftigen Versorgungsleistung[[/IF]]. Die Abfindung ist gesondert auszuweisen und einmalig zu zahlen (§ 3 Abs. 6 BetrAVG). Ich bitte um Übersendung einer nachvollziehbaren Berechnung des Abfindungsbetrages.
+
+[[IF provider_form_enclosed]]Das von Ihnen vorgesehene Antragsformular „{{provider_form_title}}“ habe ich ausgefüllt und unterschrieben beigefügt.[[/IF]]
+
+[[IF addressee_type == provider]]Soweit Sie für die Durchführung der Abfindung eine Erklärung meines ehemaligen Arbeitgebers vorsehen, [[IF employer_consent_enclosed]]ist diese beigefügt.[[ELSE]]bitte ich Sie, diese unmittelbar bei {{employer_name}} einzuholen[[IF send_copy]]; {{employer_name}} erhält eine Kopie dieses Schreibens[[/IF]]. Der Arbeitgeber ist im Fall des § 3 Abs. 3 BetrAVG zur Abfindung verpflichtet.[[/IF]][[/IF]]
+[[IF addressee_type == employer and provider_name]]Ich bitte Sie, die Abfindung gegenüber {{provider_name}} freizugeben und die Auszahlung zu veranlassen[[IF send_copy]]; {{provider_name}} erhält eine Kopie dieses Schreibens[[/IF]].[[/IF]]
+
+Bitte überweisen Sie den Abfindungsbetrag auf folgendes Konto:
+Kontoinhaber: {{account_holder}}
+IBAN: {{iban}}
+BIC: {{bic}}
+Bank: {{bank_name}}[[IF bank_address]], {{bank_address}}[[/IF]]
+[[IF account_holder_is_client]]Das Konto lautet auf meinen Namen.[[/IF]]
+
+Steuerliche Hinweise: Ich habe meinen Wohnsitz und gewöhnlichen Aufenthalt seit {{de_departure_date}} in {{residence_country}} und bin in Deutschland nicht unbeschränkt steuerpflichtig. [[IF tax_id]]Meine steuerliche Identifikationsnummer lautet {{tax_id}}.[[ELSE]]Meine steuerliche Identifikationsnummer liegt mir derzeit nicht vor.[[/IF]] Soweit die Abfindung dem Lohnsteuerabzug unterliegt, bitte ich um Prüfung, ob die Voraussetzungen der Tarifermäßigung nach § 34 Abs. 1, Abs. 2 Nr. 4 EStG vorliegen, und um gesonderten Ausweis der Abfindung als Vergütung für eine mehrjährige Tätigkeit in der Lohnsteuerbescheinigung. Bitte übersenden Sie mir nach Auszahlung eine Abrechnung über den Abfindungsbetrag und die einbehaltenen Abzüge sowie die Lohnsteuerbescheinigung bzw. die Leistungsmitteilung nach § 22 Nr. 5 EStG.
+
+Krankenversicherung: Ich bin seit {{de_health_insurance_end_date}} nicht mehr in der deutschen gesetzlichen Krankenversicherung versichert. Beiträge zur gesetzlichen Kranken- und Pflegeversicherung aus dem Abfindungsbetrag (§ 229 SGB V) sind daher nicht einzubehalten[[IF foreign_health_insurance_proof]]; einen Nachweis über meine Krankenversicherung in {{residence_country}} füge ich bei[[/IF]].
+
+Korrespondenz: Da ich im Ausland lebe, bitte ich Sie, sämtliche Korrespondenz in dieser Angelegenheit – insbesondere Eingangsbestätigung, Rückfragen, Abrechnung, Bescheid über die Abfindung und die steuerlichen Bescheinigungen – an meine Postempfangsbevollmächtigte zu richten:
+
+Frau Anna Kliem
+Kaskelstraße 46
+10317 Berlin
+Deutschland
+E-Mail: assistenz.kliem@gmail.com
+
+Die Postempfangsvollmacht ist beigefügt. Rückfragen können auch per E-Mail an Frau Kliem gerichtet werden[[IF client_email]] oder direkt an mich ({{client_email}})[[/IF]].
+
+Bitte bestätigen Sie den Eingang dieses Antrags sowie den voraussichtlichen Auszahlungstermin innerhalb von vier Wochen nach Zugang dieses Schreibens. Sollten Sie für die Bearbeitung weitere Unterlagen oder eigene Formulare benötigen, bitte ich um umgehende Mitteilung.
+
+Mit freundlichen Grüßen
+
+
+{{client_signature}}
+{{client_full_name}}
+
+[[IF send_copy]]Kopie an: {{copy_recipient_name}}[[/IF]]
+
+Anlagen
+[[ANLAGEN]]
+Erstattungsbescheid der Deutschen Rentenversicherung vom {{drv_decision_date}} (Kopie)
+Postempfangsvollmacht (Original)
+Kopie Reisepass
+[[IF provider_form_enclosed]]Antragsformular „{{provider_form_title}}“ (ausgefüllt und unterschrieben)[[/IF]]
+[[IF employer_consent_enclosed]]Zustimmungserklärung des ehemaligen Arbeitgebers[[/IF]]
+[[IF employment_end_proof]]Nachweis über die Beendigung des Arbeitsverhältnisses[[/IF]]
+[[IF last_statement_enclosed]]Letzte Standmitteilung / Versicherungsschein (Kopie)[[/IF]]
+[[IF foreign_health_insurance_proof]]Nachweis der Krankenversicherung in {{residence_country}}[[/IF]]
+[[IF bank_proof]]Nachweis der Bankverbindung[[/IF]]
+[[/ANLAGEN]]

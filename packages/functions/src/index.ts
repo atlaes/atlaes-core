@@ -10,17 +10,29 @@ import { env, assertMigrationTokenConfigured } from './utils/env';
 // Import routes
 import health from './routes/health';
 import auth from './routes/auth';
+import authTwoFactor from './routes/auth-2fa';
 import users from './routes/users';
 import vbl from './routes/vbl';
 import vblPendingCalculatorSessions from './routes/vbl-pending-calculator-sessions';
+import vblReminders from './routes/vbl-reminders';
 import gpr from './routes/gpr';
 import claims from './routes/claims';
 import withdrawals from './routes/withdrawals';
 import documentsRouter from './routes/documents';
 import signaturesRouter from './routes/signatures';
 import admin from './routes/admin';
+import lawFirm from './routes/law-firm';
+import lawFirmPayouts, { adminPayouts } from './routes/law-firm-payouts';
+import lawFirmLetters, { adminLetters } from './routes/law-firm-letters';
 import migrations from './routes/migrations';
 import payments from './routes/payments';
+import leads from './routes/leads';
+import account from './routes/account';
+import clientUpdatesAdmin from './routes/client-updates-admin';
+import payout from './routes/payout';
+import payoutAdmin from './routes/payout-admin';
+import integrationsAdmin from './routes/integrations-admin';
+import e2e from './routes/e2e';
 
 // Fail fast before serving traffic if this backend would expose
 // /api/migrations/run with the publicly-known dev token.
@@ -37,9 +49,11 @@ app.use('*', errorHandler);
 
 // Routes
 app.route('/api/health', health);
+app.route('/api/auth/2fa', authTwoFactor);
 app.route('/api/auth', auth);
 app.route('/api/users', users);
 app.route('/api/vbl/pending-calculator-sessions', vblPendingCalculatorSessions);
+app.route('/api/vbl/reminders', vblReminders);
 app.route('/api/vbl', vbl);
 app.route('/api/gpr', gpr);
 app.route('/api/claims', claims);
@@ -47,8 +61,21 @@ app.route('/api/withdrawals', withdrawals);
 app.route('/api/documents', documentsRouter);
 app.route('/api/signatures', signaturesRouter);
 app.route('/api/admin', admin);
+app.route('/api/law-firm/payouts', lawFirmPayouts);
+app.route('/api/law-firm/letters', lawFirmLetters);
+app.route('/api/law-firm', lawFirm);
+app.route('/api/admin/payouts', adminPayouts);
+app.route('/api/admin/letters', adminLetters);
 app.route('/api/migrations', migrations);
 app.route('/api/payments', payments);
+app.route('/api/leads', leads);
+app.route('/api/account', account);
+app.route('/api/admin/client-updates', clientUpdatesAdmin);
+app.route('/api/account/payout', payout);
+app.route('/api/admin/payout', payoutAdmin);
+app.route('/api/admin/integrations', integrationsAdmin);
+// Staging e2e support; 404 unless the e2e guard passes (utils/e2e.ts).
+app.route('/api/e2e', e2e);
 
 // Root endpoint
 app.get('/', (c) => {

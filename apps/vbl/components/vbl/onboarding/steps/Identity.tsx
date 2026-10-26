@@ -104,6 +104,9 @@ export const Identity: React.FC<IdentityProps> = ({
 }) => {
   const { data, updateData, updateIdentity } = useOnboarding();
   const isCalculator = variant === 'calculator';
+  // bAV/private: the Abfindung letters address the claimant as Herr/Frau
+  // and have no neutral form, so the salutation is a required choice.
+  const isPrivatePensionType = data.pensionType === 'private';
   const [phase, setPhase] = useState<IdentityPhase>(
     data.identity.documentPreview ? 'confirm' : 'upload'
   );
@@ -295,12 +298,27 @@ export const Identity: React.FC<IdentityProps> = ({
     calculatorLocallyWrittenFullNameRef.current = calculatorContextFullName;
   }, [calculatorContextFullName, isCalculator, phase]);
 
+  // Prefill the salutation from the passport gender once (male → Herr,
+  // female → Frau); the user can change it, and "other" leaves it open.
+  useEffect(() => {
+    if (!isPrivatePensionType || data.identity.salutation !== '') return;
+    if (data.identity.gender === 'male') updateIdentity({ salutation: 'herr' });
+    else if (data.identity.gender === 'female')
+      updateIdentity({ salutation: 'frau' });
+  }, [
+    isPrivatePensionType,
+    data.identity.gender,
+    data.identity.salutation,
+    updateIdentity,
+  ]);
+
   const missingFields = {
     firstName: data.identity.firstName.trim() === '',
     // Middle name is optional and is never flagged as missing.
     lastName: data.identity.lastName.trim() === '',
     dateOfBirth: data.identity.dateOfBirth === '',
     gender: data.identity.gender === '',
+    salutation: isPrivatePensionType && data.identity.salutation === '',
     nationality: data.identity.nationality.trim() === '',
     placeOfBirth: data.identity.placeOfBirth.trim() === '',
   };
@@ -338,6 +356,7 @@ export const Identity: React.FC<IdentityProps> = ({
     data.identity.dateOfBirth !== '' &&
     isAtLeast18(data.identity.dateOfBirth) &&
     data.identity.gender !== '' &&
+    (!isPrivatePensionType || data.identity.salutation !== '') &&
     data.identity.nationality.trim() !== '' &&
     data.identity.placeOfBirth.trim() !== '';
   const canProceed = isCalculator
@@ -848,6 +867,41 @@ export const Identity: React.FC<IdentityProps> = ({
               id={isCalculator ? 'calculator-gender-error' : undefined}
             />
           </div>
+          {isPrivatePensionType && !isCalculator && (
+            <div>
+              <FieldLabel
+                label="Salutation in German correspondence"
+                showMissing={showMissingHighlights && missingFields.salutation}
+              />
+              <div className="relative">
+                <select
+                  value={data.identity.salutation}
+                  onChange={(e) =>
+                    updateIdentity({
+                      salutation: e.target.value as 'herr' | 'frau' | '',
+                    })
+                  }
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white ${
+                    showMissingHighlights && missingFields.salutation
+                      ? 'border-red-400'
+                      : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Select</option>
+                  <option value="herr">Herr (Mr)</option>
+                  <option value="frau">Frau (Ms)</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+              </div>
+              <p className="mt-1 text-sm text-gray-500">
+                Your cash-out request is written in German, which addresses you
+                as Herr or Frau.
+              </p>
+              <MissingHint
+                show={showMissingHighlights && missingFields.salutation}
+              />
+            </div>
+          )}
         </div>
       </div>
 
