@@ -19,11 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import apiClient from '../../lib/api';
-import {
-  CALCULATOR_EARLIEST_YEAR,
-  STAGE_EARLIEST_YEAR,
-  yearOptions,
-} from '../../lib/year-options';
+import { yearOptions } from '../../lib/year-options';
 import { createPendingCalculatorSession } from '../../lib/vbl-pending-calculator-sessions-api';
 import {
   extractPensionDocument,
@@ -215,12 +211,7 @@ const PUBLIC_PROVIDER_OPTIONS: PublicProvider[] = ['VBL', 'ZVK'];
 const getProviderOptions = (form: ManualFormData) =>
   form.pensionType === 'stage' ? ['VddB', 'VddKO'] : PUBLIC_PROVIDER_OPTIONS;
 
-const YEARS = yearOptions(CALCULATOR_EARLIEST_YEAR);
-// Stage pensions also cover employment that ended before 2001.
-const STAGE_YEARS = yearOptions(STAGE_EARLIEST_YEAR);
-
-const getYearOptions = (form: ManualFormData) =>
-  form.pensionType === 'stage' ? STAGE_YEARS : YEARS;
+const YEARS = yearOptions();
 
 const INITIAL_FORM_DATA: ManualFormData = {
   pensionType: '',
@@ -1613,7 +1604,7 @@ export const ManualVBLCalculator: React.FC = () => {
                       label="Start year"
                       value={form.startYear}
                       onChange={(value) => updateForm({ startYear: value })}
-                      options={getYearOptions(form)}
+                      options={YEARS}
                       placeholder="Select start year"
                       error={!form.startYear ? 'Missing details' : undefined}
                     />
@@ -1629,7 +1620,7 @@ export const ManualVBLCalculator: React.FC = () => {
                       label="End year"
                       value={form.endYear}
                       onChange={(value) => updateForm({ endYear: value })}
-                      options={getYearOptions(form)}
+                      options={YEARS}
                       placeholder="Select end year"
                       error={!form.endYear ? 'Missing details' : undefined}
                     />
@@ -1803,7 +1794,7 @@ export const ManualVBLCalculator: React.FC = () => {
                     label="Start year"
                     value={form.startYear}
                     onChange={(value) => updateForm({ startYear: value })}
-                    options={getYearOptions(form)}
+                    options={YEARS}
                     placeholder="Select start year"
                   />
                   <SelectField
@@ -1817,7 +1808,7 @@ export const ManualVBLCalculator: React.FC = () => {
                     label="End year"
                     value={form.endYear}
                     onChange={(value) => updateForm({ endYear: value })}
-                    options={getYearOptions(form)}
+                    options={YEARS}
                     placeholder="Select end year"
                   />
                 </div>

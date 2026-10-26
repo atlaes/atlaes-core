@@ -3,11 +3,7 @@
 import React, { useState } from 'react';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 import { useEligibility } from '@/contexts/EligibilityContext';
-import {
-  CALCULATOR_EARLIEST_YEAR,
-  STAGE_EARLIEST_YEAR,
-  yearOptions,
-} from '@/lib/year-options';
+import { yearOptions } from '@/lib/year-options';
 
 const MONTHS = [
   'January',
@@ -24,17 +20,12 @@ const MONTHS = [
   'December',
 ];
 
-// Client #2: mirror calculator — earliest supported year is 2004. Stage
-// pensions also have the "ended before 2001" band, so they go further back.
-const YEARS = yearOptions(CALCULATOR_EARLIEST_YEAR);
-const STAGE_YEARS = yearOptions(STAGE_EARLIEST_YEAR);
+const YEARS = yearOptions();
 
 export const EmploymentEndDate: React.FC = () => {
   const { data, goNext } = useEligibility();
   const [month, setMonth] = useState(data.employmentEndMonth || '');
   const [year, setYear] = useState(data.employmentEndYear || '');
-  const years =
-    data.employmentType === 'stage_performing_arts' ? STAGE_YEARS : YEARS;
   const heading =
     data.employmentType === 'public_sector'
       ? 'When did this employment end?'
@@ -91,7 +82,7 @@ export const EmploymentEndDate: React.FC = () => {
             className="h-12 w-full cursor-pointer appearance-none rounded-[8px] border border-[#D3DAE8] bg-white px-4 pr-10 text-[16px] text-[#1F2937] shadow-sm transition-all focus:border-[#9FE870] focus:outline-none focus:ring-2 focus:ring-[#9FE870]/20"
           >
             <option value="">Year</option>
-            {years.map((y) => (
+            {YEARS.map((y) => (
               <option key={y} value={y}>
                 {y}
               </option>

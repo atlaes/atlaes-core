@@ -612,9 +612,8 @@ describe('VBLCalculationService', () => {
       expect(result.totalAmount).toBeCloseTo(540, 2);
     });
 
-    it('Stage period ending before 2001 uses the earliest table year (2004)', async () => {
-      // 1998–2000 are not in the table: 2004 vddb=4.5%, west cap 5150 →
-      // 36 × 3000 × 0.045 = 4860 (before: 0)
+    it('Stage period ending before 2001 is priced from its own years', async () => {
+      // 1998–2000 caps (DEM → EUR) are all above 3000: 36 × 3000 × 0.045 = 4860
       const result = await VBLCalculationService.calculateVBLRefund(
         makeStageInput({
           employmentStart: '1998-01-01',
@@ -635,6 +634,73 @@ describe('VBLCalculationService', () => {
         })
       );
       expect(result.baseRefundAmount).toBeCloseTo(4860, 2);
+    });
+    it('years before 1975 use the earliest table year', async () => {
+      // 1965–1966 → 1975 west cap 2800 DEM = 1431.62 EUR, vddb 4.5%
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeStageInput({
+          employmentStart: '1965-01-01',
+          employmentEnd: '1966-12-01',
+          currentAge: 68,
+          monthsContributed: 24,
+          periods: [
+            {
+              startDate: '1965-01-01',
+              endDate: '1966-12-01',
+              state: 'Bavaria',
+              grossMonthlySalary: 3000,
+              institution: 'vddb',
+            },
+          ],
+        })
+      );
+      expect(result.baseRefundAmount).toBeCloseTo(24 * 1431.62 * 0.045, 2);
+    });
+
+    it('prices a mid-year rate change month by month (April 1991)', async () => {
+      // West cap 6500 DEM = 3323.40 EUR; DRV 9.35% Jan–Mar, 8.85% Apr–Dec
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeInput({
+          employmentStart: '1991-01-01',
+          employmentEnd: '1991-12-01',
+          currentAge: 60,
+          monthsContributed: 12,
+          periods: [
+            {
+              startDate: '1991-01-01',
+              endDate: '1991-12-01',
+              state: 'Bavaria',
+              grossMonthlySalary: 5000,
+            },
+          ],
+        })
+      );
+      expect(result.isEligible).toBe(true);
+      expect(result.statePension!).toBeCloseTo(
+        3 * 3323.4 * 0.0935 + 9 * 3323.4 * 0.0885,
+        2
+      );
+      expect(result.vblKlassik!).toBeCloseTo(12 * 3323.4 * 0.0181, 2);
+    });
+
+    it('uses the West cap in the East when no East cap exists (2025)', async () => {
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeStageInput({
+          employmentStart: '2025-01-01',
+          employmentEnd: '2025-12-01',
+          monthsContributed: 12,
+          periods: [
+            {
+              startDate: '2025-01-01',
+              endDate: '2025-12-01',
+              state: 'Saxony',
+              grossMonthlySalary: 9000,
+              institution: 'vddb',
+            },
+          ],
+        })
+      );
+      expect(result.baseRefundAmount).toBeCloseTo(12 * 8050 * 0.045, 2);
     });
   });
 
