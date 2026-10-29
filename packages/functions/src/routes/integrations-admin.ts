@@ -12,6 +12,8 @@
  *   GET    /payout-accounts         ATLAES + provider collection accounts
  *   PUT    /payout-accounts/:key    { holder, iban, bic?, bank?, reference? }
  *                                   — IBAN/BIC validated, audited, ops mailed
+ *   GET    /ops-settings            postal authority, dispatch operator
+ *   PUT    /ops-settings/:key       validated per key, audited
  */
 
 import { Hono, type Context } from 'hono';
@@ -30,6 +32,12 @@ import {
   PayoutAccountsService,
   type PayoutAccountKey,
 } from '../services/payout-accounts';
+import {
+  OPS_SETTING_KEYS,
+  OpsSettingsError,
+  OpsSettingsService,
+  type OpsSettingKey,
+} from '../services/ops-settings';
 
 const router = new Hono();
 router.use('*', authMiddleware, adminMiddleware);
@@ -153,6 +161,37 @@ router.put('/payout-accounts/:key', async (c) => {
       );
     }
     return fail(c, error, 'Saving the payout account');
+  }
+});
+
+router.get('/ops-settings', async (c) => {
+  try {
+    return c.json({ success: true, settings: await OpsSettingsService.list() });
+  } catch (error) {
+    return fail(c, error, 'Loading the settings');
+  }
+});
+
+router.put('/ops-settings/:key', async (c) => {
+  const key = c.req.param('key');
+  if (!(OPS_SETTING_KEYS as readonly string[]).includes(key)) {
+    return c.json({ success: false, error: 'Unknown setting' }, 404);
+  }
+  try {
+    const setting = await OpsSettingsService.set(
+      key as OpsSettingKey,
+      await c.req.json().catch(() => ({})),
+      actorOf(c)
+    );
+    return c.json({ success: true, setting });
+  } catch (error) {
+    if (error instanceof OpsSettingsError) {
+      return c.json(
+        { success: false, error: error.message, issues: error.issues },
+        400
+      );
+    }
+    return fail(c, error, 'Saving the setting');
   }
 });
 
