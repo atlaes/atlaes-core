@@ -1,0 +1,41 @@
+{{law_firm_postal_address}}
+{{recipient_name}}
+{{recipient_postal_address}}
+
+Per beA
+
+{{law_firm_city}}, den {{signature_date}}
+[[IF law_firm_az]]Unser Zeichen: {{law_firm_az}}[[/IF]]
+
+
+Antrag auf Abfindung nach § 3 Abs. 3 BetrAVG
+
+Name: {{client_full_name}}, geb. {{client_date_of_birth}}
+{{reference_label}}: {{reference_value}}
+
+
+Sehr geehrte Damen und Herren,
+
+in der vorbezeichneten Angelegenheit zeigen wir die anwaltliche Vertretung von {{client_full_name}} an. Die Vollmacht ist beigefügt.
+
+Das Arbeitsverhältnis der von uns vertretenen Person mit {{employer_name}} endete am {{employment_end_date}}.
+
+Namens und in Vollmacht der von uns vertretenen Person verlangen wir gemäß § 3 Abs. 3 BetrAVG die Abfindung der unverfallbaren Anwartschaft durch einmalige Kapitalzahlung. Die hierfür erforderliche Beitragserstattung von der gesetzlichen Rentenversicherung ist erfolgt. Der Erstattungsbescheid der Deutschen Rentenversicherung ist beigefügt.
+
+Bitte berechnen Sie den Abfindungsbetrag nach § 3 Abs. 5 in Verbindung mit § 4 Abs. 5 BetrAVG und übersenden Sie eine nachvollziehbare Abrechnung sowie die zutreffende steuerliche Bescheinigung.
+
+Bitte überweisen Sie den Auszahlungsbetrag auf das für diesen Vorgang bevollmächtigte Kanzleikonto:
+{{law_firm_bank_details}}
+
+Bitte richten Sie die weitere Korrespondenz unter Angabe unseres Aktenzeichens an unsere Kanzlei.
+
+Bitte bestätigen Sie den Eingang des Antrags und teilen Sie den voraussichtlichen Auszahlungstermin innerhalb von vier Wochen nach Zugang dieses Schreibens mit.
+
+Mit freundlichen Grüßen
+
+{{lawyer_signature_space}}
+{{lawyer_name}}
+{{lawyer_title}}
+
+Anlagen
+{{attachment_list}}

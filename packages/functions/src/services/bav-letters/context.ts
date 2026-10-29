@@ -1,29 +1,35 @@
 /**
- * Maps a claim row (plus its documents and per-case options) to the
- * placeholder dictionary of the bAV letter templates (client spec section
- * 9). Pure: no I/O. The claims service validator decides whether a claim is
- * complete; this builder only reports what it could not fill.
+ * Maps a claim row (plus its documents and the runtime settings) to the
+ * placeholder dictionary of the bAV route × status letters (owner spec
+ * 29 Oct 2026, "bAV fields and workflow") and plans the pack. Pure: no
+ * I/O.
+ *
+ * Nothing is rendered with a gap: every field a selected template needs is
+ * either filled or reported in `issues`, and a plan with blocking issues
+ * must not be rendered (BavLetterPackageService refuses it, the admin
+ * card lists the issues).
  */
 
 import type { ClaimDocumentRole } from '../../drizzle/schema/claims';
+import { AKTENZEICHEN_PATTERN } from '../law-firm-rules';
 import {
   CITY_BEFORE_POSTAL_CODE,
   LAW_FIRM,
-  getBavThresholds,
   residenceCountryName,
-  residenceCountryPhrase,
 } from './constants';
-import { formatIban, formatLetterAmount, formatLetterDate } from './format';
-import {
-  resolveBavRoute,
-  type BavClaimFields,
-  type BavRoute,
-} from './intake-validation';
+import { formatIban, formatLetterDate } from './format';
+import { validateBavRecipient, type BavClaimFields } from './intake-validation';
+import { planBavPack, type PlannedEnclosure } from './package';
 import type { TemplateContext } from './template-engine';
-import type { BavTemplateId } from './templates';
+import { BAV_COVER_TEMPLATE_NAMES, type BavCoverTemplateId } from './templates';
 
-export type BavSigner = 'LAW' | 'DIRECT';
-export type BavPayoutTarget = 'client' | 'law_firm';
+export type BavClaimStatus = 'vested' | 'non_vested';
+export const BAV_CLAIM_STATUSES: readonly BavClaimStatus[] = [
+  'vested',
+  'non_vested',
+];
+/** claims.handling_route values. */
+export type BavLetterRoute = 'direct' | 'law_firm';
 
 export interface LawFirmAccount {
   iban: string;
@@ -31,56 +37,112 @@ export interface LawFirmAccount {
   bank: string;
 }
 
-export interface BavLetterOptions {
-  /** LAW = Vividius letterhead + Anwaltsvollmacht; DIRECT = user signs. */
-  signer: BavSigner;
-  /** Generation date (→ letter_date, letter_year, default pev_start_date). */
-  letterDate: Date;
-  /** LAW only; DIRECT always pays out to the client. Default 'client'. */
-  payoutTarget?: BavPayoutTarget;
-  /** Adds the "Kopie an" line and the copy clause. */
-  sendCopy?: boolean;
-  /** The other party (employer ↔ provider); required when sendCopy. */
-  copyRecipientName?: string;
-  /** Law firm's per-case file number (→ law_firm_ref, "Unser Zeichen"). */
-  lawFirmRef?: string;
-  /** Anderkonto details, required when payoutTarget = 'law_firm'. */
-  lawFirmAccount?: LawFirmAccount;
-  /**
-   * Text rendered in the signature slot. The PDF layer draws the actual
-   * signature image; for text output leave empty or pass a marker.
-   */
-  signatureText?: string;
-  /** Defaults to letterDate. */
-  pevStartDate?: Date;
+/** The postal agent from the ops settings (OpsSettingsService). */
+export interface BavPostalAgent {
+  name: string;
+  coLine?: string | null;
+  street: string;
+  postalCode: string;
+  city: string;
 }
 
-export interface BavLetterContext {
-  route: BavRoute;
-  templateId: BavTemplateId;
-  context: TemplateContext;
+/** Claim columns the letters read beyond the intake fields. */
+export interface BavLetterClaimFields extends BavClaimFields {
+  bavClaimStatus: string | null;
+  bavApplicationTitle: string | null;
+  bavRecipientCountry: string | null;
+  accountNumber: string | null;
+  bsb: string | null;
+  lawFirmRef: string | null;
+  signatureId: string | null;
+}
+
+/** A claim document that can go into the pack. */
+export interface BavPlanDocument {
+  role: ClaimDocumentRole;
+  fileName: string;
+}
+
+export interface BavLetterOptions {
+  route: BavLetterRoute;
+  /** Generation date (→ signature_date, the letter date). */
+  letterDate: Date;
+  /** Correspondence address of the direct route. */
+  postalAgent: BavPostalAgent;
+  /** Anderkonto, required on the law-firm route. */
+  lawFirmAccount: LawFirmAccount | null;
   /**
-   * Claim inputs that were absent. Informational: the templates tolerate
-   * most of them (they resolve to empty branches); the validator is the
-   * gate.
+   * Latest document per role plus every 'bav_extra' (oldest first). The
+   * plan refers to them by index.
    */
-  missing: string[];
+  documents: readonly BavPlanDocument[];
+  /**
+   * Text rendered in the client's signature slot. The PDF layer draws the
+   * signature image there; for text output pass a marker or leave empty.
+   */
+  signatureText?: string;
+  /** Text in the lawyer's (hand-signed) signature space. Default ''. */
+  lawyerSignatureSpace?: string;
+}
+
+export interface BavLetterIssue {
+  /** Placeholder or document the issue is about, e.g. 'employer_name'. */
+  field: string;
+  message: string;
+  /** Blocking issues stop generation; the rest are shown as notes. */
+  blocking: boolean;
+}
+
+export interface BavLetterPlan {
+  status: BavClaimStatus | null;
+  /** 'admin' = chosen on the claim; 'derived' = from drv_refund_received. */
+  statusSource: 'admin' | 'derived' | null;
+  route: BavLetterRoute;
+  /** Null while the status is unknown. */
+  templateId: BavCoverTemplateId | null;
+  templateName: string | null;
+  authority: 'PEV' | 'VOLL';
+  context: TemplateContext;
+  /** Pack after the cover letter, in order (attachment_list source). */
+  enclosures: PlannedEnclosure[];
+  issues: BavLetterIssue[];
+}
+
+/** Admin's choice, else derived from the DRV refund answer. */
+export function resolveBavClaimStatus(claim: {
+  bavClaimStatus: string | null;
+  drvRefundReceived: boolean | null;
+}): { status: BavClaimStatus | null; source: 'admin' | 'derived' | null } {
+  if (
+    claim.bavClaimStatus === 'vested' ||
+    claim.bavClaimStatus === 'non_vested'
+  )
+    return { status: claim.bavClaimStatus, source: 'admin' };
+  if (claim.drvRefundReceived === true)
+    return { status: 'vested', source: 'derived' };
+  if (claim.drvRefundReceived === false)
+    return { status: 'non_vested', source: 'derived' };
+  return { status: null, source: null };
 }
 
 export function selectBavTemplateId(
-  route: BavRoute,
-  signer: BavSigner
-): BavTemplateId {
-  return `${route}-${signer}` as BavTemplateId;
+  route: BavLetterRoute,
+  status: BavClaimStatus
+): BavCoverTemplateId {
+  return `${route === 'law_firm' ? 'LAW' : 'DIRECT'}-${
+    status === 'vested' ? 'VESTED' : 'NON_VESTED'
+  }` as BavCoverTemplateId;
 }
+
+/** Sender line above the recipient on law-firm letters (template text). */
+export const LAW_FIRM_SENDER_LINE = `Vividius · Gneisenaustraße 115 · ${LAW_FIRM.postalCode} ${LAW_FIRM.city}`;
 
 const trimmed = (v: string | null | undefined): string =>
   typeof v === 'string' ? v.trim() : '';
 
-const normalizeName = (v: string): string =>
-  v.toLowerCase().replace(/\s+/g, ' ').trim();
+const GERMANY = new Set(['de', 'deutschland', 'germany']);
 
-function buildAddressLines(claim: BavClaimFields): string[] {
+function clientAddressLines(claim: BavClaimFields): string[] {
   const country = trimmed(claim.currentCountry);
   const city = trimmed(claim.currentCity);
   const postal = trimmed(claim.currentPostalCode);
@@ -91,65 +153,87 @@ function buildAddressLines(claim: BavClaimFields): string[] {
     trimmed(claim.currentAddressLine1),
     trimmed(claim.currentAddressLine2),
     locality,
-    residenceCountryName(country) ?? country,
+    country ? (residenceCountryName(country) ?? country) : '',
   ].filter((line) => line !== '');
 }
 
-function optionalDate(value: string | null): string | undefined {
-  return value ? formatLetterDate(value) : undefined;
+/**
+ * Recipient address below the name: department, street (optional: some
+ * providers are addressed by a large-customer postal code only, e.g.
+ * "76240 Karlsruhe"), postal code and city, and the country when it is not
+ * Germany.
+ */
+export function recipientPostalAddressLines(claim: {
+  bavRecipientDepartment: string | null;
+  bavRecipientStreet: string | null;
+  bavRecipientPostalCode: string | null;
+  bavRecipientCity: string | null;
+  bavRecipientCountry?: string | null;
+}): string[] {
+  const country = trimmed(claim.bavRecipientCountry);
+  return [
+    trimmed(claim.bavRecipientDepartment),
+    trimmed(claim.bavRecipientStreet),
+    [trimmed(claim.bavRecipientPostalCode), trimmed(claim.bavRecipientCity)]
+      .filter(Boolean)
+      .join(' '),
+    country && !GERMANY.has(country.toLowerCase()) ? country : '',
+  ].filter((line) => line !== '');
+}
+
+/** Contract/policy/membership number, else the personnel number. */
+export function resolveBavReference(
+  claim: Pick<
+    BavClaimFields,
+    | 'bavContractReference'
+    | 'bavContractReferenceLabel'
+    | 'employerPersonnelNumber'
+  >
+): { label: string; value: string } | null {
+  // Values are printed as entered: leading zeros are significant.
+  const contract = trimmed(claim.bavContractReference);
+  if (contract) {
+    return {
+      label: trimmed(claim.bavContractReferenceLabel) || 'Vertrags-Nr.',
+      value: contract,
+    };
+  }
+  const personnel = trimmed(claim.employerPersonnelNumber);
+  if (personnel) return { label: 'Personalnummer', value: personnel };
+  return null;
 }
 
 /**
- * Build the template context for a bAV claim. Throws when the route cannot
- * be determined (drvRefundReceived unset) because no template applies.
+ * The client's own account: holder, bank, then IBAN/BIC or, outside the
+ * IBAN area, account number (+ BSB) and SWIFT code. Null with the missing
+ * parts when incomplete.
  */
-export function buildBavLetterContext(
-  claim: BavClaimFields,
-  documentRoles: readonly ClaimDocumentRole[],
-  options: BavLetterOptions
-): BavLetterContext {
-  const route = resolveBavRoute(claim);
-  if (route === null) {
-    throw new Error(
-      'Cannot build bAV letter context: drvRefundReceived is not set'
-    );
-  }
+export function clientBankDetails(
+  claim: Pick<
+    BavLetterClaimFields,
+    | 'accountHolderName'
+    | 'bankName'
+    | 'iban'
+    | 'swiftBic'
+    | 'accountNumber'
+    | 'bsb'
+    | 'bankStreet'
+    | 'bankPostalCode'
+    | 'bankCity'
+    | 'bankCountry'
+  >
+): { text: string | null; missing: string[] } {
+  const holder = trimmed(claim.accountHolderName);
+  const bank = trimmed(claim.bankName);
+  const iban = trimmed(claim.iban).replace(/\s+/g, '');
+  const account = trimmed(claim.accountNumber);
+  const bic = trimmed(claim.swiftBic).toUpperCase();
   const missing: string[] = [];
-  const note = (field: string) => {
-    missing.push(field);
-    return undefined;
-  };
-  const has = (role: ClaimDocumentRole) => documentRoles.includes(role);
-
-  const signer = options.signer;
-  const payoutTarget: BavPayoutTarget =
-    signer === 'LAW' ? (options.payoutTarget ?? 'client') : 'client';
-  const letterYear = String(options.letterDate.getFullYear());
-  const thresholds = getBavThresholds(letterYear);
-
-  const fullName = [trimmed(claim.firstName), trimmed(claim.lastName)]
-    .filter(Boolean)
-    .join(' ');
-  if (!fullName) note('client_full_name');
-
-  let clientGender: 'm' | 'f' | undefined;
-  if (claim.salutation === 'herr') clientGender = 'm';
-  else if (claim.salutation === 'frau') clientGender = 'f';
-  else if (claim.gender === 'male') clientGender = 'm';
-  else if (claim.gender === 'female') clientGender = 'f';
-  else note('client_gender');
-
-  const country = trimmed(claim.currentCountry);
-  const residenceCountry = country
-    ? (residenceCountryPhrase(country) ?? country)
-    : note('residence_country');
-  const addressLines = buildAddressLines(claim);
-
-  const accountHolder = trimmed(claim.accountHolderName);
-  const accountHolderIsClient =
-    accountHolder !== '' &&
-    fullName !== '' &&
-    normalizeName(accountHolder) === normalizeName(fullName);
+  if (!holder) missing.push('account holder');
+  if (!bank) missing.push('bank name');
+  if (!iban && !account) missing.push('IBAN or account number');
+  if (!iban && account && !bic) missing.push('BIC/SWIFT');
+  if (missing.length > 0) return { text: null, missing };
 
   const bankAddress = [
     trimmed(claim.bankStreet),
@@ -160,149 +244,260 @@ export function buildBavLetterContext(
   ]
     .filter(Boolean)
     .join(', ');
+  const lines = [`Kontoinhaber: ${holder}`, `Bank: ${bank}`];
+  if (bankAddress) lines.push(`Anschrift der Bank: ${bankAddress}`);
+  if (iban) {
+    lines.push(`IBAN: ${formatIban(iban)}`);
+  } else {
+    lines.push(`Kontonummer: ${account}`);
+    if (trimmed(claim.bsb)) lines.push(`BSB: ${trimmed(claim.bsb)}`);
+  }
+  if (bic) lines.push(`BIC: ${bic}`);
+  return { text: lines.join('\n'), missing: [] };
+}
 
-  const contractReference = trimmed(claim.bavContractReference);
-  const contractReferenceLabel =
-    trimmed(claim.bavContractReferenceLabel) ||
-    (contractReference ? 'Vertrags-Nr.' : '');
+export function lawFirmBankDetails(account: LawFirmAccount): string {
+  return [
+    `Kontoinhaber: ${LAW_FIRM.name} – Anderkonto`,
+    `Bank: ${account.bank}`,
+    `IBAN: ${formatIban(account.iban)}`,
+    `BIC: ${account.bic.toUpperCase()}`,
+  ].join('\n');
+}
 
-  const providerName = trimmed(claim.bavProviderName);
-  const addresseeType = claim.bavAddresseeType ?? note('addressee_type');
-  const copyRecipientName =
-    options.copyRecipientName ??
-    (addresseeType === 'provider' ? trimmed(claim.employerName) : providerName);
+function procedureDescription(
+  status: BavClaimStatus,
+  recipient: string,
+  employer: string,
+  applicationTitle: string
+): string {
+  if (status === 'vested') {
+    return (
+      'das Verfahren auf Abfindung meiner unverfallbaren Anwartschaft auf betriebliche Altersversorgung' +
+      (employer ? ` aus dem Arbeitsverhältnis mit ${employer}` : '') +
+      ` nach § 3 Abs. 3 BetrAVG bei ${recipient}`
+    );
+  }
+  return (
+    `das Verfahren „${applicationTitle}“ bei ${recipient}` +
+    (employer
+      ? ` (betriebliche Altersversorgung aus dem Arbeitsverhältnis mit ${employer})`
+      : '')
+  );
+}
 
-  const benefitAmountNumber = Number(claim.bavBenefitAmount);
-  const benefitAmount =
-    claim.bavBenefitAmount && Number.isFinite(benefitAmountNumber)
-      ? formatLetterAmount(benefitAmountNumber)
-      : '';
+/**
+ * Builds the letter context and pack plan for a bAV claim. Always returns
+ * a plan; check `issues` for blocking entries before rendering.
+ */
+export function buildBavLetterPlan(
+  claim: BavLetterClaimFields,
+  options: BavLetterOptions
+): BavLetterPlan {
+  const issues: BavLetterIssue[] = [];
+  const block = (field: string, message: string) =>
+    issues.push({ field, message, blocking: true });
+  const note = (field: string, message: string) =>
+    issues.push({ field, message, blocking: false });
+
+  const route = options.route;
+  const isLaw = route === 'law_firm';
+  const { status, source } = resolveBavClaimStatus(claim);
+  if (!status) {
+    block(
+      'claim_status',
+      'Claim status (Vested / Non-Vested) is not set and cannot be derived: the DRV refund answer is missing'
+    );
+  }
+  const templateId = status ? selectBavTemplateId(route, status) : null;
+
+  // Client
+  const fullName = [trimmed(claim.firstName), trimmed(claim.lastName)]
+    .filter(Boolean)
+    .join(' ');
+  if (!fullName) block('client_full_name', 'Client name is required');
+  const dob = claim.dateOfBirth ? formatLetterDate(claim.dateOfBirth) : '';
+  if (!dob) block('client_date_of_birth', 'Client date of birth is required');
+  const addressLines = clientAddressLines(claim);
+  if (
+    !trimmed(claim.currentAddressLine1) ||
+    !trimmed(claim.currentCity) ||
+    !trimmed(claim.currentCountry)
+  ) {
+    block(
+      'client_residential_address',
+      'Client address (street, city and country) is required'
+    );
+  }
+  const signaturePlace = trimmed(claim.currentCity);
+  if (!signaturePlace && isLaw) {
+    // On the direct route the address issue above already covers it.
+    block('signature_place', 'Client city (signing place) is required');
+  }
+  if (!claim.signatureId) {
+    block(
+      'client_signature',
+      `Client signature is required (${isLaw ? 'Vollmacht' : 'cover letter and Postempfangsvollmacht'})`
+    );
+  }
+
+  // Recipient
+  for (const message of validateBavRecipient(claim)) {
+    block('recipient', message);
+  }
+  const recipientName = trimmed(claim.bavRecipientName);
+
+  // Reference
+  const reference = resolveBavReference(claim);
+  if (!reference) {
+    block(
+      'reference_value',
+      'A contract, policy or membership number (or the personnel number) is required'
+    );
+  }
+
+  // Status-specific
+  const employer = trimmed(claim.employerName);
+  const applicationTitle = trimmed(claim.bavApplicationTitle);
+  let drvDecisionDate = '';
+  if (status === 'vested') {
+    if (!employer) block('employer_name', 'Employer name is required');
+    if (!claim.employmentEndDate) {
+      block('employment_end_date', 'Employment end date is required');
+    }
+    if (claim.drvDecisionDate) {
+      drvDecisionDate = formatLetterDate(claim.drvDecisionDate);
+    } else {
+      block('drv_decision_date', 'Date of the DRV refund decision is required');
+    }
+  } else if (status === 'non_vested' && !applicationTitle) {
+    block(
+      'application_title',
+      'Application title is required for Non-Vested letters (e.g. "Antrag auf Beitragserstattung")'
+    );
+  }
+
+  // Bank block for the route
+  let clientBank: string | null = null;
+  let lawFirmBank: string | null = null;
+  if (isLaw) {
+    if (options.lawFirmAccount) {
+      lawFirmBank = lawFirmBankDetails(options.lawFirmAccount);
+    } else {
+      block(
+        'law_firm_bank_details',
+        'Law-firm Anderkonto is not configured (LAW_FIRM_IBAN / LAW_FIRM_BIC / LAW_FIRM_BANK)'
+      );
+    }
+  } else {
+    const bank = clientBankDetails(claim);
+    clientBank = bank.text;
+    if (!bank.text) {
+      block(
+        'client_bank_details',
+        `Client bank details incomplete: ${bank.missing.join(', ')}`
+      );
+    }
+  }
+
+  // Aktenzeichen: entered by the law firm after release. Until then the
+  // letter is generated without the "Unser Zeichen" line.
+  const az = trimmed(claim.lawFirmRef);
+  if (isLaw) {
+    if (!az) {
+      note(
+        'law_firm_az',
+        'No Aktenzeichen yet: the letter has no "Unser Zeichen" line until the law firm saves it'
+      );
+    } else if (!AKTENZEICHEN_PATTERN.test(az)) {
+      block(
+        'law_firm_az',
+        `Aktenzeichen "${az}" does not match the agreed format 12345-YY`
+      );
+    }
+  }
+
+  // Pack
+  const pack = planBavPack({
+    authority: isLaw ? 'voll' : 'pev',
+    status,
+    drvDecisionDate,
+    providerFormTitle: trimmed(claim.bavProviderFormTitle),
+    statementType: trimmed(claim.bavStatementType),
+    statementDate: claim.bavStatementDate
+      ? formatLetterDate(claim.bavStatementDate)
+      : '',
+    documents: options.documents,
+  });
+  for (const message of pack.missing) block('documents', message);
+
+  const agent = options.postalAgent;
+  const agentLines = [
+    agent.name,
+    ...(agent.coLine ? [agent.coLine] : []),
+    agent.street,
+    `${agent.postalCode} ${agent.city}`,
+  ];
 
   const context: TemplateContext = {
-    // 9.1 case control
-    route,
-    signer,
-    addressee_type: addresseeType,
-    payout_target: payoutTarget,
-    send_copy: options.sendCopy === true,
-    copy_recipient_name: copyRecipientName,
-    letter_date: formatLetterDate(options.letterDate),
-    letter_year: letterYear,
-    pev_start_date: formatLetterDate(
-      options.pevStartDate ?? options.letterDate
-    ),
-
-    // 9.2 client
-    client_gender: clientGender,
     client_full_name: fullName,
-    client_dob: optionalDate(claim.dateOfBirth) ?? note('client_dob'),
-    client_birthplace: trimmed(claim.placeOfBirth) || note('client_birthplace'),
-    client_address_block: addressLines.join('\n'),
-    client_address_inline: addressLines.join(', '),
-    client_passport_number:
-      trimmed(claim.passportNumber) || note('client_passport_number'),
-    client_city: trimmed(claim.currentCity) || note('client_city'),
-    client_email: '', // filled by the caller from the user record
+    client_residential_address: addressLines.join('\n'),
+    client_residential_address_inline: addressLines.join(', '),
+    client_date_of_birth: dob,
     client_signature: options.signatureText ?? '',
-    de_departure_date:
-      optionalDate(claim.moveOutDate) ?? note('de_departure_date'),
-    residence_country: residenceCountry,
-    tax_id: trimmed(claim.taxId),
-    de_health_insurance_end_date:
-      optionalDate(claim.healthInsuranceEndDate) ??
-      optionalDate(claim.moveOutDate) ??
-      note('de_health_insurance_end_date'),
 
-    // 9.3 employment and bAV
-    employer_name: trimmed(claim.employerName) || note('employer_name'),
-    employment_end_date:
-      optionalDate(claim.employmentEndDate) ?? note('employment_end_date'),
-    employer_personnel_number: trimmed(claim.employerPersonnelNumber),
-    provider_name: providerName,
-    durchfuehrungsweg:
-      trimmed(claim.bavDurchfuehrungsweg) || note('durchfuehrungsweg'),
-    contract_reference_label: contractReferenceLabel,
-    contract_reference: contractReference,
+    recipient_name: recipientName,
+    recipient_postal_address: recipientPostalAddressLines(claim).join('\n'),
+    reference_label: reference?.label ?? '',
+    reference_value: reference?.value ?? '',
 
-    // 9.4 recipient
-    recipient_name: trimmed(claim.bavRecipientName) || note('recipient_name'),
-    recipient_department: trimmed(claim.bavRecipientDepartment),
-    recipient_street:
-      trimmed(claim.bavRecipientStreet) || note('recipient_street'),
-    recipient_postal_code:
-      trimmed(claim.bavRecipientPostalCode) || note('recipient_postal_code'),
-    recipient_city: trimmed(claim.bavRecipientCity) || note('recipient_city'),
-    recipient_ref: trimmed(claim.bavRecipientRef),
+    employer_name: employer,
+    employment_end_date: claim.employmentEndDate
+      ? formatLetterDate(claim.employmentEndDate)
+      : '',
+    drv_name: trimmed(claim.drvOffice),
+    drv_decision_date: drvDecisionDate,
+    application_title: applicationTitle,
 
-    // 9.5 route A
-    drv_office: trimmed(claim.drvOffice),
-    drv_decision_date: optionalDate(claim.drvDecisionDate) ?? '',
+    client_bank_details: clientBank ?? '',
+    law_firm_bank_details: lawFirmBank ?? '',
 
-    // 9.6 route B
-    statement_type: trimmed(claim.bavStatementType),
-    statement_date: optionalDate(claim.bavStatementDate) ?? '',
-    benefit_form: trimmed(claim.bavBenefitForm),
-    benefit_amount: benefitAmount,
-    threshold_pension: formatLetterAmount(thresholds.pension),
-    threshold_capital: formatLetterAmount(thresholds.capital),
+    postal_agent_name: agent.name,
+    postal_agent_address: agentLines.join('\n'),
 
-    // 9.7 payout account
-    account_holder: accountHolder || note('account_holder'),
-    account_holder_is_client: accountHolderIsClient,
-    iban: claim.iban ? formatIban(claim.iban) : note('iban'),
-    bic: trimmed(claim.swiftBic) || note('bic'),
-    bank_name: trimmed(claim.bankName) || note('bank_name'),
-    bank_address: bankAddress,
-
-    // 9.8 enclosure flags, derived from the documents attached to the claim
-    provider_form_enclosed: has('provider_form'),
-    provider_form_title: trimmed(claim.bavProviderFormTitle),
-    employer_consent_enclosed: has('employer_consent'),
-    employment_end_proof: has('employment_end_proof'),
-    last_statement_enclosed: has('pension_statement'),
-    foreign_health_insurance_proof: has('foreign_health_insurance'),
-    bank_proof: has('bank_proof'),
-
-    // 9.9 law firm constants (LAW variants; harmless extras for DIRECT)
-    law_firm_letterhead: '', // the PDF layer embeds the letterhead asset
     law_firm_name: LAW_FIRM.name,
+    law_firm_street: LAW_FIRM.street,
+    law_firm_postal_code: LAW_FIRM.postalCode,
     law_firm_city: LAW_FIRM.city,
+    law_firm_postal_address: LAW_FIRM_SENDER_LINE,
+    law_firm_az: isLaw && AKTENZEICHEN_PATTERN.test(az) ? az : '',
     lawyer_name: LAW_FIRM.lawyerName,
     lawyer_title: LAW_FIRM.lawyerTitle,
-    law_firm_ref: options.lawFirmRef ?? '',
-    law_firm_iban: options.lawFirmAccount?.iban ?? '',
-    law_firm_bic: options.lawFirmAccount?.bic ?? '',
-    law_firm_bank: options.lawFirmAccount?.bank ?? '',
-  };
+    lawyer_signature_space: options.lawyerSignatureSpace ?? '',
 
-  // Route-specific inputs are only "missing" for the route in use.
-  if (route === 'A') {
-    if (!context.drv_office) missing.push('drv_office');
-    if (!context.drv_decision_date) missing.push('drv_decision_date');
-  } else {
-    if (!context.statement_type) missing.push('statement_type');
-    if (!context.statement_date) missing.push('statement_date');
-    if (!context.benefit_form) missing.push('benefit_form');
-    else if (context.benefit_form !== 'unknown' && !benefitAmount) {
-      missing.push('benefit_amount');
-    }
-  }
-  if (signer === 'LAW') {
-    if (!context.law_firm_ref) missing.push('law_firm_ref');
-    if (payoutTarget === 'law_firm' && !options.lawFirmAccount) {
-      missing.push('law_firm_iban', 'law_firm_bic', 'law_firm_bank');
-    }
-  }
-  if (options.sendCopy && !copyRecipientName)
-    missing.push('copy_recipient_name');
-  if (has('provider_form') && !context.provider_form_title) {
-    missing.push('provider_form_title');
-  }
+    procedure_description: status
+      ? procedureDescription(status, recipientName, employer, applicationTitle)
+      : '',
+    signature_place: signaturePlace,
+    signature_date: formatLetterDate(options.letterDate),
+    attachment_list: pack.enclosures
+      .map((e, i) => `${i + 1}. ${e.label}`)
+      .join('\n'),
+  };
 
   return {
+    status,
+    statusSource: source,
     route,
-    templateId: selectBavTemplateId(route, signer),
+    templateId,
+    templateName: templateId ? BAV_COVER_TEMPLATE_NAMES[templateId] : null,
+    authority: isLaw ? 'VOLL' : 'PEV',
     context,
-    missing,
+    enclosures: pack.enclosures,
+    issues,
   };
+}
+
+export function blockingIssues(plan: BavLetterPlan): BavLetterIssue[] {
+  return plan.issues.filter((i) => i.blocking);
 }

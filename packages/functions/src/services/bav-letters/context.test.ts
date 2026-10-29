@@ -1,240 +1,289 @@
 import { describe, expect, it } from 'vitest';
-import type { ClaimDocumentRole } from '../../drizzle/schema/claims';
-import { buildBavLetterContext, selectBavTemplateId } from './context';
-import type { BavClaimFields } from './intake-validation';
 import {
-  MUSTER_2,
-  MUSTER_2_A_DIRECT_EXPECTED,
-  MUSTER_2_CLAIM,
+  blockingIssues,
+  buildBavLetterPlan,
+  clientBankDetails,
+  recipientPostalAddressLines,
+  resolveBavClaimStatus,
+  resolveBavReference,
+  selectBavTemplateId,
+  type BavLetterClaimFields,
+} from './context';
+import {
+  MUSTER_2_LETTER_CLAIM,
+  MUSTER_2_OPTIONS,
+  TEST_LAW_FIRM_ACCOUNT,
 } from './muster-2.fixture';
-import { getBavTemplate } from './templates';
 
-const LETTER_DATE = new Date(2026, 8, 7);
-const DOCS_A: ClaimDocumentRole[] = [
-  'passport',
-  'drv_refund_decision',
-  'provider_form',
-  'employer_consent',
-  'foreign_health_insurance',
-];
+const claim = (
+  o: Partial<BavLetterClaimFields> = {}
+): BavLetterClaimFields => ({
+  ...MUSTER_2_LETTER_CLAIM,
+  ...o,
+});
 
-const claim = (overrides: Partial<BavClaimFields> = {}): BavClaimFields => ({
-  ...MUSTER_2_CLAIM,
-  ...overrides,
+const blockingFields = (c: BavLetterClaimFields, opts = MUSTER_2_OPTIONS) =>
+  blockingIssues(buildBavLetterPlan(c, opts)).map((i) => i.field);
+
+describe('resolveBavClaimStatus', () => {
+  it('prefers the admin choice, else derives from the DRV refund answer', () => {
+    expect(
+      resolveBavClaimStatus({
+        bavClaimStatus: 'non_vested',
+        drvRefundReceived: true,
+      })
+    ).toEqual({ status: 'non_vested', source: 'admin' });
+    expect(
+      resolveBavClaimStatus({ bavClaimStatus: null, drvRefundReceived: true })
+    ).toEqual({ status: 'vested', source: 'derived' });
+    expect(
+      resolveBavClaimStatus({ bavClaimStatus: null, drvRefundReceived: false })
+    ).toEqual({ status: 'non_vested', source: 'derived' });
+    expect(
+      resolveBavClaimStatus({
+        bavClaimStatus: 'other',
+        drvRefundReceived: null,
+      })
+    ).toEqual({ status: null, source: null });
+  });
 });
 
 describe('selectBavTemplateId', () => {
-  it('combines route and signer', () => {
-    expect(selectBavTemplateId('A', 'DIRECT')).toBe('A-DIRECT');
-    expect(selectBavTemplateId('B', 'LAW')).toBe('B-LAW');
+  it('maps route × status to the four cover letters', () => {
+    expect(selectBavTemplateId('direct', 'vested')).toBe('DIRECT-VESTED');
+    expect(selectBavTemplateId('direct', 'non_vested')).toBe(
+      'DIRECT-NON_VESTED'
+    );
+    expect(selectBavTemplateId('law_firm', 'vested')).toBe('LAW-VESTED');
+    expect(selectBavTemplateId('law_firm', 'non_vested')).toBe(
+      'LAW-NON_VESTED'
+    );
   });
 });
 
-describe('buildBavLetterContext', () => {
-  it('reproduces the Muster 2 placeholder dictionary from a claim row', () => {
-    const result = buildBavLetterContext(claim(), DOCS_A, {
-      signer: 'DIRECT',
-      letterDate: LETTER_DATE,
-      signatureText: '[Unterschrift]',
-    });
-    expect(result.route).toBe('A');
-    expect(result.templateId).toBe('A-DIRECT');
-    expect(result.missing).toEqual([]);
-
-    // Every placeholder in the spec's Muster 2 JSON must come out identical.
-    const { client_email: _email, ...spec } = MUSTER_2;
-    void _email;
-    for (const [key, value] of Object.entries(spec)) {
-      expect(result.context[key], key).toEqual(value);
-    }
-  });
-
-  it('renders Muster 2 end to end from the claim row', () => {
-    const result = buildBavLetterContext(claim(), DOCS_A, {
-      signer: 'DIRECT',
-      letterDate: LETTER_DATE,
-      signatureText: '[Unterschrift]',
-    });
-    const { text, missing } = getBavTemplate(result.templateId).render({
-      ...result.context,
-      client_email: 'emily.carter@example.com',
-    });
-    expect(missing).toEqual([]);
-    expect(text).toBe(MUSTER_2_A_DIRECT_EXPECTED);
-  });
-
-  it('derives client_gender from the salutation, falling back to passport gender', () => {
-    const base = { signer: 'DIRECT' as const, letterDate: LETTER_DATE };
+describe('recipientPostalAddressLines', () => {
+  it('handles a provider without a street (large-customer postal code)', () => {
     expect(
-      buildBavLetterContext(
-        claim({ salutation: 'herr', gender: 'female' }),
-        DOCS_A,
-        base
-      ).context.client_gender
-    ).toBe('m');
-    expect(
-      buildBavLetterContext(
-        claim({ salutation: null, gender: 'male' }),
-        DOCS_A,
-        base
-      ).context.client_gender
-    ).toBe('m');
-    const other = buildBavLetterContext(
-      claim({ salutation: null, gender: 'other' }),
-      DOCS_A,
-      base
-    );
-    expect(other.context.client_gender).toBeUndefined();
-    expect(other.missing).toContain('client_gender');
-  });
-
-  it('formats the address block per country order and German country name', () => {
-    const base = { signer: 'DIRECT' as const, letterDate: LETTER_DATE };
-    const ch = buildBavLetterContext(
-      claim({
-        currentAddressLine1: 'Bahnhofstrasse 12',
-        currentAddressLine2: 'c/o Müller',
-        currentPostalCode: '8001',
-        currentCity: 'Zürich',
-        currentCountry: 'Switzerland',
-      }),
-      DOCS_A,
-      base
-    ).context;
-    expect(ch.client_address_block).toBe(
-      'Bahnhofstrasse 12\nc/o Müller\n8001 Zürich\nSchweiz'
-    );
-    expect(ch.client_address_inline).toBe(
-      'Bahnhofstrasse 12, c/o Müller, 8001 Zürich, Schweiz'
-    );
-    expect(ch.residence_country).toBe('der Schweiz');
-
-    const unknown = buildBavLetterContext(
-      claim({
-        currentCountry: 'Peru',
-        currentPostalCode: '15001',
-        currentCity: 'Lima',
-      }),
-      DOCS_A,
-      base
-    ).context;
-    expect(unknown.residence_country).toBe('Peru');
-    expect(unknown.client_address_block).toBe(
-      '42 Maple Avenue\n15001 Lima\nPeru'
-    );
-  });
-
-  it('falls back to the departure date when the health-insurance end is unknown', () => {
-    const ctx = buildBavLetterContext(
-      claim({ healthInsuranceEndDate: null, moveOutDate: '2021-03-15' }),
-      DOCS_A,
-      { signer: 'DIRECT', letterDate: LETTER_DATE }
-    ).context;
-    expect(ctx.de_health_insurance_end_date).toBe('15.03.2021');
-  });
-
-  it('derives enclosure flags from the attached documents', () => {
-    const ctx = buildBavLetterContext(claim(), ['passport', 'bank_proof'], {
-      signer: 'DIRECT',
-      letterDate: LETTER_DATE,
-    }).context;
-    expect(ctx.provider_form_enclosed).toBe(false);
-    expect(ctx.employer_consent_enclosed).toBe(false);
-    expect(ctx.foreign_health_insurance_proof).toBe(false);
-    expect(ctx.bank_proof).toBe(true);
-  });
-
-  it('fills the law-firm fields for LAW letters and reports what is missing', () => {
-    const noRef = buildBavLetterContext(claim(), DOCS_A, {
-      signer: 'LAW',
-      letterDate: LETTER_DATE,
-      payoutTarget: 'law_firm',
-    });
-    expect(noRef.templateId).toBe('A-LAW');
-    expect(noRef.missing).toEqual([
-      'law_firm_ref',
-      'law_firm_iban',
-      'law_firm_bic',
-      'law_firm_bank',
-    ]);
-
-    const full = buildBavLetterContext(claim(), DOCS_A, {
-      signer: 'LAW',
-      letterDate: LETTER_DATE,
-      payoutTarget: 'law_firm',
-      lawFirmRef: '2026/0815-KC',
-      lawFirmAccount: {
-        iban: 'DE02100100100000000001',
-        bic: 'PBNKDEFFXXX',
-        bank: 'Postbank',
-      },
-    });
-    expect(full.missing).toEqual([]);
-    expect(full.context.law_firm_name).toBe('Vividius Rechtsanwälte');
-    expect(full.context.lawyer_name).toBe('Katja Chudoba');
-    expect(full.context.law_firm_iban).toBe('DE02100100100000000001');
-    expect(full.context.payout_target).toBe('law_firm');
-  });
-
-  it('never pays out to the law firm on DIRECT letters', () => {
-    const ctx = buildBavLetterContext(claim(), DOCS_A, {
-      signer: 'DIRECT',
-      letterDate: LETTER_DATE,
-      payoutTarget: 'law_firm',
-    }).context;
-    expect(ctx.payout_target).toBe('client');
-  });
-
-  it('defaults the copy recipient to the other party', () => {
-    const base = {
-      signer: 'DIRECT' as const,
-      letterDate: LETTER_DATE,
-      sendCopy: true,
-    };
-    expect(
-      buildBavLetterContext(claim(), DOCS_A, base).context.copy_recipient_name
-    ).toBe('Beispielbank AG');
-    expect(
-      buildBavLetterContext(
-        claim({ bavAddresseeType: 'employer' }),
-        DOCS_A,
-        base
-      ).context.copy_recipient_name
-    ).toBe('BVV Versicherungsverein des Bankgewerbes a.G.');
-  });
-
-  it('builds a route B context with formatted amount and thresholds', () => {
-    const result = buildBavLetterContext(
-      claim({
-        drvRefundReceived: false,
-        bavStatementType: 'Standmitteilung',
-        bavStatementDate: '2025-12-31',
-        bavBenefitForm: 'capital',
-        bavBenefitAmount: '6500.00',
-      }),
-      ['passport', 'pension_statement'],
-      { signer: 'DIRECT', letterDate: LETTER_DATE }
-    );
-    expect(result.templateId).toBe('B-DIRECT');
-    expect(result.missing).toEqual([]);
-    expect(result.context.benefit_amount).toBe('6.500,00');
-    expect(result.context.threshold_pension).toBe('59,33');
-    expect(result.context.threshold_capital).toBe('7.119,00');
-    expect(result.context.last_statement_enclosed).toBe(true);
-    const { text, missing } = getBavTemplate(result.templateId).render(
-      result.context
-    );
-    expect(missing).toEqual([]);
-    expect(text).toContain('zu erwartende Kapitalleistung 6.500,00 EUR.');
-    expect(text).toContain('1. Standmitteilung vom 31.12.2025 (Kopie)');
-  });
-
-  it('throws when the route is undetermined', () => {
-    expect(() =>
-      buildBavLetterContext(claim({ drvRefundReceived: null }), DOCS_A, {
-        signer: 'DIRECT',
-        letterDate: LETTER_DATE,
+      recipientPostalAddressLines({
+        bavRecipientDepartment: 'Kundenservice',
+        bavRecipientStreet: null,
+        bavRecipientPostalCode: '76240',
+        bavRecipientCity: 'Karlsruhe',
+        bavRecipientCountry: 'Deutschland',
       })
-    ).toThrow(/drvRefundReceived/);
+    ).toEqual(['Kundenservice', '76240 Karlsruhe']);
+  });
+
+  it('adds a non-German country', () => {
+    expect(
+      recipientPostalAddressLines({
+        bavRecipientDepartment: null,
+        bavRecipientStreet: 'Bahnhofstrasse 1',
+        bavRecipientPostalCode: '8001',
+        bavRecipientCity: 'Zürich',
+        bavRecipientCountry: 'Schweiz',
+      })
+    ).toEqual(['Bahnhofstrasse 1', '8001 Zürich', 'Schweiz']);
+  });
+});
+
+describe('resolveBavReference', () => {
+  it('keeps leading zeros and falls back to the personnel number', () => {
+    expect(
+      resolveBavReference({
+        bavContractReference: ' 000123 ',
+        bavContractReferenceLabel: 'Mitgliedsnummer',
+        employerPersonnelNumber: '9',
+      })
+    ).toEqual({ label: 'Mitgliedsnummer', value: '000123' });
+    expect(
+      resolveBavReference({
+        bavContractReference: null,
+        bavContractReferenceLabel: null,
+        employerPersonnelNumber: '007',
+      })
+    ).toEqual({ label: 'Personalnummer', value: '007' });
+    expect(
+      resolveBavReference({
+        bavContractReference: '',
+        bavContractReferenceLabel: null,
+        employerPersonnelNumber: null,
+      })
+    ).toBeNull();
+  });
+});
+
+describe('clientBankDetails', () => {
+  it('prints account number, BSB and SWIFT outside the IBAN area', () => {
+    const { text } = clientBankDetails({
+      accountHolderName: 'Jane Doe',
+      bankName: 'Commonwealth Bank',
+      iban: null,
+      accountNumber: '00123456',
+      bsb: '062-000',
+      swiftBic: 'ctbaau2s',
+      bankStreet: null,
+      bankPostalCode: null,
+      bankCity: null,
+      bankCountry: null,
+    });
+    expect(text).toBe(
+      'Kontoinhaber: Jane Doe\nBank: Commonwealth Bank\nKontonummer: 00123456\nBSB: 062-000\nBIC: CTBAAU2S'
+    );
+  });
+
+  it('reports what is missing', () => {
+    expect(
+      clientBankDetails({
+        accountHolderName: '',
+        bankName: null,
+        iban: null,
+        accountNumber: '1',
+        bsb: null,
+        swiftBic: null,
+        bankStreet: null,
+        bankPostalCode: null,
+        bankCity: null,
+        bankCountry: null,
+      }).missing
+    ).toEqual(['account holder', 'bank name', 'BIC/SWIFT']);
+  });
+});
+
+describe('buildBavLetterPlan', () => {
+  it('a complete direct vested case has no issues', () => {
+    const plan = buildBavLetterPlan(claim(), MUSTER_2_OPTIONS);
+    expect(plan.issues).toEqual([]);
+    expect(plan.status).toBe('vested');
+    expect(plan.statusSource).toBe('derived');
+    expect(plan.templateName).toBe('bAV_Cover_Letter_Direct_Vested');
+    expect(plan.authority).toBe('PEV');
+    expect(plan.context.reference_value).toBe('0012345678');
+    expect(plan.context.client_residential_address).toBe(
+      '42 Maple Avenue\nLatham, NY 12110\nUSA'
+    );
+  });
+
+  it('blocks a non-vested letter without an application title', () => {
+    expect(blockingFields(claim({ bavClaimStatus: 'non_vested' }))).toEqual([
+      'application_title',
+    ]);
+  });
+
+  it('does not need employment or DRV data for non-vested letters', () => {
+    expect(
+      blockingFields(
+        claim({
+          bavClaimStatus: 'non_vested',
+          bavApplicationTitle: 'Antrag auf Beitragserstattung',
+          employmentEndDate: null,
+          drvDecisionDate: null,
+        }),
+        {
+          ...MUSTER_2_OPTIONS,
+          documents: MUSTER_2_OPTIONS.documents.filter(
+            (d) => d.role !== 'drv_refund_decision'
+          ),
+        }
+      )
+    ).toEqual([]);
+  });
+
+  it('requires the vested inputs and the DRV decision document', () => {
+    const issues = blockingIssues(
+      buildBavLetterPlan(
+        claim({
+          employerName: null,
+          employmentEndDate: null,
+          drvDecisionDate: null,
+        }),
+        {
+          ...MUSTER_2_OPTIONS,
+          documents: [{ role: 'passport', fileName: 'p.jpg' }],
+        }
+      )
+    );
+    expect(issues.map((i) => i.field)).toEqual([
+      'employer_name',
+      'employment_end_date',
+      'drv_decision_date',
+      'documents',
+    ]);
+    expect(issues[3].message).toContain('DRV refund decision');
+  });
+
+  it('blocks when the status cannot be determined', () => {
+    const plan = buildBavLetterPlan(
+      claim({ drvRefundReceived: null }),
+      MUSTER_2_OPTIONS
+    );
+    expect(plan.templateId).toBeNull();
+    expect(blockingIssues(plan).map((i) => i.field)).toEqual(['claim_status']);
+  });
+
+  it('lists every missing client and recipient field, never a gap', () => {
+    const fields = blockingFields(
+      claim({
+        firstName: null,
+        lastName: null,
+        dateOfBirth: null,
+        currentCountry: null,
+        signatureId: null,
+        bavRecipientName: null,
+        bavRecipientPostalCode: null,
+        bavContractReference: null,
+        employerPersonnelNumber: null,
+        iban: null,
+      }),
+      { ...MUSTER_2_OPTIONS, documents: [] }
+    );
+    expect(fields).toEqual([
+      'client_full_name',
+      'client_date_of_birth',
+      'client_residential_address',
+      'client_signature',
+      'recipient',
+      'recipient',
+      'reference_value',
+      'client_bank_details',
+      'documents',
+      'documents',
+    ]);
+  });
+
+  it('accepts a recipient without a street', () => {
+    expect(blockingFields(claim({ bavRecipientStreet: null }))).toEqual([]);
+  });
+
+  it('law firm: needs the Anderkonto and a valid AZ; the client bank is not used', () => {
+    const law = { ...MUSTER_2_OPTIONS, route: 'law_firm' as const };
+    expect(
+      blockingFields(claim({ iban: null, lawFirmRef: '06152-26' }), law)
+    ).toEqual(['law_firm_bank_details']);
+    expect(
+      blockingFields(claim({ lawFirmRef: '2026/0815' }), {
+        ...law,
+        lawFirmAccount: TEST_LAW_FIRM_ACCOUNT,
+      })
+    ).toEqual(['law_firm_az']);
+    const plan = buildBavLetterPlan(claim({ lawFirmRef: '06152-26' }), {
+      ...law,
+      lawFirmAccount: TEST_LAW_FIRM_ACCOUNT,
+    });
+    expect(plan.issues).toEqual([]);
+    expect(plan.authority).toBe('VOLL');
+    expect(plan.context.law_firm_az).toBe('06152-26');
+    expect(plan.context.client_bank_details).toBe('');
+  });
+
+  it('builds the attachment list in pack order', () => {
+    const plan = buildBavLetterPlan(claim(), MUSTER_2_OPTIONS);
+    expect(String(plan.context.attachment_list).split('\n')).toEqual([
+      '1. Postempfangsvollmacht',
+      '2. Erstattungsbescheid der Deutschen Rentenversicherung vom 02.07.2026',
+      '3. Kopie des Reisepasses',
+      '4. Antragsformular „Antrag auf Abfindung einer Rentenanwartschaft“',
+      '5. BVV Zusatzblatt',
+    ]);
   });
 });
