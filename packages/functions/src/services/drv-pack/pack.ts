@@ -133,6 +133,8 @@ export interface PackDocument {
 }
 
 export interface PackManifest {
+  /** Submission route the pack was built for (Via Vividius). */
+  route?: 'law_firm';
   aktenzeichen: string;
   generatedAt: string;
   recipient: CoverLetterRecipient;
@@ -372,6 +374,7 @@ export async function buildSubmissionPack(
   return {
     pdf,
     manifest: {
+      route: 'law_firm',
       aktenzeichen: input.aktenzeichen,
       generatedAt: new Date().toISOString(),
       recipient,

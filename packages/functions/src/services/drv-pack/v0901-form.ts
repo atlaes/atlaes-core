@@ -17,17 +17,19 @@
  * (1.2, sections 3 and 9) are out of scope for the automated pack.
  */
 
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFName } from 'pdf-lib';
 import { loadGprAsset } from './assets';
 import { VIVIDIUS } from './cover-letter';
 import { compactVsnr } from './register';
 import {
+  fieldRect,
   finalizeForm,
   formatDateCompactDe,
   formatDateDe,
   selectButton,
   setTextField,
 } from './acroform';
+import { V0901_SECTION11_FIELDS, type V0901Section11Field } from './v0901-bank';
 
 export type Sex = 'male' | 'female' | 'none' | 'diverse';
 
@@ -97,7 +99,40 @@ export interface V0901Data {
   aktenzeichen: string;
   date: Date;
   defaults?: Partial<V0901Defaults>;
+  /**
+   * 'direct' (owner spec 29 Oct 2026): section 4 stays empty, section 11
+   * carries the client's own account (`bank`), section 13 the client's
+   * place and signing date, and the client's signature is stamped on the
+   * claimant signature line. Default 'law_firm' keeps the Vividius mapping.
+   */
+  route?: 'law_firm' | 'direct';
+  /** Direct route: every section 11 field (unused ones ''), see v0901-bank. */
+  bank?: Record<V0901Section11Field, string>;
+  /** Direct route: place of signing (client's residence city). */
+  signaturePlace?: string;
+  /** Direct route: actual signing date. */
+  signatureDate?: Date;
+  /** Direct route: the client's online signature (PNG). */
+  clientSignaturePng?: Uint8Array | null;
 }
+
+/** Section 4 ("Antragstellung durch Dritte") text fields, incl. continuation. */
+export const V0901_SECTION4_TEXT_FIELDS = [
+  'VERT_N_VN_D_1',
+  'VERT_ADR_1',
+  'VERT_ADR_ZS_1',
+  'VERT_PLZ_1',
+  'VERT_ORT_1',
+  'TEL_2',
+  'FAX_2',
+] as const;
+export const V0901_SECTION4_BUTTONS = ['AW_EIGENSCHAFT_1'] as const;
+
+/**
+ * Claimant signature line on page 14: the row under "Ort, Datum"
+ * (VERS_O_DAT_1), same column. Offsets in pt from that field's rect.
+ */
+export const V0901_SIGNATURE = { gap: 6, height: 26 } as const;
 
 const SEX_EXPORT: Record<Sex, string> = {
   male: 'Männlich',
@@ -150,6 +185,11 @@ export function fillV0901Fields(doc: PDFDocument, data: V0901Data): void {
   );
   setTextField(form, 'VERS_LASTADR_1', data.lastGermanAddress);
 
+  if (data.route === 'direct') {
+    fillDirectSections(doc, data);
+    return;
+  }
+
   // 4 Claim filed by third parties — lawyer, firm, firm's Aktenzeichen.
   setTextField(
     form,
@@ -167,22 +207,7 @@ export function fillV0901Fields(doc: PDFDocument, data: V0901Data): void {
   setTextField(form, 'TEL_2', VIVIDIUS.phone);
   setTextField(form, 'FAX_2', VIVIDIUS.email); // as on the annotated copy
 
-  // 5 German insurance relationship
-  selectButton(form, 'AW_VV_1', yn(d.insuranceRecordIssued));
-  selectButton(form, 'AW_VV_2', yn(d.insuranceRecordCorrect));
-  selectButton(form, 'AW_FRW_BTRGE', yn(d.voluntaryContributions));
-  selectButton(form, 'AW_KEZ/BUEZ', yn(d.childRaisingPeriods));
-
-  // 6 Insurance abroad
-  selectButton(form, 'AW_BEITR_AUSL_VT', yn(d.foreignContributions));
-  selectButton(form, 'AW_AUFENTHALT_AUSL', yn(d.residenceInListedCountries));
-  selectButton(form, 'AW_AUSLAND_VP_1', yn(d.currentlyInsuredAbroad));
-  selectButton(form, 'AW_AUSLAND_FW_1', yn(d.voluntaryEuInsurance));
-
-  // 7 Divorce · 8 Benefits
-  selectButton(form, 'AW_EHESCHEIDUNG', yn(d.divorceProceedings));
-  selectButton(form, 'AW_SACH_GELD', yn(d.germanBenefitsReceived));
-  selectButton(form, 'AW_AUSLAND_RB_1', yn(d.foreignPension));
+  fillAnswerSections(doc, d);
 
   // 11 Payment → escrow account of the law firm
   // Domestic IBAN field: "DE" is pre-printed, the field holds the 20 digits after it.
@@ -203,13 +228,102 @@ export function fillV0901Fields(doc: PDFDocument, data: V0901Data): void {
   );
 }
 
+/** Clears a multi-widget button field (no value, every widget Off). */
+function clearButton(doc: PDFDocument, name: string): void {
+  const field = doc.getForm().getCheckBox(name);
+  field.acroField.dict.set(PDFName.of('V'), PDFName.of('Off'));
+  for (const w of field.acroField.getWidgets())
+    w.dict.set(PDFName.of('AS'), PDFName.of('Off'));
+}
+
 /**
- * Loads the template, fills it and flattens. The signature line under
- * "Ort, Datum" stays empty for the lawyer's handwritten signature.
+ * Direct route: the client applies personally. Section 4 is cleared
+ * completely (no capacity X, no representative), section 11 holds the
+ * client's own account in its branch with 11.4 empty, section 13 the
+ * client's place and signing date.
+ */
+function fillDirectSections(doc: PDFDocument, data: V0901Data): void {
+  const form = doc.getForm();
+  const d: V0901Defaults = {
+    ...V0901_ANNOTATED_DEFAULTS,
+    ...(data.defaults ?? {}),
+  };
+  for (const f of V0901_SECTION4_TEXT_FIELDS) setTextField(form, f, '');
+  for (const b of V0901_SECTION4_BUTTONS) clearButton(doc, b);
+
+  fillAnswerSections(doc, d);
+
+  if (!data.bank) {
+    throw new Error('Direct V0901 needs the client bank mapping (section 11)');
+  }
+  for (const f of V0901_SECTION11_FIELDS) {
+    // 11.4 is never filled for the client's own account.
+    const value =
+      f === 'KONTO_N_VN_1' || f === 'KONTO_ANSCHRIFT_1' ? '' : data.bank[f];
+    setTextField(form, f, value ?? '');
+  }
+
+  const place = (data.signaturePlace ?? '').trim();
+  if (!place) throw new Error('Direct V0901 needs the place of signing');
+  setTextField(
+    form,
+    'VERS_O_DAT_1',
+    `${place}, ${formatDateDe(data.signatureDate ?? data.date)}`
+  );
+}
+
+/** Sections 5–8 answers (shared by both routes). */
+function fillAnswerSections(doc: PDFDocument, d: V0901Defaults): void {
+  const form = doc.getForm();
+  // 5 German insurance relationship
+  selectButton(form, 'AW_VV_1', yn(d.insuranceRecordIssued));
+  selectButton(form, 'AW_VV_2', yn(d.insuranceRecordCorrect));
+  selectButton(form, 'AW_FRW_BTRGE', yn(d.voluntaryContributions));
+  selectButton(form, 'AW_KEZ/BUEZ', yn(d.childRaisingPeriods));
+
+  // 6 Insurance abroad
+  selectButton(form, 'AW_BEITR_AUSL_VT', yn(d.foreignContributions));
+  selectButton(form, 'AW_AUFENTHALT_AUSL', yn(d.residenceInListedCountries));
+  selectButton(form, 'AW_AUSLAND_VP_1', yn(d.currentlyInsuredAbroad));
+  selectButton(form, 'AW_AUSLAND_FW_1', yn(d.voluntaryEuInsurance));
+
+  // 7 Divorce · 8 Benefits
+  selectButton(form, 'AW_EHESCHEIDUNG', yn(d.divorceProceedings));
+  selectButton(form, 'AW_SACH_GELD', yn(d.germanBenefitsReceived));
+  selectButton(form, 'AW_AUSLAND_RB_1', yn(d.foreignPension));
+}
+
+/**
+ * Loads the template, fills it and flattens. On the law-firm route the
+ * signature line under "Ort, Datum" stays empty for the lawyer's
+ * handwritten signature; on the direct route the client's online
+ * signature is stamped there.
  */
 export async function fillV0901(data: V0901Data): Promise<PDFDocument> {
   const doc = await PDFDocument.load(loadGprAsset('v0901'));
   fillV0901Fields(doc, data);
+  const form = doc.getForm();
+  const placeRect = fieldRect(form, 'VERS_O_DAT_1');
+  const placePage = doc
+    .getPages()
+    .findIndex(
+      (p) =>
+        p.ref === form.getField('VERS_O_DAT_1').acroField.getWidgets()[0].P()
+    );
   await finalizeForm(doc);
+  if (data.route === 'direct' && data.clientSignaturePng) {
+    const page = doc.getPage(
+      placePage >= 0 ? placePage : doc.getPageCount() - 1
+    );
+    const img = await doc.embedPng(data.clientSignaturePng);
+    const h = V0901_SIGNATURE.height;
+    const w = Math.min(img.width * (h / img.height), placeRect.width + 60);
+    page.drawImage(img, {
+      x: placeRect.x,
+      y: placeRect.y - V0901_SIGNATURE.gap - h,
+      width: w,
+      height: (w * img.height) / img.width,
+    });
+  }
   return doc;
 }
