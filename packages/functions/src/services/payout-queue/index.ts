@@ -25,6 +25,7 @@ import {
 import { PROVIDER_REGISTER, summitFxCurrency } from '../payout-flow/providers';
 import { InvoicingService } from '../invoicing';
 import { claimPayoutColumns } from './claim-columns';
+import { isDirectDrvRefund } from '../drv-pack/route';
 import {
   atlaesAccount,
   collectionAccount,
@@ -146,6 +147,15 @@ export class PayoutQueueService {
       .where(eq(claimsTable.id, release.claimId))
       .limit(1);
     if (!claim) return [];
+    // Direct client submission: no transfer queue for this route (a
+    // release left from before a route change never produces lines).
+    if (isDirectDrvRefund(claim)) {
+      logger.warn('Payout queue: direct-route claim, no lines created', {
+        claimId: claim.id,
+        releaseId,
+      });
+      return [];
+    }
 
     const [receipt] = await db
       .select()

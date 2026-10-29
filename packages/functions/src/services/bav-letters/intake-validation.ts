@@ -93,7 +93,9 @@ export function validateBavIntake(
 }
 
 /**
- * The letter recipient's name and postal address. Not asked from the
+ * The letter recipient's name and postal address. The street is optional:
+ * some providers are addressed by a large-customer postal code only (VBL
+ * "76240 Karlsruhe"). Not asked from the
  * client (client answer, 15 Sep 2026): the provider matrix fills it at
  * submission, otherwise ATLAES ops enter it in the admin before the
  * package is generated.
@@ -101,17 +103,12 @@ export function validateBavIntake(
 export function validateBavRecipient(
   claim: Pick<
     BavClaimFields,
-    | 'bavRecipientName'
-    | 'bavRecipientStreet'
-    | 'bavRecipientPostalCode'
-    | 'bavRecipientCity'
+    'bavRecipientName' | 'bavRecipientPostalCode' | 'bavRecipientCity'
   >
 ): string[] {
   const errors: string[] = [];
   if (!filled(claim.bavRecipientName))
     errors.push('Recipient name is required');
-  if (!filled(claim.bavRecipientStreet))
-    errors.push('Recipient street is required');
   if (!filled(claim.bavRecipientPostalCode)) {
     errors.push('Recipient postal code is required');
   }

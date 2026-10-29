@@ -1074,6 +1074,16 @@ export class LawFirmService {
     claim: ClaimRow,
     userId: string
   ): Promise<string | null> {
+    // Route isolation (direct spec 29 Oct 2026): a direct client
+    // submission never reaches the firm, not even through a stale pack.
+    const manifestRoute = (
+      claim.submissionPackManifest as { route?: string } | null
+    )?.route;
+    if (claim.handlingRoute !== 'law_firm' || manifestRoute === 'direct') {
+      throw new Error(
+        'Invalid download: the case is not routed via the law firm'
+      );
+    }
     if (claim.submissionPackS3Key) return claim.submissionPackS3Key;
     const generatedAt = new Date();
     const key = submissionPackKey(claim.id, generatedAt);
@@ -1148,13 +1158,12 @@ export class LawFirmService {
     return key;
   }
 
-  /** Passport, payslip and Abmeldung uploads as PDF bytes (images wrapped). */
   /**
    * The client's online signature as PNG bytes plus the day it was made.
    * Null when the claim has none or it is not a PNG data URL (the pack then
    * leaves the client signature lines empty).
    */
-  private static async loadClientSignature(
+  static async loadClientSignature(
     signatureId: string | null
   ): Promise<{ png: Uint8Array; signedAt: Date | null } | null> {
     if (!signatureId) return null;
@@ -1181,7 +1190,8 @@ export class LawFirmService {
     };
   }
 
-  private static async loadClaimAttachments(claimId: string): Promise<{
+  /** Passport, payslip and Abmeldung uploads as PDF bytes (images wrapped). */
+  static async loadClaimAttachments(claimId: string): Promise<{
     passport: Uint8Array | null;
     payslip: Uint8Array | null;
     abmeldung: Uint8Array | null;

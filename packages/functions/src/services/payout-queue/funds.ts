@@ -32,6 +32,8 @@ import { payoutFeeConfig } from './config';
 import { InvoicingService } from '../invoicing';
 import { isAmountMismatch } from './lines';
 import { notifyPayoutFlowFundsRecorded } from './hooks';
+import { PayoutFlowError } from '../payout-flow';
+import { DIRECT_ROUTE_NO_ESCROW, isDirectDrvRefund } from '../drv-pack/route';
 
 export { isAmountMismatch };
 
@@ -61,11 +63,20 @@ export class FundsService {
       .select({
         id: claimsTable.id,
         deregistrationSurcharge: claimsTable.deregistrationSurcharge,
+        handlingRoute: claimsTable.handlingRoute,
+        caseType: claimsTable.caseType,
+        pensionType: claimsTable.pensionType,
+        applicationId: claimsTable.applicationId,
       })
       .from(claimsTable)
       .where(eq(claimsTable.id, input.claimId))
       .limit(1);
     if (!claim) throw new Error('Claim not found');
+    // Direct client submission: the DRV pays the client, so no funds
+    // receipt, release, invoice or ZE is created here (statement lines for
+    // such a case stay unmatched with this message).
+    if (isDirectDrvRefund(claim))
+      throw new PayoutFlowError(DIRECT_ROUTE_NO_ESCROW, 409, 'direct_route');
 
     const cfg = payoutFeeConfig();
     const split = computeFeeSplit(input.amountEur, cfg, {

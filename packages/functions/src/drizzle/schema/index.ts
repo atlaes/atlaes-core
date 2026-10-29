@@ -10,5 +10,6 @@ export * from './two-factor';
 export * from './payout-queue';
 export * from './integration-settings';
 export * from './payout-accounts';
+export * from './ops-settings';
 export * from './law-firm-letters';
 export * from './blog';

@@ -19,6 +19,7 @@ import {
 } from '@/lib/admin-api';
 import { V0901AnswersCard } from '@/components/V0901AnswersCard';
 import { DeregistrationSurchargeCard } from '@/components/DeregistrationSurchargeCard';
+import { DirectSubmissionCard } from '@/components/DirectSubmissionCard';
 import {
   Button,
   CLAIM_STATUS_LABEL,
@@ -39,6 +40,7 @@ import {
 } from '@/components/ui';
 import { DocumentViewer, ViewerDoc } from '@/components/DocumentViewer';
 import { BavRecipientEditor, SubmissionHoldBanner } from '@/components/claim-hold';
+import { BavLetterSettingsCard } from '@/components/BavLetterSettingsCard';
 
 const STAGE_REASON_LABELS: Record<string, string> = {
   contract_ended: 'Contract ended / not renewed',
@@ -232,6 +234,10 @@ export default function ClaimDetailPage() {
       if (meta.action === 'v0901_answers_update') {
         return { id: entry.id, at: entry.createdAt, kind: 'handling', title: 'V0901 answers changed', body: null, actor: 'ops' };
       }
+      if (meta.type === 'direct_submission') {
+        const title = ({ direct_pack_generated: 'Direct pack generated', direct_pack_released: 'Direct pack released for dispatch', direct_pack_release_withdrawn: 'Direct pack release withdrawn', direct_submission_dispatched: `Submitted to the DRV${meta.date ? ` on ${formatDate(meta.date)}` : ''}${meta.sender ? ` by ${meta.sender}` : ''}`, direct_refund_payment_confirmed: `Client confirmed payment${meta.date ? ` (${formatDate(meta.date)})` : ''}` } as Record<string, string>)[String(meta.action)] ?? String(meta.action);
+        return { id: entry.id, at: entry.createdAt, kind: 'handling', title, body: meta.note ?? null, actor: 'ops' };
+      }
       if (meta.action === 'handling_route_update') {
         return { id: entry.id, at: entry.createdAt, kind: 'handling', title: `Handling changed to ${meta.handlingRoute === 'law_firm' ? 'law firm' : 'direct'}${meta.payoutTarget === 'law_firm' ? ', payout to Anderkonto' : ''}`, body: meta.note ?? null, actor: 'ops' };
       }
@@ -260,6 +266,9 @@ export default function ClaimDetailPage() {
   const nextStatuses = VALID_TRANSITIONS[claim.status] || [];
   const currentRoute: ClaimHandlingRoute = claim.handlingRoute ?? 'direct';
   const isBav = claim.pensionType === 'private';
+  // DRV refunds label the route "Submission route" (direct spec 29 Oct 2026).
+  const isDrv = (claim as { caseType?: string }).caseType === 'drv_refund';
+  const routeLabel = (r: ClaimHandlingRoute) => (isDrv ? (r === 'law_firm' ? 'Via Vividius' : 'Direct client submission') : r === 'law_firm' ? 'Law firm (Vividius)' : 'Direct via lettershop');
   const isStage = claim.pensionProvider === 'VddB' || claim.pensionProvider === 'VddKO';
   const stage = claim.stageDetails ?? {};
   const openRecipientEditor = () => {
@@ -316,10 +325,10 @@ export default function ClaimDetailPage() {
         {routeForm && (
           <div className="mt-3 space-y-3 rounded-md border border-gray-200 bg-white p-3">
             <div className="grid gap-3 sm:grid-cols-3">
-              <Field label="Handling" htmlFor="route-select">
+              <Field label={isDrv ? 'Submission route' : 'Handling'} htmlFor="route-select">
                 <select id="route-select" value={routeForm.handlingRoute} onChange={(e) => setRouteForm({ ...routeForm, handlingRoute: e.target.value as ClaimHandlingRoute })} className={inputClass}>
-                  <option value="direct">Direct via lettershop</option>
-                  <option value="law_firm">Law firm (Vividius)</option>
+                  <option value="direct">{routeLabel('direct')}</option>
+                  <option value="law_firm">{routeLabel('law_firm')}</option>
                 </select>
               </Field>
               {routeForm.handlingRoute === 'law_firm' && (
@@ -388,6 +397,8 @@ export default function ClaimDetailPage() {
               </ol>
             )}
           </Section>
+
+          {isBav && <BavLetterSettingsCard claimId={claim.id} version={claim.updatedAt} onChanged={invalidate} />}
 
           {isBav && (
             <Section title="bAV intake" action={!editingRecipient && <Button size="sm" onClick={openRecipientEditor}>Edit recipient</Button>}>
@@ -463,6 +474,13 @@ export default function ClaimDetailPage() {
           <V0901AnswersCard
             claimId={claim.id}
             wrap={(body) => <Section title="V0901 answers (5.1, 6.1, 6.3, 8.1)">{body}</Section>}
+          />
+
+          <DirectSubmissionCard
+            claimId={claim.id}
+            wrap={(body) => <Section title="Direct client submission">{body}</Section>}
+            onPreview={setViewer}
+            onChanged={invalidate}
           />
 
           <DeregistrationSurchargeCard
@@ -555,7 +573,7 @@ export default function ClaimDetailPage() {
           </RailGroup>
 
           <RailGroup title="Handling">
-            <RailRow label="Route" value={currentRoute === 'law_firm' ? 'Law firm (Vividius)' : 'Direct via lettershop'} />
+            <RailRow label={isDrv ? 'Submission route' : 'Route'} value={routeLabel(currentRoute)} />
             {currentRoute === 'law_firm' ? (
               <>
                 <RailRow label="Firm case state" value={CASE_STATE_LABELS[claim.lawFirmCaseState ?? 'new']} />

@@ -138,7 +138,7 @@ function bavClaim(provider: string, overrides: Record<string, unknown> = {}) {
 const fakePackage = {
   pdfS3Key: 'claims/x/bav-package-1.pdf',
   bytes: new Uint8Array([1, 2, 3]),
-  templateId: 'A-LAW',
+  templateId: 'LAW-VESTED',
   signer: 'LAW',
   copy: null,
   missingPlaceholders: [],
@@ -292,14 +292,14 @@ describe('package generation without a recipient', () => {
         asAdmin: true,
       })
     ).rejects.toThrow(
-      /^Cannot generate bAV package: .*Recipient street is required/
+      /^Cannot generate bAV package: .*Recipient postal code is required/
     );
     const result = await ClaimsApplicationService.completeBavPackage(
       claimId,
       adminId
     );
     expect(result.generated).toBe(false);
-    expect(result.error).toContain('Recipient street is required');
+    expect(result.error).toContain('Recipient postal code is required');
 
     const r = await row(claimId);
     expect(r.pdfS3Key).toBeNull();
@@ -454,11 +454,11 @@ describe('admin: save the recipient (optionally to the matrix)', () => {
       ClaimsApplicationService.updateBavRecipientAsAdmin(claimId, adminId, {
         addresseeType: 'provider',
         name: 'Ergo',
-        street: ' ',
-        postalCode: '40477',
+        street: 'Victoriaplatz 2',
+        postalCode: ' ',
         city: 'Düsseldorf',
       })
-    ).rejects.toThrow('Invalid recipient: Recipient street is required');
+    ).rejects.toThrow('Invalid recipient: Recipient postal code is required');
     await expect(
       ClaimsApplicationService.updateBavRecipientAsAdmin(claimId, adminId, {
         addresseeType: 'employer',

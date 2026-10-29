@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { AlertTriangle } from 'lucide-react';
 import {
   ClaimDetail,
@@ -9,6 +9,7 @@ import {
   resolveSubmissionHold,
   saveBavRecipient,
 } from '@/lib/admin-api';
+import { listBavProviders, providerLabel } from '@/lib/bav-api';
 import {
   Button,
   ErrorText,
@@ -192,6 +193,26 @@ export function BavRecipientEditor({
   const [form, setForm] = useState<RecipientForm>(() => initialForm(claim));
   const set = (patch: Partial<RecipientForm>) =>
     setForm((f) => ({ ...f, ...patch }));
+  const providers = useQuery({
+    queryKey: ['admin-bav-providers'],
+    queryFn: listBavProviders,
+  });
+  const [providerId, setProviderId] = useState('');
+  // Picking a provider fills the recipient fields; they stay editable.
+  const pickProvider = (id: string) => {
+    setProviderId(id);
+    const p = providers.data?.find((x) => x.id === id);
+    if (!p) return;
+    set({
+      addresseeType: 'provider',
+      name: p.name,
+      department: p.department ?? '',
+      street: p.street ?? '',
+      postalCode: p.postalCode ?? '',
+      city: p.city ?? '',
+      country: p.country ?? 'Deutschland',
+    });
+  };
   const mutation = useMutation({
     mutationFn: () =>
       saveBavRecipient(claim.id, {
@@ -211,11 +232,9 @@ export function BavRecipientEditor({
       if (!result.packageResult || result.packageResult.generated) onClose();
     },
   });
+  // The street is optional: large-customer postal codes need none.
   const complete =
-    form.name.trim() &&
-    form.street.trim() &&
-    form.postalCode.trim() &&
-    form.city.trim();
+    form.name.trim() && form.postalCode.trim() && form.city.trim();
   const employerOnly =
     claim.bavDurchfuehrungsweg === 'Direktzusage' ||
     claim.bavDurchfuehrungsweg === 'Unterstützungskasse';
@@ -226,6 +245,28 @@ export function BavRecipientEditor({
       className="mb-4 space-y-3 rounded-md border border-gray-200 bg-white p-3"
       id="bav-recipient-editor"
     >
+      {!employerOnly && (providers.data?.length ?? 0) > 0 && (
+        <Field
+          label="Provider"
+          htmlFor="rcp-provider"
+          hint="Fills the recipient from the bAV provider list (Admin → bAV providers)."
+        >
+          <select
+            id="rcp-provider"
+            value={providerId}
+            onChange={(e) => pickProvider(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">Choose a provider…</option>
+            {providers.data!.map((p) => (
+              <option key={p.id} value={p.id}>
+                {providerLabel(p)}
+                {p.shortName ? ` (${p.name})` : ''}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Addressee" htmlFor="rcp-type">
           <select
@@ -264,7 +305,11 @@ export function BavRecipientEditor({
             placeholder="e.g. Betriebliche Altersversorgung"
           />
         </Field>
-        <Field label="Street and number" htmlFor="rcp-street">
+        <Field
+          label="Street or PO box (optional)"
+          htmlFor="rcp-street"
+          hint="Empty for a large-customer postal code (e.g. 76240 Karlsruhe)."
+        >
           <input
             id="rcp-street"
             value={form.street}
@@ -291,7 +336,7 @@ export function BavRecipientEditor({
         <Field
           label="Country"
           htmlFor="rcp-country"
-          hint="Not printed: the letters assume a German address."
+          hint="Printed only when it is not Germany."
         >
           <input
             id="rcp-country"

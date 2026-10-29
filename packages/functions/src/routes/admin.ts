@@ -396,7 +396,8 @@ const bavRecipientSchema = z.object({
   addresseeType: z.enum(['employer', 'provider']),
   name: z.string().trim().min(1).max(255),
   department: z.string().trim().max(255).nullable().optional(),
-  street: z.string().trim().min(1).max(255),
+  // Optional: large-customer postal codes (VBL "76240 Karlsruhe") have none.
+  street: z.string().trim().max(255).nullable().optional(),
   postalCode: z.string().trim().min(1).max(20),
   city: z.string().trim().min(1).max(100),
   country: z.string().trim().max(100).nullable().optional(),
@@ -432,7 +433,8 @@ admin.put('/claims/:id/bav-recipient', validateUuidParams('id'), async (c) => {
     const result = await ClaimsApplicationService.updateBavRecipientAsAdmin(
       c.req.param('id') as string,
       user.id,
-      parsed.data
+      // '' is stored as NULL (no street line on the letter).
+      { ...parsed.data, street: parsed.data.street ?? '' }
     );
     return c.json({ success: true, ...result });
   } catch (error) {
@@ -447,6 +449,86 @@ admin.put('/claims/:id/bav-recipient', validateUuidParams('id'), async (c) => {
     return c.json({ success: false, error: message }, statusCode);
   }
 });
+
+// bAV letter settings (owner spec 29 Oct 2026): claim status Vested /
+// Non-Vested (null = derived from the DRV refund answer) and the
+// non-vested application title. GET returns the selected template, the
+// attachment list and every missing field; PUT saves and, before
+// submission, regenerates the pack.
+const bavLetterSettingsSchema = z.object({
+  status: z.enum(['vested', 'non_vested']).nullable(),
+  applicationTitle: z.string().trim().max(255).nullable().optional(),
+});
+
+function bavLetterSettingsError(c: any, error: unknown) {
+  const message =
+    error instanceof Error ? error.message : 'Failed to load letter settings';
+  const statusCode = message.startsWith('Invalid')
+    ? 400
+    : message === 'Claim not found'
+      ? 404
+      : 500;
+  if (statusCode === 500)
+    logger.error('Admin bAV letter settings error:', error);
+  return c.json({ success: false, error: message }, statusCode);
+}
+
+admin.get(
+  '/claims/:id/bav-letter-settings',
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const { BavLetterPackageService } =
+        await import('../services/bav-letters');
+      const preview = await BavLetterPackageService.previewForClaim(
+        c.req.param('id') as string
+      );
+      return c.json({ success: true, settings: preview });
+    } catch (error) {
+      return bavLetterSettingsError(c, error);
+    }
+  }
+);
+
+admin.put(
+  '/claims/:id/bav-letter-settings',
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const parsed = await parseJsonBody(c, bavLetterSettingsSchema);
+      if (!parsed.success) {
+        return c.json(
+          {
+            success: false,
+            error: 'Invalid settings',
+            details: parsed.error.flatten(),
+          },
+          400
+        );
+      }
+      const { BavLetterPackageService } =
+        await import('../services/bav-letters');
+      const result = await BavLetterPackageService.updateLetterSettings(
+        c.req.param('id') as string,
+        user.id,
+        {
+          status: parsed.data.status,
+          applicationTitle: parsed.data.applicationTitle ?? null,
+        }
+      );
+      return c.json({
+        success: true,
+        settings: result.preview,
+        regenerated: result.regenerated,
+        regenerationError: result.regenerationError,
+        signedContentChanged: result.signedContentChanged,
+      });
+    } catch (error) {
+      return bavLetterSettingsError(c, error);
+    }
+  }
+);
 
 // V0901 answers 5.1/6.1/6.3/8.1 per case (owner answer, 20 Oct 2026).
 // Body: { [key]: true | false | null } — null resets to the default.
@@ -596,6 +678,7 @@ admin.get('/bav/settlement-list', async (c) => {
 
 const bavProviderSchema = z.object({
   name: z.string().trim().min(1).max(255),
+  shortName: z.string().trim().max(60).nullable().optional(),
   defaultAddresseeType: z.enum(['employer', 'provider']).nullable().optional(),
   department: z.string().max(255).nullable().optional(),
   street: z.string().max(255).nullable().optional(),

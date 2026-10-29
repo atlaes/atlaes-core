@@ -1,0 +1,44 @@
+{{client_full_name}}
+{{client_residential_address}}
+
+
+{{recipient_name}}
+{{recipient_postal_address}}
+
+{{signature_place}}, {{signature_date}}
+
+
+Antrag auf Abfindung nach § 3 Abs. 3 BetrAVG
+
+Name: {{client_full_name}}, geb. {{client_date_of_birth}}
+{{reference_label}}: {{reference_value}}
+
+
+Sehr geehrte Damen und Herren,
+
+mein Arbeitsverhältnis mit {{employer_name}} endete am {{employment_end_date}}.
+
+Den Erstattungsbescheid der Deutschen Rentenversicherung vom {{drv_decision_date}} füge ich bei.
+
+Hiermit verlange ich gemäß § 3 Abs. 3 BetrAVG die Abfindung meiner unverfallbaren Anwartschaft durch einmalige Kapitalzahlung. Die hierfür erforderliche Beitragserstattung ist erfolgt.
+
+Bitte berechnen Sie den Abfindungsbetrag nach § 3 Abs. 5 in Verbindung mit § 4 Abs. 5 BetrAVG und übersenden Sie eine nachvollziehbare Abrechnung sowie die zutreffende steuerliche Bescheinigung.
+
+Bitte überweisen Sie den Auszahlungsbetrag unmittelbar auf mein folgendes Konto:
+{{client_bank_details}}
+
+Ich stelle diesen Antrag selbst. Für den Postempfang habe ich {{postal_agent_name}} mit der beigefügten Postempfangsvollmacht bevollmächtigt. Bitte senden Sie die Korrespondenz einschließlich Bescheiden an:
+{{postal_agent_address}}
+
+Die Vollmacht ist auf den Postempfang beschränkt; eine weitergehende Verfahrensvertretung oder Geldempfangsvollmacht wird nicht erteilt.
+
+Bitte bestätigen Sie den Eingang des Antrags und teilen Sie den voraussichtlichen Auszahlungstermin innerhalb von vier Wochen nach Zugang dieses Schreibens mit.
+
+Mit freundlichen Grüßen
+
+
+{{client_signature}}
+{{client_full_name}}
+
+Anlagen
+{{attachment_list}}

@@ -5,7 +5,10 @@
  */
 
 export interface BavProviderInput {
+  /** Recipient name printed on the letter. */
   name: string;
+  /** Short label for the admin dropdown, e.g. "KVBW ZVK". */
+  shortName?: string | null;
   defaultAddresseeType?: 'employer' | 'provider' | null;
   department?: string | null;
   street?: string | null;
@@ -52,15 +55,20 @@ export function normalizeProviderName(name: string): string {
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-/** True when the provider row matches the claim's provider name. */
+/**
+ * True when the provider row matches the claim's provider name, by full
+ * name or by short label ("VBL", "BVV").
+ */
 export function providerMatches(
-  provider: { name: string },
+  provider: { name: string; shortName?: string | null },
   claimProviderName: string | null | undefined
 ): boolean {
   if (blank(claimProviderName)) return false;
+  const wanted = normalizeProviderName(claimProviderName as string);
   return (
-    normalizeProviderName(provider.name) ===
-    normalizeProviderName(claimProviderName as string)
+    normalizeProviderName(provider.name) === wanted ||
+    (!blank(provider.shortName) &&
+      normalizeProviderName(provider.shortName as string) === wanted)
   );
 }
 
@@ -81,11 +89,9 @@ export function providerAddressPatch(
     blank(claim.bavRecipientPostalCode) &&
     blank(claim.bavRecipientCity);
   if (!addressEmpty) return null;
-  if (
-    blank(provider.street) ||
-    blank(provider.postalCode) ||
-    blank(provider.city)
-  ) {
+  // The street may be absent: large-customer postal codes (VBL "76240
+  // Karlsruhe") need none.
+  if (blank(provider.postalCode) || blank(provider.city)) {
     return null;
   }
   // Employer-addressed letters (Direktzusage/Unterstützungskasse) never go
@@ -95,7 +101,7 @@ export function providerAddressPatch(
   if (addresseeType !== 'provider') return null;
 
   const patch: RecipientPatch = {
-    bavRecipientStreet: provider.street!.trim(),
+    bavRecipientStreet: blank(provider.street) ? null : provider.street!.trim(),
     bavRecipientPostalCode: provider.postalCode!.trim(),
     bavRecipientCity: provider.city!.trim(),
   };
