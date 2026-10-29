@@ -40,6 +40,7 @@ import {
 } from '@/components/ui';
 import { DocumentViewer, ViewerDoc } from '@/components/DocumentViewer';
 import { BavRecipientEditor, SubmissionHoldBanner } from '@/components/claim-hold';
+import { BavLetterSettingsCard } from '@/components/BavLetterSettingsCard';
 
 const STAGE_REASON_LABELS: Record<string, string> = {
   contract_ended: 'Contract ended / not renewed',
@@ -396,6 +397,8 @@ export default function ClaimDetailPage() {
               </ol>
             )}
           </Section>
+
+          {isBav && <BavLetterSettingsCard claimId={claim.id} version={claim.updatedAt} onChanged={invalidate} />}
 
           {isBav && (
             <Section title="bAV intake" action={!editingRecipient && <Button size="sm" onClick={openRecipientEditor}>Edit recipient</Button>}>
