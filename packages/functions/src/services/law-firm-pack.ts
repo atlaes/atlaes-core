@@ -12,6 +12,11 @@ import { COUNTRY_NAME_DE } from './drv-pack/register';
 import type { PackClient } from './drv-pack/pack';
 import type { Sex } from './drv-pack/v0901-form';
 import { sanitizeV0901Overrides } from './drv-pack/v0901-answers';
+import {
+  mapV0901Bank,
+  type ClientBankAccount,
+  type V0901BankMapping,
+} from './drv-pack/v0901-bank';
 
 /** Minimal claim shape the mapper needs (subset of claims.$inferSelect). */
 export interface DrvClaimFields {
@@ -37,6 +42,17 @@ export interface DrvClaimFields {
   germanContributionMonths: number | null;
   /** Ops overrides of the V0901 answers (claims.v0901_answers). */
   v0901Answers?: unknown;
+  // Client's confirmed bank record (direct route: V0901 section 11).
+  accountHolderName?: string | null;
+  bankName?: string | null;
+  iban?: string | null;
+  swiftBic?: string | null;
+  accountNumber?: string | null;
+  bsb?: string | null;
+  bankStreet?: string | null;
+  bankCity?: string | null;
+  bankPostalCode?: string | null;
+  bankCountry?: string | null;
 }
 
 const ENGLISH_COUNTRY_ISO: Record<string, string> = {
@@ -299,6 +315,52 @@ export function drvPackClientFromClaim(c: DrvClaimFields): DrvPackMapping {
     v0901Answers: sanitizeV0901Overrides(c.v0901Answers) ?? null,
   };
   return { client, citizenshipIso, residenceIso, missing: [] };
+}
+
+/** The client's confirmed bank record as stored on the claim. */
+export function clientBankFromClaim(c: DrvClaimFields): ClientBankAccount {
+  return {
+    accountHolderName: c.accountHolderName ?? null,
+    bankName: c.bankName ?? null,
+    iban: c.iban ?? null,
+    swiftBic: c.swiftBic ?? null,
+    accountNumber: c.accountNumber ?? null,
+    bsb: c.bsb ?? null,
+    bankStreet: c.bankStreet ?? null,
+    bankCity: c.bankCity ?? null,
+    bankPostalCode: c.bankPostalCode ?? null,
+    bankCountry: c.bankCountry ?? null,
+  };
+}
+
+export interface DrvDirectPackMapping extends DrvPackMapping {
+  bank: ClientBankAccount;
+  bankMapping: V0901BankMapping;
+}
+
+/**
+ * Direct route: the pack client plus the client's own bank account for
+ * V0901 section 11. Missing bank data is listed like any other missing
+ * field — the pack is not built, there is no firm/escrow fallback.
+ */
+export function drvDirectPackClientFromClaim(
+  c: DrvClaimFields
+): DrvDirectPackMapping {
+  const base = drvPackClientFromClaim(c);
+  const bank = clientBankFromClaim(c);
+  const name = [c.firstName, c.lastName].filter(Boolean).join(' ');
+  const bankMapping = mapV0901Bank(bank, name || null);
+  const missing = [
+    ...base.missing,
+    ...bankMapping.missing.map((m) => `bank: ${m}`),
+  ];
+  return {
+    ...base,
+    client: missing.length ? null : base.client,
+    missing,
+    bank,
+    bankMapping,
+  };
 }
 
 /** S3 key of a frozen pack: one per generation, never overwritten. */

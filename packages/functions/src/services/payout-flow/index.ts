@@ -40,6 +40,7 @@ import {
   type PayoutRouteChoiceLog,
 } from '../../drizzle/schema/payout';
 import { computeFeeSplit, deregistrationSurchargeFor } from '../drv-pack/fee';
+import { DIRECT_ROUTE_NO_ESCROW, isDirectDrvRefund } from '../drv-pack/route';
 import { extractDrvRefundDecisionDetails } from '../drv-refund-decision-extraction';
 import {
   buildZahlungserklaerungText,
@@ -195,6 +196,13 @@ export interface ClientPayoutTask {
 
 export interface ClientPayoutState {
   claimId: string;
+  /**
+   * 'escrow': the refund arrives on the escrow account and the client
+   * releases it with the ZE. 'direct_to_client': direct client submission,
+   * the DRV pays the client; no release, no ZE (not applicable).
+   */
+  payoutRoute: 'escrow' | 'direct_to_client';
+  zeApplicable: boolean;
   client: { firstName: string | null; lastName: string | null };
   tasks: ClientPayoutTask[];
   decision: DecisionView | null;
@@ -387,6 +395,10 @@ export class PayoutFlowService {
       )
       .limit(1);
     if (!release) throw new PayoutFlowError('Release not found', 404);
+    // Direct client submission: no bank step, route choice or ZE signing
+    // on an open release (a signed one stays viewable).
+    if (release.status === 'open' && isDirectDrvRefund(claim))
+      throw new PayoutFlowError(DIRECT_ROUTE_NO_ESCROW, 409, 'direct_route');
     return { claim, release };
   }
 
@@ -513,6 +525,9 @@ export class PayoutFlowService {
     if (!isIsoDate(input.valueDate))
       throw new PayoutFlowError('Invalid value date');
     const claim = await this.getClaim(claimId);
+    // Direct client submission: no escrow funds, no release, no ZE.
+    if (isDirectDrvRefund(claim))
+      throw new PayoutFlowError(DIRECT_ROUTE_NO_ESCROW, 409, 'direct_route');
     const cfg = payoutFeeConfig();
     const split = computeFeeSplit(input.amountEur, cfg, {
       deregistrationSurchargeEur: deregistrationSurchargeFor(
@@ -865,6 +880,10 @@ export class PayoutFlowService {
     ]);
     return {
       claimId,
+      /** Direct client submission: no escrow funds / release / ZE. */
+      payoutRoute: isDirectDrvRefund(claim)
+        ? ('direct_to_client' as const)
+        : ('escrow' as const),
       flags: {
         smallRefund: claim.payoutSmallRefund ?? false,
         detailsReviewRequired: claim.payoutDetailsReviewRequired,
@@ -1005,9 +1024,12 @@ export class PayoutFlowService {
   static async getClientState(userId: string): Promise<ClientPayoutState> {
     const atlaesIban = await currentAtlaesIban();
     const claim = await this.claimForUser(userId);
+    const direct = isDirectDrvRefund(claim);
     const decision = await this.latestDecision(claim.id);
     const rows = await this.releases(claim.id);
-    const release = this.currentRelease(rows);
+    // The direct route has no escrow release; a stale one (created before a
+    // route change) is never offered for signing.
+    const release = direct ? null : this.currentRelease(rows);
     const [report] = await db
       .select()
       .from(payoutCustomerInputs)
@@ -1036,6 +1058,8 @@ export class PayoutFlowService {
     }
     return {
       claimId: claim.id,
+      payoutRoute: direct ? 'direct_to_client' : 'escrow',
+      zeApplicable: !direct,
       client: { firstName: claim.firstName, lastName: claim.lastName },
       tasks,
       decision: decision ? decisionView(decision) : null,

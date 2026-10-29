@@ -32,6 +32,7 @@ import {
   validateBavRecipient,
 } from './bav-letters/intake-validation';
 import { ClaimHoldService } from './claim-holds';
+import { submittedToDrv } from './drv-pack/route';
 import {
   buildBavPayoutRecord,
   summarizeSettlementList,
@@ -1364,6 +1365,11 @@ export class ClaimsApplicationService {
    *   for the law firm or mailed via the lettershop on direct handling.
    *   Without a complete recipient address (no provider-matrix row) the
    *   claim waits for ops to enter it: no package, no lettershop job.
+   * - DRV refund (GPR): never the VBL L203 or the lettershop. Via
+   *   Vividius ('law_firm') the firm's portal builds the DRV pack at its
+   *   first download (LawFirmService.ensureSubmissionPack) once ops
+   *   release the case; on the direct route admin generates, releases and
+   *   records the dispatch (DirectSubmissionService). Nothing automatic.
    * - VddB/VddKO: no claim form for these institutions exists yet, so the
    *   claim is held for manual submission; it is never mailed with the
    *   VBL L203.
@@ -1394,6 +1400,16 @@ export class ClaimsApplicationService {
             holdError instanceof Error ? holdError.message : String(holdError),
         })
       );
+
+    if (caseType === 'drv_refund') {
+      logger.info(
+        handlingRoute === 'law_firm'
+          ? 'DRV claim submitted: pack is built for the law firm at download'
+          : 'DRV claim submitted: direct route, admin generates and releases the pack',
+        { claimId, handlingRoute }
+      );
+      return;
+    }
 
     if (caseType === 'bav_cashout') {
       const recipientErrors = validateBavRecipient(row);
@@ -1944,6 +1960,25 @@ export class ClaimsApplicationService {
       }
       const previousRoute =
         claim.handlingRoute ?? defaultHandlingRoute(claim.caseType);
+      const routeChanged = previousRoute !== input.handlingRoute;
+      // After the submission to the DRV (firm posting date or recorded
+      // direct dispatch) the ordinary route switch is locked (direct-route
+      // spec 29 Oct 2026): route, mandate and bank changes already
+      // communicated to the DRV go through the correction workflow.
+      const [submission] = await db
+        .select({
+          lawFirmSubmittedAt: claimsTable.lawFirmSubmittedAt,
+          submissionDispatchedAt: claimsTable.submissionDispatchedAt,
+          submissionPackS3Key: claimsTable.submissionPackS3Key,
+        })
+        .from(claimsTable)
+        .where(eq(claimsTable.id, claimId))
+        .limit(1);
+      if (routeChanged && submission && submittedToDrv(submission)) {
+        throw new Error(
+          'Invalid routing change: the claim was already submitted to the pension office; use the correction workflow'
+        );
+      }
       if (
         claim.lettershopSubmissionId &&
         input.handlingRoute === 'law_firm' &&
@@ -1974,6 +2009,23 @@ export class ClaimsApplicationService {
             handlingRouteSetBy: adminUserId,
             payoutTarget,
             lawFirmRef,
+            // A route change before submission takes the old pack out of
+            // dispatch: the frozen pack and the route-specific release
+            // fields are cleared so the documents regenerate for the new
+            // route (and new signatures are collected).
+            ...(routeChanged
+              ? {
+                  submissionPackS3Key: null,
+                  submissionPackGeneratedAt: null,
+                  submissionPackManifest: null,
+                  directPackReleasedAt: null,
+                  directPackReleasedBy: null,
+                  lawFirmReleasedAt: null,
+                  lawFirmReleasedBy: null,
+                  lawFirmRereleasedUntil: null,
+                  lawFirmDownloadedAt: null,
+                }
+              : {}),
             updatedAt: now,
           })
           .where(eq(claimsTable.id, claimId))
@@ -1992,6 +2044,9 @@ export class ClaimsApplicationService {
             payoutTarget,
             lawFirmRef,
             note: input.note,
+            clearedPack: routeChanged
+              ? (submission?.submissionPackS3Key ?? null)
+              : null,
           },
         });
 

@@ -32,6 +32,7 @@ import clientUpdatesAdmin from './routes/client-updates-admin';
 import payout from './routes/payout';
 import payoutAdmin from './routes/payout-admin';
 import integrationsAdmin from './routes/integrations-admin';
+import directSubmissionAdmin from './routes/direct-submission-admin';
 import blog, { adminBlog } from './routes/blog';
 import e2e from './routes/e2e';
 
@@ -75,6 +76,7 @@ app.route('/api/admin/client-updates', clientUpdatesAdmin);
 app.route('/api/account/payout', payout);
 app.route('/api/admin/payout', payoutAdmin);
 app.route('/api/admin/integrations', integrationsAdmin);
+app.route('/api/admin/direct-submission', directSubmissionAdmin);
 app.route('/api/admin/blog', adminBlog);
 app.route('/api/blog', blog);
 // Staging e2e support; 404 unless the e2e guard passes (utils/e2e.ts).
