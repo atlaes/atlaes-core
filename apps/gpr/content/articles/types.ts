@@ -46,7 +46,9 @@ export type ArticleBlock =
   | { t: 'faq' }
   | { t: 'tool'; kind: ToolKind }
   /** Registry-driven official-downloads list for the given form numbers. */
-  | { t: 'downloads'; forms: string[] };
+  | { t: 'downloads'; forms: string[] }
+  /** Body image (blog CMS posts). */
+  | { t: 'img'; url: string; alt: string; caption?: string };
 
 export interface ArticleFaqItem extends FaqItem {
   /**

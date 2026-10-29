@@ -21,6 +21,13 @@ export const rateLimiter = (
       return;
     }
 
+    // Public blog reads come from the sites' servers (one IP for every
+    // visitor) and from image crawlers; they are read-only and cacheable.
+    if (c.req.method === 'GET' && c.req.path.startsWith('/api/blog/')) {
+      await next();
+      return;
+    }
+
     const ip =
       c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
     const userAgent = c.req.header('user-agent') || '';

@@ -211,6 +211,13 @@
       "when": 1790842654025,
       "tag": "0029_law_firm_letters",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1790929054025,
+      "tag": "0030_blog_posts",
+      "breakpoints": true
     }
   ]
 }

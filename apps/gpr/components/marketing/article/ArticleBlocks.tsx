@@ -216,6 +216,15 @@ export function ArticleBlocks({
             return <Tool key={i} kind={b.kind} path={path} lang={lang} />;
           case 'downloads':
             return <Downloads key={i} forms={b.forms} lang={lang} />;
+          case 'img':
+            return (
+              <figure key={i} className="mk-art-figure">
+                {/* Plain img: CMS uploads live on the API host (no next/image remote config). */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={b.url} alt={b.alt} loading="lazy" decoding="async" />
+                {b.caption ? <figcaption>{b.caption}</figcaption> : null}
+              </figure>
+            );
           case 'faq':
             return faq && faq.length ? (
               <ArticleFaq
