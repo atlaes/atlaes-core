@@ -64,6 +64,7 @@ import {
   type RouteOptions,
 } from './providers';
 import { ecbReferenceRate } from './ecb';
+import { normaliseCurrency } from './currency-routing';
 import { parsePeriodsFromOcr } from './periods';
 import { reviewReasons } from './review-flags';
 import {
@@ -1203,7 +1204,7 @@ export class PayoutFlowService {
     const { claim, release } = await this.releaseForUser(userId, releaseId);
     if (release.status !== 'open')
       throw new PayoutFlowError('This release is no longer open', 409);
-    const currency = (input.currency || '').toUpperCase();
+    const currency = normaliseCurrency(input.currency);
     const route: PayoutRouteCode = currency === 'EUR' ? 'A' : 'B';
     const validation = validateBankDetails(input, route);
     if (!validation.ok || !validation.account) {

@@ -742,6 +742,25 @@ export const claimsTable = claims.table(
     submissionHoldReason: text('submission_hold_reason'),
     submissionHoldAt: timestamp('submission_hold_at', { withTimezone: true }),
 
+    // Escrow payout (migration 0032, services/payout-emails). Payout hold:
+    // no payout invitation, reminders or signing while set (NULL = none).
+    // Contact pause: client travelling/ill/unavailable; routine payout
+    // reminders pause until the next-contact date, deadline alerts don't.
+    payoutHoldReason: text('payout_hold_reason'),
+    payoutHoldAt: timestamp('payout_hold_at', { withTimezone: true }),
+    payoutHoldBy: uuid('payout_hold_by'),
+    contactPauseReason: text('contact_pause_reason'),
+    contactPausedAt: timestamp('contact_paused_at', { withTimezone: true }),
+    nextContactDate: date('next_contact_date'),
+    // The decision went to the client directly (EM at once) / the client
+    // says it has not arrived (admin obtains a copy).
+    decisionDirectToClientAt: timestamp('decision_direct_to_client_at', {
+      withTimezone: true,
+    }),
+    decisionNotReceivedAt: timestamp('decision_not_received_at', {
+      withTimezone: true,
+    }),
+
     // Timestamps
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),

@@ -225,6 +225,13 @@
       "when": 1790929154025,
       "tag": "0031_direct_route_bav_status",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790929254025,
+      "tag": "0032_escrow_payout_emails",
+      "breakpoints": true
     }
   ]
 }

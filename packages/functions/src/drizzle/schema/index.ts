@@ -13,3 +13,4 @@ export * from './payout-accounts';
 export * from './ops-settings';
 export * from './law-firm-letters';
 export * from './blog';
+export * from './payout-emails';
