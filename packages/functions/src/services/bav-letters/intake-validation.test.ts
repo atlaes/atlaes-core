@@ -74,7 +74,6 @@ describe('validateBavIntake', () => {
     );
     expect(errors).toEqual([
       'DRV office is required',
-      'DRV refund decision date is required',
       'DRV refund decision (Erstattungsbescheid) document is required',
     ]);
   });

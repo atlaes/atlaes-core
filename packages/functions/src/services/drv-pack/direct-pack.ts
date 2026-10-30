@@ -49,6 +49,8 @@ import type { CoverLetterRecipient } from './cover-letter';
 
 /** Postal agent as maintained in Admin settings (ops-settings.ts). */
 export interface DirectPostalAgent {
+  /** "Frau", "Herr" or "" (none). */
+  salutation?: string;
   name: string;
   coLine?: string | null;
   street: string;
@@ -155,6 +157,7 @@ export function directDocFields(
       ...recipient.mailingAddress,
     ],
     agentName: agent.name.trim(),
+    agentSalutation: agent.salutation ?? '',
     agentPostalAddress: agentAddressLines(agent),
     signaturePlace: c.city.trim(),
     signatureDate: formatDateDe(signingDate),

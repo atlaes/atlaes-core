@@ -22,6 +22,7 @@ import {
 const QUERY_KEY = ['admin-ops-settings'];
 
 const EMPTY_AGENT: PostalAgent = {
+  salutation: 'Frau',
   name: '',
   coLine: null,
   street: '',
@@ -100,6 +101,7 @@ function PostalAgentRow({ setting }: { setting: OpsSetting }) {
   const save = useMutation({
     mutationFn: () =>
       saveOpsSetting('postal_agent', {
+        salutation: form.salutation,
         name: form.name.trim(),
         coLine: form.coLine?.trim() || null,
         street: form.street.trim(),
@@ -113,7 +115,8 @@ function PostalAgentRow({ setting }: { setting: OpsSetting }) {
   });
 
   const set =
-    (f: keyof PostalAgent) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    (f: keyof PostalAgent) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((prev) => ({ ...prev, [f]: e.target.value }));
   const complete =
     form.name.trim() &&
@@ -139,7 +142,7 @@ function PostalAgentRow({ setting }: { setting: OpsSetting }) {
         <>
           <address className="mt-3 whitespace-pre-line text-sm not-italic text-gray-900">
             {[
-              current.name,
+              [current.salutation, current.name].filter(Boolean).join(' '),
               current.coLine,
               current.street,
               `${current.postalCode} ${current.city}`,
@@ -162,6 +165,22 @@ function PostalAgentRow({ setting }: { setting: OpsSetting }) {
           }}
         >
           <div className="grid gap-3 sm:grid-cols-2">
+            <Field
+              label="Salutation"
+              htmlFor="pa-salutation"
+              hint="Used in the DRV direct cover letter: “habe ich Frau Anna Kliem … bevollmächtigt”."
+            >
+              <select
+                id="pa-salutation"
+                value={form.salutation}
+                onChange={set('salutation')}
+                className={inputClass}
+              >
+                <option value="Frau">Frau</option>
+                <option value="Herr">Herr</option>
+                <option value="">None (e.g. a company)</option>
+              </select>
+            </Field>
             <Field label="Name" htmlFor="pa-name">
               <input
                 id="pa-name"
@@ -240,7 +259,7 @@ function PostalAgentRow({ setting }: { setting: OpsSetting }) {
           <Button
             size="sm"
             onClick={() => {
-              setForm(current ? { ...current } : EMPTY_AGENT);
+              setForm(current ? { ...EMPTY_AGENT, ...current } : EMPTY_AGENT);
               save.reset();
               setEditing(true);
             }}

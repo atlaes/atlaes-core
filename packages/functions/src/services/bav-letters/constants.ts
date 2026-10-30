@@ -22,14 +22,21 @@ export const BAV_THRESHOLDS_BY_YEAR: Readonly<Record<string, BavThresholds>> = {
   '2026': { bezugsgroesse: 3955, pension: 59.33, capital: 7119 },
 };
 
+/**
+ * The row for `year`. A year without a row (e.g. January before the new
+ * Bezugsgröße is added) uses the latest earlier row instead of failing
+ * intake; years before the first row use the first.
+ */
 export function getBavThresholds(year: string | number): BavThresholds {
-  const row = BAV_THRESHOLDS_BY_YEAR[String(year)];
-  if (!row) {
-    throw new Error(
-      `No § 3 Abs. 2 BetrAVG threshold row for ${year}; add it to BAV_THRESHOLDS_BY_YEAR`
-    );
-  }
-  return row;
+  const exact = BAV_THRESHOLDS_BY_YEAR[String(year)];
+  if (exact) return exact;
+  const years = Object.keys(BAV_THRESHOLDS_BY_YEAR)
+    .map(Number)
+    .sort((a, b) => a - b);
+  const earlier = years.filter((y) => y <= Number(year));
+  return BAV_THRESHOLDS_BY_YEAR[
+    String(earlier.length ? earlier[earlier.length - 1] : years[0])
+  ];
 }
 
 // ---------------------------------------------------------------------------

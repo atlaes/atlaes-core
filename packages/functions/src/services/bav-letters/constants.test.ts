@@ -15,8 +15,10 @@ describe('thresholds', () => {
     );
   });
 
-  it('refuses a year without a row instead of guessing', () => {
-    expect(() => getBavThresholds(2031)).toThrow(/threshold row for 2031/);
+  it('uses the latest earlier row for a year without one', () => {
+    // Intake must keep working in January before the new row is added.
+    expect(getBavThresholds(2031)).toEqual(getBavThresholds(2026));
+    expect(getBavThresholds(2020)).toEqual(getBavThresholds(2026));
   });
 });
 

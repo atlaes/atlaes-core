@@ -36,6 +36,9 @@ export interface DirectDocFields {
   drvPostalAddress: string[];
   /** Postal agent's name (Admin settings, default "Anna Kliem"). */
   agentName: string;
+  /** "Frau", "Herr" or "" (Admin settings), printed before the name in the
+   *  cover letter body only. */
+  agentSalutation: string;
   /** anna_postal_address: optional c/o line, street, "PLZ Ort". */
   agentPostalAddress: string[];
   signaturePlace: string;
@@ -69,6 +72,14 @@ export function directFieldValues(
 }
 
 /** Pure draw plan of the cover letter (may run onto a second page). */
+/** "Frau Anna Kliem" / "Herrn Max Muster" / "Muster GmbH" (accusative,
+ *  as in "habe ich … bevollmächtigt"). */
+function agentAccusative(input: DirectDocFields): string {
+  const salutation =
+    input.agentSalutation === 'Herr' ? 'Herrn' : input.agentSalutation;
+  return [salutation, input.agentName].filter(Boolean).join(' ');
+}
+
 export function buildDirectCoverLetterPlan(
   input: DirectCoverLetterInput,
   font: PDFFont,
@@ -116,7 +127,7 @@ export function buildDirectCoverLetterPlan(
   );
   w.blank();
   w.para(
-    `Ich stelle den Antrag selbst. Für den Postempfang in diesem Verfahren habe ich Frau ${input.agentName} mit der beigefügten Postempfangsvollmacht bevollmächtigt. Bitte senden Sie die Korrespondenz einschließlich Bescheiden an:`
+    `Ich stelle den Antrag selbst. Für den Postempfang in diesem Verfahren habe ich ${agentAccusative(input)} mit der beigefügten Postempfangsvollmacht bevollmächtigt. Bitte senden Sie die Korrespondenz einschließlich Bescheiden an:`
   );
   w.blank();
   w.keepTogether((1 + input.agentPostalAddress.length) * lineHeight);

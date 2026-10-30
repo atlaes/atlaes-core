@@ -118,7 +118,7 @@ Sehr geehrte Damen und Herren,
 
 mein Arbeitsverhältnis mit Beispielbank AG endete am 28.02.2021.
 
-Den Erstattungsbescheid der Deutschen Rentenversicherung vom 02.07.2026 füge ich bei.
+Den Erstattungsbescheid der Deutschen Rentenversicherung füge ich bei.
 
 Hiermit verlange ich gemäß § 3 Abs. 3 BetrAVG die Abfindung meiner unverfallbaren Anwartschaft durch einmalige Kapitalzahlung. Die hierfür erforderliche Beitragserstattung ist erfolgt.
 

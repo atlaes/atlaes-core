@@ -207,9 +207,6 @@ export function validateBavClientIntake(
 
   if (route === 'A') {
     if (!filled(claim.drvOffice)) errors.push('DRV office is required');
-    if (!filled(claim.drvDecisionDate)) {
-      errors.push('DRV refund decision date is required');
-    }
     if (!has('drv_refund_decision')) {
       errors.push(
         'DRV refund decision (Erstattungsbescheid) document is required'

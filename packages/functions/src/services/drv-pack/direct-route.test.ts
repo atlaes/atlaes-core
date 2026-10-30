@@ -91,6 +91,7 @@ const resolution = resolveCarrier({
   residence: 'IN',
 });
 const agent = {
+  salutation: 'Frau' as const,
   name: 'Anna Kliem',
   coLine: null,
   street: 'Kaskelstr. 46',
@@ -311,6 +312,20 @@ describe('direct cover letter and Postempfangsvollmacht', () => {
       '{{',
     ])
       expect(joined).not.toContain(banned);
+  });
+
+  it('takes the salutation from the postal-agent setting', async () => {
+    const { font, bold } = await fonts();
+    const plan = (agentSalutation: string) =>
+      texts(
+        buildDirectCoverLetterPlan(
+          { ...input, agentSalutation, agentName: 'Max Muster' },
+          font,
+          bold
+        )
+      ).join(' ');
+    expect(plan('Herr')).toContain('habe ich Herrn Max Muster mit');
+    expect(plan('')).toContain('habe ich Max Muster mit');
   });
 
   it('refuses unresolved placeholders', async () => {

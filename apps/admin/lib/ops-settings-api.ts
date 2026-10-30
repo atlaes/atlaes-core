@@ -3,6 +3,8 @@ import apiClient from './api';
 export type OpsSettingKey = 'postal_agent' | 'direct_dispatch_operator';
 
 export interface PostalAgent {
+  /** Printed before the name in the direct DRV cover letter; '' for none. */
+  salutation: 'Frau' | 'Herr' | '';
   name: string;
   coLine?: string | null;
   street: string;

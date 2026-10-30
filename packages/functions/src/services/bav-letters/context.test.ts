@@ -206,10 +206,9 @@ describe('buildBavLetterPlan', () => {
     expect(issues.map((i) => i.field)).toEqual([
       'employer_name',
       'employment_end_date',
-      'drv_decision_date',
       'documents',
     ]);
-    expect(issues[3].message).toContain('DRV refund decision');
+    expect(issues[2].message).toContain('DRV refund decision');
   });
 
   it('blocks when the status cannot be determined', () => {

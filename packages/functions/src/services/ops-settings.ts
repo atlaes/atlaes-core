@@ -28,6 +28,10 @@ const line = (max: number) =>
     .pipe(z.string().max(max));
 
 export const postalAgentSchema = z.object({
+  /** Salutation before the name in the direct DRV cover letter
+   *  ("Frau Anna Kliem"); empty for none. Rows saved before this field
+   *  existed read as "Frau". */
+  salutation: z.enum(['Frau', 'Herr', '']).default('Frau'),
   name: line(120).pipe(z.string().min(1, 'Enter the name')),
   /** Optional c/o or company line, printed under the name. */
   coLine: line(120).optional().nullable(),
@@ -35,7 +39,7 @@ export const postalAgentSchema = z.object({
   postalCode: line(12).pipe(z.string().min(4, 'Enter the postal code')),
   city: line(80).pipe(z.string().min(1, 'Enter the city')),
 });
-export type PostalAgent = z.infer<typeof postalAgentSchema>;
+export type PostalAgent = z.output<typeof postalAgentSchema>;
 
 export const dispatchOperatorSchema = z.object({
   name: line(200).pipe(z.string().min(1, 'Enter who sends the packs')),
@@ -43,6 +47,7 @@ export const dispatchOperatorSchema = z.object({
 export type DispatchOperator = z.infer<typeof dispatchOperatorSchema>;
 
 export const DEFAULT_POSTAL_AGENT: PostalAgent = {
+  salutation: 'Frau',
   name: 'Anna Kliem',
   coLine: null,
   street: 'Kaskelstr. 46',

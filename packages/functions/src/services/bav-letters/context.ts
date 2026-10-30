@@ -365,10 +365,10 @@ export function buildBavLetterPlan(
     if (!claim.employmentEndDate) {
       block('employment_end_date', 'Employment end date is required');
     }
+    // Optional (owner, 30 Oct 2026): the letters no longer print the
+    // Bescheid date; when known it still labels the attachment.
     if (claim.drvDecisionDate) {
       drvDecisionDate = formatLetterDate(claim.drvDecisionDate);
-    } else {
-      block('drv_decision_date', 'Date of the DRV refund decision is required');
     }
   } else if (status === 'non_vested' && !applicationTitle) {
     block(
