@@ -1284,7 +1284,7 @@ export class PayoutFlowService {
       throw new PayoutFlowError('Description is too long.');
     if (files.length > 20)
       throw new PayoutFlowError('Too many files (max 20).');
-    files.forEach(checkUpload);
+    files.forEach((f) => checkUpload(f));
     const documentIds: string[] = [];
     for (const f of files) {
       documentIds.push(
