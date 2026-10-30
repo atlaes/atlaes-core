@@ -31,12 +31,13 @@
  * engine is not started for them.
  */
 
-import { and, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '../utils/db';
 import { logger, toErrorMeta } from '../utils/logger';
 import { getPresignedUrl, uploadFile } from '../utils/s3';
-import { auditLogs } from '../drizzle/schema/shared';
+import { auditLogs, documents } from '../drizzle/schema/shared';
 import {
+  claimDocuments,
   claimsTable,
   claimWorkflowStates,
   resolveCaseType,
@@ -132,6 +133,13 @@ export interface DirectSubmissionState {
     setByAdmin: boolean;
     options: { value: StageBenefit; label: string }[];
   } | null;
+  /** Provider refunds: ops uploads that go into the pack (form, extras). */
+  uploads: {
+    id: string;
+    role: 'provider_form' | 'bav_extra';
+    fileName: string;
+    uploadedAt: string | null;
+  }[];
   route: SubmissionRoute;
   routeLabel: string;
   /** Direct submission applies (DRV refund on the direct route). */
@@ -316,6 +324,33 @@ export class DirectSubmissionService {
     return null;
   }
 
+  private static async providerUploads(
+    claimId: string
+  ): Promise<DirectSubmissionState['uploads']> {
+    const rows = await db
+      .select({
+        id: claimDocuments.id,
+        role: claimDocuments.documentRole,
+        fileName: documents.fileName,
+        createdAt: claimDocuments.createdAt,
+      })
+      .from(claimDocuments)
+      .innerJoin(documents, eq(documents.id, claimDocuments.documentId))
+      .where(
+        and(
+          eq(claimDocuments.claimId, claimId),
+          inArray(claimDocuments.documentRole, ['provider_form', 'bav_extra'])
+        )
+      )
+      .orderBy(asc(claimDocuments.createdAt));
+    return rows.map((r: (typeof rows)[number]) => ({
+      id: r.id,
+      role: r.role as 'provider_form' | 'bav_extra',
+      fileName: r.fileName,
+      uploadedAt: iso(r.createdAt),
+    }));
+  }
+
   static async getState(claimId: string): Promise<DirectSubmissionState> {
     const claim = await this.claim(claimId);
     const route = submissionRouteOf(claim);
@@ -347,6 +382,7 @@ export class DirectSubmissionService {
               })),
             }
           : null,
+      uploads: kind === 'provider' ? await this.providerUploads(claim.id) : [],
       route,
       routeLabel: SUBMISSION_ROUTE_LABELS[route],
       applicable: reason === null,

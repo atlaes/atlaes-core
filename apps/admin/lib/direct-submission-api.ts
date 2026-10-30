@@ -1,6 +1,9 @@
 import apiClient from './api';
 
-/** Direct client submission of a DRV refund (backend routes/direct-submission-admin.ts). */
+/**
+ * Direct client submission of a DRV refund, or of a KVBW ZVK / VddB / VddKO
+ * refund (backend routes/direct-submission-admin.ts).
+ */
 export type DispatchMethod =
   | 'post'
   | 'einschreiben'
@@ -9,9 +12,28 @@ export type DispatchMethod =
   | 'courier'
   | 'other';
 
+export type StageBenefit =
+  | 'partial_refund'
+  | 'full_refund'
+  | 'return'
+  | 'immediate_return';
+
 export interface DirectSubmissionState {
   claimId: string;
   caseType: string;
+  kind: 'drv' | 'provider' | null;
+  provider: { code: 'KVBW_ZVK' | 'VddB' | 'VddKO'; label: string } | null;
+  benefit: {
+    value: StageBenefit;
+    setByAdmin: boolean;
+    options: { value: StageBenefit; label: string }[];
+  } | null;
+  uploads: {
+    id: string;
+    role: 'provider_form' | 'bav_extra';
+    fileName: string;
+    uploadedAt: string | null;
+  }[];
   route: 'direct' | 'law_firm';
   routeLabel: string;
   applicable: boolean;
@@ -112,4 +134,41 @@ export async function confirmDirectPayment(
     note: input.note || null,
   });
   return data.state;
+}
+
+export async function setDirectBenefit(
+  claimId: string,
+  benefit: StageBenefit | null
+): Promise<DirectSubmissionState> {
+  const { data } = await apiClient.put(`${base(claimId)}/benefit`, {
+    benefit,
+  });
+  return data.state;
+}
+
+/**
+ * Provider refunds: the completed application form ('provider_form', KVBW)
+ * or an extra document for the pack ('bav_extra'). The file name becomes
+ * the extra's line in the cover letter's attachment list.
+ */
+export async function uploadDirectPackDocument(
+  claimId: string,
+  file: File,
+  role: 'provider_form' | 'bav_extra'
+): Promise<void> {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('role', role);
+  await apiClient.post(`/admin/claims/${claimId}/documents`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
+
+export async function removeDirectPackDocument(
+  claimId: string,
+  claimDocumentId: string
+): Promise<void> {
+  await apiClient.delete(
+    `/admin/claims/${claimId}/documents/${claimDocumentId}`
+  );
 }

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Eye } from 'lucide-react';
+import { Eye, Trash2, Upload } from 'lucide-react';
 import {
   confirmDirectPayment,
   generateDirectPack,
@@ -10,9 +10,13 @@ import {
   getDirectSubmission,
   recordDirectDispatch,
   releaseDirectPack,
+  removeDirectPackDocument,
+  setDirectBenefit,
+  uploadDirectPackDocument,
   withdrawDirectRelease,
   type DirectSubmissionState,
   type DispatchMethod,
+  type StageBenefit,
 } from '@/lib/direct-submission-api';
 import {
   Button,
@@ -35,10 +39,13 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 /**
  * Claim page: direct client submission of a DRV refund (submission route
- * "Direct client submission"). Generate the pack for review, release the
- * completed pack for dispatch, record who sent it, how and when (this marks
- * the case submitted), then the client's confirmation of payment. Renders
- * nothing for other case types or the Vividius route.
+ * "Direct client submission") or of a KVBW ZVK / VddB / VddKO refund.
+ * Generate the pack for review, release the completed pack for dispatch,
+ * record who sent it, how and when (this marks the case submitted), then
+ * the client's confirmation of payment. For provider refunds admin also
+ * picks the benefit (VddB/VddKO) and uploads the KVBW application form and
+ * any extra documents. Renders nothing for other cases (the VBL goes
+ * through the lettershop) or the Vividius route.
  */
 export function DirectSubmissionCard({
   claimId,
@@ -96,6 +103,25 @@ export function DirectSubmissionCard({
       done(data);
     },
   });
+  const benefit = useMutation({
+    mutationFn: (value: StageBenefit | null) =>
+      setDirectBenefit(claimId, value),
+    onSuccess: done,
+  });
+  // Uploads return no state; reload it (the pack must then be regenerated).
+  const refresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: key });
+    onChanged?.();
+  };
+  const upload = useMutation({
+    mutationFn: (input: { file: File; role: 'provider_form' | 'bav_extra' }) =>
+      uploadDirectPackDocument(claimId, input.file, input.role),
+    onSuccess: refresh,
+  });
+  const remove = useMutation({
+    mutationFn: (docId: string) => removeDirectPackDocument(claimId, docId),
+    onSuccess: refresh,
+  });
 
   if (state.isLoading) return null;
   if (state.isError || !state.data)
@@ -113,13 +139,30 @@ export function DirectSubmissionCard({
     release.isPending ||
     withdraw.isPending ||
     record.isPending ||
-    payment.isPending;
+    payment.isPending ||
+    benefit.isPending ||
+    upload.isPending ||
+    remove.isPending;
   const error =
     generate.error ??
     release.error ??
     withdraw.error ??
     record.error ??
-    payment.error;
+    payment.error ??
+    benefit.error ??
+    upload.error ??
+    remove.error;
+  const provider = s.kind === 'provider' ? s.provider : null;
+  const recipientName = provider?.label ?? 'the DRV';
+  // Uploads can change until the pack is released.
+  const editable = !s.release && !s.dispatch;
+  const pick =
+    (role: 'provider_form' | 'bav_extra') =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      if (file) upload.mutate({ file, role });
+    };
   const agent = [
     s.postalAgent.name,
     s.postalAgent.coLine,
@@ -152,8 +195,9 @@ export function DirectSubmissionCard({
                 : 'No pack yet'}
         </StatusDot>
         <span className="text-xs text-gray-500">
-          Client signs and applies; post goes to {agent}; the DRV pays the
-          client directly (no escrow, no ZE).
+          Client signs and applies; post goes to {agent}; {recipientName} pays
+          the client directly (no escrow
+          {provider ? '' : ', no ZE'}).
         </span>
       </div>
 
@@ -172,6 +216,106 @@ export function DirectSubmissionCard({
           {w}
         </p>
       ))}
+
+      {s.benefit && (
+        <Field label="Benefit applied for (form field 1)" htmlFor="benefit">
+          <select
+            id="benefit"
+            value={s.benefit.value}
+            disabled={busy || !editable}
+            onChange={(e) => benefit.mutate(e.target.value as StageBenefit)}
+            className={inputClass}
+          >
+            {s.benefit.options.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-gray-500">
+            {s.benefit.setByAdmin ? (
+              <button
+                type="button"
+                className="underline"
+                disabled={busy || !editable}
+                onClick={() => benefit.mutate(null)}
+              >
+                Reset to the default from the client&apos;s answers
+              </button>
+            ) : (
+              'Default from the client’s answers (full refund only when unable to work for health reasons).'
+            )}
+          </p>
+        </Field>
+      )}
+
+      {provider && (
+        <div className="space-y-2 rounded-md border border-gray-200 p-3">
+          <p className="font-medium text-gray-900">Documents for the pack</p>
+          {s.uploads.length === 0 ? (
+            <p className="text-xs text-gray-500">None uploaded.</p>
+          ) : (
+            <ul className="space-y-1">
+              {s.uploads.map((u) => (
+                <li key={u.id} className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">
+                    {u.role === 'provider_form'
+                      ? 'Application form'
+                      : 'Extra document'}
+                  </span>
+                  <span className="truncate">{u.fileName}</span>
+                  {editable && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => remove.mutate(u.id)}
+                      aria-label={`Remove ${u.fileName}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {editable && (
+            <div className="flex flex-wrap gap-2">
+              {provider.code === 'KVBW_ZVK' && (
+                <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50">
+                  <Upload className="h-3.5 w-3.5" />
+                  Application form (completed, client-signed PDF)
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    className="sr-only"
+                    disabled={busy}
+                    onChange={pick('provider_form')}
+                  />
+                </label>
+              )}
+              <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50">
+                <Upload className="h-3.5 w-3.5" />
+                Extra document (e.g. tax-ID form)
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  className="sr-only"
+                  disabled={busy}
+                  onChange={pick('bav_extra')}
+                />
+              </label>
+            </div>
+          )}
+          <p className="text-xs text-gray-500">
+            {provider.code === 'KVBW_ZVK'
+              ? 'The latest application form goes in after the cover letter. '
+              : ''}
+            Extra documents go at the end; the file name is their line in the
+            cover letter’s Anlagen list.
+          </p>
+        </div>
+      )}
 
       {s.pack && (
         <div className="rounded-md border border-gray-200 p-3">
@@ -337,7 +481,7 @@ export function DirectSubmissionCard({
             className={inputClass}
           />
           <p className="text-xs text-gray-500">
-            Saving marks the claim as submitted to the DRV and locks the
+            Saving marks the claim as submitted to {recipientName} and locks the
             submission route.
           </p>
           <div className="flex gap-2">

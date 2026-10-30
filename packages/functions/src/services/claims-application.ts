@@ -2656,6 +2656,12 @@ export class ClaimsApplicationService {
         .insert(claimDocuments)
         .values({ claimId, documentId: doc.id, documentRole: role })
         .returning();
+      // The pack content changes: a direct provider pack generated before
+      // this upload must be regenerated before release.
+      await tx
+        .update(claimsTable)
+        .set({ updatedAt: new Date() })
+        .where(eq(claimsTable.id, claimId));
       await tx.insert(auditLogs).values({
         userId: adminUserId,
         action: 'claim_extra_document_added',
@@ -2725,6 +2731,10 @@ export class ClaimsApplicationService {
     await db.transaction(async (tx: any) => {
       await tx.delete(claimDocuments).where(eq(claimDocuments.id, link.id));
       await tx.delete(documents).where(eq(documents.id, link.documentId));
+      await tx
+        .update(claimsTable)
+        .set({ updatedAt: new Date() })
+        .where(eq(claimsTable.id, claimId));
       await tx.insert(auditLogs).values({
         userId: adminUserId,
         action: 'claim_extra_document_removed',

@@ -12,10 +12,11 @@ import { eq } from 'drizzle-orm';
 import { PDFDocument } from 'pdf-lib';
 
 import { db } from '../../utils/db';
-import { signatures, users } from '../../drizzle/schema/shared';
-import { claimsTable } from '../../drizzle/schema/claims';
+import { documents, signatures, users } from '../../drizzle/schema/shared';
+import { claimDocuments, claimsTable } from '../../drizzle/schema/claims';
 import { DirectSubmissionService } from '../direct-submission';
 import { LawFirmService } from '../law-firm';
+import { todayBerlin } from '../payout-flow/deadlines';
 
 const tag = Math.random().toString(36).slice(2, 8);
 let userId = '';
@@ -194,7 +195,7 @@ describe('provider refund direct submission (db)', () => {
     const done = await DirectSubmissionService.recordDispatch(vddbId, admin(), {
       sender: 'ATLAES',
       method: 'post',
-      date: new Date().toISOString().slice(0, 10),
+      date: todayBerlin(),
     });
     expect(done.dispatch?.sender).toBe('ATLAES');
     const [row] = await db
@@ -203,6 +204,36 @@ describe('provider refund direct submission (db)', () => {
       .where(eq(claimsTable.id, vddbId));
     expect(row.submissionHold).toBeNull();
     expect(row.submissionDispatchedAt).not.toBeNull();
+  });
+
+  it('lists the uploaded form and extras on provider cases', async () => {
+    const attach = async (fileName: string, role: string) => {
+      const [doc] = await db
+        .insert(documents)
+        .values({
+          userId,
+          fileName,
+          fileType: 'application/pdf',
+          fileSize: 1,
+          s3Key: `test/${tag}/${fileName}`,
+        } as never)
+        .returning();
+      await db
+        .insert(claimDocuments)
+        .values({
+          claimId: kvbwId,
+          documentId: doc.id,
+          documentRole: role,
+        } as never);
+    };
+    await attach('KVBW Antrag.pdf', 'provider_form');
+    await attach('Steuer-ID.pdf', 'bav_extra');
+    await attach('passport.pdf', 'passport');
+    const s = await DirectSubmissionService.getState(kvbwId);
+    expect(s.uploads.map((u) => [u.role, u.fileName])).toEqual([
+      ['provider_form', 'KVBW Antrag.pdf'],
+      ['bav_extra', 'Steuer-ID.pdf'],
+    ]);
   });
 
   it('builds the KVBW pack around the uploaded form', async () => {
