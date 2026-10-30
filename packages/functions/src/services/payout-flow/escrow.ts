@@ -574,8 +574,25 @@ export class PayoutEscrowService {
       .from(payoutReleases)
       .where(eq(payoutReleases.claimId, claimId))
       .orderBy(desc(payoutReleases.createdAt));
+    const pending = await PayoutFlowService.pendingClientUpload(claimId);
+    let pendingUrl: string | null = null;
+    if (pending?.documentId) {
+      const [doc] = await db
+        .select({ s3Key: documents.s3Key })
+        .from(documents)
+        .where(eq(documents.id, pending.documentId))
+        .limit(1);
+      pendingUrl = doc ? await getPresignedUrl(doc.s3Key, 900) : null;
+    }
     return {
       today: todayBerlin(),
+      pendingUpload: pending
+        ? {
+            decisionId: pending.id,
+            uploadedAt: iso(pending.createdAt),
+            documentUrl: pendingUrl,
+          }
+        : null,
       hold: claim.payoutHoldAt
         ? { reason: claim.payoutHoldReason, at: iso(claim.payoutHoldAt) }
         : null,

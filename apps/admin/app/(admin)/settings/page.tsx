@@ -22,6 +22,7 @@ import {
 } from '@/components/ui';
 import { PayoutAccountsCard } from '@/components/PayoutAccountsCard';
 import { OpsSettingsCard } from '@/components/OpsSettingsCard';
+import { PayoutEmailSettingsCard } from '@/components/PayoutEmailSettingsCard';
 
 const SOURCE_LABEL: Record<LexofficeStatus['source'], string> = {
   admin: 'Connected (key set here)',
@@ -39,6 +40,7 @@ export default function SettingsPage() {
       <div className="max-w-2xl space-y-6">
         <PayoutAccountsCard />
         <OpsSettingsCard />
+        <PayoutEmailSettingsCard />
         <LexwareCard />
       </div>
     </div>
