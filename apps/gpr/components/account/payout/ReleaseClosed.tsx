@@ -12,6 +12,7 @@ import {
   releaseTitle,
 } from './PayoutFrame';
 import { REVIEW_COPY } from './copy';
+import { TransferFacts } from './TransferStatus';
 
 /**
  * Release step when there is nothing open: the signed payment instruction
@@ -52,6 +53,7 @@ export function ReleaseClosed({ data }: { data: PayoutState }) {
           </span>
           <p>The signed PDF is stored on your case.</p>
         </div>
+        {data.transfer ? <TransferFacts t={data.transfer} /> : null}
         {error ? (
           <p className="pay-error" role="alert">
             {error}

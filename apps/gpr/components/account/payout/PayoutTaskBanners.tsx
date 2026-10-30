@@ -13,6 +13,8 @@ import { usePayoutStateQuery } from './usePayout';
 const BUTTON: Record<PayoutTask['kind'], string> = {
   review_decision: 'Review my decision',
   release_refund: 'Authorise my payout',
+  upload_decision: 'Upload my decision',
+  confirm_receipt: 'Confirm receipt',
 };
 
 export function PayoutTaskBanners() {
@@ -26,7 +28,9 @@ export function PayoutTaskBanners() {
           <div className="acc-banner-text">
             {t.dueDate ? (
               <p className="acc-banner-title">
-                Review by {formatLongDate(t.dueDate)}
+                {t.kind === 'confirm_receipt'
+                  ? `Expected by ${formatLongDate(t.dueDate)}`
+                  : `Review by ${formatLongDate(t.dueDate)}`}
               </p>
             ) : null}
             <p className="acc-banner-body">{t.title}</p>

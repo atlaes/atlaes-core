@@ -13,6 +13,7 @@
  */
 
 import { and, desc, eq, inArray } from 'drizzle-orm';
+import { PDFDocument } from 'pdf-lib';
 import { db } from '../../utils/db';
 import { getPresignedUrl } from '../../utils/s3';
 import { claimsTable } from '../../drizzle/schema/claims';
@@ -40,6 +41,40 @@ import type { PayoutRouteCode } from './providers';
 import { productOf } from '../payout-emails';
 
 type ClaimRow = typeof claimsTable.$inferSelect;
+
+const MAX_DECISION_PAGES = 10;
+
+/**
+ * The client's scans or photos of the decision, in upload order, as one
+ * PDF (PDF pages copied, JPG/PNG one per A4-fitting page).
+ */
+export async function mergeToPdf(files: File[], name: string): Promise<File> {
+  const out = await PDFDocument.create();
+  for (const f of files) {
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    if (f.type === 'application/pdf') {
+      const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+      const pages = await out.copyPages(src, src.getPageIndices());
+      pages.forEach((p) => out.addPage(p));
+      continue;
+    }
+    const img =
+      f.type === 'image/png'
+        ? await out.embedPng(bytes)
+        : await out.embedJpg(bytes);
+    // A4 portrait at 72 dpi, image scaled to fit with a small margin.
+    const [w, h] = [595.28, 841.89];
+    const scale = Math.min((w - 36) / img.width, (h - 36) / img.height, 1);
+    const page = out.addPage([w, h]);
+    page.drawImage(img, {
+      x: (w - img.width * scale) / 2,
+      y: (h - img.height * scale) / 2,
+      width: img.width * scale,
+      height: img.height * scale,
+    });
+  }
+  return new File([await out.save()], name, { type: 'application/pdf' });
+}
 type ReleaseRow = typeof payoutReleases.$inferSelect;
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
@@ -206,24 +241,27 @@ export class PayoutEscrowService {
     const claim = await PayoutFlowService.claimForUser(userId);
     if (!files.length)
       throw new PayoutFlowError('Please add a scan or photo of the letter.');
-    if (files.length > 1)
+    if (files.length > MAX_DECISION_PAGES)
       throw new PayoutFlowError(
-        'Please upload the letter as one PDF, or one photo at a time.'
+        `Please upload at most ${MAX_DECISION_PAGES} files.`
       );
-    checkUpload(files[0]);
+    files.forEach((f) => checkUpload(f));
     if (await PayoutFlowService.pendingClientUpload(claim.id))
       throw new PayoutFlowError(
         'We already have your upload and are checking it.',
         409
       );
+    const file =
+      files.length === 1 ? files[0] : await mergeToPdf(files, 'decision.pdf');
     const view = await PayoutFlowService.recordDecision(
       claim.id,
       {
-        file: files[0],
+        file,
         source: 'client_upload',
         publish: false,
         // The client's copy: OCR still helps admin verify.
         runExtraction: true,
+        maxBytes: MAX_DECISION_PAGES * 10 * 1024 * 1024,
       },
       { id: userId }
     );

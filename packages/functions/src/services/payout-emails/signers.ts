@@ -28,7 +28,7 @@ export const SIGNER_PROFILES: SignerProfile[] = [
   {
     name: 'Johannes Kühn',
     role: 'Senior Case Manager',
-    headshot: 'johannes-kuehn.jpg',
+    headshot: 'johannes-kuehn.png',
   },
 ];
 

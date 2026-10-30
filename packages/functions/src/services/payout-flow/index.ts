@@ -105,9 +105,11 @@ const UPLOAD_TYPES = [
   'image/jpg',
 ];
 
-export function checkUpload(file: File): void {
-  if (file.size > MAX_UPLOAD)
-    throw new PayoutFlowError(`${file.name}: file size exceeds 10MB`);
+export function checkUpload(file: File, maxBytes = MAX_UPLOAD): void {
+  if (file.size > maxBytes)
+    throw new PayoutFlowError(
+      `${file.name}: file size exceeds ${Math.round(maxBytes / 1024 / 1024)}MB`
+    );
   if (!UPLOAD_TYPES.includes(file.type))
     throw new PayoutFlowError(`${file.name}: only PDF, JPG or PNG files`);
 }
@@ -715,11 +717,13 @@ export class PayoutFlowService {
       reviewBy?: IsoDate | null;
       publish?: boolean;
       source?: 'admin' | 'client_upload';
+      /** A client's pages merged into one PDF may exceed the 10MB limit. */
+      maxBytes?: number;
     },
     actor: Actor
   ): Promise<DecisionView> {
     const claim = await this.getClaim(claimId);
-    checkUpload(input.file);
+    checkUpload(input.file, input.maxBytes);
     const bytes = Buffer.from(await input.file.arrayBuffer());
     const documentId = await this.storeFile(
       claim,

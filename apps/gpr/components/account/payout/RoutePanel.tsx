@@ -89,7 +89,7 @@ export function RoutePanel({ data }: { data: PayoutState }) {
         z:
           opt2!.estimatedTargetAmount !== null
             ? EUR.format(opt2!.estimatedTargetAmount)
-            : '[Z]',
+            : null,
         institution: opt2!.executedBy || '[regulated payment institution]',
       }),
       F.option2Disclosure,
@@ -212,11 +212,11 @@ export function RoutePanel({ data }: { data: PayoutState }) {
 
       {opt2 ? (
         <>
-          <p className="pay-foot">
-            {F.footnote(
-              o.referenceRate ? rateWhen(o.referenceRate.date) : '[date/time]'
-            )}
-          </p>
+          {opt2.estimatedTargetAmount !== null && o.referenceRate ? (
+            <p className="pay-foot">
+              {F.footnote(rateWhen(o.referenceRate.date))}
+            </p>
+          ) : null}
           <p className="pay-foot">{F.tierRule}</p>
         </>
       ) : null}

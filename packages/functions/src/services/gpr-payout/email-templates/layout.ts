@@ -48,7 +48,7 @@ export interface PayoutEmailContent {
 function signerBlock(s: PayoutEmailSigner): string {
   const text = `<p style="${TEXT_STYLE}">Kind regards,<br><strong>${escapeHtml(s.name)}</strong><br><span style="color:${MUTED};">${s.role ? `${escapeHtml(s.role)}<br>` : ''}${escapeHtml(s.brand)}</span></p>`;
   const photo = s.headshotUrl
-    ? `<td valign="top" width="64" style="width:64px;padding:0 14px 0 0;"><img src="${escapeHtml(s.headshotUrl)}" width="56" height="56" alt="" style="display:block;width:56px;height:56px;border-radius:28px;border:0;"></td>`
+    ? `<td valign="top" width="64" style="width:64px;padding:0 14px 0 0;"><img src="${escapeHtml(s.headshotUrl)}" width="56" alt="" style="display:block;width:56px;height:auto;border-radius:8px;border:0;"></td>`
     : '';
   const trust = s.trustpilot
     ? `<tr><td style="padding:${GAP}px 0 0 0;"><a href="${escapeHtml(s.trustpilot.url)}" target="_blank" style="font-family:${FONT};font-size:13px;line-height:18px;color:${NAVY};text-decoration:none;"><span style="color:#00b67a;">&#9733;&#9733;&#9733;&#9733;&#9733;</span>&nbsp;${escapeHtml(s.trustpilot.label)}</a></td></tr>`

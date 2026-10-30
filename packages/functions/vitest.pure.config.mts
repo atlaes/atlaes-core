@@ -14,6 +14,7 @@ export default defineConfig({
       'src/services/provider-refund/**/*.test.ts',
       'src/services/payout-flow/payout-flow.test.ts',
       'src/services/payout-flow/transfermate-sheet.test.ts',
+      'src/services/payout-flow/escrow.test.ts',
       'src/services/payout-emails/**/*.test.ts',
     ],
     exclude: ['node_modules', 'dist'],
