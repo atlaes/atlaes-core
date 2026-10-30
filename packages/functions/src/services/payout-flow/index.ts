@@ -22,7 +22,7 @@
  *     → account / route; ze_document_id + ze_s3_key = the signed ZE).
  */
 
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { PDFDocument } from 'pdf-lib';
 import { db } from '../../utils/db';
@@ -34,6 +34,7 @@ import {
   payoutCustomerInputs,
   payoutDecisions,
   payoutReleases,
+  type DecisionRecipient,
   type PayoutAccount,
   type PayoutDecisionPeriod,
   type PayoutReviewReason,
@@ -48,8 +49,7 @@ import {
   type ZahlungserklaerungInput,
   type ZahlungserklaerungText,
 } from '../gpr-payout/zahlungserklaerung';
-import { payoutNotification } from '../gpr-payout/notifications';
-import { sendPayoutNotificationEmail } from '../gpr-payout/email-templates/send';
+import { PayoutEmailService } from '../payout-emails';
 import { sendOpsLawFirmActivityEmail } from '../email';
 import { PayoutAccountsService } from '../payout-accounts';
 import { sendClientUpdateEmail } from '../client-updates/emails/send';
@@ -105,7 +105,7 @@ const UPLOAD_TYPES = [
   'image/jpg',
 ];
 
-function checkUpload(file: File): void {
+export function checkUpload(file: File): void {
   if (file.size > MAX_UPLOAD)
     throw new PayoutFlowError(`${file.name}: file size exceeds 10MB`);
   if (!UPLOAD_TYPES.includes(file.type))
@@ -168,6 +168,11 @@ export interface DecisionView {
   reviewedAt: string | null;
   hasDocument: boolean;
   pageCount: number | null;
+  recipient: string | null;
+  atlaesReceivedAt: IsoDate | null;
+  reviewDueVerified: boolean;
+  source: string;
+  publishedAt: string | null;
 }
 
 export interface ReleaseView {
@@ -188,7 +193,11 @@ export interface ReleaseView {
 }
 
 export interface ClientPayoutTask {
-  kind: 'review_decision' | 'release_refund';
+  kind:
+    | 'review_decision'
+    | 'release_refund'
+    | 'upload_decision'
+    | 'confirm_receipt';
   id: string;
   title: string;
   dueDate: IsoDate | null;
@@ -210,6 +219,30 @@ export interface ClientPayoutState {
   release: ReleaseView | null;
   /** Latest missing-period report (screen 09 "after submitting"). */
   report: { id: string; createdAt: string | null; status: string } | null;
+  /**
+   * Funds are in but no verified decision (EM): the client can upload the
+   * letter or say it has not arrived.
+   */
+  decisionRequest: {
+    open: boolean;
+    uploadedAt: string | null;
+    notReceivedAt: string | null;
+  };
+  /** After signing: where the payout stands (escrow spec 30 Oct 2026). */
+  transfer: ClientTransferView | null;
+}
+
+export interface ClientTransferView {
+  releaseId: string;
+  route: PayoutRouteCode | null;
+  /** queued → sent (own bank) / funding (TransferMate, onward pending). */
+  stage: 'queued' | 'funding' | 'sent';
+  sentOn: IsoDate | null;
+  amountSent: number | null;
+  currency: string;
+  expectedArrival: IsoDate | null;
+  hasReceipt: boolean;
+  receiptStatus: string | null;
 }
 
 function decisionView(d: DecisionRow): DecisionView {
@@ -227,6 +260,11 @@ function decisionView(d: DecisionRow): DecisionView {
     reviewedAt: d.reviewedAt ? d.reviewedAt.toISOString() : null,
     hasDocument: !!d.documentId,
     pageCount: typeof ext.pageCount === 'number' ? ext.pageCount : null,
+    recipient: d.recipient ?? null,
+    atlaesReceivedAt: d.atlaesReceivedAt ?? null,
+    reviewDueVerified: !!d.reviewDueVerifiedAt,
+    source: d.source,
+    publishedAt: d.publishedAt ? d.publishedAt.toISOString() : null,
   };
 }
 
@@ -255,9 +293,14 @@ async function currentAtlaesIban(): Promise<string | null> {
 function signingBlockers(
   c: ClaimRow,
   r: ReleaseRow,
-  atlaesIban: string | null
+  atlaesIban: string | null,
+  decisionPublished = true
 ): string[] {
   const out: string[] = [];
+  // Escrow payout spec (30 Oct 2026): payout authorisation needs the
+  // published decision and no payout hold.
+  if (!decisionPublished) out.push('decision_missing');
+  if (c.payoutHoldAt) out.push('payout_hold');
   if (!r.account) out.push('bank_details_missing');
   if (!r.route) out.push('route_missing');
   if (!r.invoiceNumber) out.push('invoice_missing');
@@ -269,7 +312,8 @@ function signingBlockers(
 function releaseView(
   c: ClaimRow,
   r: ReleaseRow,
-  atlaesIban: string | null
+  atlaesIban: string | null,
+  decisionPublished = true
 ): ReleaseView {
   const cfg = payoutFeeConfig();
   return {
@@ -287,7 +331,10 @@ function releaseView(
     reviewRequired: r.reviewRequired,
     signedAt: r.signedAt ? r.signedAt.toISOString() : null,
     zeDocumentNumber: r.zeDocumentNumber ?? null,
-    blockers: r.status === 'open' ? signingBlockers(c, r, atlaesIban) : [],
+    blockers:
+      r.status === 'open'
+        ? signingBlockers(c, r, atlaesIban, decisionPublished)
+        : [],
   };
 }
 
@@ -352,18 +399,43 @@ export class PayoutFlowService {
   }
 
   private static async latestDecision(
-    claimId: string
+    claimId: string,
+    publishedOnly = false
   ): Promise<DecisionRow | null> {
     const [d] = await db
       .select()
       .from(payoutDecisions)
-      .where(eq(payoutDecisions.claimId, claimId))
+      .where(
+        and(
+          eq(payoutDecisions.claimId, claimId),
+          publishedOnly ? isNotNull(payoutDecisions.publishedAt) : undefined
+        )
+      )
       .orderBy(desc(payoutDecisions.createdAt))
       .limit(1);
     return d ?? null;
   }
 
-  private static async releases(claimId: string): Promise<ReleaseRow[]> {
+  /** A client-uploaded decision waiting for admin verification. */
+  static async pendingClientUpload(
+    claimId: string
+  ): Promise<DecisionRow | null> {
+    const [d] = await db
+      .select()
+      .from(payoutDecisions)
+      .where(
+        and(
+          eq(payoutDecisions.claimId, claimId),
+          eq(payoutDecisions.source, 'client_upload'),
+          isNull(payoutDecisions.publishedAt)
+        )
+      )
+      .orderBy(desc(payoutDecisions.createdAt))
+      .limit(1);
+    return d ?? null;
+  }
+
+  static async releases(claimId: string): Promise<ReleaseRow[]> {
     return db
       .select()
       .from(payoutReleases)
@@ -414,7 +486,9 @@ export class PayoutFlowService {
       .where(
         and(
           eq(payoutDecisions.id, decisionId),
-          eq(payoutDecisions.claimId, claim.id)
+          eq(payoutDecisions.claimId, claim.id),
+          // Unverified uploads are not the client's to review yet.
+          isNotNull(payoutDecisions.publishedAt)
         )
       )
       .limit(1);
@@ -422,7 +496,7 @@ export class PayoutFlowService {
     return { claim, decision };
   }
 
-  private static async audit(
+  static async audit(
     actor: Actor | null,
     action: string,
     claimId: string,
@@ -437,7 +511,7 @@ export class PayoutFlowService {
     });
   }
 
-  private static async storeFile(
+  static async storeFile(
     claim: ClaimRow,
     folder: string,
     file: { name: string; type: string; bytes: Buffer },
@@ -498,12 +572,7 @@ export class PayoutFlowService {
         ...toErrorMeta(error),
       })
     );
-    await this.dispatchNotifications(claimId).catch((error) =>
-      logger.error('Payout: notification failed', {
-        claimId,
-        ...toErrorMeta(error),
-      })
-    );
+    await PayoutEmailService.run(claimId);
   }
 
   /**
@@ -581,12 +650,7 @@ export class PayoutFlowService {
         ...toErrorMeta(error),
       })
     );
-    await this.dispatchNotifications(claimId).catch((error) =>
-      logger.error('Payout: notification failed', {
-        claimId,
-        ...toErrorMeta(error),
-      })
-    );
+    await PayoutEmailService.run(claimId);
     logger.info('Payout funds recorded', {
       claimId: claim.id,
       releaseId: release.id,
@@ -623,77 +687,18 @@ export class PayoutFlowService {
     }
   }
 
-  /**
-   * A1/A2/A3 (stream P5 templates), once per event. A3 when a decision and
-   * funds are both new with nothing sent yet; A1 for funds with no
-   * decision on file; A2 for a decision with no funds on file. A second
-   * event after the first was already notified has no template in the
-   * brief — logged (notified_kind 'none'); the account task still appears.
-   */
-  private static async dispatchNotifications(claimId: string): Promise<void> {
-    const claim = await this.getClaim(claimId);
-    const decision = await this.latestDecision(claimId);
-    const rows = await this.releases(claimId);
-    const release = rows.find((r) => r.status === 'open') ?? null;
-    const decisionPending =
-      !!decision && !decision.reviewOutcome && !decision.notifiedKind;
-    const releasePending = !!release && !release.notifiedKind;
-    if (!decisionPending && !releasePending) return;
-
-    let kind: 'A1' | 'A2' | 'A3' | null = null;
-    if (decisionPending && releasePending) kind = 'A3';
-    else if (releasePending && !decision) kind = 'A1';
-    else if (decisionPending && !rows.length) kind = 'A2';
-
-    const mark = async (k: string) => {
-      const set = { notifiedKind: k, notifiedAt: new Date() };
-      if (decisionPending && decision)
-        await db
-          .update(payoutDecisions)
-          .set(set)
-          .where(eq(payoutDecisions.id, decision.id));
-      if (releasePending && release)
-        await db
-          .update(payoutReleases)
-          .set(set)
-          .where(eq(payoutReleases.id, release.id));
-    };
-
-    if (!kind) {
-      logger.info('Payout: no A1–A3 template for this event order', {
-        claimId,
-        decisionPending,
-        releasePending,
-      });
-      await mark('none');
-      return;
-    }
-    const [u] = await db
-      .select({ email: users.email })
-      .from(users)
-      .where(eq(users.id, claim.userId))
-      .limit(1);
-    if (!u?.email) return;
-    const mail = payoutNotification(kind, {
-      firstName: claim.firstName || 'there',
-      amountEur:
-        kind === 'A2'
-          ? (n(decision?.refundAmountEur) ?? 0)
-          : Number(release?.amountReceivedEur ?? 0),
-      reviewBy: decision
-        ? new Date(`${decision.clientReviewBy}T12:00:00Z`)
-        : null,
-      portalUrl: `${accountUrl()}/payout`,
-    });
-    if (await sendPayoutNotificationEmail(u.email, mail)) await mark(kind);
-  }
-
   // ---------------- admin: decision (E2) ----------------
 
   /**
    * Attach a Bescheid, run OCR, store the decision record. Admin values
    * override extracted ones. Objection deadline = receivedAt + 1 month;
-   * client review-by = deadline − 7 days.
+   * client review-by = deadline − 7 days unless admin supplies the
+   * verified date (bAV: never a DRV deadline by default).
+   *
+   * Escrow payout spec (30 Oct 2026): `receivedAt` is the actual
+   * recipient's receipt date, `atlaesReceivedAt` ATLAES's own (the
+   * timers run from it). An admin upload is published at once unless
+   * `publish` is false; a client upload never is (`source`).
    */
   static async recordDecision(
     claimId: string,
@@ -705,6 +710,11 @@ export class PayoutFlowService {
       refundAmountEur?: number | null;
       periods?: PayoutDecisionPeriod[] | null;
       runExtraction?: boolean;
+      recipient?: DecisionRecipient | null;
+      atlaesReceivedAt?: IsoDate | null;
+      reviewBy?: IsoDate | null;
+      publish?: boolean;
+      source?: 'admin' | 'client_upload';
     },
     actor: Actor
   ): Promise<DecisionView> {
@@ -767,6 +777,19 @@ export class PayoutFlowService {
         ? input.receivedAt
         : todayBerlin();
     const dates = reviewDates(receivedAt);
+    if (input.reviewBy) {
+      if (!isIsoDate(input.reviewBy))
+        throw new PayoutFlowError('Invalid review due date');
+      dates.clientReviewBy = input.reviewBy;
+    }
+    const source = input.source ?? 'admin';
+    const publish = source === 'admin' && input.publish !== false;
+    const atlaesReceivedAt =
+      input.atlaesReceivedAt && isIsoDate(input.atlaesReceivedAt)
+        ? input.atlaesReceivedAt
+        : source === 'admin'
+          ? todayBerlin()
+          : null;
     const amount =
       input.refundAmountEur ??
       (details.refundAmount ? Number(details.refundAmount) : null);
@@ -786,6 +809,13 @@ export class PayoutFlowService {
         clientReviewBy: dates.clientReviewBy,
         extraction: { ...(extraction ?? {}), pageCount },
         extractionError,
+        recipient:
+          input.recipient ?? (source === 'admin' ? 'law_firm' : 'client'),
+        atlaesReceivedAt,
+        reviewDueVerifiedAt: input.reviewBy ? new Date() : null,
+        source,
+        publishedAt: publish ? new Date() : null,
+        publishedBy: publish ? actor.id : null,
         createdBy: actor.id,
       })
       .returning();
@@ -793,9 +823,14 @@ export class PayoutFlowService {
       decisionId: row.id,
       documentId,
       receivedAt,
+      atlaesReceivedAt,
+      source,
+      published: publish,
       ...dates,
       extractionError,
     });
+    // An unpublished decision is not a client-facing event yet.
+    if (!publish) return decisionView(row);
     await this.onDecisionRecorded(
       claimId,
       { decisionId: row.id, receivedAt },
@@ -814,6 +849,10 @@ export class PayoutFlowService {
       office?: string | null;
       refundAmountEur?: number | null;
       periods?: PayoutDecisionPeriod[];
+      recipient?: DecisionRecipient | null;
+      atlaesReceivedAt?: IsoDate;
+      /** Admin-verified review due date (kept on later receivedAt edits). */
+      reviewBy?: IsoDate;
     },
     actor: Actor
   ): Promise<DecisionView> {
@@ -839,8 +878,20 @@ export class PayoutFlowService {
       const dates = reviewDates(patch.receivedAt);
       set.receivedAt = patch.receivedAt;
       set.objectionDeadline = dates.objectionDeadline;
-      set.clientReviewBy = dates.clientReviewBy;
+      if (!d.reviewDueVerifiedAt) set.clientReviewBy = dates.clientReviewBy;
     }
+    if (patch.reviewBy !== undefined) {
+      if (!isIsoDate(patch.reviewBy))
+        throw new PayoutFlowError('Invalid review due date');
+      set.clientReviewBy = patch.reviewBy;
+      set.reviewDueVerifiedAt = new Date();
+    }
+    if (patch.atlaesReceivedAt !== undefined) {
+      if (!isIsoDate(patch.atlaesReceivedAt))
+        throw new PayoutFlowError('Invalid ATLAES receipt date');
+      set.atlaesReceivedAt = patch.atlaesReceivedAt;
+    }
+    if (patch.recipient !== undefined) set.recipient = patch.recipient;
     if (patch.decisionDate !== undefined) set.decisionDate = patch.decisionDate;
     if (patch.office !== undefined) set.office = patch.office;
     if (patch.refundAmountEur !== undefined)
@@ -860,6 +911,85 @@ export class PayoutFlowService {
     });
     if (patch.refundAmountEur !== undefined)
       await this.checkAmountMismatch(claimId).catch(() => undefined);
+    if (row.publishedAt) await PayoutEmailService.run(claimId);
+    return decisionView(row);
+  }
+
+  /**
+   * Admin verified a decision (typically a client upload) and publishes
+   * it: it appears in the client account and the payout e-mails follow.
+   */
+  static async publishDecision(
+    claimId: string,
+    decisionId: string,
+    input: {
+      receivedAt?: IsoDate | null;
+      atlaesReceivedAt?: IsoDate | null;
+      reviewBy?: IsoDate | null;
+      recipient?: DecisionRecipient | null;
+    },
+    actor: Actor
+  ): Promise<DecisionView> {
+    const [d] = await db
+      .select()
+      .from(payoutDecisions)
+      .where(
+        and(
+          eq(payoutDecisions.id, decisionId),
+          eq(payoutDecisions.claimId, claimId)
+        )
+      )
+      .limit(1);
+    if (!d) throw new PayoutFlowError('Decision not found', 404);
+    if (d.publishedAt)
+      throw new PayoutFlowError('The decision is already published', 409);
+    const set: Partial<typeof payoutDecisions.$inferInsert> = {
+      publishedAt: new Date(),
+      publishedBy: actor.id,
+      updatedAt: new Date(),
+    };
+    for (const [k, v] of [
+      ['receivedAt', input.receivedAt],
+      ['atlaesReceivedAt', input.atlaesReceivedAt],
+      ['reviewBy', input.reviewBy],
+    ] as const) {
+      if (v && !isIsoDate(v)) throw new PayoutFlowError(`Invalid ${k}`);
+    }
+    if (input.receivedAt) {
+      const dates = reviewDates(input.receivedAt);
+      set.receivedAt = input.receivedAt;
+      set.objectionDeadline = dates.objectionDeadline;
+      set.clientReviewBy = dates.clientReviewBy;
+    }
+    if (input.reviewBy) {
+      set.clientReviewBy = input.reviewBy;
+      set.reviewDueVerifiedAt = new Date();
+    }
+    set.atlaesReceivedAt =
+      input.atlaesReceivedAt ?? d.atlaesReceivedAt ?? todayBerlin();
+    if (input.recipient !== undefined) set.recipient = input.recipient;
+    const [row] = await db
+      .update(payoutDecisions)
+      .set(set)
+      .where(eq(payoutDecisions.id, decisionId))
+      .returning();
+    // The verification settles the client's upload task.
+    const { PayoutEscrowService } = await import('./escrow');
+    await PayoutEscrowService.resolveTasksByKind(
+      claimId,
+      ['decision_upload'],
+      actor.id
+    );
+    await this.audit(actor, 'payout_decision_published', claimId, {
+      decisionId,
+      reviewBy: row.clientReviewBy,
+      atlaesReceivedAt: row.atlaesReceivedAt,
+    });
+    await this.onDecisionRecorded(
+      claimId,
+      { decisionId, receivedAt: row.receivedAt },
+      actor
+    );
     return decisionView(row);
   }
 
@@ -1026,7 +1156,8 @@ export class PayoutFlowService {
     const atlaesIban = await currentAtlaesIban();
     const claim = await this.claimForUser(userId);
     const direct = isDirectDrvRefund(claim);
-    const decision = await this.latestDecision(claim.id);
+    // Only a published (admin-verified) decision is shown.
+    const decision = await this.latestDecision(claim.id, true);
     const rows = await this.releases(claim.id);
     // The direct route has no escrow release; a stale one (created before a
     // route change) is never offered for signing.
@@ -1048,7 +1179,13 @@ export class PayoutFlowService {
         href: '/account/payout/review',
       });
     }
-    if (release && release.status === 'open') {
+    // Payout authorisation: decision published, funds matched, no hold.
+    if (
+      release &&
+      release.status === 'open' &&
+      decision &&
+      !claim.payoutHoldAt
+    ) {
       tasks.push({
         kind: 'release_refund',
         id: release.id,
@@ -1057,6 +1194,13 @@ export class PayoutFlowService {
         href: '/account/payout/release',
       });
     }
+    const { PayoutEscrowService } = await import('./escrow');
+    const extra = await PayoutEscrowService.clientExtras(
+      claim,
+      rows,
+      !!decision
+    );
+    tasks.push(...extra.tasks);
     return {
       claimId: claim.id,
       payoutRoute: direct ? 'direct_to_client' : 'escrow',
@@ -1064,7 +1208,11 @@ export class PayoutFlowService {
       client: { firstName: claim.firstName, lastName: claim.lastName },
       tasks,
       decision: decision ? decisionView(decision) : null,
-      release: release ? releaseView(claim, release, atlaesIban) : null,
+      release: release
+        ? releaseView(claim, release, atlaesIban, !!decision)
+        : null,
+      decisionRequest: extra.decisionRequest,
+      transfer: direct ? null : extra.transfer,
       report: report
         ? {
             id: report.id,
@@ -1108,6 +1256,7 @@ export class PayoutFlowService {
     await this.audit({ id: userId }, 'payout_bescheid_confirmed', claim.id, {
       decisionId,
     });
+    await PayoutEmailService.run(claim.id);
   }
 
   /**
@@ -1185,6 +1334,19 @@ export class PayoutFlowService {
       documentIds,
       objectionDeadline: decision.objectionDeadline,
     });
+    // A reported issue is an admin task, never agreement; it does not
+    // block payout authorisation by itself (admin can set a payout hold).
+    await PayoutEmailService.openTask(
+      { claim, managerEmail: null },
+      {
+        task: 'review_issue',
+        key: `review_issue:${input.id}`,
+        releaseId: null,
+        urgent: false,
+        detail: `The client reported missing or wrong periods/amounts (objection deadline ${decision.objectionDeadline}). Set a payout hold if the payout must wait.`,
+      }
+    ).catch(() => false);
+    await PayoutEmailService.run(claim.id);
     return { inputId: input.id };
   }
 
@@ -1491,7 +1653,12 @@ export class PayoutFlowService {
         german: mapSections(text.german),
         english: mapSections(text.english),
       },
-      blockers: signingBlockers(claim, release, atlaesIban),
+      blockers: signingBlockers(
+        claim,
+        release,
+        atlaesIban,
+        !!(await this.latestDecision(claim.id, true))
+      ),
     };
   }
 
@@ -1509,7 +1676,12 @@ export class PayoutFlowService {
     const { claim, release } = await this.releaseForUser(userId, releaseId);
     if (release.status !== 'open')
       throw new PayoutFlowError('This release is no longer open', 409);
-    const blockers = signingBlockers(claim, release, atlaesIban);
+    const blockers = signingBlockers(
+      claim,
+      release,
+      atlaesIban,
+      !!(await this.latestDecision(claim.id, true))
+    );
     if (blockers.length)
       throw new PayoutFlowError(
         'The payment instruction cannot be signed yet',
@@ -1612,6 +1784,18 @@ export class PayoutFlowService {
       releaseId,
       docNumber,
     });
+    // Queue the transfer lines now, so E3 ("added to the payout queue")
+    // goes out only once the payout really is queued.
+    try {
+      const { PayoutQueueService } = await import('../payout-queue');
+      await PayoutQueueService.onReleased(releaseId);
+    } catch (error) {
+      logger.error('Payout: queueing after signing failed', {
+        claimId: claim.id,
+        ...toErrorMeta(error),
+      });
+    }
+    await PayoutEmailService.run(claim.id);
     return {
       release: releaseView(claim, updated, atlaesIban),
       url: await getPresignedUrl(s3Key, 900),

@@ -97,6 +97,8 @@ describe('admin ops settings', () => {
     expect(body.settings.map((s: { key: string }) => s.key)).toEqual([
       'postal_agent',
       'direct_dispatch_operator',
+      'payout_timers',
+      'payout_reviews',
     ]);
     expect(body.settings[0]).toMatchObject({
       source: 'default',

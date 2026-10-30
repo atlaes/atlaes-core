@@ -16,6 +16,20 @@ export type PayoutEmailBlock =
   | { kind: 'bullets'; items: string[] }
   | { kind: 'button'; label: string; url: string };
 
+/**
+ * Case-manager signature of the escrow payout e-mails (spec 30 Oct 2026):
+ * "Kind regards," then name, role and brand. A small real headshot may
+ * accompany it; the text stays readable without images. GPR mails carry
+ * the Trustpilot link underneath.
+ */
+export interface PayoutEmailSigner {
+  name: string;
+  role: string;
+  brand: string;
+  headshotUrl?: string | null;
+  trustpilot?: { url: string; label: string } | null;
+}
+
 export interface PayoutEmailContent {
   subject: string;
   /** Inbox preview line; hidden in the body. */
@@ -25,6 +39,21 @@ export interface PayoutEmailContent {
   closing: string;
   /** May span several lines (name, role). */
   signature: string;
+  /** Replaces closing + signature with the case-manager block. */
+  signer?: PayoutEmailSigner | null;
+  /** Footer brand (defaults to Germany Pension Refund). */
+  brand?: string;
+}
+
+function signerBlock(s: PayoutEmailSigner): string {
+  const text = `<p style="${TEXT_STYLE}">Kind regards,<br><strong>${escapeHtml(s.name)}</strong><br><span style="color:${MUTED};">${s.role ? `${escapeHtml(s.role)}<br>` : ''}${escapeHtml(s.brand)}</span></p>`;
+  const photo = s.headshotUrl
+    ? `<td valign="top" width="64" style="width:64px;padding:0 14px 0 0;"><img src="${escapeHtml(s.headshotUrl)}" width="56" height="56" alt="" style="display:block;width:56px;height:56px;border-radius:28px;border:0;"></td>`
+    : '';
+  const trust = s.trustpilot
+    ? `<tr><td style="padding:${GAP}px 0 0 0;"><a href="${escapeHtml(s.trustpilot.url)}" target="_blank" style="font-family:${FONT};font-size:13px;line-height:18px;color:${NAVY};text-decoration:none;"><span style="color:#00b67a;">&#9733;&#9733;&#9733;&#9733;&#9733;</span>&nbsp;${escapeHtml(s.trustpilot.label)}</a></td></tr>`
+    : '';
+  return `<tr><td style="padding:0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>${photo}<td valign="top">${text}</td></tr></table></td></tr>${trust}`;
 }
 
 const FONT =
@@ -112,10 +141,16 @@ export function renderPayoutEmailHtml(email: PayoutEmailContent): string {
   </table>
 </td></tr>`;
 
-  const logo = `<tr><td style="padding:0 0 ${GAP}px 0;font-family:${FONT};font-size:15px;line-height:15px;font-weight:800;color:${NAVY};">Germany&nbsp;&rsaquo;&rsaquo;<br>Pension&nbsp;Refund</td></tr>`;
-
-  const signoff = `${row(paragraph(email.closing))}
+  const signoff = email.signer
+    ? signerBlock(email.signer)
+    : `${row(paragraph(email.closing))}
 <tr><td style="padding:0;">${paragraph(`Best regards, ${email.signature}`, MUTED)}</td></tr>`;
+  const brand = email.brand ?? GPR_BRAND;
+  // Wordmark: GPR's two-line logo, otherwise the brand name.
+  const logo =
+    brand === GPR_BRAND
+      ? `<tr><td style="padding:0 0 ${GAP}px 0;font-family:${FONT};font-size:15px;line-height:15px;font-weight:800;color:${NAVY};">Germany&nbsp;&rsaquo;&rsaquo;<br>Pension&nbsp;Refund</td></tr>`
+      : `<tr><td style="padding:0 0 ${GAP}px 0;font-family:${FONT};font-size:17px;line-height:20px;font-weight:800;color:${NAVY};">${escapeHtml(brand)}</td></tr>`;
 
   // Pad the preheader so clients don't pull body text into the preview.
   const preheaderPad = '&#847;&zwnj;&nbsp;'.repeat(60);
@@ -150,7 +185,7 @@ ${signoff}
             </td>
           </tr>
           <tr>
-            <td style="padding:20px 40px 0;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${GPR_BRAND} is operated by ATLAES GmbH. &copy; ATLAES GmbH</td>
+            <td style="padding:20px 40px 0;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${escapeHtml(brand)} is operated by ATLAES GmbH. &copy; ATLAES GmbH</td>
           </tr>
         </table>
         <!--[if mso]></td></tr></table><![endif]-->
@@ -168,9 +203,17 @@ export function renderPayoutEmailText(email: PayoutEmailContent): string {
     if (b.kind === 'bullets') return b.items.map((i) => `- ${i}`).join('\n\n');
     return `${b.label}: ${b.url}`;
   });
-  parts.push(email.closing, `Best regards,\n${email.signature}`);
+  if (email.signer) {
+    const s = email.signer;
+    parts.push(
+      ['Kind regards,', s.name, s.role, s.brand].filter(Boolean).join('\n')
+    );
+    if (s.trustpilot) parts.push(`${s.trustpilot.label}: ${s.trustpilot.url}`);
+  } else {
+    parts.push(email.closing, `Best regards,\n${email.signature}`);
+  }
   return [
     ...parts,
-    `${GPR_BRAND} is operated by ATLAES GmbH. © ATLAES GmbH`,
+    `${email.brand ?? GPR_BRAND} is operated by ATLAES GmbH. © ATLAES GmbH`,
   ].join('\n\n');
 }

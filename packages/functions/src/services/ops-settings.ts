@@ -8,6 +8,11 @@
  *   10317 Berlin.
  * - "direct_dispatch_operator": who posts direct-route packs; prefilled
  *   as the sender when admin records the dispatch.
+ * - "payout_timers": escrow payout timers per product (owner spec 30 Oct
+ *   2026). Only the 10-day missing-funds escalation is agreed; the rest
+ *   are the proposed defaults, configurable until confirmed.
+ * - "payout_reviews": review links and the Trustpilot invitation address
+ *   per product, used only in the arrival e-mail E5.
  *
  * Cached 30 s per container and cleared on change. Every change writes an
  * audit row.
@@ -46,6 +51,70 @@ export const dispatchOperatorSchema = z.object({
 });
 export type DispatchOperator = z.infer<typeof dispatchOperatorSchema>;
 
+const days = (max: number) => z.number().int().min(0).max(max);
+
+export const payoutTimersSchema = z.object({
+  /** Decision in, funds missing: admin task + review-only fallback E1B. */
+  missingFundsDays: days(90).default(10),
+  /** Funds in, decision missing: admin task + EM. */
+  missingDecisionDays: days(90).default(10),
+  /** Review due within this many days and not invited yet: E1B at once. */
+  lateReviewDays: days(60).default(7),
+  /** Payout reminders after the invitation (E2A / E2C). */
+  reminderDays: z.array(days(90)).max(5).default([7, 14]),
+  /** Review reminder E2B this many days before the review due date. */
+  reviewReminderDaysBefore: days(30).default(3),
+  /** No signature this many days after the invitation: personal follow-up. */
+  followUpDays: days(180).default(30),
+  /** E5 this many working days after the expected arrival. */
+  arrivalCheckWorkingDays: days(30).default(2),
+  /** Direct payments: expected arrival = transfer date + this many working
+   *  days when admin entered none; null = E5 stays unscheduled. */
+  directArrivalWorkingDays: days(30).nullable().default(null),
+});
+export type PayoutTimers = z.output<typeof payoutTimersSchema>;
+
+export const payoutTimersSettingSchema = z.object({
+  gpr: payoutTimersSchema.default({}),
+  bav: payoutTimersSchema.default({}),
+});
+export type PayoutTimersSetting = z.output<typeof payoutTimersSettingSchema>;
+
+const reviewLinkSchema = z.object({
+  label: line(80).pipe(z.string().min(1, 'Enter the link label')),
+  url: z.string().trim().url('Enter a full URL').max(500),
+});
+
+const productReviewsSchema = z.object({
+  links: z.array(reviewLinkSchema).max(6).default([]),
+  /** Trustpilot invitation address, BCC on E5 only. */
+  trustpilotBcc: z
+    .string()
+    .trim()
+    .email('Enter the Trustpilot invitation address')
+    .max(255)
+    .nullable()
+    .default(null),
+});
+
+export const payoutReviewsSettingSchema = z.object({
+  gpr: productReviewsSchema.default({}),
+  bav: productReviewsSchema.default({}),
+});
+export type PayoutReviewsSetting = z.output<typeof payoutReviewsSettingSchema>;
+
+export const DEFAULT_PAYOUT_TIMERS: PayoutTimersSetting =
+  payoutTimersSettingSchema.parse({});
+
+/** Owner spec: the GPR BCC; CompanyPension review destinations follow. */
+export const DEFAULT_PAYOUT_REVIEWS: PayoutReviewsSetting = {
+  gpr: {
+    links: [],
+    trustpilotBcc: 'germanypensionrefund.com+4500ec0d02@invite.trustpilot.com',
+  },
+  bav: { links: [], trustpilotBcc: null },
+};
+
 export const DEFAULT_POSTAL_AGENT: PostalAgent = {
   salutation: 'Frau',
   name: 'Anna Kliem',
@@ -65,6 +134,16 @@ const SETTINGS = {
     label: 'Direct-route dispatch operator',
     schema: dispatchOperatorSchema,
     fallback: null as unknown,
+  },
+  payout_timers: {
+    label: 'Payout e-mail timers',
+    schema: payoutTimersSettingSchema,
+    fallback: DEFAULT_PAYOUT_TIMERS as unknown,
+  },
+  payout_reviews: {
+    label: 'Review invitations (payout arrival e-mail)',
+    schema: payoutReviewsSettingSchema,
+    fallback: DEFAULT_PAYOUT_REVIEWS as unknown,
   },
 } as const;
 
@@ -178,6 +257,24 @@ export class OpsSettingsService {
     } catch (error) {
       logger.error('[OpsSettings] load failed', toErrorMeta(error));
       return null;
+    }
+  }
+
+  static async payoutTimers(): Promise<PayoutTimersSetting> {
+    try {
+      return view('payout_timers', await load()).value as PayoutTimersSetting;
+    } catch (error) {
+      logger.error('[OpsSettings] load failed', toErrorMeta(error));
+      return DEFAULT_PAYOUT_TIMERS;
+    }
+  }
+
+  static async payoutReviews(): Promise<PayoutReviewsSetting> {
+    try {
+      return view('payout_reviews', await load()).value as PayoutReviewsSetting;
+    } catch (error) {
+      logger.error('[OpsSettings] load failed', toErrorMeta(error));
+      return DEFAULT_PAYOUT_REVIEWS;
     }
   }
 

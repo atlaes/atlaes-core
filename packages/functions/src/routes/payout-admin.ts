@@ -17,6 +17,21 @@
  *   POST  /releases/:id/clear-review      clears "payout details need review"
  *   GET   /customer-inputs                open missing-period reports
  *   POST  /customer-inputs/:id/resolve    { note? }
+ *
+ * Escrow payout controls (owner spec 30 Oct 2026):
+ *   GET   /claims/:id/escrow              hold, contact pause, transfers,
+ *                                          e-mail log, payout tasks
+ *   POST  /claims/:id/decision/:decisionId/publish  { receivedAt?, atlaesReceivedAt?,
+ *                                          reviewBy?, recipient? } — verify a
+ *                                          client upload and start the review
+ *   PUT   /claims/:id/hold                { reason: string | null }
+ *   PUT   /claims/:id/contact-pause       { reason, nextContactDate? } | null
+ *   PUT   /claims/:id/decision-direct     { direct: boolean }
+ *   POST  /claims/:id/releases/:releaseId/onward  multipart { amount?, currency?,
+ *                                          transferDate?, expectedArrival?, receipt? }
+ *   PUT   /claims/:id/releases/:releaseId/arrival { date: YYYY-MM-DD | null }
+ *   GET   /tasks                          open payout tasks (all cases)
+ *   POST  /tasks/:id/resolve              { note? }
  */
 
 import { Hono, type Context } from 'hono';
@@ -25,8 +40,18 @@ import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/admin';
 import { validateUuidParams } from '../middleware/validate-uuid';
 import { PayoutFlowService } from '../services/payout-flow';
+import { PayoutEscrowService } from '../services/payout-flow/escrow';
+import {
+  PayoutEmailService,
+  PAYOUT_TASK_LABELS,
+} from '../services/payout-emails';
 import { FundsService } from '../services/payout-queue/funds';
-import type { PayoutDecisionPeriod } from '../drizzle/schema/payout';
+import {
+  DECISION_RECIPIENTS,
+  type DecisionRecipient,
+  type PayoutDecisionPeriod,
+} from '../drizzle/schema/payout';
+import type { PayoutTaskKind } from '../drizzle/schema/payout-emails';
 import { payoutFail, pid } from './payout';
 
 const router = new Hono();
@@ -79,10 +104,22 @@ router.post('/claims/:id/decision', validateUuidParams('id'), async (c) => {
     };
     const receivedAt = str('receivedAt');
     const decisionDate = str('decisionDate');
-    if (receivedAt && !isoDate.safeParse(receivedAt).success)
-      return bad(c, { receivedAt: 'YYYY-MM-DD' });
-    if (decisionDate && !isoDate.safeParse(decisionDate).success)
-      return bad(c, { decisionDate: 'YYYY-MM-DD' });
+    const atlaesReceivedAt = str('atlaesReceivedAt');
+    const reviewBy = str('reviewBy');
+    for (const [k, v] of Object.entries({
+      receivedAt,
+      decisionDate,
+      atlaesReceivedAt,
+      reviewBy,
+    }))
+      if (v && !isoDate.safeParse(v).success)
+        return bad(c, { [k]: 'YYYY-MM-DD' });
+    const recipient = str('recipient');
+    if (
+      recipient &&
+      !(DECISION_RECIPIENTS as readonly string[]).includes(recipient)
+    )
+      return bad(c, { recipient: DECISION_RECIPIENTS.join(' | ') });
     const amountRaw = str('refundAmountEur');
     const amount = amountRaw ? Number(amountRaw.replace(',', '.')) : null;
     if (amount !== null && !(amount >= 0))
@@ -104,6 +141,12 @@ router.post('/claims/:id/decision', validateUuidParams('id'), async (c) => {
         refundAmountEur: amount,
         periods,
         runExtraction: str('runExtraction') !== 'false',
+        recipient: recipient as DecisionRecipient | null,
+        atlaesReceivedAt,
+        reviewBy,
+        // Admin uploads are verified on entry; publish=false keeps a draft.
+        publish: str('publish') !== 'false',
+        source: 'admin',
       },
       actorOf(c)
     );
@@ -119,6 +162,9 @@ const correctionSchema = z.object({
   office: z.string().max(255).nullable().optional(),
   refundAmountEur: z.number().nonnegative().nullable().optional(),
   periods: z.array(periodSchema).optional(),
+  recipient: z.enum(DECISION_RECIPIENTS).nullable().optional(),
+  atlaesReceivedAt: isoDate.optional(),
+  reviewBy: isoDate.optional(),
 });
 
 router.patch(
@@ -259,5 +305,201 @@ router.post(
     }
   }
 );
+
+// ---------------- escrow payout controls ----------------
+
+router.get('/claims/:id/escrow', validateUuidParams('id'), async (c) => {
+  try {
+    return c.json({
+      success: true,
+      ...(await PayoutEscrowService.adminView(pid(c, 'id'))),
+    });
+  } catch (error) {
+    return payoutFail(c, error, 'Admin escrow state');
+  }
+});
+
+const publishSchema = z.object({
+  receivedAt: isoDate.nullish(),
+  atlaesReceivedAt: isoDate.nullish(),
+  reviewBy: isoDate.nullish(),
+  recipient: z.enum(DECISION_RECIPIENTS).nullish(),
+});
+
+router.post(
+  '/claims/:id/decision/:decisionId/publish',
+  validateUuidParams('id', 'decisionId'),
+  async (c) => {
+    const parsed = publishSchema.safeParse(await json(c));
+    if (!parsed.success) return bad(c, parsed.error.flatten());
+    try {
+      const decision = await PayoutFlowService.publishDecision(
+        pid(c, 'id'),
+        pid(c, 'decisionId'),
+        parsed.data,
+        actorOf(c)
+      );
+      return c.json({ success: true, decision });
+    } catch (error) {
+      return payoutFail(c, error, 'Admin publish decision');
+    }
+  }
+);
+
+router.put('/claims/:id/hold', validateUuidParams('id'), async (c) => {
+  const parsed = z
+    .object({ reason: z.string().trim().max(1000).nullable() })
+    .safeParse(await json(c));
+  if (!parsed.success) return bad(c, parsed.error.flatten());
+  try {
+    await PayoutEscrowService.setPayoutHold(
+      pid(c, 'id'),
+      parsed.data.reason,
+      actorOf(c)
+    );
+    return c.json({ success: true });
+  } catch (error) {
+    return payoutFail(c, error, 'Admin payout hold');
+  }
+});
+
+router.put('/claims/:id/contact-pause', validateUuidParams('id'), async (c) => {
+  const parsed = z
+    .object({
+      reason: z.string().trim().min(1).max(1000),
+      nextContactDate: isoDate.nullish(),
+    })
+    .nullable()
+    .safeParse(await json(c));
+  if (!parsed.success) return bad(c, parsed.error.flatten());
+  try {
+    await PayoutEscrowService.setContactPause(
+      pid(c, 'id'),
+      parsed.data
+        ? {
+            reason: parsed.data.reason,
+            nextContactDate: parsed.data.nextContactDate ?? null,
+          }
+        : null,
+      actorOf(c)
+    );
+    return c.json({ success: true });
+  } catch (error) {
+    return payoutFail(c, error, 'Admin contact pause');
+  }
+});
+
+router.put(
+  '/claims/:id/decision-direct',
+  validateUuidParams('id'),
+  async (c) => {
+    const parsed = z.object({ direct: z.boolean() }).safeParse(await json(c));
+    if (!parsed.success) return bad(c, parsed.error.flatten());
+    try {
+      await PayoutEscrowService.setDecisionDirectToClient(
+        pid(c, 'id'),
+        parsed.data.direct,
+        actorOf(c)
+      );
+      return c.json({ success: true });
+    } catch (error) {
+      return payoutFail(c, error, 'Admin decision direct to client');
+    }
+  }
+);
+
+router.post(
+  '/claims/:id/releases/:releaseId/onward',
+  validateUuidParams('id', 'releaseId'),
+  async (c) => {
+    try {
+      const form = await c.req.formData();
+      const str = (k: string) => {
+        const v = form.get(k);
+        return typeof v === 'string' && v.trim() ? v.trim() : null;
+      };
+      const amountRaw = str('amount');
+      const amount = amountRaw ? Number(amountRaw.replace(',', '.')) : null;
+      if (amount !== null && !(amount > 0)) return bad(c, { amount: 'number' });
+      const receipt = form.get('receipt');
+      const row = await PayoutEscrowService.recordOnwardTransfer(
+        pid(c, 'id'),
+        pid(c, 'releaseId'),
+        {
+          amount,
+          currency: str('currency'),
+          transferDate: str('transferDate'),
+          expectedArrival: str('expectedArrival'),
+          receipt: receipt && typeof receipt !== 'string' ? receipt : null,
+        },
+        actorOf(c)
+      );
+      return c.json({ success: true, releaseId: row.id });
+    } catch (error) {
+      return payoutFail(c, error, 'Admin onward transfer');
+    }
+  }
+);
+
+router.put(
+  '/claims/:id/releases/:releaseId/arrival',
+  validateUuidParams('id', 'releaseId'),
+  async (c) => {
+    const parsed = z
+      .object({ date: isoDate.nullable() })
+      .safeParse(await json(c));
+    if (!parsed.success) return bad(c, parsed.error.flatten());
+    try {
+      await PayoutEscrowService.setExpectedArrival(
+        pid(c, 'id'),
+        pid(c, 'releaseId'),
+        parsed.data.date,
+        actorOf(c)
+      );
+      return c.json({ success: true });
+    } catch (error) {
+      return payoutFail(c, error, 'Admin expected arrival');
+    }
+  }
+);
+
+router.get('/tasks', async (c) => {
+  try {
+    const rows = await PayoutEmailService.tasks({ open: true });
+    return c.json({
+      success: true,
+      items: rows.map(({ task, firstName, lastName }) => ({
+        id: task.id,
+        claimId: task.claimId,
+        client: [firstName, lastName].filter(Boolean).join(' ') || null,
+        kind: task.kind,
+        label: PAYOUT_TASK_LABELS[task.kind as PayoutTaskKind] ?? task.kind,
+        urgent: task.urgent,
+        detail: task.detail,
+        createdAt: task.createdAt ? task.createdAt.toISOString() : null,
+      })),
+    });
+  } catch (error) {
+    return payoutFail(c, error, 'Admin payout tasks');
+  }
+});
+
+router.post('/tasks/:id/resolve', validateUuidParams('id'), async (c) => {
+  const parsed = z
+    .object({ note: z.string().trim().max(2000).nullish() })
+    .safeParse(await json(c));
+  if (!parsed.success) return bad(c, parsed.error.flatten());
+  try {
+    const ok = await PayoutEmailService.resolveTask(
+      pid(c, 'id'),
+      actorOf(c).id,
+      parsed.data.note ?? null
+    );
+    if (!ok) return c.json({ success: false, error: 'Task not open' }, 409);
+    return c.json({ success: true });
+  } catch (error) {
+    return payoutFail(c, error, 'Admin resolve payout task');
+  }
+});
 
 export default router;
