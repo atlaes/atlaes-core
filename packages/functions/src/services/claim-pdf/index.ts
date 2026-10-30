@@ -4,6 +4,7 @@ import { downloadFile, uploadFile } from '../../utils/s3';
 import { auditLogs, signatures } from '../../drizzle/schema/shared';
 import { claimsTable, isVblPensionProvider } from '../../drizzle/schema/claims';
 import { ClaimsApplicationService, Claim } from '../claims-application';
+import { OpsSettingsService, postalAgentLines } from '../ops-settings';
 import { assembleClaimPdf } from './assemble';
 
 const REQUIRED_CLAIM_FIELDS: Array<{ key: keyof Claim; label: string }> = [
@@ -88,6 +89,7 @@ export class ClaimPdfService {
     const signaturePng = await this.loadSignaturePng(claim.signatureId!);
 
     const passportBytes = await downloadFile(passportDoc!.document!.s3Key);
+    const agent = await OpsSettingsService.postalAgent();
 
     const bytes = await assembleClaimPdf({
       claim: {
@@ -111,6 +113,10 @@ export class ClaimPdfService {
       passport: {
         bytes: passportBytes,
         fileType: passportDoc!.document!.fileType,
+      },
+      postalAgent: {
+        name: agent.name,
+        lines: postalAgentLines(agent).slice(1),
       },
     });
 

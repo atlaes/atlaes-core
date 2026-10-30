@@ -170,11 +170,16 @@ admin.post('/claims/:id/documents', validateUuidParams('id'), async (c) => {
       return c.json({ success: false, error: 'No file provided' }, 400);
     }
     const note = form.get('note');
+    // 'provider_form': the completed application form of a provider
+    // refund without a fillable form (KVBW ZVK); default an extra.
+    const role =
+      form.get('role') === 'provider_form' ? 'provider_form' : 'bav_extra';
     const document = await ClaimsApplicationService.attachExtraDocument(
       c.req.param('id'),
       user.id,
       file,
-      typeof note === 'string' ? note.slice(0, 1000) : null
+      typeof note === 'string' ? note.slice(0, 1000) : null,
+      role
     );
     return c.json({ success: true, document }, 201);
   } catch (error) {

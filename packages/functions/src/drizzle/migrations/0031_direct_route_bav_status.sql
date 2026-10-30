@@ -27,6 +27,8 @@ ALTER TABLE "claims"."claims" ADD COLUMN IF NOT EXISTS "bav_claim_status" varcha
 --> statement-breakpoint
 ALTER TABLE "claims"."claims" ADD COLUMN IF NOT EXISTS "bav_application_title" varchar(255);
 --> statement-breakpoint
+ALTER TABLE "claims"."claims" ADD COLUMN IF NOT EXISTS "provider_refund_benefit" varchar(40);
+--> statement-breakpoint
 ALTER TABLE "claims"."claims" ADD COLUMN IF NOT EXISTS "direct_pack_released_at" timestamp with time zone;
 --> statement-breakpoint
 ALTER TABLE "claims"."claims" ADD COLUMN IF NOT EXISTS "direct_pack_released_by" uuid;

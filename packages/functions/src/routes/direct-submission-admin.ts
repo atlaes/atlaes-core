@@ -1,5 +1,6 @@
 /**
- * Direct client submission of DRV refund cases (owner spec 29 Oct 2026).
+ * Direct client submission of DRV refund cases and of KVBW ZVK / VddB /
+ * VddKO refunds (owner specs 29 Oct 2026).
  * Mounted at /api/admin/direct-submission; auth + admin like
  * routes/admin.ts. See services/direct-submission.ts for the rules.
  *
@@ -15,7 +16,9 @@
  *   POST /claims/:id/dispatch           { sender, method, date, note? } —
  *                                       actual submission → submitted
  *   POST /claims/:id/payment-confirmed  { date, note? } — client confirmed
- *                                       the DRV refund arrived
+ *                                       the refund arrived
+ *   PUT  /claims/:id/benefit            { benefit | null } — VddB/VddKO
+ *                                       benefit applied for (form field 1)
  */
 
 import { Hono, type Context } from 'hono';
@@ -24,6 +27,7 @@ import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/admin';
 import { validateUuidParams } from '../middleware/validate-uuid';
 import { logger, toErrorMeta } from '../utils/logger';
+import { STAGE_BENEFITS } from '../services/provider-refund/providers';
 import {
   DISPATCH_METHODS,
   DirectSubmissionError,
@@ -187,5 +191,25 @@ router.post(
     }
   }
 );
+
+const benefitSchema = z.object({ benefit: z.enum(STAGE_BENEFITS).nullable() });
+
+router.put('/claims/:id/benefit', validateUuidParams('id'), async (c) => {
+  const parsed = benefitSchema.safeParse(await json(c));
+  if (!parsed.success)
+    return c.json({ success: false, error: 'Unknown benefit' }, 400);
+  try {
+    return c.json({
+      success: true,
+      state: await DirectSubmissionService.setBenefit(
+        id(c),
+        actorOf(c),
+        parsed.data.benefit
+      ),
+    });
+  } catch (error) {
+    return fail(c, error, 'Saving the benefit');
+  }
+});
 
 export default router;

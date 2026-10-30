@@ -501,7 +501,8 @@ describe('VddB / VddKO stage submission', () => {
     expect(claim.pensionProvider).toBe('VddB');
     expect(claim.stageDetails).toMatchObject(stageDetails);
     expect(claim.submissionHold).toBe('manual_submission_required');
-    expect(claim.submissionHoldReason).toContain('no VddB claim form');
+    // The direct provider pack is built on the admin card (provider-refund/).
+    expect(claim.submissionHoldReason).toContain('"Direct submission" card');
     expect(claim.pdfS3Key).toBeNull();
     expect(claim.lettershopSubmissionId).toBeNull();
     expect(pdf).not.toHaveBeenCalled();
@@ -614,7 +615,10 @@ describe('ZVK / KVBW submission', () => {
       expect(claim.pensionProvider).toBe(provider);
       expect(claim.submissionHold).toBe('manual_submission_required');
       expect(claim.submissionHoldReason).toContain(`${provider} claim`);
-      expect(claim.submissionHoldReason).toContain('VBL L203');
+      // KVBW goes through the direct provider pack; other ZVKs stay manual.
+      expect(claim.submissionHoldReason).toContain(
+        provider === 'ZVK (KVBW)' ? '"Direct submission" card' : 'VBL L203'
+      );
       expect(claim.pdfS3Key).toBeNull();
       expect(claim.lettershopSubmissionId).toBeNull();
       expect(pdf).not.toHaveBeenCalled();

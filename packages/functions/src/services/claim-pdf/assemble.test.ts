@@ -3,9 +3,11 @@ import { PDFDocument } from 'pdf-lib';
 import { A4 } from './constants';
 import {
   assembleClaimPdf,
-  toPoaStreetAddress,
+  enclosesAgentIdCopy,
   ClaimPdfInput,
 } from './assemble';
+
+const agent = { name: 'Anna Kliem', lines: ['Kaskelstr. 46', '10317 Berlin'] };
 
 // 1x1 transparent PNG (same fixture used across claim-pdf tests).
 const PNG_1X1 = Uint8Array.from(
@@ -46,6 +48,7 @@ describe('assembleClaimPdf', () => {
       claim,
       signaturePng: PNG_1X1,
       passport: { bytes: PNG_1X1, fileType: 'image/png' },
+      postalAgent: agent,
       now: new Date('2026-07-06T00:00:00Z'),
     });
 
@@ -64,6 +67,7 @@ describe('assembleClaimPdf', () => {
       claim,
       signaturePng: PNG_1X1,
       passport: { bytes: passportPdf, fileType: 'application/pdf' },
+      postalAgent: agent,
       now: new Date('2026-07-06T00:00:00Z'),
     });
 
@@ -77,22 +81,20 @@ describe('assembleClaimPdf', () => {
   });
 });
 
-describe('toPoaStreetAddress', () => {
-  it('joins line1 and line2 with a comma when line2 is set', () => {
-    expect(
-      toPoaStreetAddress({
-        currentAddressLine1: 'Mabini Street 12',
-        currentAddressLine2: 'Apt. 4B',
-      })
-    ).toBe('Mabini Street 12, Apt. 4B');
-  });
-
-  it('returns line1 unchanged when line2 is null', () => {
-    expect(
-      toPoaStreetAddress({
-        currentAddressLine1: 'Mabini Street 12',
-        currentAddressLine2: null,
-      })
-    ).toBe('Mabini Street 12');
+describe('postal agent ID copy', () => {
+  it('encloses the bundled ID copy only for Anna Kliem', async () => {
+    expect(enclosesAgentIdCopy(' Anna  Kliem ')).toBe(true);
+    expect(enclosesAgentIdCopy('Max Muster')).toBe(false);
+    const bytes = await assembleClaimPdf({
+      claim,
+      signaturePng: PNG_1X1,
+      passport: { bytes: PNG_1X1, fileType: 'image/png' },
+      postalAgent: {
+        name: 'Max Muster',
+        lines: ['Musterweg 1', '10115 Berlin'],
+      },
+      now: new Date('2026-07-06T00:00:00Z'),
+    });
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(6);
   });
 });

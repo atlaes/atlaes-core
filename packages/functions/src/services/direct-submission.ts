@@ -23,6 +23,12 @@
  *
  * No escrow release, payout queue line or ZE exists on this route
  * (payout-flow / payout-queue refuse them).
+ *
+ * The same workflow runs for KVBW ZVK, VddB and VddKO refunds (owner spec
+ * "Provider refund direct route", 29 Oct 2026; provider-refund/pack):
+ * those claims land on the 'manual_submission_required' hold at
+ * submission, and recording the dispatch clears it. The GPR client-update
+ * engine is not started for them.
  */
 
 import { and, desc, eq } from 'drizzle-orm';
@@ -51,7 +57,27 @@ import {
   submittedToDrv,
   type SubmissionRoute,
 } from './drv-pack/route';
-import { OpsSettingsService, type PostalAgent } from './ops-settings';
+import {
+  OpsSettingsService,
+  postalAgentLines,
+  type PostalAgent,
+} from './ops-settings';
+import {
+  buildProviderRefundPack,
+  directProviderCodeOf,
+  ProviderPackIncompleteError,
+  providerRefundMapping,
+  type ProviderPackManifest,
+} from './provider-refund/pack';
+import {
+  PROVIDER_REFUND_PROVIDERS,
+  STAGE_BENEFIT_INFO,
+  isStageBenefit,
+  stageBenefitsFor,
+  type ProviderRefundCode,
+  type StageBenefit,
+} from './provider-refund/providers';
+import { ClaimHoldService } from './claim-holds';
 import { isIsoDate, todayBerlin } from './payout-flow/deadlines';
 
 export const DISPATCH_METHODS = [
@@ -97,6 +123,15 @@ type ClaimRow = typeof claimsTable.$inferSelect;
 export interface DirectSubmissionState {
   claimId: string;
   caseType: string;
+  /** 'drv': GPR DRV refund; 'provider': KVBW ZVK / VddB / VddKO refund. */
+  kind: 'drv' | 'provider' | null;
+  provider: { code: ProviderRefundCode; label: string } | null;
+  /** VddB/VddKO: the benefit applied for and the form's options. */
+  benefit: {
+    value: StageBenefit;
+    setByAdmin: boolean;
+    options: { value: StageBenefit; label: string }[];
+  } | null;
   route: SubmissionRoute;
   routeLabel: string;
   /** Direct submission applies (DRV refund on the direct route). */
@@ -136,18 +171,42 @@ export interface DirectSubmissionState {
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 
-function directManifest(claim: ClaimRow): DirectPackManifest | null {
-  const m = claim.submissionPackManifest as DirectPackManifest | null;
+type AnyDirectManifest = DirectPackManifest | ProviderPackManifest;
+
+function directManifest(claim: ClaimRow): AnyDirectManifest | null {
+  const m = claim.submissionPackManifest as AnyDirectManifest | null;
   return m && m.route === 'direct' ? m : null;
 }
 
+function directKindOf(claim: ClaimRow): 'drv' | 'provider' | null {
+  const caseType = resolveCaseType(claim);
+  if (caseType === 'drv_refund') return 'drv';
+  if (caseType === 'vbl_refund' && directProviderCodeOf(claim.pensionProvider))
+    return 'provider';
+  return null;
+}
+
 function notApplicableReason(claim: ClaimRow): string | null {
-  if (resolveCaseType(claim) !== 'drv_refund')
-    return 'Direct client submission applies to DRV refund cases only.';
+  const kind = directKindOf(claim);
+  if (kind === 'provider') return null;
+  if (kind === null)
+    return resolveCaseType(claim) === 'vbl_refund'
+      ? 'Direct submission applies to KVBW ZVK, VddB and VddKO refunds; VBL claims go through the lettershop.'
+      : 'Direct client submission applies to DRV refund and provider refund cases only.';
   if (submissionRouteOf(claim) !== 'direct')
     return 'Set the submission route to "Direct client submission" first.';
   return null;
 }
+
+/** Case data still missing for the pack, per kind. */
+function caseMissing(claim: ClaimRow): string[] {
+  return directKindOf(claim) === 'provider'
+    ? providerRefundMapping(claim).missing
+    : drvDirectPackClientFromClaim(claim).missing;
+}
+
+/** The provider hold is this workflow's queue marker, not a blocker. */
+const PROVIDER_QUEUE_HOLD = 'manual_submission_required';
 
 /** Release checks, pure over the claim row and the current data mapping. */
 export function directReleaseBlockers(
@@ -159,7 +218,13 @@ export function directReleaseBlockers(
   if (na) return [na];
   if (claim.status === 'draft')
     out.push('The client has not submitted the application yet.');
-  if (claim.submissionHold)
+  if (
+    claim.submissionHold &&
+    !(
+      directKindOf(claim) === 'provider' &&
+      claim.submissionHold === PROVIDER_QUEUE_HOLD
+    )
+  )
     out.push(`The case is on hold (${claim.submissionHold}).`);
   if (missing.length) out.push(`Case data missing: ${missing.join(', ')}.`);
   const m = directManifest(claim);
@@ -255,19 +320,41 @@ export class DirectSubmissionService {
     const claim = await this.claim(claimId);
     const route = submissionRouteOf(claim);
     const reason = notApplicableReason(claim);
-    const mapping = drvDirectPackClientFromClaim(claim);
+    const kind = directKindOf(claim);
+    const drvMapping =
+      kind === 'drv' ? drvDirectPackClientFromClaim(claim) : null;
+    const providerMapping =
+      kind === 'provider' ? providerRefundMapping(claim) : null;
+    const code = providerMapping?.code ?? null;
+    const missing = drvMapping?.missing ?? providerMapping?.missing ?? [];
     const m = directManifest(claim);
     const operator = await OpsSettingsService.dispatchOperator();
     return {
       claimId: claim.id,
       caseType: resolveCaseType(claim),
+      kind,
+      provider: code
+        ? { code, label: PROVIDER_REFUND_PROVIDERS[code].label }
+        : null,
+      benefit:
+        providerMapping?.benefit && (code === 'VddB' || code === 'VddKO')
+          ? {
+              value: providerMapping.benefit,
+              setByAdmin: isStageBenefit(claim.providerRefundBenefit),
+              options: stageBenefitsFor(code).map((value) => ({
+                value,
+                label: STAGE_BENEFIT_INFO[value].label,
+              })),
+            }
+          : null,
       route,
       routeLabel: SUBMISSION_ROUTE_LABELS[route],
       applicable: reason === null,
       notApplicableReason: reason,
-      missing: mapping.missing,
-      bankBranch: mapping.bankMapping.branch,
-      bankWarnings: mapping.bankMapping.warnings,
+      missing,
+      bankBranch: drvMapping?.bankMapping.branch ?? null,
+      bankWarnings:
+        drvMapping?.bankMapping.warnings ?? providerMapping?.warnings ?? [],
       pack:
         claim.submissionPackS3Key && m
           ? {
@@ -303,7 +390,7 @@ export class DirectSubmissionService {
       paymentConfirmedAt: claim.submissionDispatchedAt
         ? await this.paymentConfirmedAt(claim.id)
         : null,
-      releaseBlockers: directReleaseBlockers(claim, mapping.missing),
+      releaseBlockers: directReleaseBlockers(claim, missing),
       submittedToDrv: submittedToDrv(claim),
       postalAgent: await OpsSettingsService.postalAgent(),
       defaultSender: operator?.name ?? null,
@@ -339,6 +426,9 @@ export class DirectSubmissionService {
         'The pack is released for dispatch; withdraw the release before regenerating',
         409
       );
+
+    if (directKindOf(claim) === 'provider')
+      return this.generateProviderPack(claim, actor);
 
     const mapping = drvDirectPackClientFromClaim(claim);
     if (!mapping.client)
@@ -410,6 +500,105 @@ export class DirectSubmissionService {
     return this.getState(claim.id);
   }
 
+  /** KVBW ZVK / VddB / VddKO pack (provider-refund/pack). */
+  private static async generateProviderPack(
+    claim: ClaimRow,
+    actor: Actor
+  ): Promise<DirectSubmissionState> {
+    const { LawFirmService } = await import('./law-firm');
+    const docs = await LawFirmService.loadClaimAttachments(claim.id);
+    const extras = await LawFirmService.loadProviderAttachments(claim.id);
+    const signature = await LawFirmService.loadClientSignature(
+      claim.signatureId
+    );
+    const agent = await OpsSettingsService.postalAgent();
+    const generatedAt = new Date();
+    let pack;
+    try {
+      pack = await buildProviderRefundPack({
+        claim,
+        date: generatedAt,
+        signaturePng: signature?.png ?? null,
+        signedAt: signature?.signedAt ?? null,
+        postalAgent: {
+          name: agent.name,
+          lines: postalAgentLines(agent).slice(1),
+        },
+        passportPdf: docs.passport,
+        providerFormPdf: extras.providerForm,
+        extraDocuments: extras.extras,
+      });
+    } catch (error) {
+      if (error instanceof ProviderPackIncompleteError)
+        throw new DirectSubmissionError(
+          `The pack cannot be built: ${error.missing.join(', ')}`,
+          400,
+          error.missing
+        );
+      throw error;
+    }
+    const key = submissionPackKey(claim.id, generatedAt);
+    await uploadFile(key, Buffer.from(pack.pdf), 'application/pdf');
+    await db
+      .update(claimsTable)
+      .set({
+        submissionPackS3Key: key,
+        submissionPackGeneratedAt: generatedAt,
+        submissionPackManifest: pack.manifest,
+        updatedAt: generatedAt,
+      })
+      .where(eq(claimsTable.id, claim.id));
+    await this.record(claim, actor, 'direct_pack_generated', {
+      s3Key: key,
+      previousKey: claim.submissionPackS3Key,
+      signed: pack.manifest.signed,
+      documents: pack.manifest.documents.map((d) => d.key),
+      provider: pack.manifest.provider,
+      benefit: pack.manifest.benefit,
+    });
+    return this.getState(claim.id);
+  }
+
+  /**
+   * VddB/VddKO: the benefit applied for (form field 1). Null returns to
+   * the default derived from the client's answers. Refused once the pack
+   * is released; an existing pack must be regenerated (the case changes).
+   */
+  static async setBenefit(
+    claimId: string,
+    actor: Actor,
+    benefit: StageBenefit | null
+  ): Promise<DirectSubmissionState> {
+    const claim = await this.claim(claimId);
+    const code = directProviderCodeOf(claim.pensionProvider);
+    if (
+      directKindOf(claim) !== 'provider' ||
+      (code !== 'VddB' && code !== 'VddKO')
+    )
+      throw new DirectSubmissionError(
+        'The benefit applies to VddB and VddKO refunds only',
+        409
+      );
+    if (benefit !== null && !stageBenefitsFor(code).includes(benefit))
+      throw new DirectSubmissionError(
+        `The ${code} form does not offer that benefit`
+      );
+    if (claim.directPackReleasedAt || claim.submissionDispatchedAt)
+      throw new DirectSubmissionError(
+        'The pack is released or dispatched; withdraw the release first',
+        409
+      );
+    await db
+      .update(claimsTable)
+      .set({ providerRefundBenefit: benefit, updatedAt: new Date() })
+      .where(eq(claimsTable.id, claim.id));
+    await this.record(claim, actor, 'provider_refund_benefit_set', {
+      before: claim.providerRefundBenefit,
+      after: benefit,
+    });
+    return this.getState(claim.id);
+  }
+
   /** Admin preview/download of the stored pack. Never marks submitted. */
   static async downloadUrl(
     claimId: string,
@@ -434,9 +623,12 @@ export class DirectSubmissionService {
       .filter(Boolean)
       .join('_')
       .replace(/\s+/g, '_');
+    const m = directManifest(claim);
+    const prefix =
+      m && 'kind' in m ? `${m.provider}_Direktantrag` : 'DRV_Direktantrag';
     return {
       downloadUrl,
-      fileName: `DRV_Direktantrag_${name || claim.id.slice(0, 8)}.pdf`,
+      fileName: `${prefix}_${name || claim.id.slice(0, 8)}.pdf`,
     };
   }
 
@@ -447,8 +639,7 @@ export class DirectSubmissionService {
   ): Promise<DirectSubmissionState> {
     const claim = await this.claim(claimId);
     this.requireApplicable(claim);
-    const mapping = drvDirectPackClientFromClaim(claim);
-    const blockers = directReleaseBlockers(claim, mapping.missing);
+    const blockers = directReleaseBlockers(claim, caseMissing(claim));
     if (blockers.length)
       throw new DirectSubmissionError(
         `The pack cannot be released: ${blockers.join(' ')}`,
@@ -581,6 +772,19 @@ export class DirectSubmissionService {
       s3Key: claim.submissionPackS3Key,
     });
 
+    if (directKindOf(claim) === 'provider') {
+      // Provider refunds: the dispatch ends the submission hold. The GPR
+      // client-update engine does not apply.
+      if (claim.submissionHold === PROVIDER_QUEUE_HOLD)
+        await ClaimHoldService.clearHold(claim.id, {
+          triggeredBy: 'admin',
+          userId: actor.id,
+          note: `Direct pack dispatched on ${input.date} (${input.method}) by ${sender}`,
+          only: [PROVIDER_QUEUE_HOLD],
+        });
+      return this.getState(claim.id);
+    }
+
     // Client-update engine: the actual submission date is the one clock
     // (same hook as the firm's posting date). Non-fatal.
     try {
@@ -617,6 +821,7 @@ export class DirectSubmissionService {
       date: input.date,
       note: input.note ?? null,
     });
+    if (directKindOf(claim) === 'provider') return this.getState(claim.id);
     try {
       const { ClientUpdatesService } = await import('./client-updates');
       await ClientUpdatesService.onFundsReceived(

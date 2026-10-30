@@ -7,7 +7,7 @@
  * that forgets the scope sees nothing, which is the safe failure.
  */
 
-import { and, desc, eq, ilike, or, sql, count } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, or, sql, count } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { db } from '../utils/db';
 import { logger } from '../utils/logger';
@@ -1227,6 +1227,49 @@ export class LawFirmService {
       }
     }
     return out;
+  }
+
+  /**
+   * Provider refund pack inputs: the uploaded application form (latest
+   * 'provider_form', KVBW) and the extra documents ops attached
+   * ('bav_extra', upload order), each as PDF. The file name without its
+   * extension is the extra's label in the attachment list.
+   */
+  static async loadProviderAttachments(claimId: string): Promise<{
+    providerForm: Uint8Array | null;
+    extras: { label: string; pdf: Uint8Array }[];
+  }> {
+    const rows = await db
+      .select({
+        role: claimDocuments.documentRole,
+        s3Key: documents.s3Key,
+        fileType: documents.fileType,
+        fileName: documents.fileName,
+        createdAt: claimDocuments.createdAt,
+      })
+      .from(claimDocuments)
+      .innerJoin(documents, eq(documents.id, claimDocuments.documentId))
+      .where(eq(claimDocuments.claimId, claimId))
+      .orderBy(asc(claimDocuments.createdAt));
+    const load = async (row: (typeof rows)[number]) =>
+      attachmentAsPdf(
+        new Uint8Array(await downloadFile(row.s3Key)),
+        row.fileType
+      );
+    const forms = rows.filter((r) => r.role === 'provider_form');
+    const form = forms[forms.length - 1];
+    const extras: { label: string; pdf: Uint8Array }[] = [];
+    for (const r of rows.filter((x) => x.role === 'bav_extra')) {
+      const pdf = await load(r);
+      if (pdf)
+        extras.push({
+          label:
+            r.fileName.replace(/\.[A-Za-z0-9]+$/, '').trim() ||
+            'Weitere Unterlage',
+          pdf,
+        });
+    }
+    return { providerForm: form ? await load(form) : null, extras };
   }
 
   /** Raw claim row for ops actions (the admin view omits the release columns). */

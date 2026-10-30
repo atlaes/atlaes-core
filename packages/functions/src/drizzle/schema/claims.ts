@@ -509,6 +509,9 @@ export const claimsTable = claims.table(
     bavClaimStatus: varchar('bav_claim_status', { length: 20 }),
     // Non-vested letters: German subject, e.g. "Antrag auf Beitragserstattung".
     bavApplicationTitle: varchar('bav_application_title', { length: 255 }),
+    // VddB/VddKO refund: the benefit applied for (provider-refund/
+    // providers.ts STAGE_BENEFITS). Null = derived from the stage answers.
+    providerRefundBenefit: varchar('provider_refund_benefit', { length: 40 }),
 
     // Route B (§ 3 Abs. 2 BetrAVG): Kleinstanwartschaft per statement
     bavStatementType: varchar('bav_statement_type', { length: 50 }), // → statement_type

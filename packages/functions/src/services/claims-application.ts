@@ -1,4 +1,4 @@
-import { eq, and, sql, count, desc } from 'drizzle-orm';
+import { eq, and, sql, count, desc, inArray } from 'drizzle-orm';
 import { db } from '../utils/db';
 import {
   claimsTable,
@@ -32,6 +32,7 @@ import {
   validateBavRecipient,
 } from './bav-letters/intake-validation';
 import { ClaimHoldService } from './claim-holds';
+import { directProviderCodeOf } from './provider-refund/providers';
 import { submittedToDrv } from './drv-pack/route';
 import {
   buildBavPayoutRecord,
@@ -1477,6 +1478,25 @@ export class ClaimsApplicationService {
       return;
     }
 
+    // KVBW ZVK, VddB, VddKO: admin builds the direct pack (cover letter,
+    // application, Postempfangsvollmacht) on the claim's direct-submission
+    // card; recording the dispatch there clears this hold.
+    const directProvider = directProviderCodeOf(row.pensionProvider);
+    if (directProvider) {
+      const provider = row.pensionProvider as string;
+      await hold(
+        'manual_submission_required',
+        `${provider} claim: submitted by the client via the postal agent, not through the lettershop. Generate the pack on the claim's "Direct submission" card, release it, post it and record the dispatch.`,
+        [
+          `${provider} insurance number: ${row.svNummer || 'not given'}`,
+          directProvider === 'KVBW_ZVK'
+            ? 'Upload the completed, client-signed KVBW application form first.'
+            : `Add the ${provider} form "Angaben zur Steuer-Identifikationsnummer" as an extra document.`,
+        ]
+      );
+      return;
+    }
+
     if (isStagePensionProvider(row.pensionProvider)) {
       const provider = row.pensionProvider as string;
       await hold(
@@ -2582,17 +2602,32 @@ export class ClaimsApplicationService {
    * Attaches an extra document to a bAV claim (role 'bav_extra'); the
    * package merges these after the standard enclosures in upload order.
    * Ops regenerate the package via POST /admin/claims/:id/package/regenerate.
+   *
+   * KVBW ZVK / VddB / VddKO refunds (direct provider pack) take extras too
+   * (tax-ID form, further evidence) and, as 'provider_form', the completed
+   * application form a provider without a fillable form needs (KVBW).
    */
   static async attachExtraDocument(
     claimId: string,
     adminUserId: string,
     file: File,
-    note?: string | null
+    note?: string | null,
+    role: 'bav_extra' | 'provider_form' = 'bav_extra'
   ): Promise<ClaimDocument> {
     const claim = await this.getClaimAsAdmin(claimId);
     if (!claim) throw new Error('Claim not found');
-    if (claim.caseType !== 'bav_cashout') {
-      throw new Error('Invalid document: only bAV cash-out claims take extras');
+    const providerRefund =
+      claim.caseType === 'vbl_refund' &&
+      directProviderCodeOf(claim.pensionProvider) !== null;
+    if (claim.caseType !== 'bav_cashout' && !providerRefund) {
+      throw new Error(
+        'Invalid document: only bAV cash-out and KVBW/VddB/VddKO refund claims take extras'
+      );
+    }
+    if (role === 'provider_form' && !providerRefund) {
+      throw new Error(
+        'Invalid document: the application form upload is for KVBW/VddB/VddKO refunds'
+      );
     }
     if (file.size > this.EXTRA_DOCUMENT_MAX_BYTES) {
       throw new Error('Invalid file: size exceeds 10MB limit');
@@ -2613,13 +2648,13 @@ export class ClaimsApplicationService {
           fileType: file.type,
           fileSize: file.size,
           s3Key,
-          documentType: 'bav_extra',
+          documentType: role,
           status: 'completed',
         })
         .returning();
       const [row] = await tx
         .insert(claimDocuments)
-        .values({ claimId, documentId: doc.id, documentRole: 'bav_extra' })
+        .values({ claimId, documentId: doc.id, documentRole: role })
         .returning();
       await tx.insert(auditLogs).values({
         userId: adminUserId,
@@ -2667,6 +2702,7 @@ export class ClaimsApplicationService {
       .select({
         id: claimDocuments.id,
         documentId: claimDocuments.documentId,
+        role: claimDocuments.documentRole,
         s3Key: documents.s3Key,
       })
       .from(claimDocuments)
@@ -2675,11 +2711,17 @@ export class ClaimsApplicationService {
         and(
           eq(claimDocuments.id, claimDocumentId),
           eq(claimDocuments.claimId, claimId),
-          eq(claimDocuments.documentRole, 'bav_extra')
+          inArray(claimDocuments.documentRole, ['bav_extra', 'provider_form'])
         )
       )
       .limit(1);
     if (!link) return false;
+    if (link.role === 'provider_form') {
+      // Ops remove only the form they uploaded on a provider refund; a bAV
+      // provider form is the client's upload.
+      const claim = await this.getClaimAsAdmin(claimId);
+      if (claim?.caseType !== 'vbl_refund') return false;
+    }
     await db.transaction(async (tx: any) => {
       await tx.delete(claimDocuments).where(eq(claimDocuments.id, link.id));
       await tx.delete(documents).where(eq(documents.id, link.documentId));
