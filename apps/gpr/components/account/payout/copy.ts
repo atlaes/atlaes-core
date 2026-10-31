@@ -89,10 +89,11 @@ export const ROUTE_COPY = {
     p: string;
     y: string;
     x: string;
-    z: string;
+    /** null: no ECB reference rate for the currency, so no estimate. */
+    z: string | null;
     institution: string;
   }) =>
-    `Best if you want to receive ${v.currency} without arranging the conversion yourself. We coordinate the conversion and payout through our payment partner SummitFX. Your conversion cost: ${v.p} — approximately ${v.y} on your ${v.x} payout, included in the exchange rate and not charged separately. You receive approximately ${v.currency} ${v.z}.* Your payment is executed by ${v.institution}, and you receive a receipt showing the exchange rate applied.`,
+    `Best if you want to receive ${v.currency} without arranging the conversion yourself. We coordinate the conversion and payout through our payment partner SummitFX. Your conversion cost: ${v.p} — approximately ${v.y} on your ${v.x} payout, included in the exchange rate and not charged separately.${v.z !== null ? ` You receive approximately ${v.currency} ${v.z}.*` : ''} Your payment is executed by ${v.institution}, and you receive a receipt showing the exchange rate applied.`,
   option2Disclosure:
     'Our connection to SummitFX: Anna Kliem and Johannes Kühn, the founders of ATLAES GmbH, are also minority shareholders in SummitFX and therefore have a personal financial interest in this service.',
   option3Title: 'Let my bank handle the conversion',

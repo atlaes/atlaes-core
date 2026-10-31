@@ -18,6 +18,7 @@ import {
   ClaimPayoutTarget,
 } from '@/lib/admin-api';
 import { V0901AnswersCard } from '@/components/V0901AnswersCard';
+import { EscrowPayoutCard } from '@/components/EscrowPayoutCard';
 import { DeregistrationSurchargeCard } from '@/components/DeregistrationSurchargeCard';
 import { DirectSubmissionCard } from '@/components/DirectSubmissionCard';
 import {
@@ -487,6 +488,13 @@ export default function ClaimDetailPage() {
             claimId={claim.id}
             wrap={(body) => <Section title="Deregistration surcharge">{body}</Section>}
           />
+
+          {!isBav && (
+            <EscrowPayoutCard
+              claimId={claim.id}
+              wrap={(body) => <Section title="Escrow payout">{body}</Section>}
+            />
+          )}
 
           <Section title="Bank and payment">
             <dl className="grid gap-x-8 sm:grid-cols-2">

@@ -13,6 +13,7 @@ import {
   payoutCustomerInputs,
   payoutReleases,
 } from '../../drizzle/schema/payout';
+import { payoutLines } from '../../drizzle/schema/payout-queue';
 import { PayoutFlowService } from '.';
 import { clearPayoutAccountCache } from '../payout-accounts';
 
@@ -92,7 +93,10 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (claimId) await db.delete(claimsTable).where(eq(claimsTable.id, claimId));
+  if (!claimId) return;
+  // Signing queues the payout lines (PayoutQueueService.onReleased).
+  await db.delete(payoutLines).where(eq(payoutLines.claimId, claimId));
+  await db.delete(claimsTable).where(eq(claimsTable.id, claimId));
 });
 
 describe('payout flow (db)', () => {

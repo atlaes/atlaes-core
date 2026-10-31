@@ -149,3 +149,27 @@ export const clientUpdatesCron = new sst.aws.Cron('ClientUpdatesCron', {
     },
   },
 });
+
+// Daily escrow payout e-mail engine (E1–E5, reminders, payout tasks).
+// 07:00 UTC = 08:00/09:00 Berlin, a client-friendly send time.
+export const payoutEmailsCron = new sst.aws.Cron('PayoutEmailsCron', {
+  schedule: 'cron(0 7 * * ? *)',
+  function: {
+    handler: 'packages/functions/src/payout-emails-cron.handler.handler',
+    runtime: 'nodejs20.x',
+    timeout: '5 minutes',
+    memory: '512 MB',
+    vpc,
+    link: [postgres, bucket, email],
+    environment: {
+      NODE_ENV: 'production',
+      SES_FROM_EMAIL: 'noreply@companypension.de',
+      OPS_NOTIFICATION_EMAIL: process.env.OPS_NOTIFICATION_EMAIL ?? '',
+      GPR_FRONTEND_URL: process.env.GPR_FRONTEND_URL ?? '',
+      ADMIN_URL:
+        $app.stage === 'production'
+          ? 'https://admin.atlaes.de'
+          : 'https://staging.admin.atlaes.de',
+    },
+  },
+});

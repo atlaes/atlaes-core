@@ -15,6 +15,10 @@ import {
   validateBankDetails,
   type BankFieldKey,
 } from './bank-validation';
+import {
+  extraBeneficiaryFields,
+  TRANSFERMATE_CURRENCIES,
+} from './currency-routing';
 import { RELEASE_FIGMA as T } from './copy';
 import { FeePanel } from './FeePanel';
 import { Footer, PayoutFrame, Question, releaseTitle } from './PayoutFrame';
@@ -23,38 +27,8 @@ import { useInvalidatePayout } from './usePayout';
 
 type FormKey = keyof BankDetailsPayload;
 
-const CURRENCIES = [
-  'EUR',
-  'USD',
-  'GBP',
-  'AUD',
-  'CAD',
-  'NZD',
-  'CHF',
-  'INR',
-  'ZAR',
-  'BRL',
-  'MXN',
-  'TRY',
-  'PLN',
-  'CZK',
-  'HUF',
-  'SEK',
-  'NOK',
-  'DKK',
-  'JPY',
-  'SGD',
-  'HKD',
-  'CNY',
-  'PHP',
-  'IDR',
-  'NGN',
-  'KES',
-  'GHS',
-  'EGP',
-  'AED',
-  'ILS',
-];
+// EUR plus every currency TransferMate can pay out (owner routing file).
+const CURRENCIES = ['EUR'].concat(Object.keys(TRANSFERMATE_CURRENCIES).sort());
 
 const DEPRECATED = [
   'AN',
@@ -123,6 +97,8 @@ function toForm(a: PayoutAccount): BankDetailsPayload {
     transitNumber: r === 'Transit/Institution' ? v.split('-')[0] : '',
     institutionNumber:
       r === 'Transit/Institution' ? (v.split('-')[1] ?? '') : '',
+    taxId: a.taxId ?? '',
+    phone: a.phone ?? '',
   };
 }
 
@@ -227,12 +203,19 @@ export function ReleaseBank({ data }: { data: PayoutState }) {
   const ibanOk = route === 'A' && isValidIban(form.iban);
   const hasIban = fields.some((f) => f.key === 'iban');
   const local = fields.filter((f) => f.key !== 'iban');
+  const extra = route === 'B' ? extraBeneficiaryFields(currency) : [];
   const pairs: (typeof local)[] = [];
   for (let i = 0; i < local.length; i += 2) pairs.push(local.slice(i, i + 2));
 
   const submit = async () => {
     setFormError(null);
-    const local = validateBankDetails(form, route);
+    // Fields the currency does not need are not sent.
+    const payload: BankDetailsPayload = {
+      ...form,
+      taxId: extra.includes('taxId') ? form.taxId : null,
+      phone: extra.includes('phone') ? form.phone : null,
+    };
+    const local = validateBankDetails(payload, route);
     if (!local.ok) {
       setErrors(local.errors as Record<string, string>);
       const e = { ...editing };
@@ -242,7 +225,7 @@ export function ReleaseBank({ data }: { data: PayoutState }) {
     }
     setBusy(true);
     try {
-      const res = await payoutApi.saveBank(release.id, form);
+      const res = await payoutApi.saveBank(release.id, payload);
       if (!res.ok) {
         setErrors(res.errors);
         return;
@@ -261,7 +244,10 @@ export function ReleaseBank({ data }: { data: PayoutState }) {
     }
   };
 
-  const fieldBox = (key: BankFieldKey | 'bank', label: string) => (
+  const fieldBox = (
+    key: BankFieldKey | 'bank' | 'taxId' | 'phone',
+    label: string
+  ) => (
     <FieldBox
       key={key}
       id={'pay-' + key}
@@ -324,6 +310,20 @@ export function ReleaseBank({ data }: { data: PayoutState }) {
           {fieldBox('bank', 'Bank')}
         </div>
 
+        {extra.length ? (
+          <div className="pay-row2">
+            {extra.includes('taxId')
+              ? fieldBox(
+                  'taxId',
+                  currency === 'BRL' ? 'Tax ID (CPF)' : 'Tax ID'
+                )
+              : null}
+            {extra.includes('phone')
+              ? fieldBox('phone', 'Phone number (with country code)')
+              : null}
+          </div>
+        ) : null}
+
         <div className="pay-row2">
           <FieldBox
             id="pay-country"
@@ -368,6 +368,11 @@ export function ReleaseBank({ data }: { data: PayoutState }) {
               ).map((c) => (
                 <option key={c} value={c}>
                   {c}
+                  {TRANSFERMATE_CURRENCIES[c]
+                    ? ` · ${TRANSFERMATE_CURRENCIES[c]}`
+                    : c === 'EUR'
+                      ? ' · Euro'
+                      : ''}
                 </option>
               ))}
             </select>

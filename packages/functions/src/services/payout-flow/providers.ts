@@ -3,15 +3,17 @@
  * constant. Route A = SEPA in euros, B = conversion through SummitFX,
  * C = euros by SWIFT, converted by the receiving bank.
  *
- * Option 2 is offered only for currencies the register lists, and only
- * when a mid-market reference rate is available at display time (daily
- * ECB rate). The currency list and executing institution are PROVISIONAL
- * until the client supplies the register. The collection account for
- * route B lines is set by ops in the admin (services/payout-accounts.ts,
- * key summitfx_collection); `collectionAccount` here stays null.
+ * Option 2 is offered for every currency on the TransferMate list (owner
+ * routing file, 30 Oct 2026, see currency-routing.ts); the estimate in the
+ * client's currency is shown only when a mid-market reference rate (daily
+ * ECB rate) is available. TransferMate executes the payment. The
+ * collection account for route B lines is set by ops in the admin
+ * (services/payout-accounts.ts, key summitfx_collection);
+ * `collectionAccount` here stays null.
  */
 
 import { round2 } from '../drv-pack/fee';
+import { normaliseCurrency, TRANSFERMATE_CURRENCIES } from './currency-routing';
 
 export type PayoutRouteCode = 'A' | 'B' | 'C';
 
@@ -45,31 +47,10 @@ export const SUMMITFX = {
     { belowEur: null, upToEur: 25000, rate: 0.01 },
     { belowEur: null, rate: 0.007 },
   ] as ConversionTier[],
-  currencies: [
-    'USD',
-    'GBP',
-    'AUD',
-    'CAD',
-    'NZD',
-    'CHF',
-    'INR',
-    'ZAR',
-    'BRL',
-    'MXN',
-    'TRY',
-    'PLN',
-    'CZK',
-    'HUF',
-    'SEK',
-    'NOK',
-    'DKK',
-    'JPY',
-    'SGD',
-    'HKD',
-  ].map(
+  currencies: Object.keys(TRANSFERMATE_CURRENCIES).map(
     (currency): ProviderCurrency => ({
       currency,
-      executedBy: null,
+      executedBy: 'TransferMate',
       collectionAccount: null,
     })
   ),
@@ -82,7 +63,7 @@ export const PROVIDER_REGISTER = {
 };
 
 export function summitFxCurrency(currency: string): ProviderCurrency | null {
-  const c = currency.toUpperCase();
+  const c = normaliseCurrency(currency);
   return SUMMITFX.currencies.find((x) => x.currency === c) ?? null;
 }
 
@@ -124,7 +105,7 @@ export function buildRouteOptions(input: {
   currency: string;
   referenceRate: ReferenceRate | null;
 }): RouteOptions {
-  const currency = input.currency.toUpperCase();
+  const currency = normaliseCurrency(input.currency);
   const amount = input.amountAvailableEur;
   if (currency === 'EUR') {
     return {
@@ -147,7 +128,8 @@ export function buildRouteOptions(input: {
   }
   const reg = summitFxCurrency(currency);
   const rate = input.referenceRate;
-  const option2Available = !!reg && !!rate && rate.rate > 0;
+  const option2Available = !!reg;
+  const hasRate = !!rate && rate.rate > 0;
   const p = conversionCostRate(amount);
   const cost = round2(amount * p);
   return {
@@ -172,7 +154,9 @@ export function buildRouteOptions(input: {
         costRate: option2Available ? p : null,
         costEur: option2Available ? cost : null,
         estimatedTargetAmount:
-          option2Available && rate ? round2((amount - cost) * rate.rate) : null,
+          option2Available && hasRate && rate
+            ? round2((amount - cost) * rate.rate)
+            : null,
         executedBy: reg?.executedBy ?? null,
       },
       {

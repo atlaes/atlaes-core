@@ -474,15 +474,12 @@ export class PayoutQueueService {
       } catch (error) {
         logger.error('[PayoutQueue] invoice paid failed', toErrorMeta(error));
       }
-    } else {
-      // TODO(Workflow D): transfer-confirmation e-mail to the client. The
-      // brief references "Workflow D" but its text is not in Part 3 yet.
-      logger.info(
-        '[PayoutQueue] client line paid — transfer confirmation pending (Workflow D)',
-        {
-          claimId: line.claimId,
-        }
-      );
+    }
+    // E3/E4A/E4B scheduling: Katja's transfer of the client amount is the
+    // payment (route A/C) or the TransferMate funding (route B).
+    if (line.kind === 'client') {
+      const { PayoutEmailService } = await import('../payout-emails');
+      await PayoutEmailService.run(line.claimId);
     }
 
     const [open] = await db

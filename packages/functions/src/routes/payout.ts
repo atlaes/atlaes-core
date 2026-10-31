@@ -13,6 +13,11 @@
  *   GET  /release/:id/ze                ZE preview text (D + E) + blockers
  *   POST /release/:id/sign              { signature: data:image/png;base64,… }
  *   GET  /release/:id/ze.pdf            signed ZE (redirect to S3 / bytes)
+ *   POST /decision-upload               multipart { file } — EM: client's copy
+ *                                        of the decision (admin verifies)
+ *   POST /decision-not-received         EM: "I have not received it"
+ *   POST /release/:id/receipt           { status: confirmed | not_received } (E5)
+ *   GET  /release/:id/transfer-receipt  { url } TransferMate receipt (route B)
  */
 
 import { Hono, type Context } from 'hono';
@@ -21,6 +26,7 @@ import { logger, toErrorMeta } from '../utils/logger';
 import { authMiddleware } from '../middleware/auth';
 import { validateUuidParams } from '../middleware/validate-uuid';
 import { PayoutFlowError, PayoutFlowService } from '../services/payout-flow';
+import { PayoutEscrowService } from '../services/payout-flow/escrow';
 
 const router = new Hono();
 router.use('*', authMiddleware);
@@ -120,6 +126,8 @@ const bankSchema = z.object({
   transitNumber: opt,
   institutionNumber: opt,
   clabe: opt,
+  taxId: opt,
+  phone: opt,
 });
 
 router.put('/release/:id/bank', validateUuidParams('id'), async (c) => {
@@ -236,5 +244,67 @@ router.get('/release/:id/ze.pdf', validateUuidParams('id'), async (c) => {
     return payoutFail(c, error, 'Payout ZE download');
   }
 });
+
+router.post('/decision-upload', async (c) => {
+  try {
+    const form = await c.req.formData();
+    const files = form
+      .getAll('file')
+      .filter((f) => typeof f !== 'string') as unknown as File[];
+    const result = await PayoutEscrowService.clientUploadDecision(
+      userId(c),
+      files
+    );
+    return c.json({ success: true, ...result }, 201);
+  } catch (error) {
+    return payoutFail(c, error, 'Payout decision upload');
+  }
+});
+
+router.post('/decision-not-received', async (c) => {
+  try {
+    await PayoutEscrowService.clientDecisionNotReceived(userId(c));
+    return c.json({ success: true });
+  } catch (error) {
+    return payoutFail(c, error, 'Payout decision not received');
+  }
+});
+
+const receiptSchema = z.object({
+  status: z.enum(['confirmed', 'not_received']),
+});
+
+router.post('/release/:id/receipt', validateUuidParams('id'), async (c) => {
+  const parsed = receiptSchema.safeParse(await json(c));
+  if (!parsed.success)
+    return c.json({ success: false, error: 'Choose an answer' }, 400);
+  try {
+    await PayoutEscrowService.clientReceipt(
+      userId(c),
+      pid(c, 'id'),
+      parsed.data.status
+    );
+    return c.json({ success: true });
+  } catch (error) {
+    return payoutFail(c, error, 'Payout receipt');
+  }
+});
+
+router.get(
+  '/release/:id/transfer-receipt',
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const url = await PayoutEscrowService.clientReceiptUrl(
+        userId(c),
+        pid(c, 'id')
+      );
+      if (!url) return c.json({ success: false, error: 'No receipt yet' }, 404);
+      return c.json({ success: true, url });
+    } catch (error) {
+      return payoutFail(c, error, 'Payout transfer receipt');
+    }
+  }
+);
 
 export default router;

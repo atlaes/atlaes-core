@@ -40,6 +40,9 @@ export interface PayoutDecisionPeriod {
   contributionsEur: number | null;
 }
 
+export const DECISION_RECIPIENTS = ['law_firm', 'client', 'atlaes'] as const;
+export type DecisionRecipient = (typeof DECISION_RECIPIENTS)[number];
+
 export const PAYOUT_REVIEW_OUTCOMES = ['confirmed', 'disputed'] as const;
 export type PayoutReviewOutcome = (typeof PAYOUT_REVIEW_OUTCOMES)[number];
 
@@ -70,6 +73,19 @@ export const payoutDecisions = claims.table(
     // A1–A3 e-mail sent for this event ('A2' | 'A3' | 'none').
     notifiedKind: varchar('notified_kind', { length: 10 }),
     notifiedAt: timestamp('notified_at', { withTimezone: true }),
+    // Migration 0032 (escrow payout spec 30 Oct 2026). `receivedAt` is the
+    // actual recipient's receipt date; `recipient` who that was. The
+    // missing-funds timer runs from ATLAES's own receipt date. Only a
+    // published decision is shown to the client; a client upload waits
+    // for admin verification.
+    recipient: varchar('recipient', { length: 20 }), // DecisionRecipient
+    atlaesReceivedAt: date('atlaes_received_at'),
+    reviewDueVerifiedAt: timestamp('review_due_verified_at', {
+      withTimezone: true,
+    }),
+    source: varchar('source', { length: 20 }).notNull().default('admin'), // admin | client_upload
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    publishedBy: uuid('published_by'),
     createdBy: uuid('created_by').references(() => users.id),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -114,6 +130,9 @@ export interface PayoutAccount {
   accountNumber?: string | null;
   routingLabel?: string | null; // "Routing number", "IFSC", "Sort code", "BSB", …
   routingValue?: string | null;
+  /** Conversion route extras some currencies need (owner routing file). */
+  taxId?: string | null;
+  phone?: string | null;
 }
 
 /** What the client saw when choosing the route (brief Part 2 §3, last bullet). */
@@ -206,6 +225,23 @@ export const payoutReleases = claims.table(
     // A1–A3 e-mail sent for this event ('A1' | 'A3' | 'none').
     notifiedKind: varchar('notified_kind', { length: 10 }),
     notifiedAt: timestamp('notified_at', { withTimezone: true }),
+    // Migration 0032. First payout invitation (E1A/E1C): reminders and the
+    // 30-day follow-up count from here.
+    invitedAt: timestamp('invited_at', { withTimezone: true }),
+    // Route B: the TransferMate onward payment (the law firm's transfer to
+    // the collection account is only the funding).
+    onwardAmount: decimal('onward_amount', { precision: 14, scale: 2 }),
+    onwardCurrency: varchar('onward_currency', { length: 3 }),
+    onwardTransferDate: date('onward_transfer_date'),
+    onwardReceiptDocumentId: uuid('onward_receipt_document_id').references(
+      () => documents.id
+    ),
+    onwardRecordedAt: timestamp('onward_recorded_at', { withTimezone: true }),
+    onwardRecordedBy: uuid('onward_recorded_by'),
+    // Expected arrival at the client's bank (E5 runs from here).
+    expectedArrivalDate: date('expected_arrival_date'),
+    receiptStatus: varchar('receipt_status', { length: 20 }), // confirmed | not_received
+    receiptStatusAt: timestamp('receipt_status_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
