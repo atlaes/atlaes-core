@@ -303,33 +303,17 @@ describe('GPR Routes', () => {
   });
 
   describe('GET /api/gpr/session/:email', () => {
-    it('retrieves existing session', async () => {
+    it('no longer exists (it returned other people\'s sessions without auth)', async () => {
       const email = uniqueEmail();
       createdSessionEmails.push(email);
-
-      // Create session first
       await request('POST', '/api/gpr/session', {
         email,
         calculatorData: gprSessionData.calculatorData,
       });
 
-      // Retrieve session
       const res = await request('GET', `/api/gpr/session/${encodeURIComponent(email)}`);
-      const data = await res.json();
-
-      expect(res.status).toBe(200);
-      expect(data.success).toBe(true);
-      expect(data.session.email).toBe(email.toLowerCase());
-      expect(data.session.totalRefund).toBe(gprSessionData.calculatorData.calculationResult.totalRefund);
-    });
-
-    it('returns 404 for non-existent session', async () => {
-      const res = await request('GET', `/api/gpr/session/nonexistent@example.com`);
-      const data = await res.json();
 
       expect(res.status).toBe(404);
-      expect(data.success).toBe(false);
-      expect(data.error).toBe('Session not found or expired');
     });
   });
 

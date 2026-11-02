@@ -24,6 +24,7 @@ import { claimsTable } from '../drizzle/schema/claims';
 import auth from '../routes/auth';
 import gpr from '../routes/gpr';
 import claims from '../routes/claims';
+import { GPRApplicationService } from '../services/gpr-application';
 
 import { gprSessionData, completeClaim, claimPersonalInfo, claimCurrentAddress, claimBankDetails } from '../test/fixtures';
 
@@ -131,6 +132,14 @@ describe('User Journey Integration Tests', () => {
     }
   }
 
+  // Each request comes from its own address: the magic-link route is rate
+  // limited per client IP and the limiter is shared across test files.
+  let requestCount = 0;
+  function nextClientIp(): string {
+    requestCount += 1;
+    return `198.19.${Math.floor(requestCount / 250) % 250}.${requestCount % 250}`;
+  }
+
   // Helper to make requests
   async function request(
     method: string,
@@ -142,6 +151,7 @@ describe('User Journey Integration Tests', () => {
       method,
       headers: {
         'Content-Type': 'application/json',
+        'X-Forwarded-For': nextClientIp(),
         ...headers,
       },
       body: body ? JSON.stringify(body) : undefined,
@@ -199,12 +209,9 @@ describe('User Journey Integration Tests', () => {
       expect(magicLinkRes.status).toBe(200);
       expect(magicLinkData.magicLink).toBeDefined();
 
-      // Verify session was saved
-      const sessionRes = await request('GET', `/api/gpr/session/${encodeURIComponent(email)}`);
-      const sessionData = await sessionRes.json();
-
-      expect(sessionRes.status).toBe(200);
-      expect(sessionData.session.email).toBe(email.toLowerCase());
+      // Verify session was saved (there is no public lookup by e-mail)
+      const savedSession = await GPRApplicationService.getPendingSession(email);
+      expect(savedSession?.email).toBe(email.toLowerCase());
 
       // Step 3: User clicks magic link to verify
       console.log('Step 3: Magic link verification');
@@ -226,8 +233,7 @@ describe('User Journey Integration Tests', () => {
       const applicationId = verifyData.gprApplication.id;
 
       // Verify session was deleted after migration
-      const sessionAfterRes = await request('GET', `/api/gpr/session/${encodeURIComponent(email)}`);
-      expect(sessionAfterRes.status).toBe(404);
+      expect(await GPRApplicationService.getPendingSession(email)).toBeFalsy();
 
       // Step 4: User creates a claim linked to their GPR application
       console.log('Step 4: Create claim');
@@ -399,9 +405,8 @@ describe('User Journey Integration Tests', () => {
       });
 
       // Check first value
-      let sessionRes = await request('GET', `/api/gpr/session/${encodeURIComponent(email)}`);
-      let sessionData = await sessionRes.json();
-      expect(sessionData.session.totalRefund).toBe(1000);
+      let session = await GPRApplicationService.getPendingSession(email);
+      expect(session?.calculationResult?.totalRefund).toBe(1000);
 
       // Second submission with updated calculation
       await request('POST', '/api/gpr/session', {
@@ -417,10 +422,9 @@ describe('User Journey Integration Tests', () => {
       });
 
       // Check updated value
-      sessionRes = await request('GET', `/api/gpr/session/${encodeURIComponent(email)}`);
-      sessionData = await sessionRes.json();
-      expect(sessionData.session.totalRefund).toBe(2500);
-      expect(sessionData.session.numberOfJobs).toBe(2);
+      session = await GPRApplicationService.getPendingSession(email);
+      expect(session?.calculationResult?.totalRefund).toBe(2500);
+      expect(session?.numberOfJobs).toBe(2);
     });
   });
 
