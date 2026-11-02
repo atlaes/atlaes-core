@@ -5,6 +5,8 @@ import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { useClaimsStore } from '@/lib/stores/claims-store';
 import { useCompleteStepMutation } from '@/lib/queries/claims-queries';
 import { ClaimStepName } from '@/lib/claims-api';
+import { apiErrorMessage } from '@/lib/api';
+import ErrorNotice from './ErrorNotice';
 
 interface ClaimsStepContainerProps {
   claimId: string;
@@ -49,11 +51,13 @@ export default function ClaimsStepContainer({
   const completeMutation = useCompleteStepMutation();
 
   const [isProcessing, setIsProcessing] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   const handleContinue = async () => {
     if (!canContinue || isProcessing) return;
 
     setIsProcessing(true);
+    setError(null);
     try {
       if (onContinue) {
         await onContinue();
@@ -62,8 +66,11 @@ export default function ClaimsStepContainer({
         await completeMutation.mutateAsync({ claimId, stepName });
         goToNextStep();
       }
-    } catch (error) {
-      console.error('Error in step continue:', error);
+    } catch (err) {
+      // Shown under the step: a swallowed failure looked like a dead button.
+      setError(
+        apiErrorMessage(err, 'Could not save this step. Please try again.')
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -100,6 +107,8 @@ export default function ClaimsStepContainer({
 
       {/* Step Content */}
       <div className="claims-step-content">{children}</div>
+
+      <ErrorNotice message={error} />
 
       {/* Step Footer / Navigation */}
       <div className="claims-step-footer">

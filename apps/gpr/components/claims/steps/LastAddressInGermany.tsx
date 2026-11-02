@@ -4,9 +4,17 @@ import React, { useState, useEffect } from 'react';
 import { Upload, FileText } from 'lucide-react';
 import ClaimsStepContainer from '../ClaimsStepContainer';
 import DocumentUpload from '../DocumentUpload';
-import { useClaimQuery, useClaimDocumentsQuery, useUpdateClaimMutation, useCompleteStepMutation, useUploadDocumentMutation } from '@/lib/queries/claims-queries';
+import {
+  useClaimQuery,
+  useClaimDocumentsQuery,
+  useUpdateClaimMutation,
+  useCompleteStepMutation,
+  useUploadDocumentMutation,
+  useRemoveDocumentMutation,
+} from '@/lib/queries/claims-queries';
 import { useClaimsStore } from '@/lib/stores/claims-store';
 import { AbmeldungMethod } from '@/lib/claims-api';
+import { apiErrorMessage } from '@/lib/api';
 
 type MethodChoice = 'upload' | 'manual' | null;
 
@@ -21,12 +29,15 @@ interface LastAddressInGermanyProps {
   claimId: string;
 }
 
-export default function LastAddressInGermany({ claimId }: LastAddressInGermanyProps) {
+export default function LastAddressInGermany({
+  claimId,
+}: LastAddressInGermanyProps) {
   const { data: claim } = useClaimQuery(claimId);
   const { data: documents } = useClaimDocumentsQuery(claimId);
   const updateMutation = useUpdateClaimMutation();
   const completeMutation = useCompleteStepMutation();
   const uploadMutation = useUploadDocumentMutation();
+  const removeMutation = useRemoveDocumentMutation();
   const { goToNextStep } = useClaimsStore();
 
   // Determine initial method choice from saved data
@@ -46,7 +57,9 @@ export default function LastAddressInGermany({ claimId }: LastAddressInGermanyPr
   });
 
   const [errors, setErrors] = useState<Partial<FormData>>({});
-  const [touched, setTouched] = useState<Partial<Record<keyof FormData, boolean>>>({});
+  const [touched, setTouched] = useState<
+    Partial<Record<keyof FormData, boolean>>
+  >({});
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Initialize from claim data
@@ -63,7 +76,9 @@ export default function LastAddressInGermany({ claimId }: LastAddressInGermanyPr
   }, [claim]);
 
   // Find existing abmeldung document
-  const abmeldungDoc = documents?.find((doc) => doc.documentRole === 'abmeldung');
+  const abmeldungDoc = documents?.find(
+    (doc) => doc.documentRole === 'abmeldung'
+  );
 
   const handleChange = (field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -81,8 +96,22 @@ export default function LastAddressInGermany({ claimId }: LastAddressInGermanyPr
     try {
       await uploadMutation.mutateAsync({ claimId, file, role: 'abmeldung' });
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : 'Upload failed');
+      setUploadError(apiErrorMessage(error, 'Upload failed'));
       throw error;
+    }
+  };
+
+  // Detaches the file from the claim (DELETE /claims/:id/documents/:docId).
+  const handleRemoveAbmeldung = async () => {
+    if (!abmeldungDoc) return;
+    setUploadError(null);
+    try {
+      await removeMutation.mutateAsync({
+        claimId,
+        documentId: abmeldungDoc.documentId,
+      });
+    } catch (error) {
+      setUploadError(apiErrorMessage(error, 'Could not remove the file'));
     }
   };
 
@@ -128,22 +157,30 @@ export default function LastAddressInGermany({ claimId }: LastAddressInGermanyPr
     }
 
     // Map methodChoice to AbmeldungMethod
-    const abmeldungMethod: AbmeldungMethod = methodChoice === 'upload' ? 'uploaded' : 'manual';
+    const abmeldungMethod: AbmeldungMethod =
+      methodChoice === 'upload' ? 'uploaded' : 'manual';
 
     await updateMutation.mutateAsync({
       claimId,
       data: {
-        lastGermanAddress: methodChoice === 'manual' ? {
-          streetAddress: formData.streetAddress,
-          city: formData.city,
-          postalCode: formData.postalCode,
-        } : undefined,
-        moveOutDate: methodChoice === 'manual' ? formData.moveOutDate : undefined,
+        lastGermanAddress:
+          methodChoice === 'manual'
+            ? {
+                streetAddress: formData.streetAddress,
+                city: formData.city,
+                postalCode: formData.postalCode,
+              }
+            : undefined,
+        moveOutDate:
+          methodChoice === 'manual' ? formData.moveOutDate : undefined,
         abmeldungMethod,
       },
     });
 
-    await completeMutation.mutateAsync({ claimId, stepName: 'lastAddressInGermany' });
+    await completeMutation.mutateAsync({
+      claimId,
+      stepName: 'lastAddressInGermany',
+    });
     goToNextStep();
   };
 
@@ -204,9 +241,7 @@ export default function LastAddressInGermany({ claimId }: LastAddressInGermanyPr
           <div className="claims-type-card-icon">
             <FileText className="w-5 h-5" />
           </div>
-          <span className="claims-type-card-text">
-            Enter manually
-          </span>
+          <span className="claims-type-card-text">Enter manually</span>
         </button>
       </div>
 
@@ -214,7 +249,8 @@ export default function LastAddressInGermany({ claimId }: LastAddressInGermanyPr
       {methodChoice === 'upload' && (
         <div className="claims-method-content">
           <p className="claims-method-description">
-            The German Pension Office requires the deregistration certificate ('Abmeldung') to verify that you permanently left Germany.
+            The German Pension Office requires the deregistration certificate
+            ('Abmeldung') to verify that you permanently left Germany.
           </p>
           <DocumentUpload
             label="Upload Abmeldung certificate"
@@ -222,13 +258,14 @@ export default function LastAddressInGermany({ claimId }: LastAddressInGermanyPr
             accept=".pdf,.jpg,.jpeg,.png"
             maxSizeMB={10}
             currentFile={
-              abmeldungDoc?.fileName ? { name: abmeldungDoc.fileName, url: abmeldungDoc.fileUrl } : null
+              abmeldungDoc?.fileName
+                ? { name: abmeldungDoc.fileName, url: abmeldungDoc.fileUrl }
+                : null
             }
             onUpload={handleUploadAbmeldung}
-            onRemove={() => {
-              // TODO: Implement document removal
-            }}
+            onRemove={handleRemoveAbmeldung}
             isUploading={uploadMutation.isPending}
+            disabled={removeMutation.isPending}
             error={uploadError || undefined}
           />
         </div>
@@ -253,7 +290,9 @@ export default function LastAddressInGermany({ claimId }: LastAddressInGermanyPr
                 disabled={isSubmitting}
               />
               {touched.streetAddress && errors.streetAddress && (
-                <span className="claims-error-text">{errors.streetAddress}</span>
+                <span className="claims-error-text">
+                  {errors.streetAddress}
+                </span>
               )}
             </div>
 

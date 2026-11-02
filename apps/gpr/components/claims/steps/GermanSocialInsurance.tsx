@@ -4,19 +4,30 @@ import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import ClaimsStepContainer from '../ClaimsStepContainer';
 import DocumentUpload from '../DocumentUpload';
-import { useClaimQuery, useClaimDocumentsQuery, useUpdateClaimMutation, useCompleteStepMutation, useUploadDocumentMutation } from '@/lib/queries/claims-queries';
+import {
+  useClaimQuery,
+  useClaimDocumentsQuery,
+  useUpdateClaimMutation,
+  useCompleteStepMutation,
+  useUploadDocumentMutation,
+  useRemoveDocumentMutation,
+} from '@/lib/queries/claims-queries';
 import { useClaimsStore } from '@/lib/stores/claims-store';
+import { apiErrorMessage } from '@/lib/api';
 
 interface GermanSocialInsuranceProps {
   claimId: string;
 }
 
-export default function GermanSocialInsurance({ claimId }: GermanSocialInsuranceProps) {
+export default function GermanSocialInsurance({
+  claimId,
+}: GermanSocialInsuranceProps) {
   const { data: claim } = useClaimQuery(claimId);
   const { data: documents } = useClaimDocumentsQuery(claimId);
   const updateMutation = useUpdateClaimMutation();
   const completeMutation = useCompleteStepMutation();
   const uploadMutation = useUploadDocumentMutation();
+  const removeMutation = useRemoveDocumentMutation();
   const { goToNextStep } = useClaimsStore();
 
   const [svNumber, setSvNumber] = useState('');
@@ -38,8 +49,22 @@ export default function GermanSocialInsurance({ claimId }: GermanSocialInsurance
     try {
       await uploadMutation.mutateAsync({ claimId, file, role: 'payslip' });
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : 'Upload failed');
+      setUploadError(apiErrorMessage(error, 'Upload failed'));
       throw error;
+    }
+  };
+
+  // Detaches the file from the claim (DELETE /claims/:id/documents/:docId).
+  const handleRemovePayslip = async () => {
+    if (!payslipDoc) return;
+    setUploadError(null);
+    try {
+      await removeMutation.mutateAsync({
+        claimId,
+        documentId: payslipDoc.documentId,
+      });
+    } catch (error) {
+      setUploadError(apiErrorMessage(error, 'Could not remove the file'));
     }
   };
 
@@ -48,10 +73,13 @@ export default function GermanSocialInsurance({ claimId }: GermanSocialInsurance
     if (svNumber.trim()) {
       await updateMutation.mutateAsync({
         claimId,
-        data: { germanSocialInsuranceNumber: svNumber.trim() }
+        data: { germanSocialInsuranceNumber: svNumber.trim() },
       });
     }
-    await completeMutation.mutateAsync({ claimId, stepName: 'germanSocialInsurance' });
+    await completeMutation.mutateAsync({
+      claimId,
+      stepName: 'germanSocialInsurance',
+    });
     goToNextStep();
   };
 
@@ -87,7 +115,8 @@ export default function GermanSocialInsurance({ claimId }: GermanSocialInsurance
             disabled={isSubmitting}
           />
           <span className="claims-help-text">
-            If unavailable, the Pension Office may need more time to locate your pension record.
+            If unavailable, the Pension Office may need more time to locate your
+            pension record.
           </span>
         </div>
 
@@ -115,13 +144,14 @@ export default function GermanSocialInsurance({ claimId }: GermanSocialInsurance
               accept=".pdf,.jpg,.jpeg,.png"
               maxSizeMB={10}
               currentFile={
-                payslipDoc?.fileName ? { name: payslipDoc.fileName, url: payslipDoc.fileUrl } : null
+                payslipDoc?.fileName
+                  ? { name: payslipDoc.fileName, url: payslipDoc.fileUrl }
+                  : null
               }
               onUpload={handleUploadPayslip}
-              onRemove={() => {
-                // TODO: Implement document removal
-              }}
+              onRemove={handleRemovePayslip}
               isUploading={uploadMutation.isPending}
+              disabled={removeMutation.isPending}
               error={uploadError || undefined}
             />
           </div>
