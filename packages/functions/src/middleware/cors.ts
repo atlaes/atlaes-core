@@ -22,6 +22,9 @@ export const corsMiddleware = cors({
       'https://www.germanypensionrefund.com',
       'https://germanypensionrefund.com',
       'https://de.germanypensionrefund.com',
+      // GPR app (apps/gpr, resources/web) — sign-in, account, payout
+      'https://gpr.atlaes.de',
+      'https://staging.gpr.atlaes.de',
       // Staging domains
       'https://staging.vbl.atlaes.de',
       'https://staging.atlaes.de',
@@ -32,6 +35,7 @@ export const corsMiddleware = cors({
       // Local development - allow localhost for testing with staging API
       'http://localhost:3000',
       'http://localhost:3001',
+      'http://localhost:3002',
       'http://localhost:3003',
       'http://127.0.0.1:3000',
     ];
