@@ -18,6 +18,9 @@ export const corsMiddleware = cors({
       'https://admin.vblrefund.com',
       'https://vbl.atlaes.de',
       'https://atlaes.de',
+      // CompanyPension brand domain of the VBL app
+      'https://companypension.de',
+      'https://www.companypension.de',
       // Germany Pension Refund site (public lead capture, POST /api/leads)
       'https://www.germanypensionrefund.com',
       'https://germanypensionrefund.com',
@@ -42,7 +45,7 @@ export const corsMiddleware = cors({
 
     return allowedOrigins.includes(origin || '') ? origin : null;
   },
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
   maxAge: 86400, // 24 hours
