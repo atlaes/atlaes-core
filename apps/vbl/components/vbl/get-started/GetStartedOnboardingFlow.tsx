@@ -638,21 +638,36 @@ export function GetStartedOnboardingFlow() {
           await markStepComplete(claimId, 'cashOutBasis');
           break;
         }
-        case 'bank-details':
+        case 'bank-details': {
+          const bank = data.bankDetails;
+          const wantsEurAccount =
+            bank.accountOption === 'open_free_account' && bank.phoneConsent;
           await updateClaim(claimId, {
-            iban: data.bankDetails.iban || undefined,
-            accountHolderName: data.bankDetails.accountHolder || undefined,
+            iban: bank.iban || undefined,
+            accountHolderName: bank.accountHolder || undefined,
             // bAV/private: required by the Abfindung letters.
             ...(data.pensionType === 'private'
               ? {
-                  swiftBic:
-                    normalizeBic(data.bankDetails.swiftBic) || undefined,
-                  bankName: data.bankDetails.bankName.trim() || undefined,
+                  swiftBic: normalizeBic(bank.swiftBic) || undefined,
+                  bankName: bank.bankName.trim() || undefined,
+                }
+              : {}),
+            // "Open a EUR account" (SummitFX): there is no IBAN yet, so the
+            // phone number and consent are what ops needs to hand the
+            // request over (claims.eur_account_request).
+            ...(wantsEurAccount
+              ? {
+                  eurAccountRequest: {
+                    phone: bank.phoneNumber.trim(),
+                    consent: true,
+                    requestedAt: new Date().toISOString(),
+                  },
                 }
               : {}),
           });
           await markStepComplete(claimId, 'bankDetails');
           break;
+        }
         case 'signature':
           // Item 21 cleanup (not the root cause — see lib/api.ts for that):
           // Signature.tsx::handleContinue already calls
@@ -668,11 +683,19 @@ export function GetStartedOnboardingFlow() {
           await markStepComplete(claimId, 'signDocuments');
           break;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save step data:', err);
-      // Non-blocking — still advance. Data is in context for retry at submit.
+      // Stay on the step so the user can retry: advancing would leave the
+      // backend claim behind what the user believes is saved (the final
+      // submit validates the claim, not the in-memory context).
+      const detail = err?.response?.data?.error;
+      setFlowError(
+        `We could not save this step${detail ? ` (${detail})` : ''}. Please check your connection and try again.`
+      );
+      return;
     }
 
+    setFlowError(null);
     advanceSubStep();
   };
 

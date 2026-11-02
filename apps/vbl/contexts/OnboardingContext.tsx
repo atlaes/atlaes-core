@@ -157,7 +157,9 @@ export function normalizeBic(value: string): string {
 }
 
 export function isValidBic(value: string): boolean {
-  return /^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(normalizeBic(value));
+  return /^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(
+    normalizeBic(value)
+  );
 }
 
 /** bAV/private: BIC and bank name complete the bank step. */
@@ -558,7 +560,9 @@ export const CONFIRM_STOP_ANSWER_KEYS = [
   'laterCivilServant',
 ] as const;
 
-export function areConfirmStopAnswersClear(confirm: OnboardingConfirm): boolean {
+export function areConfirmStopAnswersClear(
+  confirm: OnboardingConfirm
+): boolean {
   return CONFIRM_STOP_ANSWER_KEYS.every((key) => confirm[key] === 'no');
 }
 
@@ -1224,7 +1228,9 @@ export function OnboardingProvider({
           prev.cashOutBasis.statementDate
         ),
         benefitForm:
-          (str(claim.bavBenefitForm) as OnboardingCashOutBasis['benefitForm']) ||
+          (str(
+            claim.bavBenefitForm
+          ) as OnboardingCashOutBasis['benefitForm']) ||
           prev.cashOutBasis.benefitForm,
         benefitAmount: claimOrPrev(
           claim.bavBenefitAmount,
@@ -1244,6 +1250,15 @@ export function OnboardingProvider({
         ),
         swiftBic: claimOrPrev(claim.swiftBic, prev.bankDetails.swiftBic),
         bankName: claimOrPrev(claim.bankName, prev.bankDetails.bankName),
+        // A saved "open a EUR account" request (and no IBAN yet) resumes on
+        // the SummitFX branch with the phone number already filled in.
+        ...(claim.eurAccountRequest?.phone && !claim.iban
+          ? {
+              accountOption: 'open_free_account' as const,
+              phoneNumber: String(claim.eurAccountRequest.phone),
+              phoneConsent: !!claim.eurAccountRequest.consent,
+            }
+          : {}),
       },
     }));
 

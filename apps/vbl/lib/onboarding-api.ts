@@ -177,6 +177,12 @@ export async function uploadSignature(
 // Claims
 // ============================================================
 
+export interface EurAccountRequest {
+  phone: string;
+  consent: boolean;
+  requestedAt?: string;
+}
+
 export interface Claim {
   id: string;
   userId: string;
@@ -248,6 +254,9 @@ export interface Claim {
   bankName?: string;
   swiftBic?: string;
   preferredCurrency?: string;
+  // "Open a EUR account" (SummitFX) request captured in BankDetails when the
+  // user has no IBAN yet.
+  eurAccountRequest?: EurAccountRequest | null;
   // Membership
   svNummer?: string;
   pensionProvider?: string;
