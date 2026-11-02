@@ -21,6 +21,7 @@ import {
   verifyPaymentSession,
   submitClaim,
   stopClaim,
+  getClaimSubmitErrorMessage,
 } from '@/lib/onboarding-api';
 import {
   clearAllFlowPersistence,
@@ -827,8 +828,13 @@ export function GetStartedOnboardingFlow() {
       return true;
     } catch (err) {
       console.error('Final submission error:', err);
+      // 409 (already submitted) is resolved inside submitClaim; what reaches
+      // here is a 400 validation list or a genuine failure.
       setFlowError(
-        'We could not submit your refund request. Please try again.'
+        getClaimSubmitErrorMessage(
+          err,
+          'We could not submit your refund request. Please try again.'
+        )
       );
       return false;
     }
@@ -1024,7 +1030,7 @@ export function GetStartedOnboardingFlow() {
       showSubSteps={variant !== 'calculator' || !calculatorStopped}
     >
       {flowError && (
-        <div className="mx-auto mb-6 max-w-lg rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="mx-auto mb-6 max-w-lg whitespace-pre-line rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {flowError}
         </div>
       )}

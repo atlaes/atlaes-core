@@ -20,7 +20,12 @@ import {
   useOnboarding,
   SubmitDetailsSubStep,
 } from '@/contexts/OnboardingContext';
-import { submitClaim, markStepComplete } from '@/lib/onboarding-api';
+import {
+  ClaimSubmitValidationError,
+  getClaimSubmitErrorMessage,
+  submitClaim,
+  markStepComplete,
+} from '@/lib/onboarding-api';
 import type { OnboardingVariant } from '../onboarding-variant';
 import {
   getOnboardingSubStepGlyph,
@@ -160,6 +165,10 @@ const SIGNATURE_SECTION: ReviewSection = {
 };
 
 function getSubmitErrorMessage(error: unknown): string {
+  // 400 from POST /claims/:id/submit: one reason per line.
+  if (error instanceof ClaimSubmitValidationError) {
+    return getClaimSubmitErrorMessage(error, error.message);
+  }
   const responseData = (
     error as {
       response?: {
@@ -892,7 +901,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
 
       {/* Submit Error */}
       {submitError && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 whitespace-pre-line">
           {submitError}
         </div>
       )}

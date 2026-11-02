@@ -344,11 +344,76 @@ export async function attachSignatureToClaim(
   return data;
 }
 
+// POST /claims/:id/submit answers 400 `{ error: 'Claim validation failed:
+// a, b' }` (or a single reason such as 'Payment is required before
+// submission') when the claim is not ready. Carries the reasons as a list
+// so the UI can show them one per line.
+export class ClaimSubmitValidationError extends Error {
+  readonly details: string[];
+
+  constructor(details: string[]) {
+    super(
+      details.length === 1
+        ? details[0]
+        : 'Please complete the following before submitting:'
+    );
+    this.name = 'ClaimSubmitValidationError';
+    this.details = details;
+    // Keep `instanceof` working when compiled to ES5 (tsconfig target).
+    Object.setPrototypeOf(this, ClaimSubmitValidationError.prototype);
+  }
+}
+
+const VALIDATION_PREFIX = /^claim validation failed:\s*/i;
+
+const parseSubmitValidationDetails = (message: string): string[] => {
+  const body = message.replace(VALIDATION_PREFIX, '').trim();
+  // The backend joins the individual reasons with ', '.
+  const parts = body
+    .split(/,\s+(?=[A-Z])/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts : [message];
+};
+
+// One readable string (lines separated by \n; render with
+// `whitespace-pre-line`) for a submit failure, or `fallback` when the error
+// is not a validation error.
+export function getClaimSubmitErrorMessage(
+  error: unknown,
+  fallback: string
+): string {
+  if (error instanceof ClaimSubmitValidationError) {
+    if (error.details.length === 1) return error.details[0];
+    return [error.message, ...error.details.map((d) => `• ${d}`)].join('\n');
+  }
+  return fallback;
+}
+
 export async function submitClaim(
   claimId: string
 ): Promise<ClaimResponse & { message: string }> {
-  const { data } = await apiClient.post(`/claims/${claimId}/submit`);
-  return data;
+  try {
+    const { data } = await apiClient.post(`/claims/${claimId}/submit`);
+    return data;
+  } catch (err: unknown) {
+    const response = (
+      err as { response?: { status?: number; data?: { error?: string } } }
+    ).response;
+    // 409: the claim is already submitted (double click, or a retry after
+    // the first response was lost). That is the outcome the user wanted, so
+    // return the current claim as a successful submission.
+    if (response?.status === 409) {
+      const current = await getClaim(claimId);
+      return { ...current, message: 'Claim has already been submitted' };
+    }
+    if (response?.status === 400 && response.data?.error) {
+      throw new ClaimSubmitValidationError(
+        parseSubmitValidationDetails(response.data.error)
+      );
+    }
+    throw err;
+  }
 }
 
 // Confirm step: stop the refund application when the user changes one of the
