@@ -270,6 +270,14 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3003',
 ];
 
+/** Origins of the GPR app (apps/gpr); their sign-in mail is GPR-branded. */
+const GPR_ORIGINS = [
+  'https://gpr.atlaes.de',
+  'https://staging.gpr.atlaes.de',
+  'https://www.germanypensionrefund.com',
+  'http://localhost:3002',
+];
+
 const extendedMagicLinkRequestSchema = z.object({
   email: z.string().email(),
   callbackUrl: z.string().url().optional(),
@@ -374,9 +382,14 @@ auth.post(
       // @e2e.test address gets the link in the response instead of by mail.
       const isE2e = isE2eRequest(c, email);
 
-      // Send magic link email (skips in local dev, sends via SES in prod)
+      // Send magic link email (skips in local dev, sends via SES in prod).
+      // A link for the GPR app gets the GPR-branded mail.
       if (!isE2e) {
-        await sendMagicLinkEmail(email, magicLinkUrl);
+        await sendMagicLinkEmail(
+          email,
+          magicLinkUrl,
+          GPR_ORIGINS.includes(baseUrl) ? 'gpr' : 'companypension'
+        );
       }
       logger.info(`Magic link for ${email}: ${magicLinkUrl}`);
 
