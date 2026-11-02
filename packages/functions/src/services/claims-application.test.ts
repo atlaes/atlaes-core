@@ -841,9 +841,15 @@ describe('ClaimsApplicationService', () => {
   // ============================================================
 
   describe('validateForSubmission', () => {
+    // The step and German-address checks belong to the DRV refund flow
+    // (GPR app); a VBL claim only gets the universal checks.
     it('returns invalid for incomplete claim', async () => {
       const userId = await createTestUser();
-      const created = await ClaimsApplicationService.createClaim(userId);
+      const created = await ClaimsApplicationService.createClaim(
+        userId,
+        undefined,
+        'drv_refund'
+      );
       createdClaimIds.push(created.id);
 
       const validation = await ClaimsApplicationService.validateForSubmission(
@@ -858,7 +864,11 @@ describe('ClaimsApplicationService', () => {
 
     it('identifies missing required fields', async () => {
       const userId = await createTestUser();
-      const created = await ClaimsApplicationService.createClaim(userId);
+      const created = await ClaimsApplicationService.createClaim(
+        userId,
+        undefined,
+        'drv_refund'
+      );
       createdClaimIds.push(created.id);
 
       const validation = await ClaimsApplicationService.validateForSubmission(
@@ -873,7 +883,11 @@ describe('ClaimsApplicationService', () => {
 
     it('identifies missing steps', async () => {
       const userId = await createTestUser();
-      const created = await ClaimsApplicationService.createClaim(userId);
+      const created = await ClaimsApplicationService.createClaim(
+        userId,
+        undefined,
+        'drv_refund'
+      );
       createdClaimIds.push(created.id);
 
       const validation = await ClaimsApplicationService.validateForSubmission(
