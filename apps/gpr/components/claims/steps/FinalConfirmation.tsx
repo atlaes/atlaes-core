@@ -90,7 +90,7 @@ export default function FinalConfirmation({ claimId }: FinalConfirmationProps) {
               </div>
               <span className="claims-checkbox-text">
                 I authorize ATLAES GmbH to prepare my pension refund application and share the required
-                documents with Vividus Rechtsanwälte for legal review and submission to the German
+                documents with Vividius Rechtsanwälte for legal review and submission to the German
                 pension authorities.
               </span>
             </label>
