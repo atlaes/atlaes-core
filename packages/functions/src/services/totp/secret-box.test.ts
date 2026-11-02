@@ -79,3 +79,29 @@ describe('recovery codes', () => {
     expect(recoveryCodeMatches('AAAA-BBBB-CCCC', stored)).toBe(false);
   });
 });
+
+describe('secret box: JWT_SECRET rotation', () => {
+  afterEach(() => {
+    delete process.env.TOTP_LEGACY_JWT_SECRET;
+  });
+
+  it('derives the "jwt" key from TOTP_LEGACY_JWT_SECRET when it is set', () => {
+    delete process.env.TOTP_ENCRYPTION_KEY;
+    const previousJwtSecret = 'previous-jwt-secret-value-at-least-32-chars';
+
+    // Enrolled under the fallback key while JWT_SECRET was the previous value.
+    process.env.TOTP_LEGACY_JWT_SECRET = previousJwtSecret;
+    const secret = randomBytes(20);
+    const box = encryptSecret(secret);
+    expect(box.startsWith('v1.jwt.')).toBe(true);
+
+    // After the rotation the seed is the current JWT_SECRET: the box no
+    // longer opens...
+    delete process.env.TOTP_LEGACY_JWT_SECRET;
+    expect(() => decryptSecret(box)).toThrow();
+
+    // ...until the previous value is handed over as the legacy seed.
+    process.env.TOTP_LEGACY_JWT_SECRET = previousJwtSecret;
+    expect(decryptSecret(box).equals(secret)).toBe(true);
+  });
+});
