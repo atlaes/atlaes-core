@@ -5,6 +5,7 @@ import { Info } from 'lucide-react';
 import ClaimsStepContainer from '../ClaimsStepContainer';
 import { useClaimQuery, useUpdateClaimMutation, useCompleteStepMutation } from '@/lib/queries/claims-queries';
 import { useClaimsStore } from '@/lib/stores/claims-store';
+import { COUNTRY_OPTIONS } from '@/content/offices';
 
 type Currency = 'EUR' | 'USD' | 'GBP' | 'AUD' | 'CHF' | 'CAD' | 'NZD';
 
@@ -32,28 +33,8 @@ const CURRENCIES: { code: Currency; label: string }[] = [
   { code: 'NZD', label: 'New Zealand Dollar (NZD)' },
 ];
 
-const COUNTRIES = [
-  { code: 'AU', name: 'Australia' },
-  { code: 'AT', name: 'Austria' },
-  { code: 'BE', name: 'Belgium' },
-  { code: 'CA', name: 'Canada' },
-  { code: 'DK', name: 'Denmark' },
-  { code: 'FI', name: 'Finland' },
-  { code: 'FR', name: 'France' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'IE', name: 'Ireland' },
-  { code: 'IT', name: 'Italy' },
-  { code: 'NL', name: 'Netherlands' },
-  { code: 'NZ', name: 'New Zealand' },
-  { code: 'NO', name: 'Norway' },
-  { code: 'PL', name: 'Poland' },
-  { code: 'PT', name: 'Portugal' },
-  { code: 'ES', name: 'Spain' },
-  { code: 'SE', name: 'Sweden' },
-  { code: 'CH', name: 'Switzerland' },
-  { code: 'GB', name: 'United Kingdom' },
-  { code: 'US', name: 'United States' },
-];
+// Full ISO list shared with the eligibility widgets (codes stored as before).
+const COUNTRIES = COUNTRY_OPTIONS;
 
 interface BankDetailsProps {
   claimId: string;
