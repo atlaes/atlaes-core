@@ -34,7 +34,12 @@ import {
   type OnboardingSource,
   type OnboardingVariant,
 } from '@/components/vbl/onboarding/onboarding-variant';
-import { markStepComplete, stopClaim, submitClaim } from '@/lib/onboarding-api';
+import {
+  getClaimSubmitErrorMessage,
+  markStepComplete,
+  stopClaim,
+  submitClaim,
+} from '@/lib/onboarding-api';
 
 interface OnboardingFlowProps {
   headerTitle?: string;
@@ -439,7 +444,10 @@ export function OnboardingFlow({
     } catch (err) {
       console.error('Final submission error:', err);
       setFlowError(
-        'We could not submit your refund request. Please try again.'
+        getClaimSubmitErrorMessage(
+          err,
+          'We could not submit your refund request. Please try again.'
+        )
       );
       return false;
     }
@@ -483,9 +491,10 @@ export function OnboardingFlow({
     setShowDRVModal(false);
   };
 
-  // Handle starting DRV claim
+  // Handle starting DRV claim. There is no DRV calculator in this app
+  // (/calculator/drv was a 404); send to the state-pension explainer page.
   const handleStartDRVClaim = () => {
-    router.push('/calculator/drv');
+    router.push('/company-pension-vs-drv');
   };
 
   // Handle go to dashboard
@@ -665,7 +674,7 @@ export function OnboardingFlow({
       showSubSteps={variant !== 'calculator' || !calculatorStopped}
     >
       {flowError && (
-        <div className="mx-auto mb-6 max-w-lg rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="mx-auto mb-6 max-w-lg whitespace-pre-line rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {flowError}
         </div>
       )}

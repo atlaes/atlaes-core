@@ -3,7 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { OAuth2Client } from 'google-auth-library';
 import { logger } from '../utils/logger';
-import { env, getJwtSecret } from '../utils/env';
+import { env } from '../utils/env';
 import {
   AuthService,
   registrationSchema,
@@ -14,6 +14,11 @@ import {
 } from '../utils/auth';
 import { UserService } from '../services/user';
 import { authMiddleware } from '../middleware/auth';
+import {
+  RateLimit,
+  rateLimiter,
+  rateLimitExceeded,
+} from '../middleware/rate-limiter';
 import { GPRApplicationService } from '../services/gpr-application';
 import { sendMagicLinkEmail } from '../services/email';
 import { isE2eRequest } from '../utils/e2e';
@@ -148,11 +153,24 @@ auth.post('/logout', authMiddleware, async (c) => {
   }
 });
 
-// Get current user endpoint
+// Get current user endpoint: the token's claims plus the stored profile, in
+// the shape of the sign-in responses, so a reloaded app can show the name.
 auth.get('/me', authMiddleware, async (c) => {
   try {
     const user = c.get('user');
-    return c.json({ user });
+    const stored = await UserService.findById(user.id);
+    if (!stored) {
+      return c.json({ error: 'User not found' }, 404);
+    }
+    return c.json({
+      user: {
+        id: stored.id,
+        email: stored.email,
+        emailVerified: stored.emailVerified,
+        role: stored.role || user.role || 'user',
+        profile: stored.profile,
+      },
+    });
   } catch (error) {
     logger.error('Get user error:', error);
     return c.json({ error: 'Failed to get user' }, 500);
@@ -246,33 +264,63 @@ auth.post(
   }
 );
 
-// Test endpoint to check environment
-auth.get('/test-env', async (c) => {
-  return c.json({
-    jwtSecret: !!getJwtSecret(),
-    jwtSecretLength: getJwtSecret()?.length,
-    databaseUrl: !!env.DATABASE_URL,
-    nodeEnv: env.NODE_ENV,
-  });
-});
-
-// Extended magic link request schema with optional GPR session data
+// Origins a magic link may send the user back to (callbackUrl); the link
+// returns to the site it was requested from. Keep in step with the CORS
+// allowlist in middleware/cors.ts.
 const ALLOWED_ORIGINS = [
   'https://vbl.atlaes.de',
   'https://staging.vbl.atlaes.de',
+  'https://companypension.de',
+  'https://www.companypension.de',
   'https://admin.atlaes.de',
   'https://staging.admin.atlaes.de',
   'https://gpr.atlaes.de',
   'https://staging.gpr.atlaes.de',
+  'https://www.germanypensionrefund.com',
+  'https://germanypensionrefund.com',
+  'https://de.germanypensionrefund.com',
   'http://localhost:3000',
   'http://localhost:3002',
   'http://localhost:3003',
 ];
 
+/** Origins of the GPR app (apps/gpr); their sign-in mail is GPR-branded. */
+const GPR_ORIGINS = [
+  'https://gpr.atlaes.de',
+  'https://staging.gpr.atlaes.de',
+  'https://www.germanypensionrefund.com',
+  'https://germanypensionrefund.com',
+  'https://de.germanypensionrefund.com',
+  'http://localhost:3002',
+];
+
+/**
+ * Where to send the user after sign-in: a path on the app's own origin.
+ * One leading slash, not two (`//evil.com` is protocol-relative) and no
+ * backslashes (browsers read `/\evil.com` the same way). The apps apply
+ * the same rule to every `?redirect=` they follow.
+ */
+export const SAFE_REDIRECT_PATH = /^\/(?!\/)[^\\]*$/;
+
+// Magic-link requests send mail: capped per client address here and per
+// e-mail address inside the handler, so one inbox cannot be flooded from
+// many addresses either.
+const magicLinkIpLimiter = rateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Too many sign-in link requests. Please try again in a few minutes.',
+});
+const magicLinkEmailLimit = new RateLimit({ windowMs: 60 * 60 * 1000, max: 5 });
+
+// Extended magic link request schema with optional GPR session data
 const extendedMagicLinkRequestSchema = z.object({
   email: z.string().email(),
   callbackUrl: z.string().url().optional(),
-  redirectUrl: z.string().startsWith('/').max(200).optional(),
+  redirectUrl: z
+    .string()
+    .max(200)
+    .regex(SAFE_REDIRECT_PATH, 'redirectUrl must be a relative path')
+    .optional(),
   gprSessionData: z
     .object({
       calculatorData: z.object({
@@ -325,15 +373,28 @@ const extendedMagicLinkRequestSchema = z.object({
 // Request magic link endpoint (with optional GPR session data)
 auth.post(
   '/magic-link/request',
+  magicLinkIpLimiter,
   zValidator('json', extendedMagicLinkRequestSchema),
   async (c) => {
     try {
       const { email, callbackUrl, redirectUrl, gprSessionData } =
         c.req.valid('json');
 
-      // Debug: Check if JWT_SECRET is available
-      logger.info('JWT_SECRET available:', !!getJwtSecret());
-      logger.info('Email received:', email);
+      // Staging e2e login (utils/e2e.ts): a secret-bearing request for an
+      // @e2e.test address gets the link in the response instead of by mail
+      // and is exempt from the per-address cap.
+      const isE2e = isE2eRequest(c, email);
+
+      if (!isE2e) {
+        const perEmail = magicLinkEmailLimit.hit(email.trim().toLowerCase());
+        if (!perEmail.allowed) {
+          return rateLimitExceeded(
+            c,
+            perEmail,
+            'Too many sign-in links were requested for this e-mail address. Please try again later.'
+          );
+        }
+      }
 
       // If GPR session data is provided, save it to pending sessions
       if (gprSessionData) {
@@ -369,13 +430,14 @@ auth.post(
         ? `${baseMagicLinkUrl}&redirect=${encodeURIComponent(redirectUrl)}`
         : baseMagicLinkUrl;
 
-      // Staging e2e login (utils/e2e.ts): a secret-bearing request for an
-      // @e2e.test address gets the link in the response instead of by mail.
-      const isE2e = isE2eRequest(c, email);
-
-      // Send magic link email (skips in local dev, sends via SES in prod)
+      // Send magic link email (skips in local dev, sends via SES in prod).
+      // A link for the GPR app gets the GPR-branded mail.
       if (!isE2e) {
-        await sendMagicLinkEmail(email, magicLinkUrl);
+        await sendMagicLinkEmail(
+          email,
+          magicLinkUrl,
+          GPR_ORIGINS.includes(baseUrl) ? 'gpr' : 'companypension'
+        );
       }
       logger.info(`Magic link for ${email}: ${magicLinkUrl}`);
 

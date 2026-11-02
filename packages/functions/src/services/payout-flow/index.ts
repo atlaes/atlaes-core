@@ -29,7 +29,11 @@ import { db } from '../../utils/db';
 import { logger, toErrorMeta } from '../../utils/logger';
 import { getPresignedUrl, uploadFile, downloadFile } from '../../utils/s3';
 import { auditLogs, documents, users } from '../../drizzle/schema/shared';
-import { claimDocuments, claimsTable } from '../../drizzle/schema/claims';
+import {
+  claimDocuments,
+  claimsTable,
+  resolveCaseType,
+} from '../../drizzle/schema/claims';
 import {
   payoutCustomerInputs,
   payoutDecisions,
@@ -513,6 +517,18 @@ export class PayoutFlowService {
     if (!isIsoDate(input.valueDate))
       throw new PayoutFlowError('Invalid value date');
     const claim = await this.getClaim(claimId);
+    // One open release per case: funds recorded by ops and again by the
+    // statement import (or twice by ops) must not produce two releases,
+    // two invoices and two ZEs. Cancel the open one first to re-record.
+    const open = (await this.releases(claimId)).find(
+      (r) => r.status === 'open'
+    );
+    if (open) {
+      throw new PayoutFlowError(
+        `Funds are already recorded for this case (open release ${open.id}); cancel it before recording again`,
+        409
+      );
+    }
     const cfg = payoutFeeConfig();
     const split = computeFeeSplit(input.amountEur, cfg, {
       deregistrationSurchargeEur: deregistrationSurchargeFor(
@@ -899,6 +915,12 @@ export class PayoutFlowService {
     actor: Actor
   ): Promise<DeregistrationSurchargeView> {
     const claim = await this.getClaim(claimId);
+    // The German deregistration service belongs to the DRV refund fee
+    // (drv-pack/fee.ts); VBL and bAV claims have no such line.
+    if (resolveCaseType(claim) !== 'drv_refund')
+      throw new PayoutFlowError(
+        'The deregistration surcharge applies to DRV refund claims only'
+      );
     const rows = await this.releases(claimId);
     if (deregistrationSurchargeView(claim, rows).locked)
       throw new PayoutFlowError(

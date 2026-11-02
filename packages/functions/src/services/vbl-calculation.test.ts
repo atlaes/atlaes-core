@@ -419,6 +419,38 @@ describe('VBLCalculationService', () => {
       );
     });
 
+    it('prices months after the last table year (2026+) with the latest row', async () => {
+      // data/contributions.json ends at 2025. Until the official 2026 row is
+      // added, 2026 months must not be skipped (they used to contribute 0).
+      const halfYear = (year: number) => ({
+        employmentStart: `${year}-01-01`,
+        employmentEnd: `${year}-06-30`,
+        monthsContributed: 6,
+        consecutiveMonthsContributed: 6,
+        periods: [
+          {
+            startDate: `${year}-01-01`,
+            endDate: `${year}-06-30`,
+            state: 'Bavaria',
+            grossMonthlySalary: 4000,
+          },
+        ],
+      });
+
+      const in2026 = await VBLCalculationService.calculateVBLRefund(
+        makeInput(halfYear(2026))
+      );
+      const in2025 = await VBLCalculationService.calculateVBLRefund(
+        makeInput(halfYear(2025))
+      );
+
+      expect(in2026.isEligible).toBe(true);
+      expect(in2026.statePension!).toBeGreaterThan(0);
+      expect(in2026.vblKlassik!).toBeGreaterThan(0);
+      expect(in2026.statePension).toBeCloseTo(in2025.statePension!, 2);
+      expect(in2026.vblKlassik).toBeCloseTo(in2025.vblKlassik!, 2);
+    });
+
     it('accepts generic Berlin from uploaded documents as a West period', async () => {
       const result = await VBLCalculationService.calculateVBLRefund(
         makeInput({

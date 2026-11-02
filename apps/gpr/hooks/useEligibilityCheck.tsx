@@ -10,7 +10,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { COUNTRIES, GERMANY } from '@/data/countries';
-import apiClient from '@/lib/api';
+import apiClient, { magicLinkErrorMessage } from '@/lib/api';
 import { GPRFormData, JobData } from '@/hooks/useGPRCalculator';
 
 // Flow types
@@ -261,6 +261,7 @@ export function EligibilityProvider({
       // Build request payload
       const requestPayload: {
         email: string;
+        callbackUrl: string;
         gprSessionData?: {
           calculatorData: {
             numberOfJobs: number;
@@ -288,7 +289,7 @@ export function EligibilityProvider({
             eligibilityResult?: EligibilityResult;
           };
         };
-      } = { email };
+      } = { email, callbackUrl: window.location.origin };
 
       // Include GPR session data if calculator data is available
       if (calculatorData && calculatorData.calculationResult) {
@@ -322,7 +323,7 @@ export function EligibilityProvider({
       setShowEmailModal(false);
       setShowEmailSentModal(true);
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Failed to send magic link. Please try again.';
+      const message = magicLinkErrorMessage(error);
       setEmailError(message);
     } finally {
       setIsSubmittingEmail(false);

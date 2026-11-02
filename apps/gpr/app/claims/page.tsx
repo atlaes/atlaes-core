@@ -2,9 +2,17 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, FileText, Clock, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
+import {
+  Plus,
+  FileText,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  ArrowRight,
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { claimsApi, Claim } from '@/lib/claims-api';
+import { ClaimsFrame } from '@/components/claims/ClaimsFrame';
 
 export default function ClaimsPage() {
   const router = useRouter();
@@ -91,86 +99,93 @@ export default function ClaimsPage() {
   }
 
   return (
-    <div className="claims-list-page">
-      <div className="claims-list-header">
-        <div>
-          <h1 className="claims-list-title">My Claims</h1>
-          <p className="claims-list-subtitle">
-            Manage your German pension refund claims
-          </p>
-        </div>
-        <button
-          onClick={handleCreateClaim}
-          className="claims-btn claims-btn-primary"
-          disabled={loading}
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Claim</span>
-        </button>
-      </div>
-
-      {error && (
-        <div className="claims-error-banner">
-          <AlertCircle className="w-5 h-5" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {claims.length === 0 ? (
-        <div className="claims-empty-state">
-          <FileText className="w-16 h-16 text-gray-300" />
-          <h2>No claims yet</h2>
-          <p>Start your German pension refund claim to get started.</p>
+    <ClaimsFrame title="My claims" wide>
+      <div className="claims-list-page">
+        <div className="claims-list-header">
+          <div>
+            <h1 className="claims-list-title">My Claims</h1>
+            <p className="claims-list-subtitle">
+              Manage your German pension refund claims
+            </p>
+          </div>
           <button
             onClick={handleCreateClaim}
             className="claims-btn claims-btn-primary"
             disabled={loading}
           >
             <Plus className="w-4 h-4" />
-            <span>Start New Claim</span>
+            <span>New Claim</span>
           </button>
         </div>
-      ) : (
-        <div className="claims-list">
-          {claims.map((claim) => (
-            <div
-              key={claim.id}
-              className="claims-list-item"
-              onClick={() => router.push(`/claims/${claim.id}`)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  router.push(`/claims/${claim.id}`);
-                }
-              }}
+
+        {error && (
+          <div className="claims-error-banner">
+            <AlertCircle className="w-5 h-5" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {claims.length === 0 ? (
+          <div className="claims-empty-state">
+            <FileText className="w-16 h-16 text-gray-300" />
+            <h2>No claims yet</h2>
+            <p>Start your German pension refund claim to get started.</p>
+            <button
+              onClick={handleCreateClaim}
+              className="claims-btn claims-btn-primary"
+              disabled={loading}
             >
-              <div className="claims-list-item-icon">
-                {getStatusIcon(claim.status)}
-              </div>
-              <div className="claims-list-item-content">
-                <div className="claims-list-item-header">
-                  <span className="claims-list-item-type">
-                    {claim.claimType === 'own_refund'
-                      ? 'Own Pension Refund'
-                      : 'Surviving Spouse Claim'}
-                  </span>
-                  <span className={`claims-list-item-status status-${claim.status}`}>
-                    {getStatusLabel(claim.status)}
-                  </span>
+              <Plus className="w-4 h-4" />
+              <span>Start New Claim</span>
+            </button>
+          </div>
+        ) : (
+          <div className="claims-list">
+            {claims.map((claim) => (
+              <div
+                key={claim.id}
+                className="claims-list-item"
+                onClick={() => router.push(`/claims/${claim.id}`)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    router.push(`/claims/${claim.id}`);
+                  }
+                }}
+              >
+                <div className="claims-list-item-icon">
+                  {getStatusIcon(claim.status)}
                 </div>
-                <div className="claims-list-item-meta">
-                  <span>Created {formatDate(claim.createdAt)}</span>
-                  {claim.updatedAt !== claim.createdAt && (
-                    <span> &middot; Updated {formatDate(claim.updatedAt)}</span>
-                  )}
+                <div className="claims-list-item-content">
+                  <div className="claims-list-item-header">
+                    <span className="claims-list-item-type">
+                      {claim.claimType === 'own_refund'
+                        ? 'Own Pension Refund'
+                        : 'Surviving Spouse Claim'}
+                    </span>
+                    <span
+                      className={`claims-list-item-status status-${claim.status}`}
+                    >
+                      {getStatusLabel(claim.status)}
+                    </span>
+                  </div>
+                  <div className="claims-list-item-meta">
+                    <span>Created {formatDate(claim.createdAt)}</span>
+                    {claim.updatedAt !== claim.createdAt && (
+                      <span>
+                        {' '}
+                        &middot; Updated {formatDate(claim.updatedAt)}
+                      </span>
+                    )}
+                  </div>
                 </div>
+                <ArrowRight className="claims-list-item-arrow" />
               </div>
-              <ArrowRight className="claims-list-item-arrow" />
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </ClaimsFrame>
   );
 }

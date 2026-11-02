@@ -15,26 +15,72 @@ import {
 
 type PassportSubStep = 'upload' | 'details';
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+const MONTHS: Record<string, string> = {
+  jan: '01',
+  feb: '02',
+  mar: '03',
+  apr: '04',
+  may: '05',
+  jun: '06',
+  jul: '07',
+  aug: '08',
+  sep: '09',
+  oct: '10',
+  nov: '11',
+  dec: '12',
+};
+
 /**
- * Normalize date string to YYYY-MM-DD format for API compatibility.
- * Handles various input formats from OCR:
+ * Normalize a date string to YYYY-MM-DD, the only format the API accepts.
+ * Handles what OCR returns for passports:
  * - YYYY-MM-DD (already correct)
- * - DD/MM/YYYY or DD-MM-YYYY
- * - MM/DD/YYYY or MM-DD-YYYY
- * - YYYY/MM/DD
+ * - DD.MM.YYYY, DD/MM/YYYY or DD-MM-YYYY (day first, as on the document)
+ * - YYYY/MM/DD or YYYY.MM.DD
+ * - 12 MAY 1990 / 12 MAY/MAI 1990 (bilingual month)
+ * - anything else Date() understands ("May 12, 1990")
+ * Unknown input gives '' so the field shows empty instead of a value the
+ * API rejects.
  */
 function normalizeDateToISO(dateStr: string | undefined | null): string {
   if (!dateStr) return '';
 
   // Remove any extra whitespace
   const cleaned = dateStr.trim();
+  if (!cleaned) return '';
 
   // Already in YYYY-MM-DD format
-  if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) {
+  if (ISO_DATE.test(cleaned)) {
     return cleaned;
   }
 
-  // Try parsing with Date object and format properly
+  // Day first (passports, German documents). Must run before the Date()
+  // fallback, which reads 12/05/1990 as the 5th of December.
+  const euroMatch = cleaned.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+  if (euroMatch) {
+    const [, day, month, year] = euroMatch;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  // YYYY/MM/DD or YYYY.MM.DD
+  const isoLooseMatch = cleaned.match(/^(\d{4})[./](\d{1,2})[./](\d{1,2})$/);
+  if (isoLooseMatch) {
+    const [, year, month, day] = isoLooseMatch;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  // 12 MAY 1990, 12 MAY/MAI 1990, 12 Sept. 1990
+  const textMatch = cleaned.match(
+    /^(\d{1,2})\s+([A-Za-z]{3,})\.?(?:\s*\/\s*[A-Za-z]{3,}\.?)?\s+(\d{4})$/
+  );
+  if (textMatch) {
+    const [, day, monthName, year] = textMatch;
+    const month = MONTHS[monthName.slice(0, 3).toLowerCase()];
+    if (month) return `${year}-${month}-${day.padStart(2, '0')}`;
+  }
+
+  // Anything else Date() understands
   const parsed = new Date(cleaned);
   if (!isNaN(parsed.getTime())) {
     const year = parsed.getFullYear();
@@ -43,22 +89,7 @@ function normalizeDateToISO(dateStr: string | undefined | null): string {
     return `${year}-${month}-${day}`;
   }
 
-  // Handle DD/MM/YYYY or DD-MM-YYYY (common European format)
-  const euroMatch = cleaned.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-  if (euroMatch) {
-    const [, day, month, year] = euroMatch;
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  }
-
-  // Handle YYYY/MM/DD
-  const isoSlashMatch = cleaned.match(/^(\d{4})[\/](\d{1,2})[\/](\d{1,2})$/);
-  if (isoSlashMatch) {
-    const [, year, month, day] = isoSlashMatch;
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  }
-
-  // Return original if no format matched (might still be valid)
-  return cleaned;
+  return '';
 }
 
 interface PassportUploadProps {
@@ -126,7 +157,12 @@ export default function PassportUpload({ claimId }: PassportUploadProps) {
     if (!file) return;
 
     // Validate file type
-    const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    const validTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+    ];
     if (!validTypes.includes(file.type)) {
       setUploadError('Please upload a PDF, JPG, or PNG file');
       return;
@@ -196,43 +232,53 @@ export default function PassportUpload({ claimId }: PassportUploadProps) {
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Errors propagate to the step container, which shows them in a notice.
   const handleDetailsSubmit = async () => {
-    try {
-      // Update claim with passport details, ensuring dates are in YYYY-MM-DD format
-      await updateMutation.mutateAsync({
-        claimId,
-        data: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          dateOfBirth: normalizeDateToISO(formData.dateOfBirth),
-          gender: formData.gender as 'male' | 'female' | 'other',
-          placeOfBirth: formData.placeOfBirth,
-          nationality: formData.nationality,
-          passportIssueDate: normalizeDateToISO(formData.passportIssueDate),
-          passportExpiryDate: normalizeDateToISO(formData.passportExpiryDate),
-          passportNumber: formData.passportNumber,
-        },
-      });
+    // Optional dates go as YYYY-MM-DD or not at all: an empty string fails
+    // the API's format check and takes the whole update down with it.
+    const dateOrUndefined = (value: string) =>
+      normalizeDateToISO(value) || undefined;
 
-      // Mark step as complete
-      await completeMutation.mutateAsync({
-        claimId,
-        stepName: 'passportUpload',
-      });
+    await updateMutation.mutateAsync({
+      claimId,
+      data: {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        dateOfBirth: normalizeDateToISO(formData.dateOfBirth),
+        gender: formData.gender as 'male' | 'female' | 'other',
+        placeOfBirth: formData.placeOfBirth.trim(),
+        nationality: formData.nationality.trim(),
+        passportIssueDate: dateOrUndefined(formData.passportIssueDate),
+        passportExpiryDate: dateOrUndefined(formData.passportExpiryDate),
+        passportNumber: formData.passportNumber.trim(),
+      },
+    });
 
-      // Navigate to next step
-      goToNextStep();
-    } catch (error) {
-      console.error('Failed to save passport details:', error);
-    }
+    // Mark step as complete
+    await completeMutation.mutateAsync({
+      claimId,
+      stepName: 'passportUpload',
+    });
+
+    // Navigate to next step
+    goToNextStep();
   };
 
   const isUploading = uploadMutation.isPending;
   const isSubmitting = updateMutation.isPending || completeMutation.isPending;
-  const canSubmitDetails = formData.firstName && formData.lastName && formData.dateOfBirth && formData.gender && formData.passportNumber;
+  // Everything the backend requires at submission, nationality and place of
+  // birth included; the passport dates stay optional.
+  const canSubmitDetails =
+    !!formData.firstName.trim() &&
+    !!formData.lastName.trim() &&
+    ISO_DATE.test(normalizeDateToISO(formData.dateOfBirth)) &&
+    !!formData.gender &&
+    !!formData.placeOfBirth.trim() &&
+    !!formData.nationality.trim() &&
+    !!formData.passportNumber.trim();
 
   // Upload screen
   if (subStep === 'upload') {
@@ -253,14 +299,18 @@ export default function PassportUpload({ claimId }: PassportUploadProps) {
         >
           <div className="claims-upload-zone-content">
             <Upload className="claims-upload-icon" />
-            <p className="claims-upload-text">Choose a file or drag & drop it here</p>
+            <p className="claims-upload-text">
+              Choose a file or drag & drop it here
+            </p>
             <p className="claims-upload-formats">PDF, JPG or PNG</p>
 
             <label className="claims-upload-btn">
               <input
                 type="file"
                 accept=".pdf,.jpg,.jpeg,.png"
-                onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])}
+                onChange={(e) =>
+                  e.target.files?.[0] && handleFileChange(e.target.files[0])
+                }
                 disabled={isUploading}
                 hidden
               />
@@ -268,9 +318,7 @@ export default function PassportUpload({ claimId }: PassportUploadProps) {
             </label>
           </div>
 
-          {uploadError && (
-            <p className="claims-upload-error">{uploadError}</p>
-          )}
+          {uploadError && <p className="claims-upload-error">{uploadError}</p>}
         </div>
       </ClaimsStepContainer>
     );
@@ -283,7 +331,7 @@ export default function PassportUpload({ claimId }: PassportUploadProps) {
       stepName="passportUpload"
       title="Confirm your passport details"
       description="These details will be used for your pension refund application."
-      canContinue={!!canSubmitDetails && !isSubmitting}
+      canContinue={canSubmitDetails && !isSubmitting}
       onContinue={handleDetailsSubmit}
       continueText={isSubmitting ? 'Saving...' : 'Confirm and continue'}
     >
@@ -322,7 +370,9 @@ export default function PassportUpload({ claimId }: PassportUploadProps) {
                 className="claims-form-input"
                 placeholder="DD/MMM/YYYY"
                 value={formData.dateOfBirth}
-                onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange('dateOfBirth', e.target.value)
+                }
               />
               <Calendar className="claims-form-input-icon" />
             </div>
@@ -354,7 +404,9 @@ export default function PassportUpload({ claimId }: PassportUploadProps) {
               className="claims-form-input"
               placeholder="Place of birth"
               value={formData.placeOfBirth}
-              onChange={(e) => handleInputChange('placeOfBirth', e.target.value)}
+              onChange={(e) =>
+                handleInputChange('placeOfBirth', e.target.value)
+              }
             />
           </div>
           <div className="claims-form-group">
@@ -379,7 +431,9 @@ export default function PassportUpload({ claimId }: PassportUploadProps) {
                 className="claims-form-input"
                 placeholder="DD/MMM/YYYY"
                 value={formData.passportIssueDate}
-                onChange={(e) => handleInputChange('passportIssueDate', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange('passportIssueDate', e.target.value)
+                }
               />
               <Calendar className="claims-form-input-icon" />
             </div>
@@ -392,7 +446,9 @@ export default function PassportUpload({ claimId }: PassportUploadProps) {
                 className="claims-form-input"
                 placeholder="DD/MMM/YYYY"
                 value={formData.passportExpiryDate}
-                onChange={(e) => handleInputChange('passportExpiryDate', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange('passportExpiryDate', e.target.value)
+                }
               />
               <Calendar className="claims-form-input-icon" />
             </div>
@@ -407,7 +463,9 @@ export default function PassportUpload({ claimId }: PassportUploadProps) {
             className="claims-form-input"
             placeholder="Passport Number"
             value={formData.passportNumber}
-            onChange={(e) => handleInputChange('passportNumber', e.target.value)}
+            onChange={(e) =>
+              handleInputChange('passportNumber', e.target.value)
+            }
           />
         </div>
       </div>

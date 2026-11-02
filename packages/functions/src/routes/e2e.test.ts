@@ -44,6 +44,14 @@ function e2eEmail(tag: string) {
   return `route-${tag}-${randomUUID().slice(0, 8)}@e2e.test`;
 }
 
+// Requests without the e2e secret count against the magic-link route's
+// per-IP limit (shared across test files), so each one gets its own address.
+let requestCount = 0;
+function nextClientIp(): string {
+  requestCount += 1;
+  return `198.20.${Math.floor(requestCount / 250) % 250}.${requestCount % 250}`;
+}
+
 async function post(
   path: string,
   body: unknown,
@@ -51,7 +59,11 @@ async function post(
 ) {
   const res = await app.request(path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Forwarded-For': nextClientIp(),
+      ...headers,
+    },
     body: JSON.stringify(body),
   });
   return { status: res.status, body: (await res.json()) as any };

@@ -1,8 +1,14 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import Cookies from 'js-cookie';
-import apiClient from '../lib/api';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import apiClient, { magicLinkErrorMessage } from '../lib/api';
 
 export interface User {
   id: string;
@@ -29,7 +35,13 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
-  loginWithApple: (idToken: string, user?: { email?: string; name?: { firstName?: string; lastName?: string } }) => Promise<void>;
+  loginWithApple: (
+    idToken: string,
+    user?: {
+      email?: string;
+      name?: { firstName?: string; lastName?: string };
+    }
+  ) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   updateProfile: (data: Partial<User['profile']>) => Promise<void>;
@@ -75,6 +87,16 @@ export const useAuth = () => {
   return context;
 };
 
+function storeTokens(tokens: AuthTokens): void {
+  localStorage.setItem('accessToken', tokens.accessToken);
+  localStorage.setItem('refreshToken', tokens.refreshToken);
+}
+
+/**
+ * The functions are memoised (and the value with them) so that effects
+ * depending on them — the magic-link page verifies its token in one — do
+ * not re-run on every provider render.
+ */
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -104,7 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     checkAuth();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     try {
       const response = await apiClient.post('/auth/login', {
         email,
@@ -112,36 +134,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       });
 
       const { user: userData, tokens } = response.data;
-
-      // Store tokens
-      localStorage.setItem('accessToken', tokens.accessToken);
-      localStorage.setItem('refreshToken', tokens.refreshToken);
-
-      // Set user
+      storeTokens(tokens);
       setUser(userData);
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Login failed');
     }
-  };
+  }, []);
 
-  const register = async (data: RegisterData) => {
+  const register = useCallback(async (data: RegisterData) => {
     try {
       const response = await apiClient.post('/auth/register', data);
 
       const { user: userData, tokens } = response.data;
-
-      // Store tokens
-      localStorage.setItem('accessToken', tokens.accessToken);
-      localStorage.setItem('refreshToken', tokens.refreshToken);
-
-      // Set user
+      storeTokens(tokens);
       setUser(userData);
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Registration failed');
     }
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     // Clear tokens
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
@@ -153,57 +165,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     apiClient.post('/auth/logout').catch(() => {
       // Ignore errors on logout
     });
-  };
+  }, []);
 
-  const updateProfile = async (data: Partial<User['profile']>) => {
+  const updateProfile = useCallback(async (data: Partial<User['profile']>) => {
     try {
       const response = await apiClient.put('/auth/profile', data);
       setUser(response.data.user);
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Profile update failed');
     }
-  };
+  }, []);
 
-  const changePassword = async (
-    currentPassword: string,
-    newPassword: string
-  ) => {
-    try {
-      await apiClient.post('/auth/change-password', {
-        currentPassword,
-        newPassword,
-      });
-    } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Password change failed');
-    }
-  };
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      try {
+        await apiClient.post('/auth/change-password', {
+          currentPassword,
+          newPassword,
+        });
+      } catch (error: any) {
+        throw new Error(
+          error.response?.data?.error || 'Password change failed'
+        );
+      }
+    },
+    []
+  );
 
-  const requestMagicLink = async (email: string) => {
+  const requestMagicLink = useCallback(async (email: string) => {
     try {
+      // callbackUrl: without it the link opens FRONTEND_URL (the VBL app).
       const response = await apiClient.post('/auth/magic-link/request', {
         email,
+        callbackUrl: window.location.origin,
       });
       return { magicLink: response.data.magicLink };
     } catch (error: any) {
-      throw new Error(
-        error.response?.data?.error || 'Failed to send magic link'
-      );
+      throw new Error(magicLinkErrorMessage(error));
     }
-  };
+  }, []);
 
-  const verifyMagicLink = async (token: string) => {
+  const verifyMagicLink = useCallback(async (token: string) => {
     try {
       const response = await apiClient.post('/auth/magic-link/verify', {
         token,
       });
 
       const { user: userData, tokens, isNewUser } = response.data;
-
-      // Store tokens
-      localStorage.setItem('accessToken', tokens.accessToken);
-      localStorage.setItem('refreshToken', tokens.refreshToken);
-
-      // Set user
+      storeTokens(tokens);
       setUser(userData);
 
       // Return additional info for handling new users
@@ -213,64 +222,76 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         error.response?.data?.error || 'Magic link verification failed'
       );
     }
-  };
+  }, []);
 
-  const loginWithGoogle = async (idToken: string) => {
+  const loginWithGoogle = useCallback(async (idToken: string) => {
     try {
       const response = await apiClient.post('/auth/google/verify-id-token', {
         idToken,
       });
 
       const { user: userData, tokens } = response.data;
-
-      // Store tokens
-      localStorage.setItem('accessToken', tokens.accessToken);
-      localStorage.setItem('refreshToken', tokens.refreshToken);
-
-      // Set user
+      storeTokens(tokens);
       setUser(userData);
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Google login failed');
     }
-  };
+  }, []);
 
-  const loginWithApple = async (
-    idToken: string,
-    user?: { email?: string; name?: { firstName?: string; lastName?: string } }
-  ) => {
-    try {
-      const response = await apiClient.post('/auth/apple/verify', {
-        idToken,
-        user,
-      });
+  const loginWithApple = useCallback(
+    async (
+      idToken: string,
+      appleUser?: {
+        email?: string;
+        name?: { firstName?: string; lastName?: string };
+      }
+    ) => {
+      try {
+        const response = await apiClient.post('/auth/apple/verify', {
+          idToken,
+          user: appleUser,
+        });
 
-      const { user: userData, tokens } = response.data;
+        const { user: userData, tokens } = response.data;
+        storeTokens(tokens);
+        setUser(userData);
+      } catch (error: any) {
+        throw new Error(error.response?.data?.error || 'Apple login failed');
+      }
+    },
+    []
+  );
 
-      // Store tokens
-      localStorage.setItem('accessToken', tokens.accessToken);
-      localStorage.setItem('refreshToken', tokens.refreshToken);
-
-      // Set user
-      setUser(userData);
-    } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Apple login failed');
-    }
-  };
-
-  const value: AuthContextType = {
-    user,
-    isLoading,
-    isAuthenticated,
-    login,
-    loginWithGoogle,
-    loginWithApple,
-    register,
-    logout,
-    updateProfile,
-    changePassword,
-    requestMagicLink,
-    verifyMagicLink,
-  };
+  const value = useMemo<AuthContextType>(
+    () => ({
+      user,
+      isLoading,
+      isAuthenticated,
+      login,
+      loginWithGoogle,
+      loginWithApple,
+      register,
+      logout,
+      updateProfile,
+      changePassword,
+      requestMagicLink,
+      verifyMagicLink,
+    }),
+    [
+      user,
+      isLoading,
+      isAuthenticated,
+      login,
+      loginWithGoogle,
+      loginWithApple,
+      register,
+      logout,
+      updateProfile,
+      changePassword,
+      requestMagicLink,
+      verifyMagicLink,
+    ]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

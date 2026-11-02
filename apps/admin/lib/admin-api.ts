@@ -9,6 +9,23 @@ import type {
 export type ClaimHandlingRoute = 'direct' | 'law_firm';
 export type ClaimPayoutTarget = 'client' | 'law_firm';
 export type ClaimPensionType = 'public' | 'private';
+// Which product a claim is (backend: ClaimCaseType). vbl_refund = VBL/ZVK
+// public-sector refund, bav_cashout = bAV Abfindung, drv_refund = DRV
+// contribution refund from the GPR app.
+export type ClaimCaseType = 'vbl_refund' | 'bav_cashout' | 'drv_refund';
+
+export const CASE_TYPE_LABELS: Record<ClaimCaseType, string> = {
+  vbl_refund: 'Public refund',
+  bav_cashout: 'bAV cash-out',
+  drv_refund: 'DRV refund',
+};
+
+/** VBL bank-details step: the client asked us to open a free EUR account. */
+export interface EurAccountRequest {
+  phone: string;
+  consent: boolean;
+  requestedAt?: string;
+}
 
 // Why a submitted claim waits for ops (backend: ClaimSubmissionHold).
 export type ClaimSubmissionHold =
@@ -28,6 +45,7 @@ export interface ClaimListItem {
   status: string;
   workflowState: string;
   claimType: string | null;
+  caseType: ClaimCaseType;
   applicantName: string | null;
   applicantEmail: string | null;
   paymentStatus: string | null;
@@ -47,6 +65,7 @@ export interface ClaimDetail {
   id: string;
   userId: string;
   applicationId: string | null;
+  caseType: ClaimCaseType;
   status: string;
   workflowState: string;
   completedSteps: Record<string, boolean>;
@@ -85,10 +104,12 @@ export interface ClaimDetail {
   bankCity: string | null;
   bankPostalCode: string | null;
   bankCountry: string | null;
+  eurAccountRequest: EurAccountRequest | null;
   signatureId: string | null;
   signatureCompletedAt: string | null;
   identityFormDownloadedAt: string | null;
   certifyingAuthority: string | null;
+  identityCertifyingAuthority: string | null;
   identityVerifiedAt: string | null;
   confirmationAccuracyAccepted: boolean | null;
   confirmationAuthorizationAccepted: boolean | null;
@@ -147,6 +168,10 @@ export interface ClaimDetail {
   lawFirmSubmissionChannel: string | null;
   lawFirmResponseAt: string | null;
   lawFirmClosedAt: string | null;
+  // Release to the firm (visible from release until 24 h after the firm
+  // saves its submission date; ops can re-release for 24 h).
+  lawFirmReleasedAt: string | null;
+  lawFirmRereleasedUntil: string | null;
   copyPdfS3Key: string | null;
   // Submission hold (nothing goes out until ops resolve it)
   submissionHold: ClaimSubmissionHold | null;
@@ -216,6 +241,7 @@ export async function getClaims(params?: {
   status?: string;
   handlingRoute?: ClaimHandlingRoute;
   pensionType?: ClaimPensionType;
+  caseType?: ClaimCaseType;
   submissionHold?: ClaimSubmissionHold | 'any';
   search?: string;
   sort?: ClaimSort;
@@ -271,16 +297,36 @@ export async function getPackageDownloadUrl(
   return data;
 }
 
+/** bAV package or VBL L203 (templateId/signer are null for the L203). */
 export async function regeneratePackage(id: string): Promise<{
   pdfS3Key: string;
   downloadUrl: string | null;
-  templateId: string;
-  signer: string;
+  templateId: string | null;
+  signer: string | null;
   copyS3Key: string | null;
   missingPlaceholders: string[];
+  sentToLettershop: boolean;
 }> {
   const { data } = await apiClient.post(
     `/admin/claims/${id}/package/regenerate`
+  );
+  return data;
+}
+
+/** Release (or release again) a law-firm case to the firm. */
+export async function releaseClaimToFirm(
+  id: string
+): Promise<{ releasedAt: string }> {
+  const { data } = await apiClient.post(`/admin/claims/${id}/law-firm/release`);
+  return data;
+}
+
+/** Make a case the firm already submitted visible again for 24 hours. */
+export async function rereleaseClaimToFirm(
+  id: string
+): Promise<{ rereleasedUntil: string }> {
+  const { data } = await apiClient.post(
+    `/admin/claims/${id}/law-firm/rerelease`
   );
   return data;
 }
@@ -418,6 +464,7 @@ export interface AttentionItem {
   claimantName: string | null;
   email: string | null;
   pensionType: string | null;
+  caseType: ClaimCaseType;
   status: string | null;
   handlingRoute: string;
   lawFirmCaseState: string | null;

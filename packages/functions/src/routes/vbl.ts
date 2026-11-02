@@ -27,6 +27,7 @@ import {
   DrvRefundDecisionExtractionProviderError,
 } from '../services/drv-refund-decision-extraction';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
+import { rateLimiter } from '../middleware/rate-limiter';
 import { validateUuidParams } from '../middleware/validate-uuid';
 import { db } from '../utils/db';
 import { applications, calculationLogs } from '../drizzle/schema/vbl';
@@ -142,8 +143,16 @@ const applicationUpdateSchema = z.object({
 });
 
 // Extract calculator fields from an uploaded pension document.
-// Public endpoint: this is used before account creation in the calculator.
-vbl.post('/extract-pension-document', async (c) => {
+// Public endpoint: this is used before account creation in the calculator,
+// so it cannot require a session. Every call is a paid Mistral OCR run,
+// hence the tight per-address cap on top of the size and MIME checks below.
+const extractPensionDocumentLimiter = rateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 15,
+  message: 'Too many document uploads. Please try again in an hour.',
+});
+
+vbl.post('/extract-pension-document', extractPensionDocumentLimiter, async (c) => {
   try {
     const formData = await c.req.formData();
     const file = formData.get('file');

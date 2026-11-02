@@ -12,6 +12,10 @@ import {
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { uploadDocument } from '@/lib/onboarding-api';
 import {
+  DOCUMENT_UPLOAD_ACCEPT,
+  getDocumentUploadError,
+} from '@/lib/document-upload';
+import {
   joinCalculatorFullName,
   splitCalculatorFullName,
   validateCalculatorBirthDate,
@@ -131,11 +135,12 @@ export const Identity: React.FC<IdentityProps> = ({
 
   const handleFileSelect = useCallback(
     async (file: File) => {
-      // Validate file type
-      if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
-        setFileTypeError(
-          'This file format is not supported. Please upload a valid document.'
-        );
+      // Validate file type and size up front — the backend only accepts
+      // PDF/JPEG/PNG up to 10 MB (routes/documents.ts), so e.g. an iPhone
+      // HEIC photo used to fail only after the upload.
+      const validationError = getDocumentUploadError(file);
+      if (validationError) {
+        setFileTypeError(validationError);
         return;
       }
       setFileTypeError(null);
@@ -521,7 +526,7 @@ export const Identity: React.FC<IdentityProps> = ({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,application/pdf"
+            accept={DOCUMENT_UPLOAD_ACCEPT}
             onChange={handleInputChange}
             className="hidden"
           />

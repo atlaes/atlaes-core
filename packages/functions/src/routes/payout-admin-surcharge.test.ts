@@ -92,6 +92,8 @@ beforeAll(async () => {
     .insert(claimsTable)
     .values({
       userId: client.id,
+      // The surcharge belongs to the DRV refund fee; other products get 400.
+      caseType: 'drv_refund',
       status: 'submitted',
       firstName: 'Anita',
       lastName: `Sharma${tag}`,

@@ -24,6 +24,7 @@ import {
 } from './emails/team-notice';
 import { renderWelcomeEmail } from './emails/welcome';
 import { sendLeadMail } from './emails/send';
+import { sendVblReminderDue, VBL_REMINDER_TYPE } from './vbl-reminder';
 
 export interface CreateLeadInput {
   type: LeadType;
@@ -265,9 +266,11 @@ export interface ReminderRunResult {
 }
 
 /**
- * Daily job (checkGuideReminders): every opted-in guide lead whose
- * `reminder_due_on` (1st of month +23) is on or before today's calendar
- * day and that has not been reminded yet gets exactly one reminder.
+ * Daily job (checkGuideReminders): every opted-in lead whose
+ * `reminder_due_on` is on or before today's calendar day and that has not
+ * been reminded yet gets exactly one reminder — guide leads on the 1st of
+ * month +23 (GPR-branded), VBL "remind me" leads on the day their refund
+ * can start (CompanyPension-branded, services/leads/vbl-reminder.ts).
  */
 export async function processDueReminders(
   now: Date = new Date()
@@ -278,7 +281,7 @@ export async function processDueReminders(
     .from(leads)
     .where(
       and(
-        inArray(leads.type, ['v0900-guide', 'wegzug-guide']),
+        inArray(leads.type, ['v0900-guide', 'wegzug-guide', VBL_REMINDER_TYPE]),
         eq(leads.reminderOptIn, true),
         isNull(leads.reminderSentAt),
         isNotNull(leads.reminderDueOn),
@@ -288,24 +291,10 @@ export async function processDueReminders(
 
   const result: ReminderRunResult = { due: due.length, sent: 0, failed: 0 };
   for (const lead of due) {
-    const guide = guideKeyForType(lead.type as LeadType);
-    const cm = parseContributionMonth(lead.lastContributionMonth);
-    if (!guide || !cm) {
-      logger.warn('Reminder skipped: unusable lead row', { id: lead.id });
-      result.failed += 1;
-      continue;
-    }
-    const mail = renderReminderEmail({
-      guide,
-      applyLabel: formatApplyLabel(applyFromDate(cm)),
-      pageUrl: leadsConfig.guides[guide].pageUrl,
-      siteUrl: leadsConfig.siteUrl,
-      senderName: leadsConfig.senderName,
-    });
-    const ok = await sendLeadMail(
-      { to: lead.email, ...mail },
-      `${guide} waiting-period reminder`
-    );
+    const ok =
+      lead.type === VBL_REMINDER_TYPE
+        ? await sendVblReminderDue(lead)
+        : await sendGuideReminder(lead);
     if (!ok) {
       result.failed += 1;
       continue;
@@ -318,4 +307,24 @@ export async function processDueReminders(
   }
   logger.info('Lead reminder run finished', { today, ...result });
   return result;
+}
+
+async function sendGuideReminder(lead: Lead): Promise<boolean> {
+  const guide = guideKeyForType(lead.type as LeadType);
+  const cm = parseContributionMonth(lead.lastContributionMonth);
+  if (!guide || !cm) {
+    logger.warn('Reminder skipped: unusable lead row', { id: lead.id });
+    return false;
+  }
+  const mail = renderReminderEmail({
+    guide,
+    applyLabel: formatApplyLabel(applyFromDate(cm)),
+    pageUrl: leadsConfig.guides[guide].pageUrl,
+    siteUrl: leadsConfig.siteUrl,
+    senderName: leadsConfig.senderName,
+  });
+  return sendLeadMail(
+    { to: lead.email, ...mail },
+    `${guide} waiting-period reminder`
+  );
 }

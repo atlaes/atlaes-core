@@ -21,6 +21,11 @@ import { logger } from '../../utils/logger';
  * with ("env" or "jwt"), so setting the env key later does not break
  * secrets enrolled before; they keep decrypting with the fallback key.
  *
+ * Rotating JWT_SECRET changes that fallback key. Secrets enrolled under
+ * the old value stay readable only if TOTP_LEGACY_JWT_SECRET holds the
+ * JWT_SECRET they were enrolled with; the "jwt" key is derived from it
+ * when set. New enrolments should always use TOTP_ENCRYPTION_KEY.
+ *
  * Ciphertext format: v1.<kid>.<iv b64url>.<tag b64url>.<data b64url>
  * (AES-256-GCM, 96-bit IV).
  */
@@ -42,10 +47,11 @@ function parseEnvKey(raw: string): Buffer {
 }
 
 function fallbackKey(): Buffer {
+  const seed = process.env.TOTP_LEGACY_JWT_SECRET || getJwtSecret();
   return Buffer.from(
     hkdfSync(
       'sha256',
-      Buffer.from(getJwtSecret()),
+      Buffer.from(seed),
       Buffer.from('atlaes-totp'),
       Buffer.from('totp-secret-box-v1'),
       32

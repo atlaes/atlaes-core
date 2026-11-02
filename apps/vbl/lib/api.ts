@@ -67,11 +67,17 @@ apiClient.interceptors.response.use(
           return apiClient(originalRequest);
         }
       } catch (refreshError) {
-        // Refresh failed, redirect to login
+        // Refresh failed: the session is gone. Send the user to the sign-in
+        // page (/auth — there is no /login route) and remember where they
+        // were so the magic link can bring them back.
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          const { pathname, search } = window.location;
+          if (!pathname.startsWith('/auth')) {
+            const redirect = encodeURIComponent(`${pathname}${search}`);
+            window.location.href = `/auth?redirect=${redirect}`;
+          }
         }
       }
     }

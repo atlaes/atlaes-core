@@ -792,11 +792,13 @@ export class VBLCalculationService {
 
     // The pickers reach back to 1960 but the table starts in 1975 (the
     // earliest year in Calculator.md), so earlier years use the earliest
-    // year in the table instead of contributing nothing.
+    // year in the table instead of contributing nothing. Years after the
+    // last row use the latest one for the same reason (latestYearFallback).
     const tableYears = Object.keys(years)
       .map(Number)
       .filter(Number.isFinite);
     const earliestYear = tableYears.length ? Math.min(...tableYears) : null;
+    const latestYear = tableYears.length ? Math.max(...tableYears) : null;
 
     let sum = 0;
     for (let year = startYear; year <= endYear; year++) {
@@ -808,6 +810,9 @@ export class VBLCalculationService {
         years[String(year)] ||
         (earliestYear !== null && year < earliestYear
           ? years[String(earliestYear)]
+          : null) ||
+        (latestYear !== null && year > latestYear
+          ? this.latestYearFallback(years, latestYear, year)
           : null) ||
         {};
 
@@ -827,6 +832,33 @@ export class VBLCalculationService {
     }
 
     return sum;
+  }
+
+  /** Years the table has not been extended to yet, warned once each. */
+  private static readonly fallbackYearsWarned = new Set<number>();
+
+  /**
+   * Caps and rates for a year after the last row of contributions.json.
+   *
+   * TODO(data/contributions.json): add the 2026 row (BBG West plus the DRV,
+   * VBLklassik, VddB and VddKO rates) once the official figures are
+   * confirmed. Until then a later year reuses the latest published row so
+   * that, say, a 2026 employment period is priced instead of being skipped
+   * (it used to add nothing). This is a stop-gap, not a forecast.
+   */
+  private static latestYearFallback(
+    years: Record<string, any>,
+    latestYear: number,
+    year: number
+  ): Record<string, any> {
+    if (!this.fallbackYearsWarned.has(year)) {
+      this.fallbackYearsWarned.add(year);
+      logger.warn('contributions.json has no row for this year; using the latest row', {
+        year,
+        latestYear,
+      });
+    }
+    return years[String(latestYear)];
   }
 
   private static yearConfigForMonth(

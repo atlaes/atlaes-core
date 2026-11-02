@@ -10,8 +10,9 @@ import {
   getClaims,
   getClaimDetail,
   updateClaimStatus,
+  CASE_TYPE_LABELS,
+  ClaimCaseType,
   ClaimHandlingRoute,
-  ClaimPensionType,
   ClaimSort,
   ClaimListItem,
   SUBMISSION_HOLD_LABELS,
@@ -46,14 +47,19 @@ const CASE_STATE_LABELS: Record<string, string> = {
   closed: 'closed',
 };
 
+// Product pill per case type (the list filters on caseType, not pensionType).
+function ProductPill({ caseType }: { caseType: ClaimCaseType }) {
+  return <Pill tone={caseType === 'bav_cashout' ? 'brand' : caseType === 'drv_refund' ? 'info' : 'neutral'}>{CASE_TYPE_LABELS[caseType]}</Pill>;
+}
+
 // Saved views: the questions ops actually ask, as tabs.
-type ViewKey = 'needs-ops' | 'on-hold' | 'processing' | 'law-firm' | 'bav' | 'all';
+type ViewKey = 'needs-ops' | 'on-hold' | 'processing' | 'law-firm' | 'bav' | 'drv' | 'all';
 const VIEWS: {
   key: ViewKey;
   label: string;
   status?: string;
   route?: ClaimHandlingRoute;
-  product?: ClaimPensionType;
+  product?: ClaimCaseType;
   // Submitted claims that cannot go out until ops act (submission hold).
   onHold?: boolean;
   count?: (s: { submitted: number; processing: number; lawFirm: number; total: number }) => number;
@@ -62,7 +68,8 @@ const VIEWS: {
   { key: 'on-hold', label: 'On hold', onHold: true },
   { key: 'processing', label: 'Processing', status: 'processing', count: (s) => s.processing },
   { key: 'law-firm', label: 'With law firm', route: 'law_firm', count: (s) => s.lawFirm },
-  { key: 'bav', label: 'bAV cash-out', product: 'private' },
+  { key: 'bav', label: 'bAV cash-out', product: 'bav_cashout' },
+  { key: 'drv', label: 'DRV refund', product: 'drv_refund' },
   { key: 'all', label: 'All claims', count: (s) => s.total },
 ];
 
@@ -74,7 +81,7 @@ export default function ClaimsPage() {
   const initialView = (params.get('view') as ViewKey) || 'needs-ops';
   const [view, setView] = useState<ViewKey>(VIEWS.some((v) => v.key === initialView) ? initialView : 'needs-ops');
   const [status, setStatus] = useState('');
-  const [product, setProduct] = useState<'' | ClaimPensionType>('');
+  const [product, setProduct] = useState<'' | ClaimCaseType>('');
   const [route, setRoute] = useState<'' | ClaimHandlingRoute>('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -100,7 +107,7 @@ export default function ClaimsPage() {
       getClaims({
         status: effStatus || undefined,
         handlingRoute: effRoute || undefined,
-        pensionType: effProduct || undefined,
+        caseType: effProduct || undefined,
         submissionHold: current.onHold ? 'any' : undefined,
         search: search || undefined,
         sort,
@@ -133,12 +140,12 @@ export default function ClaimsPage() {
   const chips: { label: string; clear: () => void }[] = [];
   if (search) chips.push({ label: `“${search}”`, clear: () => { setSearch(''); setSearchInput(''); setPage(1); } });
   if (!current.status && status) chips.push({ label: `Status: ${CLAIM_STATUS_LABEL[status] ?? status}`, clear: () => { setStatus(''); setPage(1); } });
-  if (!current.product && product) chips.push({ label: product === 'private' ? 'bAV cash-out' : 'Public refund', clear: () => { setProduct(''); setPage(1); } });
+  if (!current.product && product) chips.push({ label: CASE_TYPE_LABELS[product], clear: () => { setProduct(''); setPage(1); } });
   if (!current.route && route) chips.push({ label: route === 'law_firm' ? 'Law firm' : 'Direct', clear: () => { setRoute(''); setPage(1); } });
 
   return (
     <div>
-      <PageHeader title="Claims" subtitle="Pension refund and bAV cash-out applications" />
+      <PageHeader title="Claims" subtitle="Public-sector refund, bAV cash-out and DRV refund applications" />
 
       {/* Views */}
       <div className="mb-3 flex flex-wrap gap-1 border-b border-gray-200">
@@ -183,10 +190,11 @@ export default function ClaimsPage() {
           </select>
         )}
         {!current.product && (
-          <select id="claims-product" value={product} onChange={(e) => { setProduct(e.target.value as '' | ClaimPensionType); setPage(1); }} className={`${inputClass} w-auto`}>
+          <select id="claims-product" value={product} onChange={(e) => { setProduct(e.target.value as '' | ClaimCaseType); setPage(1); }} className={`${inputClass} w-auto`}>
             <option value="">Product</option>
-            <option value="private">bAV cash-out</option>
-            <option value="public">Public refund</option>
+            <option value="vbl_refund">Public refund</option>
+            <option value="bav_cashout">bAV cash-out</option>
+            <option value="drv_refund">DRV refund</option>
           </select>
         )}
         {!current.route && (
@@ -236,7 +244,7 @@ export default function ClaimsPage() {
                     <div className="text-xs text-gray-500">{claim.applicantEmail || claim.id.slice(0, 8)}</div>
                   </Td>
                   <Td>
-                    {claim.pensionType === 'private' ? <Pill tone="brand">bAV cash-out</Pill> : claim.pensionType === 'public' ? <Pill>Public refund</Pill> : <span className="text-xs text-gray-400">—</span>}
+                    <ProductPill caseType={claim.caseType} />
                     {claim.pensionProvider && <div className="mt-0.5 text-xs text-gray-500">{claim.pensionProvider}</div>}
                   </Td>
                   <Td>
@@ -324,7 +332,7 @@ function PeekPanel({ id, onClose, onChanged }: { id: string; onClose: () => void
           {c && (
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <StatusDot tone={CLAIM_STATUS_TONE[c.status] ?? 'neutral'}>{CLAIM_STATUS_LABEL[c.status] ?? c.status}</StatusDot>
-              {c.pensionType === 'private' ? <Pill tone="brand">bAV cash-out</Pill> : c.pensionType === 'public' ? <Pill>Public refund</Pill> : null}
+              <ProductPill caseType={c.caseType} />
             </div>
           )}
         </div>
@@ -360,7 +368,7 @@ function PeekPanel({ id, onClose, onChanged }: { id: string; onClose: () => void
               <Fact label="Package" value={c.pdfS3Key ? 'generated' : 'not yet'} />
               <Fact label="On hold" value={c.submissionHold ? SUBMISSION_HOLD_LABELS[c.submissionHold] : null} wide />
             </FactGroup>
-            {c.pensionType === 'private' && (
+            {c.caseType === 'bav_cashout' && (
               <FactGroup title="bAV">
                 <Fact label="Route" value={c.drvRefundReceived === true ? 'A · DRV refund' : c.drvRefundReceived === false ? 'B · small entitlement' : null} />
                 <Fact label="Provider" value={c.bavProviderName} />

@@ -16,7 +16,7 @@ const TESTIMONIALS = [
     id: 1,
     name: 'Manjunath AJ',
     rating: 5,
-    text: 'Hello, Usually I don\'t write review, but I need to do for Germany Pension Refund team since they Truly deserved the appreciation. They maintained very well updated the settlement and always a response for every mail. I love Charlotte who...',
+    text: "Hello, Usually I don't write review, but I need to do for Germany Pension Refund team since they Truly deserved the appreciation. They maintained very well updated the settlement and always a response for every mail. I love Charlotte who...",
     source: 'google',
   },
   {
@@ -35,7 +35,9 @@ const TESTIMONIALS = [
   },
 ];
 
-export default function QualificationStep5({ onBack }: QualificationStep5Props) {
+export default function QualificationStep5({
+  onBack,
+}: QualificationStep5Props) {
   const router = useRouter();
   const { register: registerUser, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
@@ -116,11 +118,14 @@ export default function QualificationStep5({ onBack }: QualificationStep5Props) 
           </div>
 
           {/* Congratulations Header */}
-          <h1 className="text-4xl md:text-5xl font-bold text-[#221E49] mb-6">Congratulations</h1>
+          <h1 className="text-4xl md:text-5xl font-bold text-[#221E49] mb-6">
+            Congratulations
+          </h1>
 
           <div className="bg-white border-2 border-[#221E49] rounded-lg p-6 mb-8">
             <p className="text-[#221E49] leading-relaxed">
-              you qualify for a refund on your German pension contributions. Let's create a free account to register your details.
+              you qualify for a refund on your German pension contributions.
+              Let's create a free account to register your details.
             </p>
           </div>
 
@@ -154,13 +159,19 @@ export default function QualificationStep5({ onBack }: QualificationStep5Props) 
                 className="mt-1 w-4 h-4 text-[#50C9A5] border-gray-300 rounded focus:ring-[#50C9A5]"
                 disabled={isLoading}
               />
-              <label htmlFor="terms" className="text-sm text-gray-700 leading-relaxed">
+              <label
+                htmlFor="terms"
+                className="text-sm text-gray-700 leading-relaxed"
+              >
                 Yes, I have read and accept the{' '}
                 <a href="/terms" className="text-[#50C9A5] hover:underline">
                   Terms and Conditions
                 </a>{' '}
                 and{' '}
-                <a href="/privacy" className="text-[#50C9A5] hover:underline">
+                <a
+                  href="/privacy-policy"
+                  className="text-[#50C9A5] hover:underline"
+                >
                   Data Privacy Policy
                 </a>
                 .
@@ -194,7 +205,9 @@ export default function QualificationStep5({ onBack }: QualificationStep5Props) 
               <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-600">or continue with</span>
+              <span className="px-4 bg-white text-gray-600">
+                or continue with
+              </span>
             </div>
           </div>
 
@@ -205,9 +218,7 @@ export default function QualificationStep5({ onBack }: QualificationStep5Props) 
               type="button"
               disabled
               className="w-14 h-14 rounded-full bg-[#221E49] flex items-center justify-center text-white text-2xl opacity-50 cursor-not-allowed"
-            >
-
-            </button>
+            ></button>
 
             {/* Google Sign-In */}
             <button
@@ -266,9 +277,10 @@ export default function QualificationStep5({ onBack }: QualificationStep5Props) 
                 className={`absolute bg-white rounded-2xl border-2 border-[#221E49] p-6 transition-all duration-300 ${
                   index === currentTestimonialIndex
                     ? 'z-30 opacity-100 transform translate-x-0'
-                    : index === (currentTestimonialIndex + 1) % TESTIMONIALS.length
-                    ? 'z-20 opacity-60 transform translate-x-8 translate-y-4'
-                    : 'z-10 opacity-30 transform translate-x-16 translate-y-8'
+                    : index ===
+                        (currentTestimonialIndex + 1) % TESTIMONIALS.length
+                      ? 'z-20 opacity-60 transform translate-x-8 translate-y-4'
+                      : 'z-10 opacity-30 transform translate-x-16 translate-y-8'
                 }`}
                 style={{
                   width: 'calc(100% - 2rem)',
@@ -292,12 +304,18 @@ export default function QualificationStep5({ onBack }: QualificationStep5Props) 
 
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                    <svg className="w-6 h-6 text-gray-500" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                    <svg
+                      className="w-6 h-6 text-gray-500"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <p className="font-semibold text-[#221E49]">{testimonial.name}</p>
+                    <p className="font-semibold text-[#221E49]">
+                      {testimonial.name}
+                    </p>
                     <div className="flex items-center gap-2">
                       <svg className="w-4 h-4" viewBox="0 0 24 24">
                         <path
@@ -317,7 +335,9 @@ export default function QualificationStep5({ onBack }: QualificationStep5Props) 
                           d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                         />
                       </svg>
-                      <span className="text-xs text-gray-500">Google Review</span>
+                      <span className="text-xs text-gray-500">
+                        Google Review
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -332,7 +352,9 @@ export default function QualificationStep5({ onBack }: QualificationStep5Props) 
                 key={index}
                 onClick={() => setCurrentTestimonialIndex(index)}
                 className={`w-2 h-2 rounded-full transition-colors ${
-                  index === currentTestimonialIndex ? 'bg-[#50C9A5]' : 'bg-gray-300'
+                  index === currentTestimonialIndex
+                    ? 'bg-[#50C9A5]'
+                    : 'bg-gray-300'
                 }`}
                 aria-label={`View testimonial ${index + 1}`}
               />

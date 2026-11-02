@@ -8,6 +8,7 @@ import { db } from '../utils/db';
 import { claimsTable, claimWorkflowStates } from '../drizzle/schema/claims';
 import {
   defaultHandlingRoute,
+  effectiveHandlingRouteSql,
   resolveCaseType,
   type ClaimCaseType,
 } from '../drizzle/schema/claims';
@@ -139,7 +140,7 @@ export class AdminOverviewService {
     const responses = await base()
       .where(
         and(
-          eq(claimsTable.handlingRoute, 'law_firm'),
+          sql`${effectiveHandlingRouteSql()} = 'law_firm'`,
           eq(claimsTable.lawFirmCaseState, 'response_received')
         )
       )
@@ -189,7 +190,8 @@ export class AdminOverviewService {
       .select({
         submitted: sql<number>`count(*) filter (where ${claimsTable.status} = 'submitted')`,
         processing: sql<number>`count(*) filter (where ${claimsTable.status} = 'processing')`,
-        lawFirm: sql<number>`count(*) filter (where ${claimsTable.handlingRoute} = 'law_firm' and ${claimsTable.status} <> 'draft')`,
+        // Effective route (NULL = default), same as the claims list.
+        lawFirm: sql<number>`count(*) filter (where ${effectiveHandlingRouteSql()} = 'law_firm' and ${claimsTable.status} <> 'draft')`,
         completedThisWeek: sql<number>`count(*) filter (where ${claimsTable.status} = 'completed' and ${claimsTable.updatedAt} >= ${weekAgo.toISOString()}::timestamptz)`,
       })
       .from(claimsTable);
