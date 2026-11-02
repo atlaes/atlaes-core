@@ -170,6 +170,8 @@ export interface Claim {
 
   // Submission
   submittedAt?: string;
+  /** When the law firm released the case for payout (null until then). */
+  lawFirmReleasedAt?: string | null;
 
   // Timestamps
   createdAt: string;
@@ -276,7 +278,8 @@ export interface UpdateClaimRequestFlat {
   bankPostalCode?: string;
   bankCountry?: string;
   certifyingAuthority?: CertifyingAuthority;
-  identityCertifyingAuthority?: CertifyingAuthority;
+  /** null clears the ID-step authority. */
+  identityCertifyingAuthority?: CertifyingAuthority | null;
   confirmationAccuracyAccepted?: boolean;
   confirmationAuthorizationAccepted?: boolean;
 }
@@ -289,7 +292,7 @@ export interface UpdateClaimRequest extends UpdateClaimRequestFlat {
   bankDetails?: BankDetails;
   germanSocialInsuranceNumber?: string;
   signatureAuthority?: CertifyingAuthority;
-  idVerificationAuthority?: CertifyingAuthority;
+  idVerificationAuthority?: CertifyingAuthority | null;
 }
 
 export interface ValidationResult {

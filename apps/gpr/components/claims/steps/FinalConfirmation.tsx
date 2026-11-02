@@ -13,8 +13,8 @@ import {
   useSubmitClaimMutation,
   useUpdateClaimMutation,
 } from '@/lib/queries/claims-queries';
-import { Claim } from '@/lib/claims-api';
-import { apiErrorMessage } from '@/lib/api';
+import claimsApi, { Claim } from '@/lib/claims-api';
+import { apiErrorMessage, httpStatus } from '@/lib/api';
 
 const VALIDATION_PREFIX = 'Claim validation failed: ';
 
@@ -70,6 +70,24 @@ export default function FinalConfirmation({ claimId }: FinalConfirmationProps) {
 
   const canSubmit = confirmAccuracy && confirmAuthorization && !isSubmitting;
 
+  /**
+   * After a failed call: a claim that is no longer a draft was submitted
+   * earlier (lost response, second tab) — the backend answers a repeat
+   * submit with 409 and the PUT before it with 400. Shows the success
+   * pop-up with the fresh claim; false when it is still a draft or the
+   * refetch failed.
+   */
+  const settleAlreadySubmitted = async (): Promise<boolean> => {
+    try {
+      const fresh = await claimsApi.getClaim(claimId);
+      if (fresh.status === 'draft') return false;
+      setSubmitted(fresh);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const handleSubmit = async () => {
     if (!canSubmit) return;
 
@@ -92,6 +110,11 @@ export default function FinalConfirmation({ claimId }: FinalConfirmationProps) {
       });
       setSubmitted(await submitMutation.mutateAsync(claimId));
     } catch (error) {
+      if (await settleAlreadySubmitted()) return;
+      if (httpStatus(error) === 409) {
+        // Submitted, but the refetch failed: let the page reload the claim.
+        queryClient.invalidateQueries({ queryKey: claimsKeys.detail(claimId) });
+      }
       setSubmitError(describeSubmitError(error));
     } finally {
       setIsSubmitting(false);

@@ -448,14 +448,7 @@ export const accountApi = {
   },
 };
 
-/** HTTP status of an axios error, or null. */
-export function httpStatus(error: unknown): number | null {
-  if (typeof error !== 'object' || error === null) return null;
-  const e = error as { response?: { status?: unknown } };
-  return typeof e.response?.status === 'number' ? e.response.status : null;
-}
-
-/** Backend `error` message of an axios error (one implementation, in api.ts). */
-export { apiErrorMessage } from './api';
+/** Axios error helpers (one implementation, in api.ts). */
+export { apiErrorMessage, httpStatus } from './api';
 
 export default accountApi;

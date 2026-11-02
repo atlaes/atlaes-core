@@ -88,6 +88,13 @@ apiClient.interceptors.response.use(
   }
 );
 
+/** HTTP status of an axios error, or null. */
+export function httpStatus(error: unknown): number | null {
+  if (typeof error !== 'object' || error === null) return null;
+  const e = error as { response?: { status?: unknown } };
+  return typeof e.response?.status === 'number' ? e.response.status : null;
+}
+
 /**
  * Message for a failed API call: the backend's `error` string, or the first
  * Zod issue when a request body was rejected (400), else the fallback.
