@@ -10,8 +10,8 @@ import { createVblReminder } from '../services/leads/vbl-reminder';
  *
  *   POST /  { email, eligibleOn: 'YYYY-MM-DD', source, pensionProvider? }
  *
- * Stores the reminder only (services/leads/vbl-reminder.ts); no e-mail is
- * sent yet.
+ * Stores the reminder and confirms it by e-mail; the daily leads cron sends
+ * the "you can start now" e-mail on eligibleOn (services/leads/vbl-reminder.ts).
  */
 
 const isoDate = z
