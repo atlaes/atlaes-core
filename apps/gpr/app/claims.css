@@ -3091,3 +3091,148 @@
   + .claims-intro-radio-circle::after {
   display: none;
 }
+
+/* Error notice can carry a list (submission validation) */
+.claims-frame .claims-error-banner {
+  align-items: flex-start;
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.claims-frame .claims-error-banner > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.claims-error-banner-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.claims-error-banner-body ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.claims-error-banner-body li {
+  margin: 2px 0;
+}
+
+/* Signature pad (Sign Documents): the payout pad's shape, claim palette */
+.claims-sig-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.claims-sig-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #181818;
+}
+
+.claims-sig-clear {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #4b4f58;
+  cursor: pointer;
+}
+
+.claims-sig-clear:hover {
+  color: #002691;
+}
+
+.claims-sig-clear:disabled {
+  color: #c6c6c6;
+  cursor: default;
+}
+
+.claims-sig {
+  position: relative;
+  height: 180px;
+  border: 1.5px dashed #002691;
+  border-radius: 16px;
+  background: #ffffff;
+  touch-action: none;
+}
+
+.claims-sig canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  cursor: crosshair;
+}
+
+.claims-sig-line {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 40px;
+  height: 1px;
+  background: #c6c6c6;
+  pointer-events: none;
+}
+
+.claims-sig-hint {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 20px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #8c8c8c;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Signature already on the claim */
+.claims-sig-saved {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid #c6c6c6;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.claims-sig-saved img {
+  display: block;
+  max-height: 120px;
+  max-width: 100%;
+  width: auto;
+}
+
+.claims-sig-saved-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 14px;
+  color: #4b4f58;
+}
+
+.claims-sig-saved-meta strong {
+  color: #1f5f31;
+  font-weight: 600;
+}
+
+.claims-sig-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #8c8c8c;
+}

@@ -294,8 +294,10 @@ export function useSubmitClaimMutation() {
 
   return useMutation({
     mutationFn: (claimId: string) => claimsApi.submitClaim(claimId),
-    onSuccess: (updatedClaim, claimId) => {
-      queryClient.setQueryData(claimsKeys.detail(claimId), updatedClaim);
+    // The detail cache is left alone: writing the submitted claim into it
+    // would swap the wizard for the status page at once and unmount the
+    // success pop-up. FinalConfirmation updates it when the pop-up closes.
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: claimsKeys.lists() });
     },
   });
