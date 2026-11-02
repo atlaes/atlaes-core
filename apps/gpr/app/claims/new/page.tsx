@@ -1,20 +1,32 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, Shield, Check, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiErrorMessage } from '@/lib/api';
 import { claimsApi } from '@/lib/claims-api';
 import { ClaimsFrame } from '@/components/claims/ClaimsFrame';
 import '@/app/claims.css';
 
 type IntroStep = 'terms' | 'documents';
 
+const SIGN_IN_HREF = '/auth?redirect=' + encodeURIComponent('/claims/new');
+
 export default function NewClaimPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
   const [step, setStep] = useState<IntroStep>('terms');
   const [agreedToTerms, setAgreedToTerms] = useState<boolean | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Creating a claim needs a session; without one the API answers 401.
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push(SIGN_IN_HREF);
+    }
+  }, [authLoading, user, router]);
 
   const handleStartClaim = async () => {
     try {
@@ -23,7 +35,7 @@ export default function NewClaimPage() {
       const newClaim = await claimsApi.createClaim({ caseType: 'drv_refund' });
       router.push(`/claims/${newClaim.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create claim');
+      setError(apiErrorMessage(err, 'Failed to create claim'));
       setIsCreating(false);
     }
   };
@@ -33,6 +45,17 @@ export default function NewClaimPage() {
       setStep('documents');
     }
   };
+
+  if (authLoading || !user) {
+    return (
+      <ClaimsFrame title="New claim">
+        <div className="claims-wizard-loading">
+          <div className="claims-spinner" />
+          <span>{authLoading ? 'Loading...' : 'Taking you to sign in...'}</span>
+        </div>
+      </ClaimsFrame>
+    );
+  }
 
   // Terms Agreement Screen (Screen 1)
   if (step === 'terms') {
