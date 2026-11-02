@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
@@ -17,37 +17,38 @@ function MagicLinkPageContent() {
     'loading'
   );
   const [message, setMessage] = useState('');
+  const token = searchParams?.get('token') ?? null;
+  // The backend consumes the token on first use, so a second call (strict
+  // mode's double effect, a re-render) would turn a successful sign-in into
+  // "invalid token". Verify each token exactly once.
+  const verifiedToken = useRef<string | null>(null);
 
   useEffect(() => {
-    const handleMagicLink = async () => {
-      try {
-        const token = searchParams?.get('token');
+    if (!token) {
+      setStatus('error');
+      setMessage('Invalid magic link - no token provided');
+      return;
+    }
+    if (verifiedToken.current === token) return;
+    verifiedToken.current = token;
 
-        if (!token) {
-          setStatus('error');
-          setMessage('Invalid magic link - no token provided');
-          return;
-        }
-
-        // Verify the magic link
-        await verifyMagicLink(token);
-
+    verifyMagicLink(token)
+      .then(() => {
         setStatus('success');
         setMessage('Login successful! Taking you to your claims...');
 
         // The page the customer came from (/auth?redirect=), else /claims.
+        // Read once: it is cleared on read.
         const next = takePostLoginRedirect();
         setTimeout(() => {
           router.replace(next);
         }, 2000);
-      } catch (error: any) {
+      })
+      .catch((error: any) => {
         setStatus('error');
-        setMessage(error.message || 'Magic link verification failed');
-      }
-    };
-
-    handleMagicLink();
-  }, [searchParams, verifyMagicLink, router]);
+        setMessage(error?.message || 'Magic link verification failed');
+      });
+  }, [token, verifyMagicLink, router]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">

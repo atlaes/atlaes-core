@@ -1,9 +1,19 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Edit2, FileText, CheckCircle } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Edit2,
+  FileText,
+  CheckCircle,
+} from 'lucide-react';
 import ClaimsStepContainer from '../ClaimsStepContainer';
-import { useClaimQuery, useClaimDocumentsQuery, useCompleteStepMutation } from '@/lib/queries/claims-queries';
+import {
+  useClaimQuery,
+  useClaimDocumentsQuery,
+  useCompleteStepMutation,
+} from '@/lib/queries/claims-queries';
 import { useClaimsStore } from '@/lib/stores/claims-store';
 import { ClaimStepName } from '@/lib/claims-api';
 
@@ -26,7 +36,11 @@ function AccordionSection({
 }: AccordionSectionProps) {
   return (
     <div className={`claims-accordion-section ${isExpanded ? 'expanded' : ''}`}>
-      <button type="button" className="claims-accordion-header" onClick={onToggle}>
+      <button
+        type="button"
+        className="claims-accordion-header"
+        onClick={onToggle}
+      >
         <div className="claims-accordion-header-left">
           {isComplete ? (
             <CheckCircle className="w-5 h-5 text-green-500" />
@@ -90,21 +104,48 @@ export default function ReviewInformation({ claimId }: ReviewInformationProps) {
   };
 
   const handleContinue = async () => {
-    await completeMutation.mutateAsync({ claimId, stepName: 'reviewInformation' });
+    await completeMutation.mutateAsync({
+      claimId,
+      stepName: 'reviewInformation',
+    });
     goToNextStep();
   };
 
   const isSubmitting = completeMutation.isPending;
 
-  const formatAddress = (address: { addressLine1?: string; city?: string; postalCode?: string; country?: string } | null | undefined) => {
+  const formatAddress = (
+    address:
+      | {
+          addressLine1?: string;
+          city?: string;
+          postalCode?: string;
+          country?: string;
+        }
+      | null
+      | undefined
+  ) => {
     if (!address) return 'Not provided';
-    const parts = [address.addressLine1, address.city, address.postalCode, address.country].filter(Boolean);
+    const parts = [
+      address.addressLine1,
+      address.city,
+      address.postalCode,
+      address.country,
+    ].filter(Boolean);
     return parts.join(', ') || 'Not provided';
   };
 
-  const formatGermanAddress = (address: { streetAddress?: string; city?: string; postalCode?: string } | null | undefined) => {
+  const formatGermanAddress = (
+    address:
+      | { streetAddress?: string; city?: string; postalCode?: string }
+      | null
+      | undefined
+  ) => {
     if (!address) return 'Not provided';
-    const parts = [address.streetAddress, address.city, address.postalCode].filter(Boolean);
+    const parts = [
+      address.streetAddress,
+      address.city,
+      address.postalCode,
+    ].filter(Boolean);
     return parts.join(', ') || 'Not provided';
   };
 
@@ -170,8 +211,8 @@ export default function ReviewInformation({ claimId }: ReviewInformationProps) {
                 {claim?.claimType === 'own_refund'
                   ? 'Own pension refund'
                   : claim?.claimType === 'surviving_spouse'
-                  ? 'Surviving spouse claim'
-                  : 'Not selected'}
+                    ? 'Surviving spouse claim'
+                    : 'Not selected'}
               </span>
             </div>
             <div className="claims-review-item">
@@ -201,7 +242,9 @@ export default function ReviewInformation({ claimId }: ReviewInformationProps) {
           <div className="claims-review-grid">
             <div className="claims-review-item full-width">
               <span className="claims-review-label">Address</span>
-              <span className="claims-review-value">{formatAddress(claim?.currentAddress)}</span>
+              <span className="claims-review-value">
+                {formatAddress(claim?.currentAddress)}
+              </span>
             </div>
           </div>
         </AccordionSection>
@@ -217,15 +260,21 @@ export default function ReviewInformation({ claimId }: ReviewInformationProps) {
           <div className="claims-review-grid">
             <div className="claims-review-item">
               <span className="claims-review-label">German Address</span>
-              <span className="claims-review-value">{formatGermanAddress(claim?.lastGermanAddress)}</span>
+              <span className="claims-review-value">
+                {formatGermanAddress(claim?.lastGermanAddress)}
+              </span>
             </div>
             <div className="claims-review-item">
               <span className="claims-review-label">Move-out Date</span>
-              <span className="claims-review-value">{formatDate(claim?.moveOutDate)}</span>
+              <span className="claims-review-value">
+                {formatDate(claim?.moveOutDate)}
+              </span>
             </div>
             <div className="claims-review-item">
               <span className="claims-review-label">Abmeldung</span>
-              <span className="claims-review-value">{formatAbmeldungMethod(claim?.abmeldungMethod)}</span>
+              <span className="claims-review-value">
+                {formatAbmeldungMethod(claim?.abmeldungMethod)}
+              </span>
             </div>
           </div>
         </AccordionSection>
@@ -242,7 +291,8 @@ export default function ReviewInformation({ claimId }: ReviewInformationProps) {
             <div className="claims-review-item">
               <span className="claims-review-label">SV-Nummer</span>
               <span className="claims-review-value">
-                {claim?.germanSocialInsuranceNumber || 'Not provided (optional)'}
+                {claim?.germanSocialInsuranceNumber ||
+                  'Not provided (optional)'}
               </span>
             </div>
             <div className="claims-review-item">
@@ -272,7 +322,9 @@ export default function ReviewInformation({ claimId }: ReviewInformationProps) {
           <div className="claims-review-grid">
             <div className="claims-review-item">
               <span className="claims-review-label">Currency</span>
-              <span className="claims-review-value">{claim?.preferredCurrency || 'Not selected'}</span>
+              <span className="claims-review-value">
+                {claim?.preferredCurrency || 'Not selected'}
+              </span>
             </div>
             <div className="claims-review-item">
               <span className="claims-review-label">Account Holder</span>
@@ -282,30 +334,40 @@ export default function ReviewInformation({ claimId }: ReviewInformationProps) {
             </div>
             <div className="claims-review-item">
               <span className="claims-review-label">Bank</span>
-              <span className="claims-review-value">{claim?.bankDetails?.bankName || 'Not provided'}</span>
+              <span className="claims-review-value">
+                {claim?.bankDetails?.bankName || 'Not provided'}
+              </span>
             </div>
             {claim?.bankDetails?.iban && (
               <div className="claims-review-item">
                 <span className="claims-review-label">IBAN</span>
-                <span className="claims-review-value">{claim.bankDetails.iban}</span>
+                <span className="claims-review-value">
+                  {claim.bankDetails.iban}
+                </span>
               </div>
             )}
             {claim?.bankDetails?.bsb && (
               <div className="claims-review-item">
                 <span className="claims-review-label">BSB</span>
-                <span className="claims-review-value">{claim.bankDetails.bsb}</span>
+                <span className="claims-review-value">
+                  {claim.bankDetails.bsb}
+                </span>
               </div>
             )}
             {claim?.bankDetails?.accountNumber && (
               <div className="claims-review-item">
                 <span className="claims-review-label">Account Number</span>
-                <span className="claims-review-value">{claim.bankDetails.accountNumber}</span>
+                <span className="claims-review-value">
+                  {claim.bankDetails.accountNumber}
+                </span>
               </div>
             )}
             {claim?.bankDetails?.swiftBic && (
               <div className="claims-review-item">
                 <span className="claims-review-label">SWIFT/BIC</span>
-                <span className="claims-review-value">{claim.bankDetails.swiftBic}</span>
+                <span className="claims-review-value">
+                  {claim.bankDetails.swiftBic}
+                </span>
               </div>
             )}
           </div>
@@ -317,12 +379,20 @@ export default function ReviewInformation({ claimId }: ReviewInformationProps) {
           isExpanded={expandedSections.has('signature')}
           onToggle={() => toggleSection('signature')}
           onEdit={() => handleEdit('signDocuments')}
-          isComplete={!!claim?.signatureAuthority}
+          isComplete={!!claim?.signatureId && !!claim?.signatureAuthority}
         >
           <div className="claims-review-grid">
             <div className="claims-review-item">
+              <span className="claims-review-label">Signature</span>
+              <span className="claims-review-value">
+                {claim?.signatureId ? 'Drawn and saved' : 'Not provided'}
+              </span>
+            </div>
+            <div className="claims-review-item">
               <span className="claims-review-label">Certifying Authority</span>
-              <span className="claims-review-value">{formatAuthority(claim?.signatureAuthority)}</span>
+              <span className="claims-review-value">
+                {formatAuthority(claim?.signatureAuthority)}
+              </span>
             </div>
           </div>
         </AccordionSection>
@@ -338,7 +408,9 @@ export default function ReviewInformation({ claimId }: ReviewInformationProps) {
           <div className="claims-review-grid">
             <div className="claims-review-item">
               <span className="claims-review-label">Certifying Authority</span>
-              <span className="claims-review-value">{formatAuthority(claim?.idVerificationAuthority)}</span>
+              <span className="claims-review-value">
+                {formatAuthority(claim?.idVerificationAuthority)}
+              </span>
             </div>
             <div className="claims-review-item">
               <span className="claims-review-label">Certified Form</span>

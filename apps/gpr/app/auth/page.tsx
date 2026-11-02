@@ -4,8 +4,8 @@ import React, { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LoginForm } from '@/components/auth/LoginForm';
 import {
-  DEFAULT_POST_LOGIN_PATH,
   rememberPostLoginRedirect,
+  safePostLoginPath,
 } from '@/lib/post-login-redirect';
 
 export const dynamic = 'force-dynamic';
@@ -14,12 +14,16 @@ export const runtime = 'nodejs';
 function AuthPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || DEFAULT_POST_LOGIN_PATH;
+  const requested = searchParams.get('redirect');
+  // Same-site paths only; anything else (an absolute URL, `//host`) falls
+  // back to /claims — an open redirect otherwise.
+  const redirect = safePostLoginPath(requested);
 
-  // A magic link opens in a new tab without the query; keep the target.
+  // A magic link opens in a new tab without the query; keep the target
+  // (same check applied inside).
   useEffect(() => {
-    rememberPostLoginRedirect(searchParams.get('redirect'));
-  }, [searchParams]);
+    rememberPostLoginRedirect(requested);
+  }, [requested]);
 
   const handleSuccess = () => {
     router.push(redirect);

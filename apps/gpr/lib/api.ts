@@ -25,6 +25,23 @@ apiClient.interceptors.request.use(
   }
 );
 
+/** Routes that need a session; a dead session elsewhere is just cleared. */
+const AUTH_REQUIRED_PREFIXES = ['/claims', '/account', '/dashboard'];
+
+/**
+ * Refresh failed (or the refresh token is gone): clear the session and,
+ * on an authenticated page, send the customer to sign in with a way back.
+ */
+function endSession(): void {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  if (typeof window === 'undefined') return;
+  const { pathname, search } = window.location;
+  if (!AUTH_REQUIRED_PREFIXES.some((p) => pathname.startsWith(p))) return;
+  const redirect = encodeURIComponent(pathname + search);
+  window.location.href = `/auth?redirect=${redirect}`;
+}
+
 // Add response interceptor to handle token refresh
 apiClient.interceptors.response.use(
   (response) => response,
@@ -44,26 +61,55 @@ apiClient.interceptors.response.use(
             }
           );
 
-          const { accessToken } = response.data;
+          // POST /api/auth/refresh answers `{ message, tokens: { accessToken,
+          // refreshToken } }`. Reading `accessToken` off the top level stored
+          // the string "undefined" and every later request failed with
+          // "Invalid token". The refresh token rotates, so keep both.
+          const { accessToken, refreshToken: nextRefreshToken } =
+            response.data.tokens;
+          if (typeof accessToken !== 'string' || !accessToken) {
+            throw new Error('Refresh response has no access token');
+          }
           localStorage.setItem('accessToken', accessToken);
+          if (typeof nextRefreshToken === 'string' && nextRefreshToken) {
+            localStorage.setItem('refreshToken', nextRefreshToken);
+          }
 
           // Retry the original request with new token
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           return apiClient(originalRequest);
         }
       } catch (refreshError) {
-        // Refresh failed, redirect to login
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/auth';
-        }
+        endSession();
       }
     }
 
     return Promise.reject(error);
   }
 );
+
+/** HTTP status of an axios error, or null. */
+export function httpStatus(error: unknown): number | null {
+  if (typeof error !== 'object' || error === null) return null;
+  const e = error as { response?: { status?: unknown } };
+  return typeof e.response?.status === 'number' ? e.response.status : null;
+}
+
+/**
+ * Message for a failed API call: the backend's `error` string, or the first
+ * Zod issue when a request body was rejected (400), else the fallback.
+ */
+export function apiErrorMessage(error: unknown, fallback: string): string {
+  const data = (error as { response?: { data?: any } } | null)?.response?.data;
+  if (typeof data?.error === 'string' && data.error) return data.error;
+  const issue = data?.error?.issues?.[0];
+  if (issue && typeof issue.message === 'string') {
+    const path = Array.isArray(issue.path) ? issue.path.join('.') : '';
+    return path ? `${path}: ${issue.message}` : issue.message;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
 
 /**
  * Message for a failed magic-link request. A schema rejection (400) carries
