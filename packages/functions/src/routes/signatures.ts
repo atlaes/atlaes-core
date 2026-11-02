@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
-import { logger } from '../utils/logger';
+import { logger, toErrorMeta } from '../utils/logger';
 import { authMiddleware } from '../middleware/auth';
 import { db } from '../utils/db';
 import { signatures } from '../drizzle/schema/shared';
@@ -126,7 +126,7 @@ async function uploadSignature(c: Context) {
       },
     });
   } catch (error) {
-    logger.error('Signature upload error:', error);
+    logger.error('Signature upload error:', toErrorMeta(error));
     return c.json(
       {
         success: false,
@@ -150,6 +150,9 @@ signaturesRouter.get('/:id', authMiddleware, async (c) => {
   try {
     const user = c.get('user');
     const signatureId = c.req.param('id');
+    if (!signatureId) {
+      return c.json({ success: false, error: 'Signature not found' }, 404);
+    }
 
     const [signature] = await db
       .select()
@@ -177,7 +180,7 @@ signaturesRouter.get('/:id', authMiddleware, async (c) => {
       },
     });
   } catch (error) {
-    logger.error('Get signature error:', error);
+    logger.error('Get signature error:', toErrorMeta(error));
     return c.json(
       {
         success: false,
