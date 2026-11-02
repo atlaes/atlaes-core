@@ -9,9 +9,20 @@ import { logger } from '../utils/logger';
 const DEPOSIT_AMOUNT_CENTS = 19900; // €199.00
 const CURRENCY = 'eur';
 
+/** Payments are switched off: no Stripe key on this stage. */
+export class PaymentConfigError extends Error {
+  constructor() {
+    super(
+      'Payments are not configured: STRIPE_SECRET_KEY is unset. Set the ' +
+        'STRIPE_SECRET_KEY GitHub secret (deploy workflow) or add it to .env locally.'
+    );
+    this.name = 'PaymentConfigError';
+  }
+}
+
 function getStripe(): Stripe {
   if (!env.STRIPE_SECRET_KEY) {
-    throw new Error('STRIPE_SECRET_KEY is not configured');
+    throw new PaymentConfigError();
   }
   return new Stripe(env.STRIPE_SECRET_KEY);
 }
@@ -19,6 +30,12 @@ function getStripe(): Stripe {
 export class PaymentService {
   /**
    * Create a Stripe Checkout Session for the €199 refundable deposit.
+   *
+   * One Checkout per claim at a time: Stripe keeps a session open for 24
+   * hours, so a second click or a second tab gets the session that is
+   * already open instead of another one that could be paid as well. A
+   * session that completed before verify-session or the webhook recorded
+   * it is recorded here and refused like any paid claim.
    */
   static async createCheckoutSession({
     claimId,
@@ -32,16 +49,14 @@ export class PaymentService {
     userEmail: string;
     successUrl: string;
     cancelUrl: string;
-  }): Promise<{ url: string; sessionId: string }> {
+  }): Promise<{ url: string; sessionId: string; reused: boolean }> {
     const stripe = getStripe();
 
     // Verify claim exists and belongs to user
     const [claim] = await db
       .select()
       .from(claimsTable)
-      .where(
-        and(eq(claimsTable.id, claimId), eq(claimsTable.userId, userId))
-      )
+      .where(and(eq(claimsTable.id, claimId), eq(claimsTable.userId, userId)))
       .limit(1);
 
     if (!claim) {
@@ -50,6 +65,21 @@ export class PaymentService {
 
     if (claim.paymentStatus === 'paid') {
       throw new Error('Payment already completed for this claim');
+    }
+
+    const existing = await this.findExistingSession(stripe, claimId, userEmail);
+    if (existing?.status === 'complete' && existing.payment_status === 'paid') {
+      await this.recordPayment(claimId, userId, existing, 'payment_completed');
+      logger.info(
+        `Payment recorded from existing session: ${existing.id} for claim: ${claimId}`
+      );
+      throw new Error('Payment already completed for this claim');
+    }
+    if (existing?.status === 'open' && existing.url) {
+      logger.info(
+        `Checkout session reused: ${existing.id} for claim: ${claimId}`
+      );
+      return { url: existing.url, sessionId: existing.id, reused: true };
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -82,9 +112,64 @@ export class PaymentService {
       throw new Error('Failed to create Stripe Checkout session');
     }
 
-    logger.info(`Checkout session created: ${session.id} for claim: ${claimId}`);
+    logger.info(
+      `Checkout session created: ${session.id} for claim: ${claimId}`
+    );
 
-    return { url: session.url, sessionId: session.id };
+    return { url: session.url, sessionId: session.id, reused: false };
+  }
+
+  /**
+   * The Checkout Session for this claim that is paid or still open, if
+   * any. Stripe cannot filter by client_reference_id, so the customer's
+   * sessions are listed by e-mail and matched here; paid wins over open.
+   */
+  private static async findExistingSession(
+    stripe: Stripe,
+    claimId: string,
+    userEmail: string
+  ): Promise<Stripe.Checkout.Session | null> {
+    for (const status of ['complete', 'open'] as const) {
+      const { data } = await stripe.checkout.sessions.list({
+        customer_details: { email: userEmail },
+        status,
+        limit: 20,
+      });
+      const match = data.find((s) => s.client_reference_id === claimId);
+      if (match) return match;
+    }
+    return null;
+  }
+
+  /** Marks the claim paid from a paid session and writes the audit row. */
+  private static async recordPayment(
+    claimId: string,
+    userId: string,
+    session: Stripe.Checkout.Session,
+    action: string
+  ): Promise<void> {
+    await db
+      .update(claimsTable)
+      .set({
+        paymentStatus: 'paid',
+        stripePaymentId: session.payment_intent as string,
+        paidAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(claimsTable.id, claimId));
+
+    await db.insert(auditLogs).values({
+      userId,
+      action,
+      resource: 'claim',
+      resourceId: claimId,
+      details: {
+        sessionId: session.id,
+        paymentIntent: session.payment_intent,
+        amount: DEPOSIT_AMOUNT_CENTS,
+        currency: CURRENCY,
+      },
+    });
   }
 
   /**
@@ -111,9 +196,7 @@ export class PaymentService {
     const [claim] = await db
       .select()
       .from(claimsTable)
-      .where(
-        and(eq(claimsTable.id, claimId), eq(claimsTable.userId, userId))
-      )
+      .where(and(eq(claimsTable.id, claimId), eq(claimsTable.userId, userId)))
       .limit(1);
 
     if (!claim) {
@@ -129,32 +212,11 @@ export class PaymentService {
       return { success: false, claimId, paymentStatus: session.payment_status };
     }
 
-    // Update claim with payment info
-    await db
-      .update(claimsTable)
-      .set({
-        paymentStatus: 'paid',
-        stripePaymentId: session.payment_intent as string,
-        paidAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(claimsTable.id, claimId));
+    await this.recordPayment(claimId, userId, session, 'payment_completed');
 
-    // Audit log
-    await db.insert(auditLogs).values({
-      userId,
-      action: 'payment_completed',
-      resource: 'claim',
-      resourceId: claimId,
-      details: {
-        sessionId,
-        paymentIntent: session.payment_intent,
-        amount: DEPOSIT_AMOUNT_CENTS,
-        currency: CURRENCY,
-      },
-    });
-
-    logger.info(`Payment verified for claim: ${claimId}, session: ${sessionId}`);
+    logger.info(
+      `Payment verified for claim: ${claimId}, session: ${sessionId}`
+    );
 
     return { success: true, claimId, paymentStatus: 'paid' };
   }
@@ -193,32 +255,18 @@ export class PaymentService {
     }
 
     if (session.payment_status !== 'paid') {
-      logger.warn(`Webhook: session not paid, status: ${session.payment_status}`);
+      logger.warn(
+        `Webhook: session not paid, status: ${session.payment_status}`
+      );
       return;
     }
 
-    await db
-      .update(claimsTable)
-      .set({
-        paymentStatus: 'paid',
-        stripePaymentId: session.payment_intent as string,
-        paidAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(claimsTable.id, claimId));
-
-    await db.insert(auditLogs).values({
-      userId: claim.userId,
-      action: 'payment_completed_webhook',
-      resource: 'claim',
-      resourceId: claimId,
-      details: {
-        sessionId: session.id,
-        paymentIntent: session.payment_intent,
-        amount: DEPOSIT_AMOUNT_CENTS,
-        currency: CURRENCY,
-      },
-    });
+    await this.recordPayment(
+      claimId,
+      claim.userId,
+      session,
+      'payment_completed_webhook'
+    );
 
     logger.info(`Webhook: payment recorded for claim: ${claimId}`);
   }
