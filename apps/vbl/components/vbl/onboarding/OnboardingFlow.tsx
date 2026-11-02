@@ -483,9 +483,10 @@ export function OnboardingFlow({
     setShowDRVModal(false);
   };
 
-  // Handle starting DRV claim
+  // Handle starting DRV claim. There is no DRV calculator in this app
+  // (/calculator/drv was a 404); send to the state-pension explainer page.
   const handleStartDRVClaim = () => {
-    router.push('/calculator/drv');
+    router.push('/company-pension-vs-drv');
   };
 
   // Handle go to dashboard

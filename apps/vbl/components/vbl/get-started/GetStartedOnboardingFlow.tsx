@@ -869,8 +869,11 @@ export function GetStartedOnboardingFlow() {
     setShowDRVModal(false);
   };
 
+  // There is no DRV calculator in this app (/calculator/drv was a 404); the
+  // state-pension refund is explained on the marketing page until a GPR
+  // hand-off exists. Only reachable once isDRVEligibleNow is true.
   const handleStartDRVClaim = () => {
-    router.push('/calculator/drv');
+    router.push('/company-pension-vs-drv');
   };
 
   const handleGoToDashboard = () => {

@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   identifyWithdrawal,
   confirmWithdrawal,
+  getClaim,
   getUserClaims,
   WithdrawalContract,
 } from '@/lib/onboarding-api';
@@ -92,7 +93,7 @@ function WithdrawContractInner() {
 
       try {
         const queryClaimId = searchParams?.get('claimId') || '';
-        const institution = searchParams?.get('institution') || '';
+        let institution = searchParams?.get('institution') || '';
 
         let claimId = queryClaimId;
         if (!claimId) {
@@ -109,11 +110,36 @@ function WithdrawContractInner() {
           .join(' ')
           .trim();
 
+        // The institution is echoed into the withdrawal declaration and the
+        // confirmation e-mail, so it has to be the real one: take it from
+        // the claim (VBL/ZVK/stage provider or the bAV provider) and, if the
+        // claim doesn't carry one, ask for it rather than inventing a value.
+        if (!institution) {
+          try {
+            const { claim } = await getClaim(claimId);
+            institution = claim.pensionProvider || claim.bavProviderName || '';
+          } catch {
+            institution = '';
+          }
+        }
+        if (!institution) {
+          if (active) {
+            setForm({
+              fullName,
+              email: user.email,
+              claimId,
+              pensionTypeOrInstitution: '',
+            });
+            setPhase('identify');
+          }
+          return;
+        }
+
         const { contract: c } = await identifyWithdrawal({
           fullName: fullName || user.email,
           email: user.email,
           claimId,
-          pensionTypeOrInstitution: institution || 'CompanyPension',
+          pensionTypeOrInstitution: institution,
         });
 
         if (!active) return;
@@ -225,6 +251,7 @@ function WithdrawContractInner() {
             onChange={(v) =>
               setForm((f) => ({ ...f, pensionTypeOrInstitution: v }))
             }
+            hint="e.g. VBL, ZVK, VddB/VddKO or the name of your company pension provider"
           />
 
           <button
@@ -380,12 +407,14 @@ function Field({
   onChange,
   type = 'text',
   autoComplete,
+  hint,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
   autoComplete?: string;
+  hint?: string;
 }) {
   return (
     <label className="block">
@@ -400,6 +429,7 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-[#163300] outline-none focus:border-[#163300]"
       />
+      {hint && <span className="mt-1 block text-xs text-gray-500">{hint}</span>}
     </label>
   );
 }
