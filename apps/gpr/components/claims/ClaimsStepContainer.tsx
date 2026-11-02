@@ -90,19 +90,6 @@ export default function ClaimsStepContainer({
 
   return (
     <div className="claims-step-container">
-      {/* Back Link - Top of content area (design match) */}
-      {!hideBack && (
-        <button
-          type="button"
-          onClick={handleBack}
-          className="claims-step-back"
-          disabled={isProcessing || isLoading}
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back</span>
-        </button>
-      )}
-
       {/* Step Header */}
       <div className="claims-step-header">
         <h1 className="claims-step-title">{title}</h1>
@@ -112,43 +99,57 @@ export default function ClaimsStepContainer({
       </div>
 
       {/* Step Content */}
-      <div className="claims-step-content">
-        {children}
-      </div>
+      <div className="claims-step-content">{children}</div>
 
       {/* Step Footer / Navigation */}
       <div className="claims-step-footer">
-        {showSkip && (
+        {hideBack ? (
+          <span />
+        ) : (
           <button
             type="button"
-            onClick={handleSkip}
-            className="claims-btn claims-btn-text"
+            onClick={handleBack}
+            className="claims-step-back"
             disabled={isProcessing || isLoading}
           >
-            Skip this step
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back</span>
           </button>
         )}
 
-        {!hideContinue && (
-          <button
-            type="button"
-            onClick={handleContinue}
-            className="claims-btn claims-btn-primary claims-btn-full"
-            disabled={isDisabled}
-          >
-            {isProcessing || isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Processing...</span>
-              </>
-            ) : (
-              <>
-                <span>{continueText}</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
-        )}
+        <div className="claims-step-footer-actions">
+          {showSkip && (
+            <button
+              type="button"
+              onClick={handleSkip}
+              className="claims-btn claims-btn-text"
+              disabled={isProcessing || isLoading}
+            >
+              Skip this step
+            </button>
+          )}
+
+          {!hideContinue && (
+            <button
+              type="button"
+              onClick={handleContinue}
+              className="claims-btn claims-btn-primary"
+              disabled={isDisabled}
+            >
+              {isProcessing || isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <>
+                  <span>{continueText}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
