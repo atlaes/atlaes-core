@@ -165,6 +165,22 @@ export class ClaimHoldService {
       });
     });
     logger.info('Claim submission hold cleared', { claimId, hold });
+
+    // A law-firm claim assigned while held is released to the firm now.
+    // Lazy import: law-firm.ts imports claims-application, which imports
+    // this module. Non-fatal; ops can release from the admin.
+    try {
+      const { LawFirmService } = await import('./law-firm');
+      await LawFirmService.releaseAfterHoldCleared(
+        claimId,
+        options.userId ?? null
+      );
+    } catch (error) {
+      logger.error('Release after hold clear failed', {
+        claimId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     return hold;
   }
 

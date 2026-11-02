@@ -539,9 +539,13 @@ claims.post(
           error:
             error instanceof Error ? error.message : 'Failed to add document',
         },
-        error instanceof Error && error.message.includes('not found')
+        error instanceof Error && error.message === 'Claim not found'
           ? 404
-          : 500
+          : error instanceof Error &&
+              (error.message.includes('Cannot update') ||
+                error.message.includes('does not belong'))
+            ? 400
+            : 500
       );
     }
   }
@@ -679,7 +683,13 @@ claims.post(
               ? error.message
               : 'Failed to attach signature',
         },
-        500
+        error instanceof Error && error.message === 'Claim not found'
+          ? 404
+          : error instanceof Error &&
+              (error.message.includes('Cannot update') ||
+                error.message.includes('does not belong'))
+            ? 400
+            : 500
       );
     }
   }
@@ -867,7 +877,9 @@ claims.put(
         },
         error instanceof Error && error.message.includes('not found')
           ? 404
-          : 500
+          : error instanceof Error && error.message.includes('Cannot update')
+            ? 400
+            : 500
       );
     }
   }
@@ -1028,16 +1040,18 @@ claims.post(
       });
     } catch (error) {
       logger.error('Submit claim error:', error);
-      return c.json(
-        {
-          success: false,
-          error:
-            error instanceof Error ? error.message : 'Failed to submit claim',
-        },
-        error instanceof Error && error.message.includes('validation failed')
+      const message =
+        error instanceof Error ? error.message : 'Failed to submit claim';
+      // 409: already submitted (double click / retry); 400: not ready.
+      const statusCode = message.includes('already been submitted')
+        ? 409
+        : message.includes('validation failed') ||
+            message.includes('Payment is required')
           ? 400
-          : 500
-      );
+          : message === 'Claim not found'
+            ? 404
+            : 500;
+      return c.json({ success: false, error: message }, statusCode);
     }
   }
 );
