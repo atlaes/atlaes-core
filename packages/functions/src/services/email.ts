@@ -2,6 +2,12 @@ import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { logger, toErrorMeta } from '../utils/logger';
 import { env } from '../utils/env';
 import { isE2eTestAddress } from '../utils/e2e';
+import {
+  GPR_BRAND,
+  renderPayoutEmailHtml,
+  renderPayoutEmailText,
+  type PayoutEmailContent,
+} from './gpr-payout/email-templates/layout';
 
 const REGION = env.SES_REGION;
 const FROM_EMAIL = env.SES_FROM_EMAIL;
@@ -28,16 +34,55 @@ function isSuppressedE2eRecipient(to: string, label: string): boolean {
   return true;
 }
 
+/** Which site asked for the link; decides the branding of the e-mail. */
+export type MagicLinkBrand = 'companypension' | 'gpr';
+
+/** GPR sign-in mail in the GPR e-mail layout (shared with the payout mails). */
+export function gprMagicLinkEmail(magicLinkUrl: string): PayoutEmailContent {
+  return {
+    subject: 'Your secure sign-in link',
+    preheader: `Sign in to your ${GPR_BRAND} account. The link expires in 15 minutes.`,
+    blocks: [
+      {
+        kind: 'p',
+        text: `Click the button below to sign in to your ${GPR_BRAND} account. No password is needed.`,
+      },
+      { kind: 'button', label: 'Sign in securely', url: magicLinkUrl },
+      { kind: 'p', text: 'This secure link expires in 15 minutes.' },
+      {
+        kind: 'p',
+        text: `If the button does not work, copy and paste this link into your browser:\n${magicLinkUrl}`,
+      },
+      {
+        kind: 'p',
+        text: 'If you did not request this email, you can safely ignore it.',
+      },
+    ],
+    closing: 'We look forward to helping you with your refund.',
+    signature: `Your ${GPR_BRAND} team`,
+  };
+}
+
 /**
  * Send a magic link email. In local dev (no SES resource), logs instead of sending.
  */
 export async function sendMagicLinkEmail(
   to: string,
-  magicLinkUrl: string
+  magicLinkUrl: string,
+  brand: MagicLinkBrand = 'companypension'
 ): Promise<boolean> {
   if (isSuppressedE2eRecipient(to, 'magic link')) return true;
-  const html = generateMagicLinkEmailHtml(magicLinkUrl);
-  const plainText = generateMagicLinkEmailText(magicLinkUrl);
+  const gpr = brand === 'gpr' ? gprMagicLinkEmail(magicLinkUrl) : null;
+  const html = gpr
+    ? renderPayoutEmailHtml(gpr)
+    : generateMagicLinkEmailHtml(magicLinkUrl);
+  const plainText = gpr
+    ? renderPayoutEmailText(gpr)
+    : generateMagicLinkEmailText(magicLinkUrl);
+  const fromName = gpr ? GPR_BRAND : 'CompanyPension';
+  const subject = gpr
+    ? gpr.subject
+    : 'Your secure CompanyPension sign-in link';
 
   if (!isSesAvailable) {
     logger.info(`[Email] Would send magic link email to: ${to}`);
@@ -47,11 +92,11 @@ export async function sendMagicLinkEmail(
   try {
     await sesClient.send(
       new SendEmailCommand({
-        Source: `CompanyPension <${FROM_EMAIL}>`,
+        Source: `${fromName} <${FROM_EMAIL}>`,
         Destination: { ToAddresses: [to] },
         Message: {
           Subject: {
-            Data: 'Your secure CompanyPension sign-in link',
+            Data: subject,
             Charset: 'UTF-8',
           },
           Body: {
