@@ -111,6 +111,14 @@ describe('Auth Routes', () => {
     };
   }
 
+  // Each request comes from its own address: the magic-link route is rate
+  // limited per client IP and the suite would otherwise exhaust it.
+  let requestCount = 0;
+  function nextClientIp(): string {
+    requestCount += 1;
+    return `198.18.${Math.floor(requestCount / 250) % 250}.${requestCount % 250}`;
+  }
+
   // Helper to make requests
   async function request(
     method: string,
@@ -122,6 +130,7 @@ describe('Auth Routes', () => {
       method,
       headers: {
         'Content-Type': 'application/json',
+        'X-Forwarded-For': nextClientIp(),
         ...headers,
       },
       body: body ? JSON.stringify(body) : undefined,
@@ -188,6 +197,81 @@ describe('Auth Routes', () => {
       });
 
       expect(res.status).toBe(400);
+    });
+
+    it('appends a same-origin redirect path to the link', async () => {
+      const email = uniqueEmail();
+      createdSessionEmails.push(email);
+
+      const res = await request('POST', '/api/auth/magic-link/request', {
+        email,
+        redirectUrl: '/claims/abc?step=2',
+      });
+      const data = await res.json() as any;
+
+      expect(res.status).toBe(200);
+      expect(new URL(data.magicLink).searchParams.get('redirect')).toBe(
+        '/claims/abc?step=2'
+      );
+    });
+
+    it('rejects redirect targets that would leave the origin', async () => {
+      const email = uniqueEmail();
+
+      for (const redirectUrl of [
+        '//evil.com',
+        '/\\evil.com',
+        '/\\\\evil.com',
+        'https://evil.com',
+        'claims',
+      ]) {
+        const res = await request('POST', '/api/auth/magic-link/request', {
+          email,
+          redirectUrl,
+        });
+        expect(res.status, redirectUrl).toBe(400);
+      }
+    });
+
+    it('returns the link to an allowed callback origin and ignores others', async () => {
+      const email = uniqueEmail();
+      createdSessionEmails.push(email);
+
+      const allowed = await request('POST', '/api/auth/magic-link/request', {
+        email,
+        callbackUrl: 'https://www.companypension.de',
+      });
+      const allowedData = await allowed.json() as any;
+      expect(allowed.status).toBe(200);
+      expect(
+        allowedData.magicLink.startsWith(
+          'https://www.companypension.de/auth/magic-link?token='
+        )
+      ).toBe(true);
+
+      const other = await request('POST', '/api/auth/magic-link/request', {
+        email,
+        callbackUrl: 'https://evil.com',
+      });
+      const otherData = await other.json() as any;
+      expect(other.status).toBe(200);
+      expect(otherData.magicLink.startsWith('https://evil.com')).toBe(false);
+    });
+
+    it('limits sign-in link requests per e-mail address', async () => {
+      const email = uniqueEmail();
+      createdSessionEmails.push(email);
+
+      const statuses: number[] = [];
+      for (let i = 0; i < 6; i++) {
+        const res = await request('POST', '/api/auth/magic-link/request', {
+          email,
+        });
+        statuses.push(res.status);
+      }
+
+      expect(statuses.slice(0, 5)).toEqual([200, 200, 200, 200, 200]);
+      expect(statuses[5]).toBe(429);
     });
   });
 
@@ -352,6 +436,29 @@ describe('Auth Routes', () => {
       expect(data.user.email).toBe(user.email);
     });
 
+    it('includes the stored profile, like the sign-in responses', async () => {
+      const { user, token } = await createTestUserWithToken();
+      await request(
+        'PUT',
+        '/api/auth/profile',
+        { firstName: 'Mia', lastName: 'Muster' },
+        { Authorization: `Bearer ${token}` }
+      );
+
+      const res = await request('GET', '/api/auth/me', undefined, {
+        Authorization: `Bearer ${token}`,
+      });
+      const data = await res.json() as any;
+
+      expect(res.status).toBe(200);
+      expect(data.user).toMatchObject({
+        id: user.id,
+        email: user.email,
+        role: 'user',
+        profile: { firstName: 'Mia', lastName: 'Muster' },
+      });
+    });
+
     it('returns 401 without token', async () => {
       const res = await request('GET', '/api/auth/me');
 
@@ -438,17 +545,13 @@ describe('Auth Routes', () => {
   });
 
   // ============================================================
-  // Test Environment Endpoint
+  // Removed diagnostics
   // ============================================================
 
   describe('GET /api/auth/test-env', () => {
-    it('returns environment status', async () => {
+    it('is gone (it disclosed configuration to anyone)', async () => {
       const res = await request('GET', '/api/auth/test-env');
-      const data = await res.json() as any;
-
-      expect(res.status).toBe(200);
-      expect(data.jwtSecret).toBe(true);
-      expect(data.nodeEnv).toBe('test');
+      expect(res.status).toBe(404);
     });
   });
 });

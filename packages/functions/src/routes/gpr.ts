@@ -280,44 +280,10 @@ gpr.post(
   }
 );
 
-// Get pending session by email (for recovery/debugging)
-gpr.get('/session/:email', async (c) => {
-  try {
-    const email = c.req.param('email');
-    const session = await GPRApplicationService.getPendingSession(email);
-
-    if (!session) {
-      return c.json(
-        {
-          success: false,
-          error: 'Session not found or expired',
-        },
-        404
-      );
-    }
-
-    return c.json({
-      success: true,
-      session: {
-        id: session.id,
-        email: session.email,
-        numberOfJobs: session.numberOfJobs,
-        totalRefund: session.calculationResult?.totalRefund,
-        expiresAt: session.expiresAt,
-        createdAt: session.createdAt,
-      },
-    });
-  } catch (error) {
-    logger.error('Get GPR session error:', error);
-    return c.json(
-      {
-        success: false,
-        error: 'Failed to get session',
-      },
-      500
-    );
-  }
-});
+// Pending sessions are only read back by the magic-link verify step
+// (GPRApplicationService.migrateToApplication); there is deliberately no
+// lookup by e-mail address, which would hand anyone another person's
+// calculator data.
 
 // ============================================================
 // Application Management Endpoints (Post-registration)

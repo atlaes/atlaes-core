@@ -51,7 +51,18 @@ jobs:
           AWS_DEFAULT_REGION: eu-central-1
           MINDEE_API: ${{ secrets.MINDEE_API }}
           NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+          # Required by resources/services/index.ts: the deploy fails when
+          # JWT_SECRET (>= 32 chars) or TOTP_ENCRYPTION_KEY (32 bytes as 64
+          # hex chars) is missing. TOTP_LEGACY_JWT_SECRET is only needed
+          # while law-firm 2FA secrets enrolled under a previous JWT_SECRET
+          # exist (see services/totp/secret-box.ts).
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           TOTP_ENCRYPTION_KEY: ${{ secrets.TOTP_ENCRYPTION_KEY }}
+          TOTP_LEGACY_JWT_SECRET: ${{ secrets.TOTP_LEGACY_JWT_SECRET }}
+          # Stripe test-mode keys for staging (sk_test_ / whsec_). Unset =
+          # payments answer with a configuration error.
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
           LEXOFFICE_API_KEY: ${{ secrets.LEXOFFICE_API_KEY }}
           # Non-secret settings for the GPR site, lead capture and client
           # updates (GitHub environment variables; empty = feature logs

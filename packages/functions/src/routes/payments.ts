@@ -3,7 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import Stripe from 'stripe';
 import { authMiddleware } from '../middleware/auth';
-import { PaymentService } from '../services/payment';
+import { PaymentConfigError, PaymentService } from '../services/payment';
 import { env } from '../utils/env';
 import { logger } from '../utils/logger';
 
@@ -50,9 +50,13 @@ payments.post(
         success: true,
         url: result.url,
         sessionId: result.sessionId,
+        reused: result.reused,
       });
     } catch (error) {
       logger.error('Create checkout session error:', error);
+      if (error instanceof PaymentConfigError) {
+        return c.json({ success: false, error: error.message }, 503);
+      }
       const message =
         error instanceof Error ? error.message : 'Failed to create checkout session';
       const status = message.includes('already completed') ? 400 : 500;
@@ -86,6 +90,9 @@ payments.post(
       });
     } catch (error) {
       logger.error('Verify session error:', error);
+      if (error instanceof PaymentConfigError) {
+        return c.json({ success: false, error: error.message }, 503);
+      }
       return c.json(
         {
           success: false,

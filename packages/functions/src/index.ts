@@ -5,7 +5,11 @@ import { requestLogger } from './middleware/logger';
 import { errorHandler } from './middleware/error-handler';
 import { rateLimiter } from './middleware/rate-limiter';
 import { logger } from './utils/logger';
-import { env, assertMigrationTokenConfigured } from './utils/env';
+import {
+  env,
+  assertMigrationTokenConfigured,
+  assertJwtSecretConfigured,
+} from './utils/env';
 
 // Import routes
 import health from './routes/health';
@@ -35,8 +39,10 @@ import integrationsAdmin from './routes/integrations-admin';
 import e2e from './routes/e2e';
 
 // Fail fast before serving traffic if this backend would expose
-// /api/migrations/run with the publicly-known dev token.
+// /api/migrations/run with the publicly-known dev token, or sign sessions
+// with the dev JWT secret.
 assertMigrationTokenConfigured();
+assertJwtSecretConfigured();
 
 const app = new Hono();
 
@@ -44,7 +50,11 @@ const app = new Hono();
 app.use('*', corsMiddleware);
 app.use('*', securityHeaders);
 app.use('*', requestLogger);
-app.use('*', rateLimiter({ windowMs: 15 * 60 * 1000, max: 100 }));
+// Per-address flood protection for the whole API (in memory per container,
+// see middleware/rate-limiter.ts). Generous on purpose: the apps fire bursts
+// of requests per page and offices share one address; the sensitive routes
+// (magic link, withdrawals, OCR, leads) add their own, tighter limits.
+app.use('*', rateLimiter({ windowMs: 60 * 1000, max: 300 }));
 app.use('*', errorHandler);
 
 // Routes
