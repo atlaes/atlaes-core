@@ -7,9 +7,24 @@ const KEY = 'gpr.postLoginRedirect';
 
 export const DEFAULT_POST_LOGIN_PATH = '/claims';
 
-/** Only same-site paths; rejects `//host` and absolute URLs. */
-function isSafePath(path: string | null | undefined): path is string {
-  return !!path && path.startsWith('/') && !path.startsWith('//');
+/**
+ * Same-site path only (the backend applies the same `^/(?!/)` rule to the
+ * magic-link `redirect`): one leading slash, so no absolute URL and no
+ * `//host`; no backslash or control character, which browsers turn into
+ * `//host` when they normalise the URL.
+ */
+export function isSafePath(path: string | null | undefined): path is string {
+  return (
+    typeof path === 'string' &&
+    /^\/(?!\/)/.test(path) &&
+    // eslint-disable-next-line no-control-regex
+    !/[\\\u0000-\u001f\u007f]/.test(path)
+  );
+}
+
+/** `path` when it is safe to follow, else the default landing page. */
+export function safePostLoginPath(path: string | null | undefined): string {
+  return isSafePath(path) ? path : DEFAULT_POST_LOGIN_PATH;
 }
 
 export function rememberPostLoginRedirect(path: string | null): void {

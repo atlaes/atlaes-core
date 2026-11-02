@@ -38,13 +38,14 @@ export function useClaimsQuery() {
 }
 
 /**
- * Get a single claim by ID
+ * Get a single claim by ID. `enabled` lets a page wait for auth to resolve
+ * before the first fetch (an anonymous fetch would flash a 401 error).
  */
-export function useClaimQuery(claimId: string | undefined) {
+export function useClaimQuery(claimId: string | undefined, enabled = true) {
   return useQuery({
     queryKey: claimsKeys.detail(claimId!),
     queryFn: () => claimsApi.getClaim(claimId!),
-    enabled: !!claimId,
+    enabled: !!claimId && enabled,
   });
 }
 
@@ -62,7 +63,10 @@ export function useClaimDocumentsQuery(claimId: string | undefined) {
 /**
  * Validate a claim for submission
  */
-export function useValidateClaimQuery(claimId: string | undefined, enabled = false) {
+export function useValidateClaimQuery(
+  claimId: string | undefined,
+  enabled = false
+) {
   return useQuery({
     queryKey: claimsKeys.validation(claimId!),
     queryFn: () => claimsApi.validateClaim(claimId!),
@@ -81,7 +85,8 @@ export function useCreateClaimMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (applicationId?: string) => claimsApi.createClaim({ applicationId }),
+    mutationFn: (applicationId?: string) =>
+      claimsApi.createClaim({ caseType: 'drv_refund', applicationId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: claimsKeys.lists() });
     },
@@ -95,8 +100,13 @@ export function useUpdateClaimMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ claimId, data }: { claimId: string; data: UpdateClaimRequest }) =>
-      claimsApi.updateClaim(claimId, data),
+    mutationFn: ({
+      claimId,
+      data,
+    }: {
+      claimId: string;
+      data: UpdateClaimRequest;
+    }) => claimsApi.updateClaim(claimId, data),
     onSuccess: (updatedClaim, { claimId }) => {
       // Update the cache with the returned claim
       queryClient.setQueryData(claimsKeys.detail(claimId), updatedClaim);
@@ -126,8 +136,13 @@ export function useCompleteStepMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ claimId, stepName }: { claimId: string; stepName: ClaimStepName }) =>
-      claimsApi.updateStepCompletion(claimId, stepName, true),
+    mutationFn: ({
+      claimId,
+      stepName,
+    }: {
+      claimId: string;
+      stepName: ClaimStepName;
+    }) => claimsApi.updateStepCompletion(claimId, stepName, true),
     onSuccess: (updatedClaim, { claimId }) => {
       queryClient.setQueryData(claimsKeys.detail(claimId), updatedClaim);
     },
@@ -141,8 +156,13 @@ export function useIncompleteStepMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ claimId, stepName }: { claimId: string; stepName: ClaimStepName }) =>
-      claimsApi.updateStepCompletion(claimId, stepName, false),
+    mutationFn: ({
+      claimId,
+      stepName,
+    }: {
+      claimId: string;
+      stepName: ClaimStepName;
+    }) => claimsApi.updateStepCompletion(claimId, stepName, false),
     onSuccess: (updatedClaim, { claimId }) => {
       queryClient.setQueryData(claimsKeys.detail(claimId), updatedClaim);
     },
@@ -164,9 +184,12 @@ export function useUploadDocumentMutation() {
       claimId: string;
       file: File;
       role: ClaimDocumentRole;
-    }): Promise<UploadDocumentResult> => claimsApi.uploadDocument(claimId, file, role),
+    }): Promise<UploadDocumentResult> =>
+      claimsApi.uploadDocument(claimId, file, role),
     onSuccess: (_, { claimId }) => {
-      queryClient.invalidateQueries({ queryKey: claimsKeys.documents(claimId) });
+      queryClient.invalidateQueries({
+        queryKey: claimsKeys.documents(claimId),
+      });
     },
   });
 }
@@ -178,26 +201,73 @@ export function useRemoveDocumentMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ claimId, documentId }: { claimId: string; documentId: string }) =>
-      claimsApi.removeDocument(claimId, documentId),
+    mutationFn: ({
+      claimId,
+      documentId,
+    }: {
+      claimId: string;
+      documentId: string;
+    }) => claimsApi.removeDocument(claimId, documentId),
     onSuccess: (_, { claimId }) => {
-      queryClient.invalidateQueries({ queryKey: claimsKeys.documents(claimId) });
+      queryClient.invalidateQueries({
+        queryKey: claimsKeys.documents(claimId),
+      });
     },
   });
 }
 
 /**
- * Attach a signature to a claim
+ * Attach a stored signature to a claim
  */
 export function useAttachSignatureMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ claimId, signatureData }: { claimId: string; signatureData: string }) =>
-      claimsApi.attachSignature(claimId, signatureData),
+    mutationFn: ({
+      claimId,
+      signatureId,
+    }: {
+      claimId: string;
+      signatureId: string;
+    }) => claimsApi.attachSignature(claimId, signatureId),
     onSuccess: (updatedClaim, { claimId }) => {
       queryClient.setQueryData(claimsKeys.detail(claimId), updatedClaim);
     },
+  });
+}
+
+/**
+ * Store a drawn signature (PNG data URL) and attach it to the claim
+ */
+export function useSignClaimMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      claimId,
+      signatureData,
+    }: {
+      claimId: string;
+      signatureData: string;
+    }) => {
+      const signature = await claimsApi.uploadSignature(signatureData);
+      return claimsApi.attachSignature(claimId, signature.id);
+    },
+    onSuccess: (updatedClaim, { claimId }) => {
+      queryClient.setQueryData(claimsKeys.detail(claimId), updatedClaim);
+    },
+  });
+}
+
+/**
+ * Preview URL of the signature attached to a claim
+ */
+export function useSignatureQuery(signatureId: string | undefined) {
+  return useQuery({
+    queryKey: ['signatures', signatureId] as const,
+    queryFn: () => claimsApi.getSignature(signatureId!),
+    enabled: !!signatureId,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -208,9 +278,10 @@ export function useRecordIdentityFormDownloadMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (claimId: string) => claimsApi.recordIdentityFormDownload(claimId),
-    onSuccess: (updatedClaim, claimId) => {
-      queryClient.setQueryData(claimsKeys.detail(claimId), updatedClaim);
+    mutationFn: (claimId: string) =>
+      claimsApi.recordIdentityFormDownload(claimId),
+    onSuccess: (_, claimId) => {
+      queryClient.invalidateQueries({ queryKey: claimsKeys.detail(claimId) });
     },
   });
 }

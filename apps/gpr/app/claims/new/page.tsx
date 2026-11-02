@@ -20,7 +20,7 @@ export default function NewClaimPage() {
     try {
       setIsCreating(true);
       setError(null);
-      const newClaim = await claimsApi.createClaim();
+      const newClaim = await claimsApi.createClaim({ caseType: 'drv_refund' });
       router.push(`/claims/${newClaim.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create claim');
