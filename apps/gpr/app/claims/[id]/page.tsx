@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClaimQuery } from '@/lib/queries/claims-queries';
 import { useClaimsStore } from '@/lib/stores/claims-store';
-import ClaimsSidebar from '@/components/claims/ClaimsSidebar';
+import { ClaimsFrame, claimStepTitle } from '@/components/claims/ClaimsFrame';
 
 // Step components
 import ClaimType from '@/components/claims/steps/ClaimType';
@@ -24,7 +24,10 @@ interface StepComponentProps {
   claimId: string;
 }
 
-const STEP_COMPONENTS: Record<string, React.ComponentType<StepComponentProps>> = {
+const STEP_COMPONENTS: Record<
+  string,
+  React.ComponentType<StepComponentProps>
+> = {
   claimType: ClaimType,
   passportUpload: PassportUpload,
   currentAddress: CurrentAddress,
@@ -65,52 +68,22 @@ export default function ClaimWizardPage() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="claims-wizard-loading">
-        <div className="claims-spinner" />
-        <span>Loading claim...</span>
-      </div>
+      <ClaimsFrame title="Your claim">
+        <div className="claims-wizard-loading">
+          <div className="claims-spinner" />
+          <span>Loading claim...</span>
+        </div>
+      </ClaimsFrame>
     );
   }
 
   if (error) {
     return (
-      <div className="claims-wizard-error">
-        <h2>Error Loading Claim</h2>
-        <p>{error instanceof Error ? error.message : 'Failed to load claim'}</p>
-        <button
-          onClick={() => router.push('/claims')}
-          className="claims-btn claims-btn-primary"
-        >
-          Back to Claims
-        </button>
-      </div>
-    );
-  }
-
-  if (!claim) {
-    return (
-      <div className="claims-wizard-error">
-        <h2>Claim Not Found</h2>
-        <p>The claim you're looking for doesn't exist or you don't have access to it.</p>
-        <button
-          onClick={() => router.push('/claims')}
-          className="claims-btn claims-btn-primary"
-        >
-          Back to Claims
-        </button>
-      </div>
-    );
-  }
-
-  // Check if claim is already submitted
-  if (claim.status !== 'draft') {
-    return (
-      <div className="claims-wizard-submitted">
-        <div className="claims-wizard-submitted-content">
-          <h2>Claim Already Submitted</h2>
+      <ClaimsFrame title="Your claim">
+        <div className="claims-wizard-error">
+          <h2>Error Loading Claim</h2>
           <p>
-            This claim has been submitted and is currently being processed.
-            You'll receive updates via email.
+            {error instanceof Error ? error.message : 'Failed to load claim'}
           </p>
           <button
             onClick={() => router.push('/claims')}
@@ -119,7 +92,50 @@ export default function ClaimWizardPage() {
             Back to Claims
           </button>
         </div>
-      </div>
+      </ClaimsFrame>
+    );
+  }
+
+  if (!claim) {
+    return (
+      <ClaimsFrame title="Your claim">
+        <div className="claims-wizard-error">
+          <h2>Claim Not Found</h2>
+          <p>
+            The claim you're looking for doesn't exist or you don't have access
+            to it.
+          </p>
+          <button
+            onClick={() => router.push('/claims')}
+            className="claims-btn claims-btn-primary"
+          >
+            Back to Claims
+          </button>
+        </div>
+      </ClaimsFrame>
+    );
+  }
+
+  // Check if claim is already submitted
+  if (claim.status !== 'draft') {
+    return (
+      <ClaimsFrame title="Your claim">
+        <div className="claims-wizard-submitted">
+          <div className="claims-wizard-submitted-content">
+            <h2>Claim Already Submitted</h2>
+            <p>
+              This claim has been submitted and is currently being processed.
+              You'll receive updates via email.
+            </p>
+            <button
+              onClick={() => router.push('/claims')}
+              className="claims-btn claims-btn-primary"
+            >
+              Back to Claims
+            </button>
+          </div>
+        </div>
+      </ClaimsFrame>
     );
   }
 
@@ -127,27 +143,26 @@ export default function ClaimWizardPage() {
 
   if (!StepComponent) {
     return (
-      <div className="claims-wizard-error">
-        <h2>Invalid Step</h2>
-        <p>The current step "{currentStep}" is not recognized.</p>
-        <button
-          onClick={() => router.push('/claims')}
-          className="claims-btn claims-btn-primary"
-        >
-          Back to Claims
-        </button>
-      </div>
+      <ClaimsFrame title="Your claim">
+        <div className="claims-wizard-error">
+          <h2>Invalid Step</h2>
+          <p>The current step "{currentStep}" is not recognized.</p>
+          <button
+            onClick={() => router.push('/claims')}
+            className="claims-btn claims-btn-primary"
+          >
+            Back to Claims
+          </button>
+        </div>
+      </ClaimsFrame>
     );
   }
 
   return (
-    <div className="claims-wizard-page">
-      <div className="claims-wizard-card">
-        <ClaimsSidebar claimId={claimId} />
-        <main className="claims-wizard-main">
-          <StepComponent claimId={claimId} />
-        </main>
-      </div>
-    </div>
+    <ClaimsFrame title={claimStepTitle(currentStep)} progress>
+      <main className="claims-wizard-main">
+        <StepComponent claimId={claimId} />
+      </main>
+    </ClaimsFrame>
   );
 }
