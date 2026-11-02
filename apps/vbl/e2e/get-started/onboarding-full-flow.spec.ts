@@ -656,7 +656,7 @@ test.describe('Calculator payment', () => {
       page.locator('a[href="/terms"]', { hasText: 'Terms and Conditions' })
     ).toBeVisible();
     await expect(
-      page.locator('a[href="/privacy"]', { hasText: 'Privacy Policy' })
+      page.locator('a[href="/privacy-policy"]', { hasText: 'Privacy Policy' })
     ).toBeVisible();
 
     await declarations.nth(0).check();
