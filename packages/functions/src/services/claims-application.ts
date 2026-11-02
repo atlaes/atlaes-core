@@ -22,10 +22,12 @@ import {
   MULTI_DOCUMENT_ROLES,
   caseTypeForPensionType,
   deriveCaseTypeOnCreate,
+  effectiveHandlingRouteSql,
   resolveCaseType,
   isStagePensionProvider,
   isVblPensionProvider,
   type ClaimSubmissionHold,
+  type EurAccountRequest,
 } from '../drizzle/schema/claims';
 import {
   validateBavClientIntake,
@@ -187,6 +189,8 @@ export interface ClaimData
   pensionProvider?: string;
   stageDetails?: StageDetails;
   certifyingAuthority?: CertifyingAuthority;
+  identityCertifyingAuthority?: string | null;
+  eurAccountRequest?: EurAccountRequest | null;
   confirmationAccuracyAccepted?: boolean;
   confirmationAuthorizationAccepted?: boolean;
 }
@@ -286,6 +290,7 @@ export interface Claim {
   bankCity: string | null;
   bankPostalCode: string | null;
   bankCountry: string | null;
+  eurAccountRequest: EurAccountRequest | null;
 
   // Signature
   signatureId: string | null;
@@ -294,6 +299,7 @@ export interface Claim {
   // ID Verification
   identityFormDownloadedAt: Date | null;
   certifyingAuthority: string | null;
+  identityCertifyingAuthority: string | null;
   identityVerifiedAt: Date | null;
 
   // Confirmations
@@ -487,10 +493,13 @@ function mapRowToClaim(row: any): Claim {
     bankCity: row.bankCity,
     bankPostalCode: row.bankPostalCode,
     bankCountry: row.bankCountry,
+    eurAccountRequest: (row.eurAccountRequest ??
+      null) as EurAccountRequest | null,
     signatureId: row.signatureId,
     signatureCompletedAt: row.signatureCompletedAt,
     identityFormDownloadedAt: row.identityFormDownloadedAt,
     certifyingAuthority: row.certifyingAuthority,
+    identityCertifyingAuthority: row.identityCertifyingAuthority ?? null,
     identityVerifiedAt: row.identityVerifiedAt,
     confirmationAccuracyAccepted: row.confirmationAccuracyAccepted,
     confirmationAuthorizationAccepted: row.confirmationAuthorizationAccepted,
@@ -574,7 +583,8 @@ export class ClaimsApplicationService {
     userId: string,
     applicationId?: string,
     caseType?: ClaimCaseType,
-    attribution?: Record<string, unknown> | null
+    attribution?: Record<string, unknown> | null,
+    initial: Pick<ClaimData, 'identityCertifyingAuthority'> = {}
   ): Promise<Claim> {
     try {
       const resolvedCaseType =
@@ -588,6 +598,8 @@ export class ClaimsApplicationService {
             applicationId: applicationId || null,
             caseType: resolvedCaseType,
             attribution: attribution ?? null,
+            identityCertifyingAuthority:
+              initial.identityCertifyingAuthority ?? null,
             status: 'draft',
             workflowState: 'personal_info',
             completedSteps: {},
