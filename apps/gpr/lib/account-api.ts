@@ -455,15 +455,7 @@ export function httpStatus(error: unknown): number | null {
   return typeof e.response?.status === 'number' ? e.response.status : null;
 }
 
-/** Backend `error` message of an axios error, if any. */
-export function apiErrorMessage(error: unknown, fallback: string): string {
-  if (typeof error === 'object' && error !== null) {
-    const e = error as { response?: { data?: { error?: unknown } } };
-    const msg = e.response?.data?.error;
-    if (typeof msg === 'string' && msg) return msg;
-  }
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
-}
+/** Backend `error` message of an axios error (one implementation, in api.ts). */
+export { apiErrorMessage } from './api';
 
 export default accountApi;
