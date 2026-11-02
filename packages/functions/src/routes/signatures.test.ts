@@ -149,7 +149,7 @@ describe('Signatures Routes', () => {
       expect(data.signature.s3Key).toContain('.png'); // Falls back to png extension
     });
 
-    it('detects image type from data URL', async () => {
+    it('rejects data URLs that are not PNG', async () => {
       const { token } = await createTestUserWithToken();
 
       const signatureData = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
@@ -163,8 +163,68 @@ describe('Signatures Routes', () => {
 
       const data = await res.json() as any;
 
+      expect(res.status).toBe(400);
+      expect(data.success).toBe(false);
+      expect(data.error).toContain('PNG');
+    });
+
+    it('rejects PNG-labelled data that is not a PNG, and SVG/HTML payloads', async () => {
+      const { token } = await createTestUserWithToken();
+
+      for (const signatureData of [
+        `data:image/png;base64,${Buffer.from('hello world').toString('base64')}`,
+        `data:image/svg+xml;base64,${Buffer.from('<svg onload="alert(1)"/>').toString('base64')}`,
+        'data:text/html,<script>alert(1)</script>',
+      ]) {
+        const res = await request(
+          'POST',
+          '/api/signatures/upload',
+          { signatureData },
+          { Authorization: `Bearer ${token}` }
+        );
+        expect(res.status, signatureData.slice(0, 30)).toBe(400);
+      }
+    });
+
+    it('rejects signatures larger than 1 MB', async () => {
+      const { token } = await createTestUserWithToken();
+
+      // A PNG header followed by padding past the cap.
+      const oversized = Buffer.concat([
+        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+        Buffer.alloc(1024 * 1024),
+      ]);
+      const signatureData = `data:image/png;base64,${oversized.toString('base64')}`;
+
+      const res = await request(
+        'POST',
+        '/api/signatures/upload',
+        { signatureData },
+        { Authorization: `Bearer ${token}` }
+      );
+
+      const data = await res.json() as any;
+
+      expect(res.status).toBe(400);
+      expect(data.error).toContain('1 MB');
+    });
+
+    it('also accepts the upload at POST /api/signatures', async () => {
+      const { token } = await createTestUserWithToken();
+
+      const signatureData = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+      const res = await request(
+        'POST',
+        '/api/signatures',
+        { signatureData },
+        { Authorization: `Bearer ${token}` }
+      );
+
+      const data = await res.json() as any;
+
       expect(res.status).toBe(200);
-      expect(data.signature.s3Key).toContain('.jpeg');
+      expect(data.signature.s3Key).toMatch(/\.png$/);
     });
 
     it('rejects empty signature data', async () => {
