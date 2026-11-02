@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
-import { getOverview, AttentionItem, ActivityItem } from '@/lib/admin-api';
+import { getOverview, AttentionItem, ActivityItem, CASE_TYPE_LABELS } from '@/lib/admin-api';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   CLAIM_STATUS_LABEL,
@@ -83,7 +83,7 @@ function AttentionGroup({
                 <span className="min-w-0">
                   <span className="block truncate text-sm text-gray-900">{i.claimantName ?? i.email ?? i.id.slice(0, 8)}</span>
                   <span className="block truncate text-xs text-gray-500">
-                    {i.pensionType === 'private' ? 'bAV cash-out' : i.pensionType === 'public' ? 'Public refund' : 'No product'}
+                    {CASE_TYPE_LABELS[i.caseType] ?? 'No product'}
                     {i.handlingRoute === 'law_firm' ? ' · law firm' : ''}
                     {i.lawFirmRef ? ` · ${i.lawFirmRef}` : ''}
                   </span>

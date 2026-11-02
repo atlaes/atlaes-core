@@ -762,8 +762,8 @@ describe('Claims Routes', () => {
     it('returns validation result for incomplete claim', async () => {
       const { token } = await createTestUserWithToken();
 
-      // Create claim
-      const createRes = await request('POST', '/api/claims', {}, {
+      // Create a DRV refund claim (the step checks belong to that flow)
+      const createRes = await request('POST', '/api/claims', { caseType: 'drv_refund' }, {
         Authorization: `Bearer ${token}`,
       });
       const createData = await createRes.json();
