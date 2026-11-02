@@ -4,6 +4,7 @@ import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { takePostLoginRedirect } from '@/lib/post-login-redirect';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -29,14 +30,15 @@ function MagicLinkPageContent() {
         }
 
         // Verify the magic link
-        const result = await verifyMagicLink(token);
+        await verifyMagicLink(token);
 
         setStatus('success');
-        setMessage('Login successful! Redirecting to dashboard...');
+        setMessage('Login successful! Taking you to your claims...');
 
-        // Redirect to dashboard after a short delay
+        // The page the customer came from (/auth?redirect=), else /claims.
+        const next = takePostLoginRedirect();
         setTimeout(() => {
-          router.push('/dashboard');
+          router.replace(next);
         }, 2000);
       } catch (error: any) {
         setStatus('error');
@@ -76,9 +78,7 @@ function MagicLinkPageContent() {
               </h2>
               <p className="text-gray-600 mb-4">{message}</p>
               <div className="animate-pulse">
-                <p className="text-sm text-gray-500">
-                  Redirecting to dashboard...
-                </p>
+                <p className="text-sm text-gray-500">Redirecting...</p>
               </div>
             </>
           )}
