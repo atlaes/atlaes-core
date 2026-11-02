@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import Cookies from 'js-cookie';
-import apiClient from '../lib/api';
+import apiClient, { magicLinkErrorMessage } from '../lib/api';
 
 export interface User {
   id: string;
@@ -180,14 +180,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const requestMagicLink = async (email: string) => {
     try {
+      // callbackUrl: without it the link opens FRONTEND_URL (the VBL app).
       const response = await apiClient.post('/auth/magic-link/request', {
         email,
+        callbackUrl: window.location.origin,
       });
       return { magicLink: response.data.magicLink };
     } catch (error: any) {
-      throw new Error(
-        error.response?.data?.error || 'Failed to send magic link'
-      );
+      throw new Error(magicLinkErrorMessage(error));
     }
   };
 
