@@ -264,6 +264,7 @@ const ALLOWED_ORIGINS = [
   'https://staging.admin.atlaes.de',
   'https://gpr.atlaes.de',
   'https://staging.gpr.atlaes.de',
+  'https://www.germanypensionrefund.com',
   'http://localhost:3000',
   'http://localhost:3002',
   'http://localhost:3003',

@@ -65,4 +65,18 @@ apiClient.interceptors.response.use(
   }
 );
 
+/**
+ * Message for a failed magic-link request. A schema rejection (400) carries
+ * the Zod error object in `error`, not a string, so it must not be shown
+ * (or rendered) as is.
+ */
+export function magicLinkErrorMessage(error: any): string {
+  const msg = error?.response?.data?.error;
+  if (typeof msg === 'string' && msg) return msg;
+  if (error?.response?.status === 400) {
+    return 'Please check your email address and try again.';
+  }
+  return 'Failed to send magic link. Please try again.';
+}
+
 export default apiClient;
