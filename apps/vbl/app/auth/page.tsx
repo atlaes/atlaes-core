@@ -1,9 +1,10 @@
 'use client';
 
 import React, { Suspense } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { LoginForm } from '../../components/auth/LoginForm';
 import { CompanyPensionLogo } from '@/components/vbl/icons/CompanyPensionLogo';
+import { safeRedirectPath } from '@/lib/safe-redirect';
 import { Loader2 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -11,9 +12,16 @@ export const runtime = 'nodejs';
 
 function AuthPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Set by lib/api.ts when a session expires mid-flow. Only same-origin
+  // paths are followed; anything else falls back to the dashboard.
+  const redirectTo = safeRedirectPath(
+    searchParams?.get('redirect'),
+    '/dashboard'
+  );
 
   const handleSuccess = () => {
-    router.push('/dashboard');
+    router.push(redirectTo);
   };
 
   return (
@@ -28,7 +36,10 @@ function AuthPageContent() {
 
         {/* Content Area */}
         <div className="p-8">
-          <LoginForm onSuccess={handleSuccess} />
+          <LoginForm
+            onSuccess={handleSuccess}
+            redirectUrl={redirectTo === '/dashboard' ? undefined : redirectTo}
+          />
         </div>
       </div>
     </div>

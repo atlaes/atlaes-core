@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../../contexts/AuthContext';
 import { CompanyPensionLogo } from '@/components/vbl/icons/CompanyPensionLogo';
+import { safeRedirectPath } from '@/lib/safe-redirect';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -17,18 +18,29 @@ function MagicLinkPageContent() {
     'loading'
   );
   const [message, setMessage] = useState('');
+  // Magic-link tokens are single-use. Verify each token exactly once, even
+  // if this effect re-runs (provider re-render, React strict mode) — a
+  // second POST would be rejected as "already used" and flip a successful
+  // sign-in into an error screen.
+  const verifiedTokenRef = useRef<string | null>(null);
+
+  const token = searchParams?.get('token') ?? null;
+  const redirectTo = safeRedirectPath(
+    searchParams?.get('redirect'),
+    '/dashboard'
+  );
 
   useEffect(() => {
     const handleMagicLink = async () => {
       try {
-        const token = searchParams?.get('token');
-        const redirectTo = searchParams?.get('redirect') || '/dashboard';
-
         if (!token) {
           setStatus('error');
           setMessage('Invalid magic link - no token provided');
           return;
         }
+
+        if (verifiedTokenRef.current === token) return;
+        verifiedTokenRef.current = token;
 
         await verifyMagicLink(token);
 
@@ -49,7 +61,7 @@ function MagicLinkPageContent() {
     };
 
     handleMagicLink();
-  }, [searchParams, verifyMagicLink, router]);
+  }, [token, redirectTo, verifyMagicLink, router]);
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -86,9 +98,7 @@ function MagicLinkPageContent() {
                 </h2>
                 <p className="text-gray-600 mb-4">{message}</p>
                 <div className="animate-pulse">
-                  <p className="text-sm text-gray-500">
-                    Redirecting...
-                  </p>
+                  <p className="text-sm text-gray-500">Redirecting...</p>
                 </div>
               </>
             )}
