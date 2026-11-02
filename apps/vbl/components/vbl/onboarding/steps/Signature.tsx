@@ -16,6 +16,12 @@ import {
   uploadSignature as uploadSignatureApi,
   attachSignatureToClaim,
 } from '@/lib/onboarding-api';
+import {
+  SIGNATURE_UPLOAD_ACCEPT,
+  SIGNATURE_UPLOAD_MAX_BYTES,
+  canvasHasInk,
+  normalizeSignatureImage,
+} from '@/lib/signature-image';
 
 interface SignatureProps {
   onNext: () => void | boolean | Promise<void | boolean>;
@@ -273,21 +279,31 @@ export const Signature: React.FC<SignatureProps> = ({
         context.closePath();
       }
       setIsDrawing(false);
+
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      // A click without movement still ends here (mouseup/touchend) but
+      // leaves no ink: an empty canvas is not a signature.
+      if (!canvasHasInk(canvas)) {
+        latestCanvasDataRef.current = undefined;
+        updateSignature({ signatureData: undefined, signatureType: 'draw' });
+        updateData({ signatureId: undefined });
+        return;
+      }
+
       saveToHistory();
 
       // Save to context. Client #15: clearing signatureId here ensures the
       // modified drawing is re-uploaded on the next Continue, instead of
       // attaching the stale (possibly invalidated) server-side ID.
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const signatureData = canvas.toDataURL();
-        latestCanvasDataRef.current = signatureData;
-        updateSignature({
-          signatureData,
-          signatureType: 'draw',
-        });
-        updateData({ signatureId: undefined });
-      }
+      const signatureData = canvas.toDataURL();
+      latestCanvasDataRef.current = signatureData;
+      updateSignature({
+        signatureData,
+        signatureType: 'draw',
+      });
+      updateData({ signatureId: undefined });
     }
   }, [isDrawing, isUploading, saveToHistory, updateSignature, updateData]);
 
@@ -409,41 +425,56 @@ export const Signature: React.FC<SignatureProps> = ({
       if (!file) return;
 
       invalidateFileReader();
+      setUploadError(null);
 
       if (!file.type.startsWith('image/')) {
-        alert('Please upload an image file');
+        setUploadError('Please upload an image file (PNG or JPG).');
+        return;
+      }
+      if (file.size > SIGNATURE_UPLOAD_MAX_BYTES) {
+        setUploadError(
+          'This image is too large. Please upload a file of 10 MB or less.'
+        );
         return;
       }
 
       const reader = new FileReader();
       const generation = fileReadGenerationRef.current;
       fileReaderRef.current = reader;
+      // A later file pick, a Continue in flight or an unmount all make this
+      // read (and its decode below) stale.
+      const isStale = () =>
+        generation !== fileReadGenerationRef.current ||
+        isMutationLockedRef.current ||
+        !isMountedRef.current;
       reader.onload = (event) => {
-        if (
-          generation !== fileReadGenerationRef.current ||
-          isMutationLockedRef.current ||
-          !isMountedRef.current
-        )
-          return;
+        if (isStale()) return;
         const dataUrl = event.target?.result as string;
         if (!dataUrl) return;
         fileReaderRef.current = null;
-        updateSignature({
-          signatureFile: file,
-          signatureData: dataUrl,
-          signaturePreview: dataUrl,
-          signatureType: 'upload',
-        });
-        // Client #15: new upload invalidates any previously issued signatureId.
-        updateData({ signatureId: undefined });
+        // The backend stores signatures as PNG: decode whatever the browser
+        // can read (JPEG, WebP, ...), downscale large photos and re-encode.
+        normalizeSignatureImage(dataUrl)
+          .then((pngDataUrl) => {
+            if (isStale()) return;
+            updateSignature({
+              signatureFile: file,
+              signatureData: pngDataUrl,
+              signaturePreview: pngDataUrl,
+              signatureType: 'upload',
+            });
+            // Client #15: new upload invalidates any previously issued signatureId.
+            updateData({ signatureId: undefined });
+          })
+          .catch(() => {
+            if (isStale()) return;
+            setUploadError(
+              'We could not read this image. Please upload a PNG or JPG file.'
+            );
+          });
       };
       reader.onerror = () => {
-        if (
-          generation !== fileReadGenerationRef.current ||
-          isMutationLockedRef.current ||
-          !isMountedRef.current
-        )
-          return;
+        if (isStale()) return;
         fileReaderRef.current = null;
         setUploadError('Failed to read signature image. Please try again.');
       };
@@ -523,6 +554,16 @@ export const Signature: React.FC<SignatureProps> = ({
           ? data.signature.signatureData
           : undefined;
     if (!sigData) return;
+
+    // Draw mode: the canvas decides whether the user actually signed. A
+    // blank canvas (click without movement, or cleared) never gets uploaded.
+    if (mode === 'draw') {
+      const canvas = canvasRef.current;
+      if (canvas && !canvasHasInk(canvas)) {
+        setUploadError('Please draw your signature before continuing.');
+        return;
+      }
+    }
 
     // React state updates are asynchronous. Lock and invalidate callback
     // generations synchronously so an Image.onload already in flight cannot
@@ -747,7 +788,7 @@ export const Signature: React.FC<SignatureProps> = ({
                 Choose file
                 <input
                   type="file"
-                  accept="image/*"
+                  accept={SIGNATURE_UPLOAD_ACCEPT}
                   disabled={isUploading}
                   onChange={handleFileUpload}
                   className="hidden"

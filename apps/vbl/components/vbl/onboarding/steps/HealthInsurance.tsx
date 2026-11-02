@@ -18,6 +18,10 @@ import {
   extractHealthInsuranceDocument,
 } from '@/lib/onboarding-api';
 import { COUNTRIES } from '@/lib/countries';
+import {
+  DOCUMENT_UPLOAD_ACCEPT,
+  getDocumentUploadError,
+} from '@/lib/document-upload';
 import { DatePartsInput } from '../DatePartsInput';
 
 interface HealthInsuranceProps {
@@ -122,10 +126,10 @@ export const HealthInsurance: React.FC<HealthInsuranceProps> = ({
 
   const handleFileSelect = useCallback(
     async (file: File) => {
-      if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
-        setFileTypeError(
-          'This file format is not supported. Please upload a valid document.'
-        );
+      // Same server limits as Identity.tsx: PDF/JPEG/PNG, 10 MB.
+      const validationError = getDocumentUploadError(file);
+      if (validationError) {
+        setFileTypeError(validationError);
         return;
       }
       setFileTypeError(null);
@@ -412,7 +416,7 @@ export const HealthInsurance: React.FC<HealthInsuranceProps> = ({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,application/pdf"
+            accept={DOCUMENT_UPLOAD_ACCEPT}
             onChange={handleInputChange}
             className="hidden"
           />
