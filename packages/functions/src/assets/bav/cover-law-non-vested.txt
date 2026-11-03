@@ -1,0 +1,39 @@
+{{law_firm_postal_address}}
+{{recipient_name}}
+{{recipient_postal_address}}
+
+Per beA
+
+{{law_firm_city}}, den {{signature_date}}
+[[IF law_firm_az]]Unser Zeichen: {{law_firm_az}}[[/IF]]
+
+
+{{application_title}}
+
+Name: {{client_full_name}}, geb. {{client_date_of_birth}}
+{{reference_label}}: {{reference_value}}
+
+
+Sehr geehrte Damen und Herren,
+
+in der vorbezeichneten Angelegenheit zeigen wir die anwaltliche Vertretung von {{client_full_name}} an. Die Vollmacht ist beigefügt.
+
+Namens und in Vollmacht der von uns vertretenen Person beantragen wir die einmalige Auszahlung des nach den maßgeblichen Versorgungsregelungen erstattungsfähigen Betrags. Die zugehörigen Nachweise sind beigefügt.
+
+Bitte teilen Sie den Auszahlungsbetrag und seine Berechnung mit und übersenden Sie gegebenenfalls die zutreffende steuerliche Bescheinigung.
+
+Bitte überweisen Sie den Auszahlungsbetrag auf das für diesen Vorgang bevollmächtigte Kanzleikonto:
+{{law_firm_bank_details}}
+
+Bitte richten Sie die weitere Korrespondenz unter Angabe unseres Aktenzeichens an unsere Kanzlei.
+
+Bitte bestätigen Sie den Eingang des Antrags und teilen Sie den voraussichtlichen Auszahlungstermin innerhalb von vier Wochen nach Zugang dieses Schreibens mit.
+
+Mit freundlichen Grüßen
+
+{{lawyer_signature_space}}
+{{lawyer_name}}
+{{lawyer_title}}
+
+Anlagen
+{{attachment_list}}

@@ -3,6 +3,7 @@ import {
   caseCopyFields,
   countryNameDe,
   countryIso,
+  drvDirectPackClientFromClaim,
   drvPackClientFromClaim,
   submissionPackKey,
   type DrvClaimFields,
@@ -151,5 +152,28 @@ describe('countryNameDe', () => {
     expect(countryNameDe('MZ')).toBe('Mosambik');
     expect(countryNameDe('Atlantis')).toBe('Atlantis');
     expect(countryNameDe('')).toBeNull();
+  });
+});
+
+describe('drvDirectPackClientFromClaim', () => {
+  it('needs the client bank account for the direct pack', () => {
+    const m = drvDirectPackClientFromClaim(full);
+    expect(m.client).toBeNull();
+    expect(m.missing).toEqual([
+      'bank: client bank account (IBAN or account number)',
+    ]);
+  });
+
+  it('maps the confirmed account to its V0901 branch', () => {
+    const m = drvDirectPackClientFromClaim({
+      ...full,
+      iban: 'DE89 3704 0044 0532 0130 00',
+      bankName: 'Commerzbank',
+      accountHolderName: 'Priya Sharma',
+    });
+    expect(m.missing).toEqual([]);
+    expect(m.client).not.toBeNull();
+    expect(m.bankMapping.branch).toBe('germany');
+    expect(m.bankMapping.warnings).toEqual([]);
   });
 });

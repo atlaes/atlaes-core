@@ -383,6 +383,23 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+/* body image (blog CMS posts) */
+.mk-art-figure {
+  margin: 0;
+}
+.mk-art-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--mk-r-card);
+  border: 1px solid var(--mk-stroke);
+}
+.mk-art-figure figcaption {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--mk-muted);
+}
 .mk-art-col .mk-note {
   font-size: 13px;
   line-height: 1.5;

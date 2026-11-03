@@ -74,7 +74,6 @@ describe('validateBavIntake', () => {
     );
     expect(errors).toEqual([
       'DRV office is required',
-      'DRV refund decision date is required',
       'DRV refund decision (Erstattungsbescheid) document is required',
     ]);
   });
@@ -198,7 +197,6 @@ describe('validateBavIntake', () => {
       'BIC is required',
       'Provider form title is required when a provider form is enclosed',
       'Recipient name is required',
-      'Recipient street is required',
       'Recipient postal code is required',
       'Recipient city is required',
     ]);
@@ -249,7 +247,6 @@ describe('split: client intake vs ops recipient', () => {
 
   it('reports the recipient fields ops must complete', () => {
     expect(validateBavRecipient(routeA(noRecipient))).toEqual([
-      'Recipient street is required',
       'Recipient postal code is required',
       'Recipient city is required',
     ]);
@@ -259,7 +256,6 @@ describe('split: client intake vs ops recipient', () => {
 
   it('keeps the full check (package generation) as client + recipient', () => {
     expect(validateBavIntake(routeA(noRecipient), DOCS_A, NOW)).toEqual([
-      'Recipient street is required',
       'Recipient postal code is required',
       'Recipient city is required',
     ]);

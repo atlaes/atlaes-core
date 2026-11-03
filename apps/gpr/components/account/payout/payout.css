@@ -1034,3 +1034,24 @@
     overflow-wrap: anywhere;
   }
 }
+
+/* Payout status facts (transfer screen) */
+.pay-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 24px;
+  margin: 0;
+  padding: 16px 20px;
+  border: 1px solid var(--acc-stroke);
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.pay-facts dt {
+  color: var(--acc-muted);
+}
+.pay-facts dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--acc-navy);
+}

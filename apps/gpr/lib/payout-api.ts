@@ -53,6 +53,8 @@ export interface PayoutAccount {
   accountNumber?: string | null;
   routingLabel?: string | null;
   routingValue?: string | null;
+  taxId?: string | null;
+  phone?: string | null;
 }
 
 export type PayoutRoute = 'A' | 'B' | 'C';
@@ -74,7 +76,11 @@ export interface PayoutRelease {
 }
 
 export interface PayoutTask {
-  kind: 'review_decision' | 'release_refund';
+  kind:
+    | 'review_decision'
+    | 'release_refund'
+    | 'upload_decision'
+    | 'confirm_receipt';
   id: string;
   title: string;
   dueDate: string | null;
@@ -88,6 +94,27 @@ export interface PayoutState {
   decision: PayoutDecision | null;
   release: PayoutRelease | null;
   report: { id: string; createdAt: string | null; status: string } | null;
+  /** Funds are in but no verified decision: upload it or say it is missing. */
+  decisionRequest: {
+    open: boolean;
+    uploadedAt: string | null;
+    notReceivedAt: string | null;
+  };
+  /** After signing: where the payout stands. */
+  transfer: PayoutTransfer | null;
+}
+
+export interface PayoutTransfer {
+  releaseId: string;
+  route: PayoutRoute | null;
+  /** queued → sent; TransferMate: queued → funding → sent. */
+  stage: 'queued' | 'funding' | 'sent';
+  sentOn: string | null;
+  amountSent: number | null;
+  currency: string;
+  expectedArrival: string | null;
+  hasReceipt: boolean;
+  receiptStatus: 'confirmed' | 'not_received' | null;
 }
 
 export interface RouteOption {
@@ -123,6 +150,8 @@ export interface BankDetailsPayload {
   transitNumber?: string | null;
   institutionNumber?: string | null;
   clabe?: string | null;
+  taxId?: string | null;
+  phone?: string | null;
 }
 
 export interface ZeSection {
@@ -226,6 +255,29 @@ export const payoutApi = {
       release: data.release as PayoutRelease,
       url: (data.url as string) ?? null,
     };
+  },
+  /** Every page of the letter; several files are merged into one PDF. */
+  async uploadDecision(files: File[]): Promise<void> {
+    const form = new FormData();
+    files.forEach((f) => form.append('file', f));
+    await apiClient.post(`${BASE}/decision-upload`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  async decisionNotReceived(): Promise<void> {
+    await apiClient.post(`${BASE}/decision-not-received`);
+  },
+  async confirmReceipt(
+    releaseId: string,
+    status: 'confirmed' | 'not_received'
+  ): Promise<void> {
+    await apiClient.post(`${BASE}/release/${releaseId}/receipt`, { status });
+  },
+  async transferReceiptUrl(releaseId: string): Promise<string | null> {
+    const { data } = await apiClient.get(
+      `${BASE}/release/${releaseId}/transfer-receipt`
+    );
+    return (data?.url as string | null) ?? null;
   },
   /** Signed ZE: presigned URL, or a blob URL when S3 presigning is off. */
   async signedZeUrl(releaseId: string): Promise<string | null> {

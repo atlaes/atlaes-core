@@ -20,6 +20,11 @@ import {
 } from './bank-validation';
 import { buildRouteOptions, conversionCostRate } from './providers';
 import { parseEcbDailyXml } from './ecb';
+import {
+  currencyRoute,
+  extraBeneficiaryFields,
+  normaliseCurrency,
+} from './currency-routing';
 import { parseGermanAmount, parsePeriodsFromOcr } from './periods';
 import { holderIsClient, reviewReasons } from './review-flags';
 
@@ -167,11 +172,11 @@ describe('route options (text F)', () => {
     );
   });
 
-  it('option 2 hidden when the register lacks the currency or no rate', () => {
+  it('option 2 only for TransferMate currencies; no estimate without a rate', () => {
     expect(
       buildRouteOptions({
         amountAvailableEur: 5000,
-        currency: 'XOF',
+        currency: 'VES',
         referenceRate: { rate: 655, date: 'x' },
       }).options[1].available
     ).toBe(false);
@@ -180,8 +185,19 @@ describe('route options (text F)', () => {
         amountAvailableEur: 5000,
         currency: 'USD',
         referenceRate: null,
-      }).options[1].available
-    ).toBe(false);
+      }).options[1]
+    ).toMatchObject({ available: true, estimatedTargetAmount: null });
+    // Informal code normalised (NTD → TWD), TransferMate executes.
+    expect(
+      buildRouteOptions({
+        amountAvailableEur: 5000,
+        currency: 'ntd',
+        referenceRate: null,
+      })
+    ).toMatchObject({
+      currency: 'TWD',
+      options: [{}, { available: true, executedBy: 'TransferMate' }, {}],
+    });
   });
 
   it('parses the ECB daily XML', () => {
@@ -412,5 +428,41 @@ describe('periods from OCR', () => {
     ]);
     expect(parseGermanAmount('29.601,90')).toBe(29601.9);
     expect(parseGermanAmount('3.038,49 EUR')).toBe(3038.49);
+  });
+});
+
+describe('currency routing (owner file 30 Oct 2026)', () => {
+  it('routes EUR direct, TransferMate currencies to TM, the rest nowhere', () => {
+    expect(currencyRoute('eur')).toBe('direct');
+    expect(currencyRoute('COP')).toBe('transfermate');
+    expect(currencyRoute('RMB')).toBe('transfermate');
+    expect(normaliseCurrency(' yen ')).toBe('JPY');
+    expect(currencyRoute('VES')).toBe('unsupported');
+  });
+
+  it('asks BRL clients for CPF and phone on the conversion route', () => {
+    const base = {
+      accountHolder: 'Ana Souza',
+      bank: 'Banco Exemplo',
+      country: 'BR',
+      currency: 'BRL',
+      iban: 'BR1800360305000010009795493C1',
+      bic: 'BOFAUS3NXXX',
+    };
+    const missing = validateBankDetails(base, 'B');
+    expect(missing.errors.taxId).toMatch(/CPF/);
+    expect(missing.errors.phone).toBeDefined();
+    const ok = validateBankDetails(
+      { ...base, taxId: '123.456.789-09', phone: '+55 11 91234 5678' },
+      'B'
+    );
+    expect(ok.errors.taxId).toBeUndefined();
+    expect(ok.errors.phone).toBeUndefined();
+    expect(ok.account).toMatchObject({
+      taxId: '12345678909',
+      phone: '+5511912345678',
+    });
+    // EUR SEPA route never asks for them.
+    expect(extraBeneficiaryFields('EUR')).toEqual([]);
   });
 });

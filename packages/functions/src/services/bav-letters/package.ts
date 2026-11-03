@@ -1,14 +1,23 @@
 /**
- * Assembles a bAV Abfindung package (client spec section 10): the letter
- * first, then the enclosures in exactly the order the letter's Anlagen list
- * numbers them. PACKAGE_ORDER is the single source for that order; a test
- * checks it against the [[ANLAGEN]] block of each template so the two can
- * never drift apart.
+ * Plans and assembles a bAV submission pack (owner spec 29 Oct 2026,
+ * "Submission document list"):
+ *
+ *   1  cover letter (route × status)
+ *   2  authority: Postempfangsvollmacht (direct) or Vollmacht (law firm),
+ *      signed by the client
+ *   3  DRV refund decision: required for Vested, otherwise where uploaded
+ *   4  passport copy
+ *   5+ recipient-specific forms and evidence on the claim, then the
+ *      documents ops appended ('bav_extra', upload order)
+ *
+ * The cover letter's attachment_list is generated from the same plan, so
+ * the list and the merged pack cannot drift apart.
  *
  * Pure: takes bytes, returns bytes. No database or S3 access.
  */
 
 import { PDFDocument } from 'pdf-lib';
+import type { ClaimDocumentRole } from '../../drizzle/schema/claims';
 import {
   appendImageAsA4Page,
   appendPdfNormalizedToA4,
@@ -18,89 +27,158 @@ import {
   SIGNATURE_MARKER,
   type RenderLetterOptions,
 } from './render-letter';
-import type { BavTemplateId } from './templates';
 
-export type BavLetterTemplateId = Exclude<BavTemplateId, 'PEV' | 'VOLL'>;
-
-/** What can follow the letter in a package. */
+/** What can follow the cover letter in a pack. */
 export type EnclosureKind =
-  | 'voll' // Anwaltsvollmacht, rendered from the VOLL template, signed
-  | 'pev' // Postempfangsvollmacht, rendered from the PEV template, signed
-  | 'passport' // passport copy (claim document role 'passport')
+  | 'voll' // Vollmacht for the law firm, rendered from VOLL, signed
+  | 'pev' // Postempfangsvollmacht, rendered from PEV, signed
   | 'drv_refund_decision'
-  | 'pension_statement'
+  | 'passport'
   | 'provider_form'
+  | 'pension_statement'
   | 'employer_consent'
   | 'employment_end_proof'
   | 'foreign_health_insurance'
   | 'bank_proof'
-  | 'bav_extra'; // ops-attached extra document, after the standard enclosures
+  | 'bav_extra'; // ops-attached document, any number
 
-/** Enclosures that map 1:1 to a claim document role. */
-export type StandardEnclosureKind = Exclude<
+/** Enclosures that are claim documents (one per role, latest upload). */
+export type DocumentEnclosureKind = Exclude<
   EnclosureKind,
   'voll' | 'pev' | 'bav_extra'
 >;
 
-/** Enclosure order per letter template, mirroring each template's Anlagen list. */
-export const PACKAGE_ORDER: Record<
-  BavLetterTemplateId,
-  readonly EnclosureKind[]
-> = {
-  'A-LAW': [
-    'voll',
-    'drv_refund_decision',
-    'passport',
-    'provider_form',
-    'employer_consent',
-    'employment_end_proof',
-    'pension_statement',
-    'foreign_health_insurance',
-    'bank_proof',
-  ],
-  'A-DIRECT': [
-    'drv_refund_decision',
-    'pev',
-    'passport',
-    'provider_form',
-    'employer_consent',
-    'employment_end_proof',
-    'pension_statement',
-    'foreign_health_insurance',
-    'bank_proof',
-  ],
-  'B-LAW': [
-    'voll',
-    'pension_statement',
-    'passport',
-    'provider_form',
-    'employer_consent',
-    'employment_end_proof',
-    'foreign_health_insurance',
-    'bank_proof',
-  ],
-  'B-DIRECT': [
-    'pension_statement',
-    'pev',
-    'passport',
-    'provider_form',
-    'employer_consent',
-    'employment_end_proof',
-    'foreign_health_insurance',
-    'bank_proof',
-  ],
-};
+/** Pack order after the cover letter; extras follow. */
+export const PACK_ORDER: readonly EnclosureKind[] = [
+  'pev',
+  'voll',
+  'drv_refund_decision',
+  'passport',
+  'provider_form',
+  'pension_statement',
+  'employer_consent',
+  'employment_end_proof',
+  'foreign_health_insurance',
+  'bank_proof',
+  'bav_extra',
+];
 
-/** Enclosures that must be present for the package to be valid. */
-export const REQUIRED_ENCLOSURES: Record<
-  BavLetterTemplateId,
-  readonly EnclosureKind[]
-> = {
-  'A-LAW': ['voll', 'drv_refund_decision', 'passport'],
-  'A-DIRECT': ['drv_refund_decision', 'pev', 'passport'],
-  'B-LAW': ['voll', 'pension_statement', 'passport'],
-  'B-DIRECT': ['pension_statement', 'pev', 'passport'],
-};
+export interface PlannedEnclosure {
+  kind: EnclosureKind;
+  /** German line in the attachment list (without the number). */
+  label: string;
+  /** Index into the plan's `documents`; absent for the authority. */
+  documentIndex?: number;
+}
+
+export interface PackPlanInput {
+  authority: 'pev' | 'voll';
+  status: 'vested' | 'non_vested' | null;
+  /** DD.MM.YYYY or ''. */
+  drvDecisionDate: string;
+  providerFormTitle: string;
+  statementType: string;
+  /** DD.MM.YYYY or ''. */
+  statementDate: string;
+  documents: readonly { role: ClaimDocumentRole; fileName: string }[];
+}
+
+function stripExtension(fileName: string): string {
+  const base = fileName.trim().replace(/\.[a-z0-9]{1,5}$/i, '');
+  return base.replace(/[_]+/g, ' ').trim() || 'Weitere Unterlage';
+}
+
+function labelFor(
+  kind: EnclosureKind,
+  input: PackPlanInput,
+  fileName: string
+): string {
+  switch (kind) {
+    case 'pev':
+      return 'Postempfangsvollmacht';
+    case 'voll':
+      return 'Vollmacht';
+    case 'drv_refund_decision':
+      return input.drvDecisionDate
+        ? `Erstattungsbescheid der Deutschen Rentenversicherung vom ${input.drvDecisionDate}`
+        : 'Erstattungsbescheid der Deutschen Rentenversicherung';
+    case 'passport':
+      return 'Kopie des Reisepasses';
+    case 'provider_form':
+      return input.providerFormTitle
+        ? `Antragsformular „${input.providerFormTitle}“`
+        : 'Antragsformular';
+    case 'pension_statement':
+      return input.statementType
+        ? `${input.statementType}${input.statementDate ? ` vom ${input.statementDate}` : ''}`
+        : 'Standmitteilung';
+    case 'employer_consent':
+      return 'Erklärung des ehemaligen Arbeitgebers';
+    case 'employment_end_proof':
+      return 'Nachweis über die Beendigung des Arbeitsverhältnisses';
+    case 'foreign_health_insurance':
+      return 'Nachweis der Krankenversicherung';
+    case 'bank_proof':
+      return 'Nachweis der Bankverbindung';
+    case 'bav_extra':
+      return stripExtension(fileName);
+  }
+}
+
+/**
+ * The pack after the cover letter, in order, and what is missing for it.
+ * `documents` holds at most one entry per role except 'bav_extra'.
+ */
+export function planBavPack(input: PackPlanInput): {
+  enclosures: PlannedEnclosure[];
+  missing: string[];
+} {
+  const missing: string[] = [];
+  const indexByRole = new Map<string, number>();
+  input.documents.forEach((d, i) => {
+    if (d.role !== 'bav_extra' && !indexByRole.has(d.role))
+      indexByRole.set(d.role, i);
+  });
+  if (!indexByRole.has('passport')) {
+    missing.push('Passport copy is required');
+  }
+  if (input.status === 'vested' && !indexByRole.has('drv_refund_decision')) {
+    missing.push(
+      'DRV refund decision (Erstattungsbescheid) is required for Vested letters'
+    );
+  }
+
+  const enclosures: PlannedEnclosure[] = [];
+  for (const kind of PACK_ORDER) {
+    if (kind === 'pev' || kind === 'voll') {
+      if (kind === input.authority) {
+        enclosures.push({ kind, label: labelFor(kind, input, '') });
+      }
+      continue;
+    }
+    if (kind === 'bav_extra') {
+      input.documents.forEach((d, i) => {
+        if (d.role === 'bav_extra') {
+          enclosures.push({
+            kind,
+            label: labelFor(kind, input, d.fileName),
+            documentIndex: i,
+          });
+        }
+      });
+      continue;
+    }
+    const index = indexByRole.get(kind);
+    if (index !== undefined) {
+      enclosures.push({
+        kind,
+        label: labelFor(kind, input, input.documents[index].fileName),
+        documentIndex: index,
+      });
+    }
+  }
+  return { enclosures, missing };
+}
 
 export const ENCLOSURE_IMAGE_TYPES = new Set([
   'image/png',
@@ -114,64 +192,36 @@ export interface EnclosureFile {
 }
 
 export interface BavPackageInput {
-  templateId: BavLetterTemplateId;
-  /** Rendered letter text (template engine output, signature slot = SIGNATURE_MARKER). */
+  /** Rendered cover letter (signature slot = SIGNATURE_MARKER on direct letters). */
   letterText: string;
-  /** Rendered PEV text (DIRECT) or VOLL text (LAW). */
-  powerOfAttorneyText?: string;
+  /** Rendered PEV (direct) or VOLL (law firm). */
+  authorityText: string;
+  /** Planned enclosures (authority included) in pack order. */
+  enclosures: readonly PlannedEnclosure[];
+  /** Downloaded document files by `documentIndex`. */
+  files: ReadonlyMap<number, EnclosureFile>;
   signaturePng?: Uint8Array;
-  /** LAW letters only. */
+  /** Law-firm letters only. */
   letterheadPdf?: Uint8Array;
-  /** Uploaded documents by enclosure kind (passport + claim document roles). */
-  files: Partial<Record<StandardEnclosureKind, EnclosureFile>>;
-  /**
-   * Extra documents ops attached (role 'bav_extra'), merged after the
-   * standard enclosures in the given (upload) order.
-   */
-  extras?: EnclosureFile[];
+  /** Subject line set in bold (the configurable non-vested title). */
+  subjectLine?: string;
+  /** Lines set in the small sender font (law-firm sender line). */
+  smallLines?: readonly string[];
 }
 
 export interface BavPackageResult {
   bytes: Uint8Array;
   letterPageCount: number;
-  /** Enclosures actually merged, in package order. */
+  /** Enclosures actually merged, in pack order. */
   enclosures: EnclosureKind[];
-}
-
-/**
- * Returns the enclosure kinds this package will contain, in order, given
- * which files exist. Throws when a required enclosure is missing.
- */
-export function planEnclosures(
-  templateId: BavLetterTemplateId,
-  available: ReadonlySet<EnclosureKind>
-): EnclosureKind[] {
-  const missing = REQUIRED_ENCLOSURES[templateId].filter(
-    (k) => !available.has(k)
-  );
-  if (missing.length > 0) {
-    throw new Error(
-      `Cannot assemble ${templateId} package, missing enclosures: ${missing.join(', ')}`
-    );
-  }
-  return PACKAGE_ORDER[templateId].filter((k) => available.has(k));
 }
 
 export async function assembleBavPackage(
   input: BavPackageInput
 ): Promise<BavPackageResult> {
-  const isLaw = input.templateId.endsWith('LAW');
-  const available = new Set<EnclosureKind>(
-    Object.entries(input.files)
-      .filter(([, f]) => !!f)
-      .map(([k]) => k as EnclosureKind)
-  );
-  if (input.powerOfAttorneyText) available.add(isLaw ? 'voll' : 'pev');
-  const enclosures = planEnclosures(input.templateId, available);
-
   if (
     (input.letterText.includes(SIGNATURE_MARKER) ||
-      input.powerOfAttorneyText?.includes(SIGNATURE_MARKER)) &&
+      input.authorityText.includes(SIGNATURE_MARKER)) &&
     !input.signaturePng
   ) {
     throw new Error('Package needs the client signature but none was provided');
@@ -179,37 +229,44 @@ export async function assembleBavPackage(
 
   const doc = await PDFDocument.create();
 
-  // 1. The letter (letterhead only on LAW letters).
+  // 1. Cover letter (letterhead only on law-firm letters).
   const letterOptions: RenderLetterOptions = {
     text: input.letterText,
     signaturePng: input.signaturePng,
-    letterheadPdf: isLaw ? input.letterheadPdf : undefined,
+    letterheadPdf: input.letterheadPdf,
+    subjectLine: input.subjectLine,
+    smallLines: input.smallLines,
   };
   const { pageCount: letterPageCount } = await renderLetterPages(
     doc,
     letterOptions
   );
 
-  // 2+ Enclosures in Anlagen order.
-  for (const kind of enclosures) {
-    if (kind === 'voll' || kind === 'pev') {
+  // 2+ Enclosures in pack order.
+  const merged: EnclosureKind[] = [];
+  for (const enclosure of input.enclosures) {
+    if (enclosure.kind === 'pev' || enclosure.kind === 'voll') {
       await renderLetterPages(doc, {
-        text: input.powerOfAttorneyText!,
+        text: input.authorityText,
         signaturePng: input.signaturePng,
       });
+      merged.push(enclosure.kind);
       continue;
     }
-    const file = input.files[kind as StandardEnclosureKind]!;
-    await appendEnclosure(doc, kind, file);
+    const file =
+      enclosure.documentIndex !== undefined
+        ? input.files.get(enclosure.documentIndex)
+        : undefined;
+    if (!file) {
+      throw new Error(
+        `Cannot assemble bAV package: file for ${enclosure.kind} is missing`
+      );
+    }
+    await appendEnclosure(doc, enclosure.kind, file);
+    merged.push(enclosure.kind);
   }
 
-  // 3. Ops-attached extras, after everything the letter lists.
-  for (const extra of input.extras ?? []) {
-    await appendEnclosure(doc, 'bav_extra', extra);
-    enclosures.push('bav_extra');
-  }
-
-  return { bytes: await doc.save(), letterPageCount, enclosures };
+  return { bytes: await doc.save(), letterPageCount, enclosures: merged };
 }
 
 async function appendEnclosure(

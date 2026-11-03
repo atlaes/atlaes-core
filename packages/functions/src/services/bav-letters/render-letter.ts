@@ -20,6 +20,9 @@ import { wrapText } from '../claim-pdf/text-layout';
 /** Put this on its own line where the signature image should be drawn. */
 export const SIGNATURE_MARKER = '⁣SIGNATURE⁣';
 
+/** Put this on its own line to leave room for a hand signature. */
+export const HAND_SIGNATURE_SPACE_MARKER = '⁣HANDSIGN⁣';
+
 export interface RenderLetterOptions {
   text: string;
   /** PNG bytes of the drawn signature; required when the text contains SIGNATURE_MARKER. */
@@ -28,6 +31,10 @@ export interface RenderLetterOptions {
   letterheadPdf?: Uint8Array;
   /** Optional title lines (exact match after trim) set in bold. */
   boldLines?: readonly string[];
+  /** Subject line (exact match after trim) set in bold at body size. */
+  subjectLine?: string;
+  /** Lines (exact match after trim) set small, e.g. the sender line. */
+  smallLines?: readonly string[];
   now?: Date;
 }
 
@@ -47,10 +54,11 @@ const LAYOUT = {
   lineHeight: 13.8,
   paragraphGap: 8,
   titleFontSize: 13,
+  smallFontSize: 7.5,
   signatureHeight: 40,
 } as const;
 
-const SUBJECT_PREFIXES = ['Antrag auf Abfindung'];
+const SUBJECT_PREFIXES = ['Antrag auf'];
 const DEFAULT_BOLD_LINES = ['Postempfangsvollmacht', 'Vollmacht', 'Anlagen'];
 
 // WinAnsi (the encoding of pdf-lib's standard Helvetica) covers Latin-1
@@ -109,6 +117,8 @@ export async function renderLetterPages(
     ...DEFAULT_BOLD_LINES,
     ...(options.boldLines ?? []),
   ]);
+  const smallLines = new Set(options.smallLines ?? []);
+  const subjectLine = options.subjectLine?.trim();
   let subjectDone = false;
 
   const newPage = (first: boolean): { page: PDFPage; yTop: number } => {
@@ -176,6 +186,12 @@ export async function renderLetterPages(
       continue;
     }
 
+    if (line.trim() === HAND_SIGNATURE_SPACE_MARKER) {
+      ensureSpace(LAYOUT.signatureHeight + 4);
+      cursor.yTop += LAYOUT.signatureHeight + 4;
+      continue;
+    }
+
     if (line === '') {
       cursor.yTop += LAYOUT.paragraphGap;
       continue;
@@ -184,7 +200,14 @@ export async function renderLetterPages(
     const trimmed = line.trim();
     let useFont: PDFFont = font;
     let size: number = LAYOUT.fontSize;
-    if (!subjectDone && SUBJECT_PREFIXES.some((p) => trimmed.startsWith(p))) {
+    if (smallLines.has(trimmed)) {
+      size = LAYOUT.smallFontSize;
+    } else if (
+      !subjectDone &&
+      (subjectLine
+        ? trimmed === subjectLine
+        : SUBJECT_PREFIXES.some((p) => trimmed.startsWith(p)))
+    ) {
       useFont = boldFont;
       subjectDone = true;
     } else if (boldLines.has(trimmed)) {

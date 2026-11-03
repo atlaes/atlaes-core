@@ -2,7 +2,7 @@ import { PDFDocument, PDFDict, PDFName } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
 import { loadLawFirmLetterhead } from './law-firm-config';
 import { assembleBavPackage } from './package';
-import { renderLetterPdf, SIGNATURE_MARKER } from './render-letter';
+import { SIGNATURE_MARKER } from './render-letter';
 import { TINY_PNG } from './test-fixtures';
 
 /** Number of XObjects (embedded pages/images) a page references. */
@@ -32,18 +32,15 @@ describe('law-firm letterhead asset (src/assets/bav/law-firm-letterhead.pdf)', (
       (_, i) => `Zeile ${i + 1} des Schreibens an den Versorgungsträger.`
     ).join('\n');
     const result = await assembleBavPackage({
-      templateId: 'B-LAW',
       letterText: `Antrag auf Abfindung\n\n${longBody}`,
-      powerOfAttorneyText: `Vollmacht\n\nText\n\n${SIGNATURE_MARKER}`,
+      authorityText: `Vollmacht\n\nText\n\n${SIGNATURE_MARKER}`,
       signaturePng: TINY_PNG,
       letterheadPdf: letterhead,
-      files: {
-        pension_statement: {
-          bytes: (await renderLetterPdf({ text: 'Standmitteilung' })).bytes,
-          fileType: 'application/pdf',
-        },
-        passport: { bytes: TINY_PNG, fileType: 'image/png' },
-      },
+      enclosures: [
+        { kind: 'voll', label: 'Vollmacht' },
+        { kind: 'passport', label: 'Kopie des Reisepasses', documentIndex: 0 },
+      ],
+      files: new Map([[0, { bytes: TINY_PNG, fileType: 'image/png' }]]),
     });
     expect(result.letterPageCount).toBeGreaterThanOrEqual(2);
     const doc = await PDFDocument.load(result.bytes);
@@ -52,19 +49,15 @@ describe('law-firm letterhead asset (src/assets/bav/law-firm-letterhead.pdf)', (
     expect(xObjectCount(doc, 1)).toBe(0);
   });
 
-  it('DIRECT packages ignore the letterhead', async () => {
+  it('packages rendered without a letterhead have none', async () => {
     const result = await assembleBavPackage({
-      templateId: 'B-DIRECT',
       letterText: 'Antrag auf Abfindung\n\nText',
-      powerOfAttorneyText: 'Postempfangsvollmacht',
-      letterheadPdf: loadLawFirmLetterhead()!,
-      files: {
-        pension_statement: {
-          bytes: (await renderLetterPdf({ text: 'Standmitteilung' })).bytes,
-          fileType: 'application/pdf',
-        },
-        passport: { bytes: TINY_PNG, fileType: 'image/png' },
-      },
+      authorityText: 'Postempfangsvollmacht',
+      enclosures: [
+        { kind: 'pev', label: 'Postempfangsvollmacht' },
+        { kind: 'passport', label: 'Kopie des Reisepasses', documentIndex: 0 },
+      ],
+      files: new Map([[0, { bytes: TINY_PNG, fileType: 'image/png' }]]),
     });
     const doc = await PDFDocument.load(result.bytes);
     expect(xObjectCount(doc, 0)).toBe(0);

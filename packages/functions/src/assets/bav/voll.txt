@@ -1,43 +1,33 @@
 Vollmacht
 
-Den
-Vividius Rechtsanwälten
-Vertretungsberechtigte Anwältin: Katja Chudoba
-Gneisenaustr. 115
-10961 Berlin
+Für {{procedure_description}}
 
-wird von
+Ich, {{client_full_name}}, geboren am {{client_date_of_birth}},
+wohnhaft {{client_residential_address_inline}},
+{{reference_label}}: {{reference_value}},
+bevollmächtige die
 
-{{g:Herrn|Frau}}
-{{client_full_name}},
-geb. am {{client_dob}},
-Pass-Nr.: {{client_passport_number}},
-wohnhaft {{client_address_inline}}
+{{law_firm_name}}
+Zuständige Rechtsanwältin: {{lawyer_name}}
+{{law_firm_street}}
+{{law_firm_postal_code}} {{law_firm_city}}
 
-in Sachen
+mich in dem oben bezeichneten Verfahren gegenüber {{recipient_name}} außergerichtlich und gerichtlich zu vertreten.
 
-Abfindung der betrieblichen Altersversorgung aus dem Arbeitsverhältnis mit {{employer_name}}[[IF provider_name]] (durchgeführt über {{provider_name}}[[IF contract_reference]], {{contract_reference_label}} {{contract_reference}}[[/IF]])[[/IF]] – Vertretung gegenüber dem ehemaligen Arbeitgeber, dem Versorgungsträger sowie Behörden und Gerichten
+Die Vollmacht umfasst insbesondere:
+–  die Antragstellung und die Vornahme sonstiger Rechtshandlungen sowie die Abgabe und Entgegennahme von Erklärungen;
+–  die Entgegennahme von Schreiben, Bescheiden und förmlichen Zustellungen, auch soweit diese unmittelbar an mich zulässig wären;
+–  den Empfang der mir in diesem Verfahren zustehenden Geldbeträge auf einem Kanzleikonto;
+–  die Einlegung und Rücknahme von Rechtsbehelfen und Rechtsmitteln sowie den Verzicht auf solche;
+–  die gerichtliche Vertretung in allen Instanzen, soweit gesetzlich zulässig, und die Beendigung eines Rechtsstreits durch Vergleich, Verzicht oder Anerkenntnis.
 
-Vollmacht erteilt.
+Bitte richten Sie die Korrespondenz und Zustellungen in diesem Verfahren an die bevollmächtigte Kanzlei.
 
-Diese Vollmacht erstreckt sich insbesondere auf folgende Befugnisse:
-· Geltendmachung des Abfindungsverlangens nach § 3 Abs. 3 BetrAVG bzw. Beantragung der Abfindung nach § 3 Abs. 2 BetrAVG, Antragstellung – auch auf Formularen des Arbeitgebers oder des Versorgungsträgers – und Vornahme von sonstigen Rechtshandlungen,
-· Abgabe und Entgegennahme von Willenserklärungen, einschließlich Zustimmungs- und Verzichtserklärungen im Zusammenhang mit der Abfindung sowie Erklärungen zur steuerlichen und krankenversicherungsrechtlichen Behandlung der Abfindung,
-· Einholung von Auskünften und Unterlagen beim ehemaligen Arbeitgeber und beim Versorgungsträger (insbesondere Standmitteilungen, Berechnungen, Versorgungsordnung, Versicherungsbedingungen); der ehemalige Arbeitgeber und der Versorgungsträger werden von etwaigen Verschwiegenheitspflichten befreit und ermächtigt, dem Bevollmächtigten Auskünfte zu erteilen und personenbezogene Daten zu übermitteln,
-· Entgegennahme von Geld, insbesondere des Abfindungsbetrages,
-· Entgegennahme von Zustellungen,
-· Einlegung und Rücknahme von Rechtsmitteln sowie Verzicht auf solche,
-· Gerichtliche Vertretung in allen Instanzen, insbesondere vor den Arbeitsgerichten,
-· Beseitigung eines Rechtsstreits durch Vergleich, Verzicht oder Anerkenntnis,
-· Empfangnahme von Zustellungen, die auch an die Partei unmittelbar zulässig sind.
-
-Diese Zustellungen haben an den Bevollmächtigten zu erfolgen. Sämtliche Korrespondenz in dieser Angelegenheit ist an den Bevollmächtigten zu richten.
-
-Mit der Erteilung dieser Vollmacht widerrufe ich sämtliche von mir in dieser Angelegenheit zuvor erteilten Vollmachten.
+Die Vollmacht gilt ab Unterzeichnung für das oben bezeichnete Verfahren. Sie kann jederzeit widerrufen werden. Ein Widerruf ist der Kanzlei und den betroffenen Stellen mitzuteilen; die gesetzlichen Regeln über seine Wirksamkeit bleiben unberührt.
 
 
-{{client_city}}, den {{letter_date}}
-
+{{signature_place}}, {{signature_date}}
 
 {{client_signature}}
+Unterschrift der vollmachtgebenden Person
 {{client_full_name}}

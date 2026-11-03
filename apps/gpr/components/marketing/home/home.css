@@ -915,6 +915,12 @@ a.mk-cta-strip-link:hover {
   height: 216px;
   background: var(--mk-tint);
 }
+.mk-article-image > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .mk-article-content {
   display: flex;
   flex-direction: column;

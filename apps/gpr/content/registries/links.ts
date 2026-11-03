@@ -263,6 +263,9 @@ export function isLiveHref(href: string): boolean {
   const slug = path.replace(/^\//, '');
   const country = COUNTRIES.find((c) => c.slug === slug);
   if (country) return countryIsLive(country);
+  // Unregistered /post/<slug> paths are blog-CMS posts (post/[slug]),
+  // published from the admin; the registry cannot know them.
+  if (/^\/post\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(path)) return true;
   return false;
 }
 

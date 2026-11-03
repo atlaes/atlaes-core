@@ -1,47 +1,11 @@
 import { PDFDocument } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
-import { MUSTER_2, MUSTER_2_A_DIRECT_EXPECTED } from './muster-2.fixture';
-import {
-  assembleBavPackage,
-  PACKAGE_ORDER,
-  planEnclosures,
-  type BavLetterTemplateId,
-  type EnclosureKind,
-} from './package';
+import { buildBavLetterPlan } from './context';
+import { MUSTER_2_LETTER_CLAIM, MUSTER_2_OPTIONS } from './muster-2.fixture';
+import { assembleBavPackage, planBavPack, type EnclosureFile } from './package';
 import { SIGNATURE_MARKER } from './render-letter';
 import { TINY_PNG } from './test-fixtures';
-import { getBavTemplate, loadBavTemplateSource } from './templates';
-
-// Maps each line of a template's [[ANLAGEN]] block to the enclosure kind
-// it names, so the assembler's order can be checked against the letter.
-function anlagenKinds(templateId: BavLetterTemplateId): EnclosureKind[] {
-  const src = loadBavTemplateSource(templateId);
-  const block = /\[\[ANLAGEN\]\]([\s\S]*?)\[\[\/ANLAGEN\]\]/.exec(src);
-  if (!block) throw new Error(`no ANLAGEN block in ${templateId}`);
-  return block[1]
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((line) => {
-      if (line.startsWith('Vollmacht (Original)')) return 'voll';
-      if (line.includes('Erstattungsbescheid')) return 'drv_refund_decision';
-      if (line.includes('Postempfangsvollmacht')) return 'pev';
-      if (line.includes('Kopie Reisepass')) return 'passport';
-      if (line.includes('Antragsformular')) return 'provider_form';
-      if (line.includes('Zustimmungserklärung')) return 'employer_consent';
-      if (line.includes('Beendigung des Arbeitsverhältnisses'))
-        return 'employment_end_proof';
-      if (
-        line.includes('Standmitteilung') ||
-        line.includes('{{statement_type}}')
-      )
-        return 'pension_statement';
-      if (line.includes('Krankenversicherung'))
-        return 'foreign_health_insurance';
-      if (line.includes('Bankverbindung')) return 'bank_proof';
-      throw new Error(`unmapped Anlagen line in ${templateId}: ${line}`);
-    });
-}
+import { getBavTemplate } from './templates';
 
 async function pdfWithPages(n: number): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
@@ -51,144 +15,128 @@ async function pdfWithPages(n: number): Promise<Uint8Array> {
   return doc.save();
 }
 
-describe('PACKAGE_ORDER', () => {
-  it('matches the Anlagen order of every letter template', () => {
-    for (const id of Object.keys(PACKAGE_ORDER) as BavLetterTemplateId[]) {
-      expect(PACKAGE_ORDER[id], id).toEqual(anlagenKinds(id));
-    }
-  });
-});
+const base = {
+  status: 'vested' as const,
+  drvDecisionDate: '02.07.2026',
+  providerFormTitle: '',
+  statementType: '',
+  statementDate: '',
+};
 
-describe('planEnclosures', () => {
-  it('keeps package order and drops absent optional enclosures', () => {
+describe('planBavPack', () => {
+  it('orders authority, DRV decision, passport, forms/evidence, then extras', () => {
+    const { enclosures, missing } = planBavPack({
+      ...base,
+      authority: 'voll',
+      documents: [
+        { role: 'bav_extra', fileName: 'Erklaerung_1.pdf' },
+        { role: 'pension_statement', fileName: 's.pdf' },
+        { role: 'passport', fileName: 'p.jpg' },
+        { role: 'provider_form', fileName: 'f.pdf' },
+        { role: 'drv_refund_decision', fileName: 'b.pdf' },
+        { role: 'bav_extra', fileName: 'zweite.png' },
+      ],
+    });
+    expect(missing).toEqual([]);
+    expect(enclosures.map((e) => [e.kind, e.documentIndex])).toEqual([
+      ['voll', undefined],
+      ['drv_refund_decision', 4],
+      ['passport', 2],
+      ['provider_form', 3],
+      ['pension_statement', 1],
+      ['bav_extra', 0],
+      ['bav_extra', 5],
+    ]);
+    expect(enclosures.map((e) => e.label)).toEqual([
+      'Vollmacht',
+      'Erstattungsbescheid der Deutschen Rentenversicherung vom 02.07.2026',
+      'Kopie des Reisepasses',
+      'Antragsformular',
+      'Standmitteilung',
+      'Erklaerung 1',
+      'zweite',
+    ]);
+  });
+
+  it('requires the passport always and the DRV decision for vested only', () => {
     expect(
-      planEnclosures(
-        'A-DIRECT',
-        new Set<EnclosureKind>([
-          'passport',
-          'bank_proof',
-          'pev',
-          'drv_refund_decision',
-        ])
-      )
-    ).toEqual(['drv_refund_decision', 'pev', 'passport', 'bank_proof']);
-  });
-
-  it('throws when a required enclosure is missing', () => {
-    expect(() =>
-      planEnclosures('B-DIRECT', new Set<EnclosureKind>(['passport', 'pev']))
-    ).toThrow(/missing enclosures: pension_statement/);
-    expect(() =>
-      planEnclosures(
-        'A-LAW',
-        new Set<EnclosureKind>(['passport', 'drv_refund_decision'])
-      )
-    ).toThrow(/voll/);
+      planBavPack({ ...base, authority: 'pev', documents: [] }).missing
+    ).toEqual([
+      'Passport copy is required',
+      'DRV refund decision (Erstattungsbescheid) is required for Vested letters',
+    ]);
+    const nonVested = planBavPack({
+      ...base,
+      status: 'non_vested',
+      authority: 'pev',
+      documents: [{ role: 'passport', fileName: 'p.jpg' }],
+    });
+    expect(nonVested.missing).toEqual([]);
+    expect(nonVested.enclosures.map((e) => e.kind)).toEqual([
+      'pev',
+      'passport',
+    ]);
   });
 });
 
 describe('assembleBavPackage', () => {
-  it('assembles Muster 2 (A-DIRECT) in Anlagen order with the right page count', async () => {
-    const letterText = MUSTER_2_A_DIRECT_EXPECTED.replace(
-      '[Unterschrift]',
-      SIGNATURE_MARKER
-    );
-    const pev = getBavTemplate('PEV').render({
-      ...MUSTER_2,
-      client_birthplace: 'Albany, USA',
-      pev_start_date: '07.09.2026',
-      client_signature: SIGNATURE_MARKER,
-    }).text;
-
-    const result = await assembleBavPackage({
-      templateId: 'A-DIRECT',
-      letterText,
-      powerOfAttorneyText: pev,
-      signaturePng: TINY_PNG,
-      files: {
-        drv_refund_decision: {
-          bytes: await pdfWithPages(2),
-          fileType: 'application/pdf',
-        },
-        passport: { bytes: TINY_PNG, fileType: 'image/png' },
-        provider_form: {
-          bytes: await pdfWithPages(1),
-          fileType: 'application/pdf',
-        },
-        employer_consent: {
-          bytes: await pdfWithPages(1),
-          fileType: 'application/pdf',
-        },
-        foreign_health_insurance: { bytes: TINY_PNG, fileType: 'image/png' },
-      },
+  it('merges the cover letter, the signed authority and the documents in plan order', async () => {
+    const plan = buildBavLetterPlan(MUSTER_2_LETTER_CLAIM, {
+      ...MUSTER_2_OPTIONS,
+      signatureText: SIGNATURE_MARKER,
     });
-
+    const letter = getBavTemplate(plan.templateId!).render(plan.context).text;
+    const authority = getBavTemplate(plan.authority).render(plan.context).text;
+    const files = new Map<number, EnclosureFile>([
+      [0, { bytes: await pdfWithPages(2), fileType: 'application/pdf' }],
+      [1, { bytes: TINY_PNG, fileType: 'image/png' }],
+      [2, { bytes: await pdfWithPages(1), fileType: 'application/pdf' }],
+      [3, { bytes: await pdfWithPages(3), fileType: 'application/pdf' }],
+    ]);
+    const result = await assembleBavPackage({
+      letterText: letter,
+      authorityText: authority,
+      enclosures: plan.enclosures,
+      files,
+      signaturePng: TINY_PNG,
+    });
     expect(result.enclosures).toEqual([
-      'drv_refund_decision',
       'pev',
+      'drv_refund_decision',
       'passport',
       'provider_form',
-      'employer_consent',
-      'foreign_health_insurance',
-    ]);
-    const doc = await PDFDocument.load(result.bytes);
-    // letter pages + Bescheid (2) + PEV (1–2) + passport (1) + form (1)
-    // + consent (1) + insurance (1)
-    const pevPages =
-      doc.getPageCount() - result.letterPageCount - 2 - 1 - 1 - 1 - 1;
-    expect(pevPages).toBeGreaterThanOrEqual(1);
-    expect(pevPages).toBeLessThanOrEqual(2);
-    for (let i = 0; i < doc.getPageCount(); i += 1) {
-      const { width, height } = doc.getPage(i).getSize();
-      expect(Math.round(width)).toBe(595);
-      expect(Math.round(height)).toBe(842);
-    }
-  });
-
-  it('merges ops extras after the standard enclosures, in the given order', async () => {
-    const statement = await pdfWithPages(1);
-    const result = await assembleBavPackage({
-      templateId: 'B-DIRECT',
-      letterText: 'Brief',
-      powerOfAttorneyText: 'PEV',
-      files: {
-        pension_statement: { bytes: statement, fileType: 'application/pdf' },
-        passport: { bytes: TINY_PNG, fileType: 'image/png' },
-        bank_proof: { bytes: TINY_PNG, fileType: 'image/png' },
-      },
-      extras: [
-        { bytes: await pdfWithPages(3), fileType: 'application/pdf' },
-        { bytes: TINY_PNG, fileType: 'image/png' },
-      ],
-    });
-    expect(result.enclosures).toEqual([
-      'pension_statement',
-      'pev',
-      'passport',
-      'bank_proof',
-      'bav_extra',
       'bav_extra',
     ]);
     const doc = await PDFDocument.load(result.bytes);
-    // letter (1) + statement (1) + PEV (1) + passport (1) + bank (1)
-    // + extras (3 + 1)
-    expect(doc.getPageCount()).toBe(result.letterPageCount + 1 + 1 + 1 + 1 + 4);
+    // letter + PEV (1 page) + DRV (1) + passport (1) + form (2) + extra (3)
+    expect(doc.getPageCount()).toBe(result.letterPageCount + 1 + 1 + 1 + 2 + 3);
   });
 
-  it('rejects an unsupported enclosure file type', async () => {
+  it('refuses a signature slot without a signature', async () => {
     await expect(
       assembleBavPackage({
-        templateId: 'B-DIRECT',
-        letterText: 'Brief',
-        powerOfAttorneyText: 'PEV',
-        files: {
-          pension_statement: {
-            bytes: new Uint8Array([1]),
-            fileType: 'image/webp',
-          },
-          passport: { bytes: TINY_PNG, fileType: 'image/png' },
-        },
+        letterText: `Brief\n${SIGNATURE_MARKER}`,
+        authorityText: 'Postempfangsvollmacht',
+        enclosures: [],
+        files: new Map(),
       })
-    ).rejects.toThrow(/Unsupported file type/);
+    ).rejects.toThrow(/signature/);
+  });
+
+  it('refuses when a planned document file is missing', async () => {
+    await expect(
+      assembleBavPackage({
+        letterText: 'Brief',
+        authorityText: 'Postempfangsvollmacht',
+        enclosures: [
+          {
+            kind: 'passport',
+            label: 'Kopie des Reisepasses',
+            documentIndex: 0,
+          },
+        ],
+        files: new Map(),
+      })
+    ).rejects.toThrow(/file for passport is missing/);
   });
 });

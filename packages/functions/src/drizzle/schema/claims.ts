@@ -527,6 +527,15 @@ export const claimsTable = claims.table(
     drvRefundReceived: boolean('drv_refund_received'), // true → route A, false → route B
     drvOffice: varchar('drv_office', { length: 255 }), // → drv_office (from Bescheid OCR)
     drvDecisionDate: date('drv_decision_date'), // → drv_decision_date
+    // Admin-chosen bAV claim status (migration 0035): 'vested' (§ 3 Abs. 3
+    // after the DRV refund) | 'non_vested' (provider's payout procedure).
+    // NULL = derived from drv_refund_received.
+    bavClaimStatus: varchar('bav_claim_status', { length: 20 }),
+    // Non-vested letters: German subject, e.g. "Antrag auf Beitragserstattung".
+    bavApplicationTitle: varchar('bav_application_title', { length: 255 }),
+    // VddB/VddKO refund: the benefit applied for (provider-refund/
+    // providers.ts STAGE_BENEFITS). Null = derived from the stage answers.
+    providerRefundBenefit: varchar('provider_refund_benefit', { length: 40 }),
 
     // Route B (§ 3 Abs. 2 BetrAVG): Kleinstanwartschaft per statement
     bavStatementType: varchar('bav_statement_type', { length: 50 }), // → statement_type
@@ -682,6 +691,28 @@ export const claimsTable = claims.table(
     }),
     submissionPackManifest: jsonb('submission_pack_manifest'),
 
+    // Direct client submission (handling_route 'direct', migration 0035):
+    // admin releases the signed pack for dispatch, then records who sent
+    // it, how and the actual submission date. Release alone is not
+    // "submitted".
+    directPackReleasedAt: timestamp('direct_pack_released_at', {
+      withTimezone: true,
+    }),
+    directPackReleasedBy: uuid('direct_pack_released_by'),
+    submissionDispatchedAt: timestamp('submission_dispatched_at', {
+      withTimezone: true,
+    }),
+    submissionDispatchedBy: varchar('submission_dispatched_by', {
+      length: 200,
+    }),
+    submissionDispatchMethod: varchar('submission_dispatch_method', {
+      length: 40,
+    }),
+    submissionDispatchRecordedAt: timestamp('submission_dispatch_recorded_at', {
+      withTimezone: true,
+    }),
+    submissionDispatchRecordedBy: uuid('submission_dispatch_recorded_by'),
+
     // Letter-only copy print for the other party (bAV packages), stored
     // next to pdf_s3_key so the firm can download both.
     copyPdfS3Key: varchar('copy_pdf_s3_key', { length: 500 }),
@@ -741,6 +772,25 @@ export const claimsTable = claims.table(
     submissionHoldReason: text('submission_hold_reason'),
     submissionHoldAt: timestamp('submission_hold_at', { withTimezone: true }),
 
+    // Escrow payout (migration 0036, services/payout-emails). Payout hold:
+    // no payout invitation, reminders or signing while set (NULL = none).
+    // Contact pause: client travelling/ill/unavailable; routine payout
+    // reminders pause until the next-contact date, deadline alerts don't.
+    payoutHoldReason: text('payout_hold_reason'),
+    payoutHoldAt: timestamp('payout_hold_at', { withTimezone: true }),
+    payoutHoldBy: uuid('payout_hold_by'),
+    contactPauseReason: text('contact_pause_reason'),
+    contactPausedAt: timestamp('contact_paused_at', { withTimezone: true }),
+    nextContactDate: date('next_contact_date'),
+    // The decision went to the client directly (EM at once) / the client
+    // says it has not arrived (admin obtains a copy).
+    decisionDirectToClientAt: timestamp('decision_direct_to_client_at', {
+      withTimezone: true,
+    }),
+    decisionNotReceivedAt: timestamp('decision_not_received_at', {
+      withTimezone: true,
+    }),
+
     // Timestamps
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -763,6 +813,7 @@ export const bavProviders = claims.table(
   {
     id: uuid('id').defaultRandom().primaryKey(),
     name: varchar('name', { length: 255 }).notNull(),
+    shortName: varchar('short_name', { length: 60 }), // dropdown label, e.g. "KVBW ZVK"
     defaultAddresseeType: varchar('default_addressee_type', { length: 20 }), // BavAddresseeType
     department: varchar('department', { length: 255 }),
     street: varchar('street', { length: 255 }),

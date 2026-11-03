@@ -1,0 +1,40 @@
+{{client_full_name}}
+{{client_residential_address}}
+
+
+{{recipient_name}}
+{{recipient_postal_address}}
+
+{{signature_place}}, {{signature_date}}
+
+
+{{application_title}}
+
+Name: {{client_full_name}}, geb. {{client_date_of_birth}}
+{{reference_label}}: {{reference_value}}
+
+
+Sehr geehrte Damen und Herren,
+
+hiermit beantrage ich die einmalige Auszahlung des nach den für meine Versorgung geltenden Regelungen erstattungsfähigen Betrags. Die zugehörigen Nachweise füge ich bei.
+
+Bitte teilen Sie den Auszahlungsbetrag und seine Berechnung mit und übersenden Sie gegebenenfalls die zutreffende steuerliche Bescheinigung.
+
+Bitte überweisen Sie den Auszahlungsbetrag unmittelbar auf mein folgendes Konto:
+{{client_bank_details}}
+
+Ich stelle diesen Antrag selbst. Für den Postempfang habe ich {{postal_agent_name}} mit der beigefügten Postempfangsvollmacht bevollmächtigt. Bitte senden Sie die Korrespondenz einschließlich Bescheiden an:
+{{postal_agent_address}}
+
+Die Vollmacht ist auf den Postempfang beschränkt; eine weitergehende Verfahrensvertretung oder Geldempfangsvollmacht wird nicht erteilt.
+
+Bitte bestätigen Sie den Eingang des Antrags und teilen Sie den voraussichtlichen Auszahlungstermin innerhalb von vier Wochen nach Zugang dieses Schreibens mit.
+
+Mit freundlichen Grüßen
+
+
+{{client_signature}}
+{{client_full_name}}
+
+Anlagen
+{{attachment_list}}

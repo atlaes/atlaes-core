@@ -24,6 +24,10 @@ import { StatementImportService } from '../services/statement-import';
 import { PayoutQueueService } from '../services/payout-queue';
 import { InvoicingService } from '../services/invoicing';
 import { STATEMENT_MAX_BYTES } from '../services/payout-queue/config';
+import {
+  pendingTransferMateRows,
+  transferMateSheetCsv,
+} from '../services/payout-flow/transfermate-sheet';
 
 declare module 'hono' {
   interface ContextVariableMap {
@@ -372,6 +376,22 @@ adminPayouts.get('/small-refunds.csv', async (c) => {
     });
   } catch (error) {
     return fail(c, error, 'Failed to export settlement list');
+  }
+});
+
+// Route-B payouts for the TransferMate "All" tab, columns A–Y.
+adminPayouts.get('/transfermate.csv', async (c) => {
+  try {
+    const csv = transferMateSheetCsv(await pendingTransferMateRows());
+    const day = new Date().toISOString().slice(0, 10);
+    return new Response(csv, {
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="TransferMate_transfers_${day}.csv"`,
+      },
+    });
+  } catch (error) {
+    return fail(c, error, 'Failed to export TransferMate sheet');
   }
 });
 

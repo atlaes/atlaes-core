@@ -317,6 +317,14 @@ export function countryToIso3(country: string | null): string {
 
 const VALID_ISO3 = new Set(Object.values(ISO3_BY_COUNTRY_NAME));
 
+/** ISO alpha-2 for a country name or code (via countryToIso3); '' if unknown. */
+export function countryToIso2(country: string | null): string {
+  const iso3 = countryToIso3(country);
+  if (!iso3) return '';
+  const hit = Object.entries(ISO3_BY_ISO2).find(([, v]) => v === iso3);
+  return hit ? hit[0] : '';
+}
+
 /**
  * Splits a street line into street name and house number. Handles both
  * German-style trailing house numbers ("Kaskelstraße 46" → street
