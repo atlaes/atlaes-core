@@ -1,5 +1,5 @@
 /**
- * Escrow payout e-mails and admin follow-ups (migration 0032, owner spec
+ * Escrow payout e-mails and admin follow-ups (migration 0036, owner spec
  * 30 Oct 2026, services/payout-emails).
  *
  *  - `payout_email_log`: one row per milestone and business event. The

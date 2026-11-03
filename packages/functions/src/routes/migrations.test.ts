@@ -33,6 +33,34 @@ function latestJournalTag(): string {
   return entries[entries.length - 1].tag;
 }
 
+describe('migration journal', () => {
+  // Drizzle applies a migration only if its `when` is greater than the
+  // newest applied one. A branch that merges a migration dated before one
+  // already deployed would have it silently skipped on staging, so `when`
+  // must rise strictly in journal order and match the tag prefix.
+  it('is ordered: idx, tag prefix and when all strictly increase', () => {
+    const entries = readJournalEntries();
+    entries.forEach((entry, i) => {
+      expect(
+        entry.tag.startsWith(String(entry.idx).padStart(4, '0') + '_')
+      ).toBe(true);
+      if (i === 0) return;
+      const prev = entries[i - 1];
+      expect(entry.idx, `${entry.tag} idx`).toBeGreaterThan(prev.idx);
+      expect(entry.when, `${entry.tag} when`).toBeGreaterThan(prev.when);
+    });
+  });
+
+  it('has a .sql file for every entry', () => {
+    for (const entry of readJournalEntries()) {
+      expect(
+        fs.existsSync(path.join(MIGRATIONS_FOLDER, `${entry.tag}.sql`)),
+        entry.tag
+      ).toBe(true);
+    }
+  });
+});
+
 let app: Hono;
 let sql: ReturnType<typeof postgres>;
 

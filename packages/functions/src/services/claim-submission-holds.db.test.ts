@@ -81,6 +81,11 @@ async function signedClaim(
 ): Promise<{ userId: string; claimId: string }> {
   const userId = await newUser();
   const claim = await ClaimsApplicationService.createClaim(userId);
+  // The VBL app collects the deposit before the claimant can submit.
+  await db
+    .update(claimsTable)
+    .set({ paymentStatus: 'paid', paidAt: new Date() })
+    .where(eq(claimsTable.id, claim.id));
   await ClaimsApplicationService.updateClaim(claim.id, userId, {
     claimType: 'own_refund',
     firstName: 'Juan',

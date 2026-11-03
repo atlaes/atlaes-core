@@ -17,12 +17,21 @@ export interface SignaturePadHandle {
 /**
  * Drawn signature (touch, pen or mouse) on a canvas with pointer events —
  * no dependency. Figma 12 "Signature pad": 180px, dashed navy border,
- * baseline and hint.
+ * baseline and hint. `classPrefix` picks the stylesheet: `pay-sig`
+ * (payout.css) or `claims-sig` (claims.css) — same shape, own palette.
  */
 export const SignaturePad = forwardRef<
   SignaturePadHandle,
-  { hint: string; onChange?: (hasInk: boolean) => void; label: string }
->(function SignaturePad({ hint, onChange, label }, ref) {
+  {
+    hint: string;
+    onChange?: (hasInk: boolean) => void;
+    label: string;
+    classPrefix?: 'pay-sig' | 'claims-sig';
+  }
+>(function SignaturePad(
+  { hint, onChange, label, classPrefix = 'pay-sig' },
+  ref
+) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const last = useRef<{ x: number; y: number } | null>(null);
@@ -96,9 +105,9 @@ export const SignaturePad = forwardRef<
   }));
 
   return (
-    <div className="pay-sig">
-      <span className="pay-sig-line" aria-hidden="true" />
-      {!hasInk ? <p className="pay-sig-hint">{hint}</p> : null}
+    <div className={classPrefix}>
+      <span className={`${classPrefix}-line`} aria-hidden="true" />
+      {!hasInk ? <p className={`${classPrefix}-hint`}>{hint}</p> : null}
       <canvas
         ref={canvas}
         role="img"

@@ -31,6 +31,7 @@ import {
   claimDocuments,
   claimsTable,
   claimWorkflowStates,
+  defaultHandlingRoute,
   isBavCashout,
   resolveCaseType,
   type ClaimCaseType,
@@ -44,7 +45,7 @@ import {
   sendOpsLawFirmActivityEmail,
 } from './email';
 import { UserService } from './user';
-import { ClaimsApplicationService } from './claims-application';
+import { ClaimsApplicationService, type Claim } from './claims-application';
 import {
   caseCopyBlock,
   caseVisibility,
@@ -592,28 +593,38 @@ export class LawFirmService {
   // ---------------- assignment (called from the routing switch) ----------------
 
   /**
-   * Assign a claim to the default firm when ops switch handling to the law
-   * firm. Regenerates the bAV package as the LAW variant when the claim is
-   * past draft (non-fatal) and notifies the firm. Returns the firm id.
+   * Assign a claim to the default firm: when ops switch handling to the law
+   * firm, and at submission for claims whose (default or chosen) route is
+   * the law firm. Persists handling_route = 'law_firm' when the row still
+   * has NULL (the default), so the firm's scope queries match. Past draft
+   * the case is released to the firm (releaseToFirm: audit row + the
+   * client-update handoff, once) and the firm is notified — unless a
+   * submission hold applies, in which case the release follows when the
+   * hold is cleared (releaseAfterHoldCleared). Regenerates the bAV package
+   * as the LAW variant unless told the caller just built it. Non-fatal
+   * side effects; returns the firm id. `actorId` null = the system.
    */
   static async assignClaimToDefaultFirm(
     claimId: string,
-    adminUserId: string
+    actorId: string | null,
+    options: { regeneratePackage?: boolean } = {}
   ): Promise<string | null> {
     const firm = await this.getDefaultFirm();
     if (!firm) {
       logger.warn('No active law firm to assign the claim to', { claimId });
       return null;
     }
-    // A claim on a submission hold (e.g. no provider address yet, so no
-    // package) is assigned but not released or announced to the firm;
-    // ops release it once the hold is resolved.
     const [current] = await db
-      .select({ submissionHold: claimsTable.submissionHold })
+      .select({
+        submissionHold: claimsTable.submissionHold,
+        handlingRoute: claimsTable.handlingRoute,
+        lawFirmReleasedAt: claimsTable.lawFirmReleasedAt,
+      })
       .from(claimsTable)
       .where(eq(claimsTable.id, claimId))
       .limit(1);
-    const held = !!current?.submissionHold;
+    if (!current) return null;
+    const held = !!current.submissionHold;
     const now = new Date();
     await db
       .update(claimsTable)
@@ -621,14 +632,7 @@ export class LawFirmService {
         lawFirmId: firm.id,
         lawFirmAssignedAt: now,
         lawFirmCaseState: 'new',
-        // Assignment releases the case to the firm (visible until submitted).
-        ...(held
-          ? {}
-          : {
-              lawFirmReleasedAt: now,
-              lawFirmReleasedBy: adminUserId,
-              lawFirmRereleasedUntil: null,
-            }),
+        ...(current.handlingRoute ? {} : { handlingRoute: 'law_firm' }),
         updatedAt: now,
       })
       .where(eq(claimsTable.id, claimId));
@@ -638,17 +642,18 @@ export class LawFirmService {
     if (held) {
       logger.info('Claim assigned to the law firm but held: not released', {
         claimId,
-        hold: current?.submissionHold,
+        hold: current.submissionHold,
       });
       return firm.id;
     }
+    if (claim.status === 'draft') return firm.id;
 
-    if (isBavCashout(claim) && claim.status !== 'draft') {
+    if (isBavCashout(claim) && options.regeneratePackage !== false) {
       try {
         const { BavLetterPackageService } = await import('./bav-letters');
         await BavLetterPackageService.generateAndStoreForClaim(
           claimId,
-          adminUserId,
+          actorId ?? claim.userId,
           { asAdmin: true }
         );
       } catch (error) {
@@ -659,17 +664,56 @@ export class LawFirmService {
       }
     }
 
-    const to = firm.notificationEmail ?? firm.contactEmail;
-    if (to && claim.status !== 'draft') {
-      await sendLawFirmNewCaseEmail(to, {
-        firmName: firm.name,
-        claimantName: claimantName(claim) ?? 'a claimant',
+    // Assignment releases the case to the firm (visible until submitted).
+    try {
+      await this.releaseToFirm(claimId, actorId);
+    } catch (error) {
+      logger.error('Release on assignment failed', {
         claimId,
-        caseUrl: portalCaseUrl(claimId),
-        lawFirmRef: claim.lawFirmRef,
-      }).catch(() => false);
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return firm.id;
     }
+    await this.notifyFirmOfNewCase(firm, claim);
     return firm.id;
+  }
+
+  /**
+   * A hold was cleared: a law-firm claim that was assigned while held (or
+   * never assigned, for rows that predate assignment at submission) is
+   * released to the firm now. Non-fatal; ops can still release by hand.
+   */
+  static async releaseAfterHoldCleared(
+    claimId: string,
+    actorId: string | null
+  ): Promise<void> {
+    const claim = await ClaimsApplicationService.getClaimAsAdmin(claimId);
+    if (!claim || claim.status === 'draft' || claim.submissionHold) return;
+    if (claim.handlingRoute !== 'law_firm') return;
+    if (!claim.lawFirmId) {
+      await this.assignClaimToDefaultFirm(claimId, actorId);
+      return;
+    }
+    if (claim.lawFirmReleasedAt) return;
+    await this.releaseToFirm(claimId, actorId);
+    const firm = await this.getFirm(claim.lawFirmId);
+    if (firm) await this.notifyFirmOfNewCase(firm, claim);
+  }
+
+  /** "New case" mail to the firm; never throws. */
+  private static async notifyFirmOfNewCase(
+    firm: LawFirmSummary,
+    claim: Claim
+  ): Promise<void> {
+    const to = firm.notificationEmail ?? firm.contactEmail;
+    if (!to) return;
+    await sendLawFirmNewCaseEmail(to, {
+      firmName: firm.name,
+      claimantName: claimantName(claim) ?? 'a claimant',
+      claimId: claim.id,
+      caseUrl: portalCaseUrl(claim.id),
+      lawFirmRef: claim.lawFirmRef,
+    }).catch(() => false);
   }
 
   /**
@@ -1282,14 +1326,19 @@ export class LawFirmService {
     return row ?? null;
   }
 
-  /** Ops: (re)release a case to the firm; clears any earlier re-release window. */
+  /**
+   * (Re)release a case to the firm; clears any earlier re-release window.
+   * Called by ops and by the assignment at submission (`adminUserId` null).
+   */
   static async releaseToFirm(
     claimId: string,
-    adminUserId: string
+    adminUserId: string | null
   ): Promise<{ releasedAt: Date }> {
     const claim = await this.getClaimRow(claimId);
     if (!claim) throw new Error('Claim not found');
-    if (claim.handlingRoute !== 'law_firm' || !claim.lawFirmId) {
+    const route =
+      claim.handlingRoute ?? defaultHandlingRoute(resolveCaseType(claim));
+    if (route !== 'law_firm' || !claim.lawFirmId) {
       throw new Error('Invalid release: the case is not routed to a law firm');
     }
     if (claim.submissionHold) {

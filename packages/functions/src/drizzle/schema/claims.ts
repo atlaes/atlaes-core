@@ -11,7 +11,7 @@ import {
   date,
   text,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import { users, documents, signatures, lawFirms } from './shared';
 import { applications as gprApplications } from './gpr';
 
@@ -133,7 +133,13 @@ export function resolveCaseType(row: {
 }
 
 /** Hosts of the GPR frontend; a POST /claims from there is a DRV refund. */
-const GPR_ORIGIN_HOSTS = ['germanypensionrefund.com', 'localhost:3002'];
+const GPR_ORIGIN_HOSTS = [
+  'germanypensionrefund.com',
+  'de.germanypensionrefund.com',
+  'gpr.atlaes.de',
+  'staging.gpr.atlaes.de',
+  'localhost:3002',
+];
 
 /**
  * Case type for a new claim. An explicit value wins; an applicationId (GPR
@@ -259,6 +265,17 @@ export function defaultHandlingRoute(
 }
 export type ClaimHandlingRoute = (typeof CLAIM_HANDLING_ROUTES)[number];
 
+/**
+ * SQL for the effective handling route of a claims row: the stored value,
+ * else defaultHandlingRoute over the resolved case type (bAV and DRV → law
+ * firm, VBL → direct). Every list, count and scope that filters on the
+ * route must use this, never the raw column, or default law-firm claims
+ * (NULL route) drop out.
+ */
+export function effectiveHandlingRouteSql() {
+  return sql`coalesce(${claimsTable.handlingRoute}, case when coalesce(${claimsTable.caseType}, case when ${claimsTable.pensionType} = 'private' then 'bav_cashout' when ${claimsTable.applicationId} is not null then 'drv_refund' else 'vbl_refund' end) in ('bav_cashout', 'drv_refund') then 'law_firm' else 'direct' end)`;
+}
+
 // Where the Abfindung is paid out (law-firm handling only): the client's
 // own account or the law firm's Anderkonto. Direct handling always pays
 // the client.
@@ -364,6 +381,13 @@ export function isVblPensionProvider(
 // Task 15: type of health insurance selected/confirmed on the Health
 // Insurance substep (bAV/private pension type only).
 export type HealthInsuranceType = 'statutory' | 'private' | 'not_sure';
+
+/** VBL bank-details step: "open a free EUR account for me" (0033). */
+export interface EurAccountRequest {
+  phone: string;
+  consent: boolean;
+  requestedAt?: string;
+}
 
 // Certifying authority types for identity verification
 export type CertifyingAuthority =
@@ -503,7 +527,7 @@ export const claimsTable = claims.table(
     drvRefundReceived: boolean('drv_refund_received'), // true → route A, false → route B
     drvOffice: varchar('drv_office', { length: 255 }), // → drv_office (from Bescheid OCR)
     drvDecisionDate: date('drv_decision_date'), // → drv_decision_date
-    // Admin-chosen bAV claim status (migration 0031): 'vested' (§ 3 Abs. 3
+    // Admin-chosen bAV claim status (migration 0035): 'vested' (§ 3 Abs. 3
     // after the DRV refund) | 'non_vested' (provider's payout procedure).
     // NULL = derived from drv_refund_received.
     bavClaimStatus: varchar('bav_claim_status', { length: 20 }),
@@ -549,6 +573,9 @@ export const claimsTable = claims.table(
     bankCity: varchar('bank_city', { length: 100 }),
     bankPostalCode: varchar('bank_postal_code', { length: 20 }),
     bankCountry: varchar('bank_country', { length: 100 }),
+    // VBL bank-details step: the client asked us to open a free EUR account
+    // for the payout instead of giving an account (migration 0033).
+    eurAccountRequest: jsonb('eur_account_request').$type<EurAccountRequest>(),
 
     // Section 4: Signature
     signatureId: uuid('signature_id').references(() => signatures.id),
@@ -564,6 +591,9 @@ export const claimsTable = claims.table(
     identityVerifiedAt: timestamp('identity_verified_at', {
       withTimezone: true,
     }),
+    // Authority certifying the identity confirmation form when it differs
+    // from the signature's (GPR ID step; migration 0033).
+    identityCertifyingAuthority: text('identity_certifying_authority'),
 
     // Section 6: Review & Submit - Confirmations
     confirmationAccuracyAccepted: boolean(
@@ -661,7 +691,7 @@ export const claimsTable = claims.table(
     }),
     submissionPackManifest: jsonb('submission_pack_manifest'),
 
-    // Direct client submission (handling_route 'direct', migration 0031):
+    // Direct client submission (handling_route 'direct', migration 0035):
     // admin releases the signed pack for dispatch, then records who sent
     // it, how and the actual submission date. Release alone is not
     // "submitted".
@@ -742,7 +772,7 @@ export const claimsTable = claims.table(
     submissionHoldReason: text('submission_hold_reason'),
     submissionHoldAt: timestamp('submission_hold_at', { withTimezone: true }),
 
-    // Escrow payout (migration 0032, services/payout-emails). Payout hold:
+    // Escrow payout (migration 0036, services/payout-emails). Payout hold:
     // no payout invitation, reminders or signing while set (NULL = none).
     // Contact pause: client travelling/ill/unavailable; routine payout
     // reminders pause until the next-contact date, deadline alerts don't.

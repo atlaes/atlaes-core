@@ -16,7 +16,7 @@ import type {
 } from '../../services/blog/content';
 
 /**
- * Blog posts written by ops in the admin (Blog → editor, migration 0030) for
+ * Blog posts written by ops in the admin (Blog → editor, migration 0034) for
  * the GPR site (/post/<slug>) and companypension.de (/blog/<slug>). The body
  * is stored in the editor's block format (`services/blog/content.ts`); the
  * public API converts it to the sites' render format.

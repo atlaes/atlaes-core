@@ -2,7 +2,7 @@ import { jsonb, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 import { shared, users } from './shared';
 
 /**
- * Plain configuration ops edit in the admin (migration 0031), one JSON
+ * Plain configuration ops edit in the admin (migration 0035), one JSON
  * value per key. Keys: "postal_agent" (the postal authority's name and
  * correspondence address, used in direct-route cover letters and the
  * Postempfangsvollmacht) and "direct_dispatch_operator". See

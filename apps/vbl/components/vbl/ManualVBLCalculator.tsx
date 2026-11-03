@@ -19,11 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import apiClient from '../../lib/api';
-import {
-  CALCULATOR_EARLIEST_YEAR,
-  STAGE_EARLIEST_YEAR,
-  yearOptions,
-} from '../../lib/year-options';
+import { yearOptions } from '../../lib/year-options';
 import { createPendingCalculatorSession } from '../../lib/vbl-pending-calculator-sessions-api';
 import {
   monthIndexToIsoDate,
@@ -219,12 +215,7 @@ const PUBLIC_PROVIDER_OPTIONS: PublicProvider[] = ['VBL', 'ZVK'];
 const getProviderOptions = (form: ManualFormData) =>
   form.pensionType === 'stage' ? ['VddB', 'VddKO'] : PUBLIC_PROVIDER_OPTIONS;
 
-const YEARS = yearOptions(CALCULATOR_EARLIEST_YEAR);
-// Stage pensions also cover employment that ended before 2001.
-const STAGE_YEARS = yearOptions(STAGE_EARLIEST_YEAR);
-
-const getYearOptions = (form: ManualFormData) =>
-  form.pensionType === 'stage' ? STAGE_YEARS : YEARS;
+const YEARS = yearOptions();
 
 const INITIAL_FORM_DATA: ManualFormData = {
   pensionType: '',
@@ -365,11 +356,45 @@ const getCurrentSection = (screen: CalculatorScreen): 0 | 1 | 2 => {
 const hasDateRange = (form: ManualFormData) =>
   Boolean(form.startMonth && form.startYear && form.endMonth && form.endYear);
 
-const isDateRangeValid = (form: ManualFormData) => {
+// Month index (year * 12 + zero-based month) of the current month.
+const getCurrentMonthIndex = () => {
+  const now = new Date();
+  return now.getFullYear() * 12 + now.getMonth();
+};
+
+const isEndBeforeStart = (form: ManualFormData) => {
   if (!hasDateRange(form)) return false;
   const start = Number(form.startYear) * 12 + MONTHS.indexOf(form.startMonth);
   const end = Number(form.endYear) * 12 + MONTHS.indexOf(form.endMonth);
-  return end >= start;
+  return end < start;
+};
+
+// The contribution period cannot end after the current month. A future end
+// month used to pass validation and only surface later as a bare "cannot be
+// claimed" result.
+const isEndInFuture = (form: ManualFormData) => {
+  if (!form.endMonth || !form.endYear) return false;
+  const end = Number(form.endYear) * 12 + MONTHS.indexOf(form.endMonth);
+  return end > getCurrentMonthIndex();
+};
+
+// End-month options for the chosen end year: in the current year only the
+// months up to and including this one.
+const getEndMonthOptions = (endYear: string) => {
+  const now = new Date();
+  return Number(endYear) === now.getFullYear()
+    ? MONTHS.slice(0, now.getMonth() + 1)
+    : MONTHS;
+};
+
+const formatCurrentMonth = () => {
+  const now = new Date();
+  return `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+};
+
+const isDateRangeValid = (form: ManualFormData) => {
+  if (!hasDateRange(form)) return false;
+  return !isEndBeforeStart(form) && !isEndInFuture(form);
 };
 
 const getContributionMonthCount = (form: ManualFormData) => {
@@ -1639,7 +1664,7 @@ export const ManualVBLCalculator: React.FC = () => {
                       label="Start year"
                       value={form.startYear}
                       onChange={(value) => updateForm({ startYear: value })}
-                      options={getYearOptions(form)}
+                      options={YEARS}
                       placeholder="Select start year"
                       error={!form.startYear ? 'Missing details' : undefined}
                     />
@@ -1647,23 +1672,41 @@ export const ManualVBLCalculator: React.FC = () => {
                       label="End month"
                       value={form.endMonth}
                       onChange={(value) => updateForm({ endMonth: value })}
-                      options={MONTHS}
+                      options={getEndMonthOptions(form.endYear)}
                       placeholder="Select end month"
                       error={!form.endMonth ? 'Missing details' : undefined}
                     />
                     <SelectField
                       label="End year"
                       value={form.endYear}
-                      onChange={(value) => updateForm({ endYear: value })}
-                      options={getYearOptions(form)}
+                      onChange={(value) =>
+                        updateForm({
+                          endYear: value,
+                          // Drop an end month that the new year no longer
+                          // offers (e.g. December after switching to this year).
+                          endMonth: getEndMonthOptions(value).includes(
+                            form.endMonth
+                          )
+                            ? form.endMonth
+                            : '',
+                        })
+                      }
+                      options={YEARS}
                       placeholder="Select end year"
                       error={!form.endYear ? 'Missing details' : undefined}
                     />
                   </div>
 
-                  {hasDateRange(form) && !isDateRangeValid(form) && (
+                  {isEndBeforeStart(form) && (
                     <p className="rounded-md bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                       End date cannot be earlier than start date.
+                    </p>
+                  )}
+                  {isEndInFuture(form) && (
+                    <p className="rounded-md bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                      The end month cannot be in the future. Please select the
+                      month your employment ended ({formatCurrentMonth()} at the
+                      latest).
                     </p>
                   )}
 
@@ -1829,27 +1872,43 @@ export const ManualVBLCalculator: React.FC = () => {
                     label="Start year"
                     value={form.startYear}
                     onChange={(value) => updateForm({ startYear: value })}
-                    options={getYearOptions(form)}
+                    options={YEARS}
                     placeholder="Select start year"
                   />
                   <SelectField
                     label="End month"
                     value={form.endMonth}
                     onChange={(value) => updateForm({ endMonth: value })}
-                    options={MONTHS}
+                    options={getEndMonthOptions(form.endYear)}
                     placeholder="Select end month"
                   />
                   <SelectField
                     label="End year"
                     value={form.endYear}
-                    onChange={(value) => updateForm({ endYear: value })}
-                    options={getYearOptions(form)}
+                    onChange={(value) =>
+                      updateForm({
+                        endYear: value,
+                        endMonth: getEndMonthOptions(value).includes(
+                          form.endMonth
+                        )
+                          ? form.endMonth
+                          : '',
+                      })
+                    }
+                    options={YEARS}
                     placeholder="Select end year"
                   />
                 </div>
-                {hasDateRange(form) && !isDateRangeValid(form) && (
+                {isEndBeforeStart(form) && (
                   <p className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                     End date cannot be earlier than start date.
+                  </p>
+                )}
+                {isEndInFuture(form) && (
+                  <p className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                    The end month cannot be in the future. Please select the
+                    month your employment ended ({formatCurrentMonth()} at the
+                    latest).
                   </p>
                 )}
               </FormShell>

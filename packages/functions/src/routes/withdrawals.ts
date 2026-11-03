@@ -39,10 +39,15 @@ const confirmSchema = z.object({
 // ============================================================
 
 // Stricter per-route limiter on the public identify endpoint (on top of the
-// global limiter) — it takes untrusted input and probes for claims.
+// global limiter) — it takes untrusted input and probes for claims, so a
+// client gets a handful of attempts per quarter hour.
 withdrawals.post(
   '/identify',
-  rateLimiter({ windowMs: 15 * 60 * 1000, max: 20 }),
+  rateLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: 'Too many attempts. Please try again in 15 minutes.',
+  }),
   optionalAuthMiddleware,
   zValidator('json', identifySchema),
   async (c) => {

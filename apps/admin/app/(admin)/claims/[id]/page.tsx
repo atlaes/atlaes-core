@@ -12,8 +12,11 @@ import {
   getDocumentDownloadUrl,
   getPackageDownloadUrl,
   regeneratePackage,
+  releaseClaimToFirm,
+  rereleaseClaimToFirm,
   setClaimRouting,
   updateClaimStatus,
+  CASE_TYPE_LABELS,
   ClaimHandlingRoute,
   ClaimPayoutTarget,
 } from '@/lib/admin-api';
@@ -210,6 +213,8 @@ export default function ClaimDetailPage() {
     onSuccess: () => { setRouteForm(null); invalidate(); },
   });
   const regenerateMutation = useMutation({ mutationFn: () => regeneratePackage(id), onSuccess: invalidate });
+  const releaseMutation = useMutation({ mutationFn: () => releaseClaimToFirm(id), onSuccess: invalidate });
+  const rereleaseMutation = useMutation({ mutationFn: () => rereleaseClaimToFirm(id), onSuccess: invalidate });
 
   const timeline = useMemo<TimelineItem[]>(() => {
     if (!detailQuery.data) return [];
@@ -266,11 +271,26 @@ export default function ClaimDetailPage() {
   const name = claim.firstName && claim.lastName ? `${claim.firstName} ${claim.lastName}` : userInfo?.firstName && userInfo?.lastName ? `${userInfo.firstName} ${userInfo.lastName}` : 'Unnamed claimant';
   const nextStatuses = VALID_TRANSITIONS[claim.status] || [];
   const currentRoute: ClaimHandlingRoute = claim.handlingRoute ?? 'direct';
-  const isBav = claim.pensionType === 'private';
+  const isBav = claim.caseType === 'bav_cashout';
+  const isDrv = claim.caseType === 'drv_refund';
   // DRV refunds label the route "Submission route" (direct spec 29 Oct 2026).
-  const isDrv = (claim as { caseType?: string }).caseType === 'drv_refund';
   const routeLabel = (r: ClaimHandlingRoute) => (isDrv ? (r === 'law_firm' ? 'Via Vividius' : 'Direct client submission') : r === 'law_firm' ? 'Law firm (Vividius)' : 'Direct via lettershop');
+  // The bAV package and the VBL L203 are built here; DRV packs at the firm's download.
+  const canRegenerate = !isDrv && claim.status !== 'draft';
   const isStage = claim.pensionProvider === 'VddB' || claim.pensionProvider === 'VddKO';
+  // Law-firm release state: assigned → released (visible) → submitted by the firm → re-releasable for 24 h.
+  const rereleaseActive = !!claim.lawFirmRereleasedUntil && new Date(claim.lawFirmRereleasedUntil).getTime() > Date.now();
+  const firmVisibility = !claim.lawFirmId
+    ? null
+    : !claim.lawFirmReleasedAt
+      ? 'not released'
+      : claim.lawFirmSubmittedAt
+        ? rereleaseActive
+          ? `re-released until ${formatDate(claim.lawFirmRereleasedUntil, true)}`
+          : 'hidden (submitted by the firm)'
+        : 'visible to the firm';
+  const canRelease = currentRoute === 'law_firm' && !!claim.lawFirmId && claim.status !== 'draft' && !claim.submissionHold && !claim.lawFirmSubmittedAt;
+  const canRerelease = currentRoute === 'law_firm' && !!claim.lawFirmReleasedAt && !!claim.lawFirmSubmittedAt && !rereleaseActive;
   const stage = claim.stageDetails ?? {};
   const openRecipientEditor = () => {
     setEditingRecipient(true);
@@ -286,7 +306,7 @@ export default function ClaimDetailPage() {
       {/* Header */}
       <div className="mb-6">
         <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
-          Claim · {isBav ? 'bAV cash-out' : claim.pensionType === 'public' ? 'Public refund' : 'Product not set'}{claim.pensionProvider && !isBav ? ` · ${claim.pensionProvider}` : ''}
+          Claim · {CASE_TYPE_LABELS[claim.caseType]}{claim.pensionProvider && !isBav ? ` · ${claim.pensionProvider}` : ''}
         </p>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -306,11 +326,24 @@ export default function ClaimDetailPage() {
               </Button>
             ))}
             <Button onClick={openRouteForm} disabled={routeLocked || !!routeForm} title={routeLocked ? 'Already sent to the lettershop' : undefined}>Change handling</Button>
-            {isBav && claim.status !== 'draft' && (
+            {canRegenerate && (
               <Button disabled={regenerateMutation.isPending} onClick={() => regenerateMutation.mutate()}>{regenerateMutation.isPending ? 'Generating…' : 'Regenerate package'}</Button>
+            )}
+            {canRelease && (
+              <Button disabled={releaseMutation.isPending} onClick={() => releaseMutation.mutate()} title={claim.lawFirmReleasedAt ? 'Release again (resets the release date)' : 'Make the case visible to the firm'}>
+                {releaseMutation.isPending ? 'Releasing…' : claim.lawFirmReleasedAt ? 'Release again' : 'Release to firm'}
+              </Button>
+            )}
+            {canRerelease && (
+              <Button disabled={rereleaseMutation.isPending} onClick={() => rereleaseMutation.mutate()} title="Visible to the firm for another 24 hours">
+                {rereleaseMutation.isPending ? 'Re-releasing…' : 'Re-release for 24 h'}
+              </Button>
             )}
           </div>
         </div>
+        {(releaseMutation.isError || rereleaseMutation.isError) && (
+          <div className="mt-2"><ErrorText error={releaseMutation.error ?? rereleaseMutation.error} fallback="Could not release the case" /></div>
+        )}
         {pendingStatus && (
           <div className="mt-3 flex flex-wrap items-end gap-2 rounded-md border border-gray-200 bg-white p-3">
             <div className="min-w-[240px] flex-1">
@@ -358,6 +391,9 @@ export default function ClaimDetailPage() {
         {regenerateMutation.isError && <div className="mt-2"><ErrorText error={regenerateMutation.error} fallback="Could not regenerate" /></div>}
         {regenerateMutation.isSuccess && regenerateMutation.data.missingPlaceholders.length > 0 && (
           <p className="mt-2 text-xs text-amber-700">Package generated with empty placeholders: {regenerateMutation.data.missingPlaceholders.join(', ')}</p>
+        )}
+        {regenerateMutation.isSuccess && regenerateMutation.data.sentToLettershop && (
+          <p className="mt-2 text-xs text-emerald-700">Package regenerated and sent to the lettershop.</p>
         )}
       </div>
 
@@ -468,6 +504,8 @@ export default function ClaimDetailPage() {
                 <Row label="Abmeldung" value={claim.abmeldungMethod} />
                 <Row label="Health insurance" value={claim.healthInsuranceProviderName ? `${claim.healthInsuranceProviderName}${claim.healthInsuranceType ? ` (${claim.healthInsuranceType})` : ''}` : claim.healthInsuranceType} />
                 <Row label="Identity verified" value={claim.identityVerifiedAt ? `${formatDate(claim.identityVerifiedAt)}${claim.certifyingAuthority ? ` by ${claim.certifyingAuthority.replace(/_/g, ' ')}` : ''}` : null} />
+                <Row label="Signature certified by" value={claim.certifyingAuthority?.replace(/_/g, ' ')} />
+                <Row label="ID form certified by" value={claim.identityCertifyingAuthority?.replace(/_/g, ' ')} />
               </div>
             </dl>
           </Section>
@@ -484,10 +522,12 @@ export default function ClaimDetailPage() {
             onChanged={invalidate}
           />
 
-          <DeregistrationSurchargeCard
-            claimId={claim.id}
-            wrap={(body) => <Section title="Deregistration surcharge">{body}</Section>}
-          />
+          {isDrv && (
+            <DeregistrationSurchargeCard
+              claimId={claim.id}
+              wrap={(body) => <Section title="Deregistration surcharge">{body}</Section>}
+            />
+          )}
 
           {!isBav && (
             <EscrowPayoutCard
@@ -497,6 +537,12 @@ export default function ClaimDetailPage() {
           )}
 
           <Section title="Bank and payment">
+            {claim.eurAccountRequest && (
+              <p className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                Asked us to open a free EUR account{claim.eurAccountRequest.consent ? ' (consent given)' : ' (no consent recorded)'} · phone {claim.eurAccountRequest.phone}
+                {claim.eurAccountRequest.requestedAt ? ` · requested ${formatDate(claim.eurAccountRequest.requestedAt, true)}` : ''}
+              </p>
+            )}
             <dl className="grid gap-x-8 sm:grid-cols-2">
               <div>
                 <Row label="Account holder" value={claim.accountHolderName} />
@@ -530,7 +576,7 @@ export default function ClaimDetailPage() {
                   {claim.pdfS3Key && (
                     <tr>
                       <Td><span className="text-gray-900">Letter package</span></Td>
-                      <Td className="text-gray-600">{isBav ? 'bAV Abfindung package' : 'VBL package'}</Td>
+                      <Td className="text-gray-600">{isBav ? 'bAV Abfindung package' : isDrv ? 'DRV submission pack' : 'VBL package'}</Td>
                       <Td className="tabular-nums text-gray-600">{formatDate(claim.updatedAt)}</Td>
                       <Td align="right">
                         <Button size="sm" variant="ghost" onClick={() => setViewer({ title: 'Letter package', subtitle: name, fileType: 'application/pdf', load: () => getPackageDownloadUrl(id) })}><Eye className="h-3.5 w-3.5" />Preview</Button>
@@ -572,7 +618,7 @@ export default function ClaimDetailPage() {
         <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
           <RailGroup title="Details">
             <RailRow label="Claim ID" value={<CopyId id={claim.id} />} />
-            <RailRow label="Product" value={isBav ? <Pill tone="brand">bAV cash-out</Pill> : claim.pensionType === 'public' ? <Pill>Public refund</Pill> : 'Not set'} />
+            <RailRow label="Product" value={<Pill tone={isBav ? 'brand' : isDrv ? 'info' : 'neutral'}>{CASE_TYPE_LABELS[claim.caseType]}</Pill>} />
             <RailRow label="Status" value={<StatusDot tone={CLAIM_STATUS_TONE[claim.status] ?? 'neutral'}>{CLAIM_STATUS_LABEL[claim.status] ?? claim.status}</StatusDot>} />
             <RailRow label="On hold" value={claim.submissionHold ? <span className="text-amber-700">{claim.submissionHold.replace(/_/g, ' ')}</span> : null} />
             <RailRow label="Workflow step" value={claim.workflowState.replace(/_/g, ' ')} />
@@ -588,6 +634,8 @@ export default function ClaimDetailPage() {
                 <RailRow label="File number" value={claim.lawFirmRef ?? <span className="text-amber-700">not set yet</span>} />
                 <RailRow label="Payout to" value={claim.payoutTarget === 'law_firm' ? 'Anderkonto' : 'Client account'} />
                 <RailRow label="Assigned" value={formatDate(claim.lawFirmAssignedAt, true)} />
+                <RailRow label="Released" value={claim.lawFirmReleasedAt ? formatDate(claim.lawFirmReleasedAt, true) : claim.lawFirmId ? <span className="text-amber-700">not yet</span> : null} />
+                <RailRow label="Firm sees it" value={firmVisibility} />
                 <RailRow label="Downloaded" value={formatDate(claim.lawFirmDownloadedAt, true)} />
                 <RailRow label="Sent to provider" value={claim.lawFirmSubmittedAt ? `${formatDate(claim.lawFirmSubmittedAt)}${claim.lawFirmSubmissionChannel ? ` by ${claim.lawFirmSubmissionChannel}` : ''}` : null} />
                 <RailRow label="Response" value={formatDate(claim.lawFirmResponseAt)} />

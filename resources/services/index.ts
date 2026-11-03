@@ -21,6 +21,43 @@ const lettershopApiSecret = new sst.Secret('LettershopApiSecret');
 // SFTP. Unused by the backend — drop once the API path has run in staging.
 const lettershopSftpPassword = new sst.Secret('LettershopSftpPassword');
 
+/**
+ * Secrets the deploy workflow passes from GitHub secrets
+ * (.github/workflows/deploy-staging.yml). A missing or short value fails
+ * the deploy here instead of shipping a backend with a weak or empty key.
+ */
+function requireEnvSecret(name: string, minLength: number): string {
+  const value = process.env[name]?.trim() ?? '';
+  if (value.length < minLength) {
+    throw new Error(
+      `${name} must be set (>= ${minLength} characters) to deploy stage "${$app.stage}". ` +
+        'Add it as a GitHub secret and pass it in the deploy workflow env.'
+    );
+  }
+  return value;
+}
+
+// Signs sessions and magic links. Rotating it signs every user out.
+const jwtSecret = requireEnvSecret('JWT_SECRET', 32);
+
+// Encrypts law-firm 2FA secrets (AES-256-GCM, 32 bytes as 64 hex chars or
+// base64). Required so no enrolment falls back to a key derived from
+// JWT_SECRET, which would break on the next JWT_SECRET rotation.
+const totpEncryptionKey = requireEnvSecret('TOTP_ENCRYPTION_KEY', 44);
+
+// Stripe: a live key on a non-production stage would charge real cards; a
+// test key in production would accept none. Empty = payments disabled
+// (services/payment.ts answers with a clear configuration error).
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim() ?? '';
+if ($app.stage === 'production' && stripeSecretKey.startsWith('sk_test_')) {
+  throw new Error('STRIPE_SECRET_KEY is a test key; production needs sk_live_');
+}
+if ($app.stage !== 'production' && stripeSecretKey.startsWith('sk_live_')) {
+  throw new Error(
+    `STRIPE_SECRET_KEY is a live key; stage "${$app.stage}" must use sk_test_`
+  );
+}
+
 export const backend = new sst.aws.Service('AtlaesBackend', {
   cluster,
   image: {
@@ -51,19 +88,17 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
     // Unset = notices are logged only.
     GPR_FRONTEND_URL: process.env.GPR_FRONTEND_URL ?? '',
     OPS_NOTIFICATION_EMAIL: process.env.OPS_NOTIFICATION_EMAIL ?? '',
-    JWT_SECRET: 'a-proper-32-char-minimum-secret-for-staging-env',
+    JWT_SECRET: jwtSecret,
     NODE_ENV: 'production',
     // Both companypension.de and atlaes.de are verified SES identities in
     // the staging account; the brand address is the sender.
     SES_FROM_EMAIL: 'noreply@companypension.de',
-    STRIPE_SECRET_KEY:
-      $app.stage === 'production'
-        ? ''
-        : 'sk_test_51SRpwnD86goZexmM9XSBC97ERit2aUg4XOg0TGNvag9Zhzugx7NyChKTU0AubwFyrvIHtveGkd6AnjyytKpVlQWB00s9zr78UR',
+    STRIPE_SECRET_KEY: stripeSecretKey,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET ?? '',
-    // Encrypts law-firm 2FA secrets (AES-256-GCM, 64 hex chars). GitHub
-    // environment secret; unset = fallback key derived from JWT_SECRET.
-    TOTP_ENCRYPTION_KEY: process.env.TOTP_ENCRYPTION_KEY ?? '',
+    TOTP_ENCRYPTION_KEY: totpEncryptionKey,
+    // The previous JWT_SECRET, only while 2FA secrets enrolled under it
+    // (ciphertext kid "jwt") still exist; see services/totp/secret-box.ts.
+    TOTP_LEGACY_JWT_SECRET: process.env.TOTP_LEGACY_JWT_SECRET ?? '',
     // Lexoffice invoicing for payouts. GitHub environment secret; unset =
     // no-op provider (invoices stay pending).
     LEXOFFICE_API_KEY: process.env.LEXOFFICE_API_KEY ?? '',
@@ -103,9 +138,10 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
   },
 });
 
-// Daily waiting-period reminder for guide leads (gpr.leads with reminder
-// opt-in): one e-mail on the 1st of month +23 after the last contribution
-// month, once per lead. 06:00 UTC = 07:00/08:00 Berlin.
+// Daily waiting-period reminders (gpr.leads with reminder opt-in): guide
+// leads get one e-mail on the 1st of month +23 after the last contribution
+// month, VBL "remind me" leads one on the day their refund can start, each
+// once per lead. 06:00 UTC = 07:00/08:00 Berlin.
 export const leadsReminderCron = new sst.aws.Cron('LeadsReminderCron', {
   schedule: 'cron(0 6 * * ? *)',
   function: {
@@ -119,6 +155,11 @@ export const leadsReminderCron = new sst.aws.Cron('LeadsReminderCron', {
       NODE_ENV: 'production',
       SES_FROM_EMAIL: 'noreply@companypension.de',
       LEADS_NOTIFY_EMAIL: process.env.LEADS_NOTIFY_EMAIL ?? '',
+      // The VBL reminder e-mail links to the app and its logo.
+      FRONTEND_URL:
+        $app.stage === 'production'
+          ? 'https://vbl.atlaes.de'
+          : 'https://staging.vbl.atlaes.de',
     },
   },
 });

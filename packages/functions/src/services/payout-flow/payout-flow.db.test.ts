@@ -152,6 +152,20 @@ describe('payout flow (db)', () => {
     expect(claim.payoutAmountMismatch).toBe(false);
   });
 
+  it('refuses to record funds again while a release is open (409)', async () => {
+    await expect(
+      PayoutFlowService.onFundsRecorded(claimId, {
+        amountEur: 29601.9,
+        valueDate: '2026-09-23',
+      })
+    ).rejects.toMatchObject({ status: 409 });
+    const open = await db
+      .select()
+      .from(payoutReleases)
+      .where(eq(payoutReleases.claimId, claimId));
+    expect(open).toHaveLength(1);
+  });
+
   it('confirms the decision', async () => {
     const st = await PayoutFlowService.getClientState(userId);
     await PayoutFlowService.confirmDecision(userId, st.decision!.id);

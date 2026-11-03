@@ -311,7 +311,7 @@ describe('provider short names', () => {
     expect(updated?.street).toBe('Musterweg 1');
   });
 
-  it('migration 0031 seeded the six owner providers', async () => {
+  it('migration 0035 seeded the six owner providers', async () => {
     const all = await BavProviderService.list();
     const labels = all.map((p) => p.shortName);
     for (const label of [

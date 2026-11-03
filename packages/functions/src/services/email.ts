@@ -1,15 +1,35 @@
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+import { Resource } from 'sst';
 import { logger, toErrorMeta } from '../utils/logger';
 import { env } from '../utils/env';
 import { isE2eTestAddress } from '../utils/e2e';
+import {
+  GPR_BRAND,
+  renderPayoutEmailHtml,
+  renderPayoutEmailText,
+  type PayoutEmailContent,
+} from './gpr-payout/email-templates/layout';
 
 const REGION = env.SES_REGION;
 const FROM_EMAIL = env.SES_FROM_EMAIL;
 
 const sesClient = new SESClient({ region: REGION });
 
-// Detect SES availability the same way s3.ts detects bucket availability
-const isSesAvailable = !!process.env.SST_RESOURCE_AtlaesEmail;
+/**
+ * SES is linked on the Fargate backend (SST_RESOURCE_AtlaesEmail) and on
+ * the crons (sst.aws.Function, which only get the encrypted link bundle
+ * that `Resource` reads). Without either (local dev, tests) mail is logged
+ * instead of sent.
+ */
+function detectSes(): boolean {
+  if (process.env.SST_RESOURCE_AtlaesEmail) return true;
+  try {
+    return 'AtlaesEmail' in Resource;
+  } catch {
+    return false;
+  }
+}
+const isSesAvailable = detectSes();
 
 if (!isSesAvailable) {
   logger.info(
@@ -28,16 +48,55 @@ function isSuppressedE2eRecipient(to: string, label: string): boolean {
   return true;
 }
 
+/** Which site asked for the link; decides the branding of the e-mail. */
+export type MagicLinkBrand = 'companypension' | 'gpr';
+
+/** GPR sign-in mail in the GPR e-mail layout (shared with the payout mails). */
+export function gprMagicLinkEmail(magicLinkUrl: string): PayoutEmailContent {
+  return {
+    subject: 'Your secure sign-in link',
+    preheader: `Sign in to your ${GPR_BRAND} account. The link expires in 15 minutes.`,
+    blocks: [
+      {
+        kind: 'p',
+        text: `Click the button below to sign in to your ${GPR_BRAND} account. No password is needed.`,
+      },
+      { kind: 'button', label: 'Sign in securely', url: magicLinkUrl },
+      { kind: 'p', text: 'This secure link expires in 15 minutes.' },
+      {
+        kind: 'p',
+        text: `If the button does not work, copy and paste this link into your browser:\n${magicLinkUrl}`,
+      },
+      {
+        kind: 'p',
+        text: 'If you did not request this email, you can safely ignore it.',
+      },
+    ],
+    closing: 'We look forward to helping you with your refund.',
+    signature: `Your ${GPR_BRAND} team`,
+  };
+}
+
 /**
  * Send a magic link email. In local dev (no SES resource), logs instead of sending.
  */
 export async function sendMagicLinkEmail(
   to: string,
-  magicLinkUrl: string
+  magicLinkUrl: string,
+  brand: MagicLinkBrand = 'companypension'
 ): Promise<boolean> {
   if (isSuppressedE2eRecipient(to, 'magic link')) return true;
-  const html = generateMagicLinkEmailHtml(magicLinkUrl);
-  const plainText = generateMagicLinkEmailText(magicLinkUrl);
+  const gpr = brand === 'gpr' ? gprMagicLinkEmail(magicLinkUrl) : null;
+  const html = gpr
+    ? renderPayoutEmailHtml(gpr)
+    : generateMagicLinkEmailHtml(magicLinkUrl);
+  const plainText = gpr
+    ? renderPayoutEmailText(gpr)
+    : generateMagicLinkEmailText(magicLinkUrl);
+  const fromName = gpr ? GPR_BRAND : 'CompanyPension';
+  const subject = gpr
+    ? gpr.subject
+    : 'Your secure CompanyPension sign-in link';
 
   if (!isSesAvailable) {
     logger.info(`[Email] Would send magic link email to: ${to}`);
@@ -47,11 +106,11 @@ export async function sendMagicLinkEmail(
   try {
     await sesClient.send(
       new SendEmailCommand({
-        Source: `CompanyPension <${FROM_EMAIL}>`,
+        Source: `${fromName} <${FROM_EMAIL}>`,
         Destination: { ToAddresses: [to] },
         Message: {
           Subject: {
-            Data: 'Your secure CompanyPension sign-in link',
+            Data: subject,
             Charset: 'UTF-8',
           },
           Body: {
@@ -604,6 +663,83 @@ async function sendBrandedEmail(
     logger.error(`Failed to send ${logLabel} email:`, toErrorMeta(error));
     return false;
   }
+}
+
+export interface VblReminderEmailDetails {
+  /** YYYY-MM-DD, the first day the refund can be started. */
+  eligibleOn: string;
+  /** e.g. 'VddB'; the mail then says "your VddB refund". */
+  pensionProvider?: string | null;
+}
+
+/** '1 March 2027' from 'YYYY-MM-DD'. */
+function formatReminderDate(isoDate: string): string {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return isoDate;
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+function reminderRefundLabel(details: VblReminderEmailDetails): string {
+  const provider = details.pensionProvider?.trim();
+  return provider ? `${provider} refund` : 'refund';
+}
+
+const VBL_REMINDER_FOOTNOTE =
+  'You receive this e-mail because you asked CompanyPension to remind you when your refund can be started. If that was not you, you can ignore it.';
+
+/**
+ * Confirms a "remind me when I can start" request from the calculator or
+ * the get-started flow (POST /api/vbl/reminders).
+ */
+export async function sendVblReminderSetEmail(
+  to: string,
+  details: VblReminderEmailDetails
+): Promise<boolean> {
+  const date = formatReminderDate(details.eligibleOn);
+  return sendBrandedEmail(
+    to,
+    {
+      subject: 'Your refund reminder is set',
+      heading: 'Reminder set',
+      paragraphs: [
+        `Thanks — we have saved your reminder. Your ${reminderRefundLabel(details)} can be started from ${date}, once the waiting period after your last contribution has passed.`,
+        'We will e-mail you on that day so you can start your refund with CompanyPension. There is nothing else to do until then.',
+      ],
+      footnote: VBL_REMINDER_FOOTNOTE,
+    },
+    'vbl-reminder-set'
+  );
+}
+
+/**
+ * Sent by the daily leads cron on the day the refund can be started
+ * (services/leads/index.ts, processDueReminders).
+ */
+export async function sendVblReminderDueEmail(
+  to: string,
+  details: VblReminderEmailDetails
+): Promise<boolean> {
+  const date = formatReminderDate(details.eligibleOn);
+  const frontendUrl = env.FRONTEND_URL.replace(/\/$/, '');
+  return sendBrandedEmail(
+    to,
+    {
+      subject: 'You can start your refund now',
+      heading: 'Your waiting period is over',
+      paragraphs: [
+        `The waiting period for your ${reminderRefundLabel(details)} has passed: from ${date} your refund can be started.`,
+        'Start it with CompanyPension whenever you are ready — it takes about ten minutes and we guide you through every step.',
+      ],
+      cta: { label: 'Start my refund', url: `${frontendUrl}/get-started` },
+      footnote: VBL_REMINDER_FOOTNOTE,
+    },
+    'vbl-reminder-due'
+  );
 }
 
 /** Ops invited a person at the partner law firm; carries their first sign-in link. */

@@ -4,6 +4,9 @@ import { getAttribution } from './attribution';
 // Types matching backend schema
 export type ClaimType = 'own_refund' | 'surviving_spouse';
 
+/** Product discriminator; the GPR app only ever creates `drv_refund`. */
+export type ClaimCaseType = 'drv_refund' | 'vbl_refund' | 'bav_cashout';
+
 // Nested structures for UI convenience
 export interface CurrentAddress {
   addressLine1?: string;
@@ -52,6 +55,15 @@ export type ClaimWorkflowState =
   | 'completed'
   | 'rejected';
 
+/** States a customer may move a claim to via POST /claims/:id/workflow. */
+export type ClaimWorkflowTransitionState =
+  | 'personal_info'
+  | 'documents'
+  | 'payment_details'
+  | 'signature'
+  | 'id_verification'
+  | 'review';
+
 export type ClaimStepName =
   | 'claimType'
   | 'passportUpload'
@@ -92,6 +104,7 @@ export interface Claim {
   completedSteps: Record<ClaimStepName, boolean>;
 
   // Claim Type
+  caseType?: ClaimCaseType;
   claimType?: ClaimType;
 
   // Personal Information (Passport)
@@ -140,9 +153,11 @@ export interface Claim {
   signatureId?: string;
   signatureCompletedAt?: string;
 
-  // ID Verification
+  // Certification: where the signature (certifyingAuthority) and the
+  // identity form (identityCertifyingAuthority) get certified.
   identityFormDownloadedAt?: string;
   certifyingAuthority?: CertifyingAuthority;
+  identityCertifyingAuthority?: CertifyingAuthority;
   identityVerifiedAt?: string;
 
   // Confirmations
@@ -155,6 +170,8 @@ export interface Claim {
 
   // Submission
   submittedAt?: string;
+  /** When the law firm released the case for payout (null until then). */
+  lawFirmReleasedAt?: string | null;
 
   // Timestamps
   createdAt: string;
@@ -166,7 +183,16 @@ export interface Claim {
   bankDetails?: BankDetails;
   germanSocialInsuranceNumber?: string; // alias for svNummer
   signatureAuthority?: CertifyingAuthority; // alias for certifyingAuthority
-  idVerificationAuthority?: CertifyingAuthority; // also uses certifyingAuthority
+  idVerificationAuthority?: CertifyingAuthority; // alias for identityCertifyingAuthority
+}
+
+/** Row in shared.signatures created by POST /signatures/upload. */
+export interface SignatureRecord {
+  id: string;
+  s3Key?: string | null;
+  /** Presigned URL from GET /signatures/:id; null when presigning is off. */
+  downloadUrl?: string | null;
+  createdAt: string;
 }
 
 export interface ClaimDocument {
@@ -210,6 +236,9 @@ export interface UploadDocumentResult {
 }
 
 export interface CreateClaimRequest {
+  /** Always sent: without it the backend derives the product from the
+   * request origin, which fails for hosts it does not know. */
+  caseType: ClaimCaseType;
   applicationId?: string;
 }
 
@@ -249,6 +278,8 @@ export interface UpdateClaimRequestFlat {
   bankPostalCode?: string;
   bankCountry?: string;
   certifyingAuthority?: CertifyingAuthority;
+  /** null clears the ID-step authority. */
+  identityCertifyingAuthority?: CertifyingAuthority | null;
   confirmationAccuracyAccepted?: boolean;
   confirmationAuthorizationAccepted?: boolean;
 }
@@ -261,7 +292,7 @@ export interface UpdateClaimRequest extends UpdateClaimRequestFlat {
   bankDetails?: BankDetails;
   germanSocialInsuranceNumber?: string;
   signatureAuthority?: CertifyingAuthority;
-  idVerificationAuthority?: CertifyingAuthority;
+  idVerificationAuthority?: CertifyingAuthority | null;
 }
 
 export interface ValidationResult {
@@ -301,7 +332,7 @@ function transformClaimResponse(claim: Claim): Claim {
     },
     germanSocialInsuranceNumber: claim.svNummer,
     signatureAuthority: claim.certifyingAuthority,
-    idVerificationAuthority: claim.certifyingAuthority,
+    idVerificationAuthority: claim.identityCertifyingAuthority,
   };
 }
 
@@ -358,7 +389,7 @@ function flattenUpdateRequest(
     flat.certifyingAuthority = data.signatureAuthority;
   }
   if (data.idVerificationAuthority !== undefined) {
-    flat.certifyingAuthority = data.idVerificationAuthority;
+    flat.identityCertifyingAuthority = data.idVerificationAuthority;
   }
 
   // Remove nested properties from flat object
@@ -375,9 +406,9 @@ function flattenUpdateRequest(
 // Claims API functions
 export const claimsApi = {
   // Create a new claim
-  async createClaim(data?: CreateClaimRequest): Promise<Claim> {
+  async createClaim(data: CreateClaimRequest): Promise<Claim> {
     const response = await apiClient.post('/claims', {
-      ...(data || {}),
+      ...data,
       attribution: getAttribution(),
     });
     return transformClaimResponse(response.data.claim);
@@ -425,7 +456,7 @@ export const claimsApi = {
   // Get step completion status
   async getSteps(claimId: string): Promise<Record<ClaimStepName, boolean>> {
     const response = await apiClient.get(`/claims/${claimId}/steps`);
-    return response.data.steps;
+    return response.data.completedSteps;
   },
 
   // Upload a document (two-step process: upload file, then attach to claim)
@@ -477,32 +508,42 @@ export const claimsApi = {
     await apiClient.delete(`/claims/${claimId}/documents/${documentId}`);
   },
 
-  // Attach signature
-  async attachSignature(
-    claimId: string,
-    signatureData: string
-  ): Promise<Claim> {
-    const response = await apiClient.post(`/claims/${claimId}/signature`, {
+  // Store a drawn signature (PNG data URL) in the user's signatures
+  async uploadSignature(signatureData: string): Promise<SignatureRecord> {
+    const response = await apiClient.post('/signatures/upload', {
       signatureData,
+    });
+    return response.data.signature;
+  },
+
+  // Presigned preview URL of a stored signature
+  async getSignature(signatureId: string): Promise<SignatureRecord> {
+    const response = await apiClient.get(`/signatures/${signatureId}`);
+    return response.data.signature;
+  },
+
+  // Attach a stored signature to the claim
+  async attachSignature(claimId: string, signatureId: string): Promise<Claim> {
+    const response = await apiClient.post(`/claims/${claimId}/signature`, {
+      signatureId,
     });
     return transformClaimResponse(response.data.claim);
   },
 
-  // Record identity form download
-  async recordIdentityFormDownload(claimId: string): Promise<Claim> {
-    const response = await apiClient.post(
-      `/claims/${claimId}/identity-form-downloaded`
-    );
-    return transformClaimResponse(response.data.claim);
+  // Record identity form download (the backend answers with a message only)
+  async recordIdentityFormDownload(claimId: string): Promise<void> {
+    await apiClient.post(`/claims/${claimId}/identity-form-downloaded`);
   },
 
   // Transition workflow state
   async transitionWorkflow(
     claimId: string,
-    targetState: ClaimWorkflowState
+    state: ClaimWorkflowTransitionState,
+    metadata?: Record<string, unknown>
   ): Promise<Claim> {
     const response = await apiClient.post(`/claims/${claimId}/workflow`, {
-      targetState,
+      state,
+      metadata,
     });
     return transformClaimResponse(response.data.claim);
   },
@@ -510,7 +551,7 @@ export const claimsApi = {
   // Validate claim for submission
   async validateClaim(claimId: string): Promise<ValidationResult> {
     const response = await apiClient.get(`/claims/${claimId}/validate`);
-    return response.data;
+    return response.data.validation;
   },
 
   // Submit claim

@@ -1,6 +1,6 @@
 /**
  * Plain configuration ops edit in the admin (Settings), stored in
- * shared.ops_settings (migration 0031).
+ * shared.ops_settings (migration 0035).
  *
  * - "postal_agent": the postal authority named in direct-route cover
  *   letters and the Postempfangsvollmacht (owner spec 29 Oct 2026). Until

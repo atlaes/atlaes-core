@@ -104,6 +104,12 @@ export default function DashboardPage() {
     return null;
   }
 
+  // On a page reload the user comes from GET /auth/me, which returns the JWT
+  // claims without `profile`; the name on the user's own claim is the next
+  // best source for the greeting.
+  const greetingName =
+    user.profile?.firstName || claims.find((c) => c.firstName)?.firstName;
+
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="w-full max-w-[1000px] bg-white rounded-2xl shadow-xl overflow-hidden">
@@ -127,7 +133,7 @@ export default function DashboardPage() {
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-[#163300]">
               Welcome back
-              {user.profile?.firstName ? `, ${user.profile.firstName}` : ''}
+              {greetingName ? `, ${greetingName}` : ''}
             </h1>
             <p className="text-gray-600 mt-1">
               Manage your pension refund applications
@@ -152,9 +158,7 @@ export default function DashboardPage() {
             {isLoadingClaims ? (
               <div className="text-center py-12">
                 <Loader2 className="animate-spin h-6 w-6 text-[#163300] mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">
-                  Loading applications...
-                </p>
+                <p className="text-gray-500 text-sm">Loading applications...</p>
               </div>
             ) : claimsError ? (
               <div className="text-center py-12">
@@ -210,13 +214,13 @@ export default function DashboardPage() {
                       ? `${claim.firstName} ${claim.lastName}`
                       : 'Untitled Application';
                   const isDraft = claim.status === 'draft';
-                  const dateLabel =
-                    claim.submittedAt
-                      ? `Submitted ${formatDate(claim.submittedAt)}`
-                      : `Created ${formatDate(claim.createdAt)}`;
-                  const subtitle = isDraft && claim.currentCountry
-                    ? `${dateLabel} · ${claim.currentCountry}`
-                    : dateLabel;
+                  const dateLabel = claim.submittedAt
+                    ? `Submitted ${formatDate(claim.submittedAt)}`
+                    : `Created ${formatDate(claim.createdAt)}`;
+                  const subtitle =
+                    isDraft && claim.currentCountry
+                      ? `${dateLabel} · ${claim.currentCountry}`
+                      : dateLabel;
 
                   return (
                     <div
@@ -282,9 +286,7 @@ export default function DashboardPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            router.push(
-                              `/dashboard/claims/${claim.id}`
-                            );
+                            router.push(`/dashboard/claims/${claim.id}`);
                           }}
                           className="flex items-center gap-1 text-sm text-gray-500 hover:text-[#163300] transition-colors ml-auto"
                         >

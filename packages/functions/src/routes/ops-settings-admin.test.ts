@@ -12,7 +12,7 @@ import {
   postalAgentLines,
 } from '../services/ops-settings';
 
-// Admin-managed ops settings against a real database (migration 0031).
+// Admin-managed ops settings against a real database (migration 0035).
 //   pnpm vitest run src/routes/ops-settings-admin.test.ts
 const TEST_DATABASE_URL =
   process.env.DATABASE_URL ||

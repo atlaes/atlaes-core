@@ -18,10 +18,16 @@ export const corsMiddleware = cors({
       'https://admin.vblrefund.com',
       'https://vbl.atlaes.de',
       'https://atlaes.de',
+      // CompanyPension brand domain of the VBL app
+      'https://companypension.de',
+      'https://www.companypension.de',
       // Germany Pension Refund site (public lead capture, POST /api/leads)
       'https://www.germanypensionrefund.com',
       'https://germanypensionrefund.com',
       'https://de.germanypensionrefund.com',
+      // GPR app (apps/gpr, resources/web) — sign-in, account, payout
+      'https://gpr.atlaes.de',
+      'https://staging.gpr.atlaes.de',
       // Staging domains
       'https://staging.vbl.atlaes.de',
       'https://staging.atlaes.de',
@@ -32,13 +38,14 @@ export const corsMiddleware = cors({
       // Local development - allow localhost for testing with staging API
       'http://localhost:3000',
       'http://localhost:3001',
+      'http://localhost:3002',
       'http://localhost:3003',
       'http://127.0.0.1:3000',
     ];
 
     return allowedOrigins.includes(origin || '') ? origin : null;
   },
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
   maxAge: 86400, // 24 hours

@@ -63,13 +63,13 @@ export const e2eEnvSchema = z.object({
   ),
 });
 
+// Local-development default only; the production guard below refuses it.
+const DEV_JWT_SECRET = 'your-super-secret-jwt-key-change-this-in-production';
+
 const baseEnvSchema = z.object({
   DATABASE_URL: z.preprocess(() => getDatabaseUrl(), z.string()),
   REDIS_URL: z.string().optional().default('redis://localhost:6379'),
-  JWT_SECRET: z
-    .string()
-    .min(32)
-    .default('your-super-secret-jwt-key-change-this-in-production'),
+  JWT_SECRET: z.string().min(32).default(DEV_JWT_SECRET),
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
     .default('development'),
@@ -178,6 +178,22 @@ export function assertMigrationTokenConfigured(): void {
     throw new Error(
       'ADMIN_MIGRATION_TOKEN must be set to a real secret in production (>=32 chars). ' +
         'Set it via: AWS_PROFILE=atlaes npx sst secret set AdminMigrationToken <value> --stage <stage>'
+    );
+  }
+}
+
+/**
+ * Same guard for the signing key: a production backend must never sign
+ * sessions and magic links with the dev default. Deployed stages get
+ * JWT_SECRET from the JWT_SECRET GitHub secret (resources/services/index.ts
+ * fails the deploy when it is missing). Also only called from the Hono
+ * entrypoint, for the reason given above.
+ */
+export function assertJwtSecretConfigured(): void {
+  if (env.NODE_ENV === 'production' && env.JWT_SECRET === DEV_JWT_SECRET) {
+    throw new Error(
+      'JWT_SECRET must be set to a real secret in production (>=32 chars). ' +
+        'Set the JWT_SECRET GitHub secret; the deploy workflow passes it to the backend.'
     );
   }
 }

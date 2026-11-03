@@ -46,7 +46,7 @@ describe('POST /api/vbl/reminders', () => {
     }
   });
 
-  it('stores the reminder with its due date and sends nothing', async () => {
+  it('stores the reminder with its due date and confirms it by e-mail', async () => {
     const eligibleOn = futureFirstOfMonth(8);
     const res = await post({
       email: ` ${email.toUpperCase()} `,
@@ -69,9 +69,10 @@ describe('POST /api/vbl/reminders', () => {
       placement: 'VddB',
       reminder_opt_in: true,
       due: eligibleOn,
-      delivery_email_sent_at: null,
       team_notice_sent_at: null,
     });
+    // The confirmation went out (logged in test, SES in staging).
+    expect(rows[0].delivery_email_sent_at).not.toBeNull();
   });
 
   it('is idempotent for the same e-mail and date', async () => {
@@ -108,11 +109,25 @@ describe('POST /api/vbl/reminders', () => {
     ).toBe(400);
   });
 
-  it('is not picked up by the GPR guide reminder job', async () => {
-    const farFuture = new Date(Date.now() + 5 * 365 * 24 * 3600 * 1000);
-    await processDueReminders(farFuture);
-    const [row] =
-      await testClient`SELECT reminder_sent_at FROM gpr.leads WHERE email = ${email}`;
-    expect(row.reminder_sent_at).toBeNull();
+  it('is sent by the daily reminder job once due, and not before', async () => {
+    const sentAt = async () => {
+      const [row] =
+        await testClient`SELECT reminder_sent_at FROM gpr.leads WHERE email = ${email}`;
+      return row.reminder_sent_at;
+    };
+
+    // Today: the reminder set 8 months ahead is not due yet.
+    await processDueReminders(new Date());
+    expect(await sentAt()).toBeNull();
+
+    // On the due date it goes out, exactly once.
+    const dueDay = new Date(`${futureFirstOfMonth(8)}T06:00:00Z`);
+    const run = await processDueReminders(dueDay);
+    expect(run.sent).toBeGreaterThanOrEqual(1);
+    const first = await sentAt();
+    expect(first).not.toBeNull();
+
+    await processDueReminders(dueDay);
+    expect(await sentAt()).toEqual(first);
   });
 });

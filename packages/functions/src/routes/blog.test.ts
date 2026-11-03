@@ -6,7 +6,7 @@ import { users } from '../drizzle/schema/shared';
 import blog, { adminBlog } from './blog';
 import { AuthService } from '../utils/auth';
 
-// Blog CMS against a real database (migration 0030).
+// Blog CMS against a real database (migration 0034).
 //   pnpm vitest run src/routes/blog.test.ts
 const TEST_DATABASE_URL =
   process.env.DATABASE_URL ||

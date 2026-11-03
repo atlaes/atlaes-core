@@ -11,6 +11,7 @@ import {
   UploadCloud,
 } from 'lucide-react';
 import { useEligibility } from '@/contexts/EligibilityContext';
+import { yearOptions } from '@/lib/year-options';
 import {
   ContributionDurationType,
   VBLPlan,
@@ -59,10 +60,7 @@ const FEDERAL_STATES = [
   'Thuringia',
 ];
 
-const YEARS = Array.from(
-  { length: new Date().getFullYear() - 2004 + 1 },
-  (_, index) => String(2004 + index)
-).reverse();
+const YEARS = yearOptions();
 
 type UploadForm = {
   provider: UploadProvider;

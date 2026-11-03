@@ -1,3 +1,4 @@
+import { deflateSync } from 'node:zlib';
 import { test, expect } from '@playwright/test';
 import {
   navigateToGetStarted,
@@ -27,6 +28,47 @@ import {
   splitCalculatorFullName,
   validateCalculatorBirthDate,
 } from '../../lib/calculator-onboarding-identity';
+
+// Minimal valid 1x1 RGBA PNG of a solid colour. The Signature step decodes
+// and re-encodes uploads to PNG via a canvas, so the uploaded buffers have
+// to be real images (a text buffer no longer produces a preview).
+function makeSolidPng(r: number, g: number, b: number): Buffer {
+  const crcTable = Array.from({ length: 256 }, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k += 1) {
+      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    return c >>> 0;
+  });
+  const crc32 = (buf: Buffer) => {
+    let c = 0xffffffff;
+    for (let i = 0; i < buf.length; i += 1) {
+      c = crcTable[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+    }
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  const chunk = (type: string, data: Buffer) => {
+    const typeBuf = Buffer.from(type, 'ascii');
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])));
+    return Buffer.concat([length, typeBuf, data, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(1, 0); // width
+  ihdr.writeUInt32BE(1, 4); // height
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 6; // colour type: RGBA
+  // compression, filter, interlace stay 0
+  const scanline = Buffer.from([0, r, g, b, 255]); // filter byte + pixel
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', deflateSync(scanline)),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
 
 // ============================================================
 // Backend Health Check — skip all onboarding tests if unavailable
@@ -614,7 +656,7 @@ test.describe('Calculator payment', () => {
       page.locator('a[href="/terms"]', { hasText: 'Terms and Conditions' })
     ).toBeVisible();
     await expect(
-      page.locator('a[href="/privacy"]', { hasText: 'Privacy Policy' })
+      page.locator('a[href="/privacy-policy"]', { hasText: 'Privacy Policy' })
     ).toBeVisible();
 
     await declarations.nth(0).check();
@@ -1275,7 +1317,7 @@ test.describe('Calculator identity fields', () => {
     await signatureFile.setInputFiles({
       name: 'stale-signature.png',
       mimeType: 'image/png',
-      buffer: Buffer.from('stale', 'utf8'),
+      buffer: makeSolidPng(255, 0, 0),
     });
     await page.evaluate(() => {
       const taskWindow = window as Window & {
@@ -1290,18 +1332,31 @@ test.describe('Calculator identity fields', () => {
     await signatureFile.setInputFiles({
       name: 'fresh-signature.png',
       mimeType: 'image/png',
-      buffer: Buffer.from('fresh', 'utf8'),
+      buffer: makeSolidPng(0, 0, 255),
     });
     const uploadedSignature = page.getByAltText('Uploaded signature');
+    // The preview is the canvas re-encoded PNG, not the raw file bytes, so
+    // check the format and then the decoded pixel: blue is the fresh
+    // upload, red would mean the delayed stale read won.
     await expect(uploadedSignature).toHaveAttribute(
       'src',
-      'data:image/png;base64,ZnJlc2g='
+      /^data:image\/png;base64,/
     );
+    const readPreviewPixel = () =>
+      uploadedSignature.evaluate(async (node) => {
+        const img = node as HTMLImageElement;
+        await img.decode();
+        const probe = document.createElement('canvas');
+        probe.width = 1;
+        probe.height = 1;
+        const context = probe.getContext('2d');
+        if (!context) return null;
+        context.drawImage(img, 0, 0, 1, 1);
+        return Array.from(context.getImageData(0, 0, 1, 1).data);
+      });
+    expect(await readPreviewPixel()).toEqual([0, 0, 255, 255]);
     await page.waitForTimeout(250);
-    await expect(uploadedSignature).toHaveAttribute(
-      'src',
-      'data:image/png;base64,ZnJlc2g='
-    );
+    expect(await readPreviewPixel()).toEqual([0, 0, 255, 255]);
     await expect(continueButton).toBeEnabled();
     const removeUploadedSignature = page.getByRole('button', {
       name: 'Remove uploaded signature',

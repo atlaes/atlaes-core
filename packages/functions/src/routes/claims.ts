@@ -48,10 +48,20 @@ const attributionSchema = z
   })
   .strip();
 
+// Authority certifying the identity confirmation form (GPR ID step). Free
+// text, so a later authority type needs no backend change; null clears.
+const identityCertifyingAuthoritySchema = z
+  .string()
+  .trim()
+  .max(100)
+  .nullable()
+  .optional();
+
 const createClaimSchema = z.object({
   applicationId: z.string().uuid().optional(),
   caseType: z.enum(CLAIM_CASE_TYPES).optional(),
   attribution: attributionSchema.nullable().optional(),
+  identityCertifyingAuthority: identityCertifyingAuthoritySchema,
 });
 
 // Update claim schema (all fields optional for partial updates)
@@ -195,6 +205,16 @@ const updateClaimSchema = z.object({
   bankCity: z.string().max(100).optional(),
   bankPostalCode: z.string().max(20).optional(),
   bankCountry: z.string().max(100).optional(),
+  // VBL: "open a free EUR account for me" instead of an own account
+  // (migration 0033). null withdraws the request.
+  eurAccountRequest: z
+    .object({
+      phone: z.string().trim().min(1).max(50),
+      consent: z.boolean(),
+      requestedAt: z.string().max(40).optional(),
+    })
+    .nullable()
+    .optional(),
 
   // ID Verification
   certifyingAuthority: z
@@ -207,8 +227,9 @@ const updateClaimSchema = z.object({
       'justice_of_peace',
     ])
     .optional(),
+  identityCertifyingAuthority: identityCertifyingAuthoritySchema,
 
-  // Confirmations
+  // Confirmations (also set from the GPR final-confirmation step)
   confirmationAccuracyAccepted: z.boolean().optional(),
   confirmationAuthorizationAccepted: z.boolean().optional(),
 });
@@ -296,7 +317,12 @@ claims.post(
   async (c) => {
     try {
       const user = c.get('user');
-      const { applicationId, caseType, attribution } = c.req.valid('json');
+      const {
+        applicationId,
+        caseType,
+        attribution,
+        identityCertifyingAuthority,
+      } = c.req.valid('json');
 
       const claim = await ClaimsApplicationService.createClaim(
         user.id,
@@ -306,7 +332,8 @@ claims.post(
           applicationId,
           origin: c.req.header('origin') ?? c.req.header('referer'),
         }),
-        attribution ?? null
+        attribution ?? null,
+        { identityCertifyingAuthority: identityCertifyingAuthority || null }
       );
 
       logger.info(`Claim created: ${claim.id} for user: ${user.id}`);
@@ -512,9 +539,13 @@ claims.post(
           error:
             error instanceof Error ? error.message : 'Failed to add document',
         },
-        error instanceof Error && error.message.includes('not found')
+        error instanceof Error && error.message === 'Claim not found'
           ? 404
-          : 500
+          : error instanceof Error &&
+              (error.message.includes('Cannot update') ||
+                error.message.includes('does not belong'))
+            ? 400
+            : 500
       );
     }
   }
@@ -652,7 +683,13 @@ claims.post(
               ? error.message
               : 'Failed to attach signature',
         },
-        500
+        error instanceof Error && error.message === 'Claim not found'
+          ? 404
+          : error instanceof Error &&
+              (error.message.includes('Cannot update') ||
+                error.message.includes('does not belong'))
+            ? 400
+            : 500
       );
     }
   }
@@ -840,7 +877,9 @@ claims.put(
         },
         error instanceof Error && error.message.includes('not found')
           ? 404
-          : 500
+          : error instanceof Error && error.message.includes('Cannot update')
+            ? 400
+            : 500
       );
     }
   }
@@ -1001,16 +1040,18 @@ claims.post(
       });
     } catch (error) {
       logger.error('Submit claim error:', error);
-      return c.json(
-        {
-          success: false,
-          error:
-            error instanceof Error ? error.message : 'Failed to submit claim',
-        },
-        error instanceof Error && error.message.includes('validation failed')
+      const message =
+        error instanceof Error ? error.message : 'Failed to submit claim';
+      // 409: already submitted (double click / retry); 400: not ready.
+      const statusCode = message.includes('already been submitted')
+        ? 409
+        : message.includes('validation failed') ||
+            message.includes('Payment is required')
           ? 400
-          : 500
-      );
+          : message === 'Claim not found'
+            ? 404
+            : 500;
+      return c.json({ success: false, error: message }, statusCode);
     }
   }
 );

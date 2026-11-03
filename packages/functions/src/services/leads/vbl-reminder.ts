@@ -2,6 +2,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '../../utils/db';
 import { logger } from '../../utils/logger';
 import { leads, type Lead } from '../../drizzle/schema/leads';
+import { sendVblReminderDueEmail, sendVblReminderSetEmail } from '../email';
 
 /**
  * VBL waiting-period reminders ("Set reminder" on the calculator and the
@@ -10,10 +11,11 @@ import { leads, type Lead } from '../../drizzle/schema/leads';
  *
  * Stored as a lead row of type 'vbl-reminder' with `reminder_due_on` = the
  * first day the refund can start. Deliberately NOT in LEAD_TYPES: the
- * public /api/leads endpoint and createLead() send GPR-branded mails, and
- * processDueReminders() only picks up the two GPR guide types, so these
- * rows are stored and nothing is sent yet. The reminder e-mail itself is
- * still owed by the owner (open item "waiting-period reminder e-mail").
+ * public /api/leads endpoint and createLead() send GPR-branded mails.
+ * These rows get CompanyPension-branded mail instead: a confirmation on
+ * creation (`delivery_email_sent_at`) and, from the daily leads cron
+ * (processDueReminders), the "you can start now" e-mail on the due date
+ * (`reminder_sent_at`).
  */
 export const VBL_REMINDER_TYPE = 'vbl-reminder';
 export type VblReminderSource = 'calculator' | 'get-started';
@@ -76,5 +78,29 @@ export async function createVblReminder(
     dueOn: input.eligibleOn,
     source: input.source,
   });
-  return lead;
+
+  // Confirmation now; the start e-mail comes from the cron on the due date.
+  // A mail failure is logged and leaves the stamp null; the row stands.
+  const confirmed = await sendVblReminderSetEmail(email, {
+    eligibleOn: input.eligibleOn,
+    pensionProvider: lead.placement,
+  });
+  if (!confirmed) return lead;
+
+  const now = new Date();
+  const [updated] = await db
+    .update(leads)
+    .set({ deliveryEmailSentAt: now, updatedAt: now })
+    .where(eq(leads.id, lead.id))
+    .returning();
+  return updated;
+}
+
+/** The due-date e-mail for one VBL reminder row; true when sent. */
+export async function sendVblReminderDue(lead: Lead): Promise<boolean> {
+  if (!lead.reminderDueOn) return false;
+  return sendVblReminderDueEmail(lead.email, {
+    eligibleOn: lead.reminderDueOn,
+    pensionProvider: lead.placement,
+  });
 }

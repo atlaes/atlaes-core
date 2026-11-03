@@ -335,7 +335,7 @@ export const Payment: React.FC<PaymentProps> = ({
                   Terms and Conditions
                 </a>
                 . Read our{' '}
-                <a href="/privacy" className="underline">
+                <a href="/privacy-policy" className="underline">
                   Privacy Policy
                 </a>
                 .

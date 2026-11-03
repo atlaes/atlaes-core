@@ -23,6 +23,10 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({
   const isPrivate = data.pensionType === 'private';
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Non-blocking: the calculator estimate could not be linked to the email
+  // (PATCH /vbl/pending-calculator-sessions/:token/email failed). The claim
+  // itself continues; the estimate just won't be auto-resumable by email.
+  const [linkNotice, setLinkNotice] = useState<string | null>(null);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
@@ -31,21 +35,26 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({
 
     setIsSubmitting(true);
     setError(null);
+    setLinkNotice(null);
     try {
       const result = await requestMagicLink(email, redirectUrl);
 
       // Link the email to the calculator's pending session so a future visit
-      // by this email could resume the draft. Fire-and-forget — failure here
-      // is not user-visible and the magic-link flow is the source of truth.
+      // by this email could resume the draft. Does not block the magic-link
+      // flow (which is the source of truth), but a failure is logged and
+      // shown as a notice instead of being swallowed.
       if (typeof window !== 'undefined') {
         const token = sessionStorage.getItem(
           'vbl-pending-calculator-session-token'
         );
         if (token) {
           linkEmailToPendingCalculatorSession(token, email).catch((err) => {
-            console.warn(
+            console.error(
               'Failed to link email to pending calculator session',
               err
+            );
+            setLinkNotice(
+              'We could not link your calculator estimate to this email. You can still continue — your estimate will be re-entered from this session.'
             );
           });
         }
@@ -122,6 +131,11 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({
           We sent a secure login link to <strong>{email}</strong>. Click the
           link in the email to verify your account and continue.
         </p>
+        {linkNotice && (
+          <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800 text-left">
+            {linkNotice}
+          </div>
+        )}
         <button
           onClick={() => setMagicLinkSent(false)}
           className="text-sm text-gray-500 underline hover:text-gray-700 transition-colors"
@@ -149,6 +163,11 @@ export const CreateAccount: React.FC<CreateAccountProps> = ({
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
           {error}
+        </div>
+      )}
+      {linkNotice && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+          {linkNotice}
         </div>
       )}
 
