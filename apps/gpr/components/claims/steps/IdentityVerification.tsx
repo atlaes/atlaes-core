@@ -6,6 +6,8 @@ import {
   ArrowLeft,
   AlertCircle,
   CheckCircle,
+  Download,
+  FileText,
   Info,
 } from 'lucide-react';
 import ClaimsStepContainer from '../ClaimsStepContainer';
@@ -21,15 +23,17 @@ import {
   useRemoveDocumentMutation,
 } from '@/lib/queries/claims-queries';
 import { useClaimsStore } from '@/lib/stores/claims-store';
-import { CertifyingAuthority } from '@/lib/claims-api';
+import claimsApi, { CertifyingAuthority } from '@/lib/claims-api';
 import { apiErrorMessage } from '@/lib/api';
 
-// No "Download Form" sub-step: the identity confirmation form is not
-// produced by the backend yet (generate-pdf only knows the VBL L203), so
-// there is nothing to download and no download gate.
-type SubStep = 'instructions' | 'authority' | 'upload';
+// The identity confirmation form is the DRV's A1002 (certificate of life
+// and nationality): GET /claims/:id/forms/a1002 returns it with Part A
+// pre-filled, in English, Spanish or Portuguese by country of residence.
+// Downloading is offered, not required (a client may already have one).
+type SubStep = 'download' | 'instructions' | 'authority' | 'upload';
 
 const SUB_STEPS: { id: SubStep; title: string }[] = [
+  { id: 'download', title: 'Download Form' },
   { id: 'instructions', title: 'Instructions' },
   { id: 'authority', title: 'Select Authority' },
   { id: 'upload', title: 'Upload Document' },
@@ -50,7 +54,10 @@ export default function IdentityVerification({
   const removeMutation = useRemoveDocumentMutation();
   const { goToNextStep, goToPreviousStep } = useClaimsStore();
 
-  const [currentSubStep, setCurrentSubStep] = useState<SubStep>('instructions');
+  const [currentSubStep, setCurrentSubStep] = useState<SubStep>('download');
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloaded, setDownloaded] = useState(false);
   const [selectedAuthority, setSelectedAuthority] =
     useState<CertifyingAuthority | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -86,6 +93,29 @@ export default function IdentityVerification({
       setCurrentSubStep(SUB_STEPS[prevIndex].id);
     } else {
       goToPreviousStep();
+    }
+  };
+
+  const handleDownload = async () => {
+    setDownloadError(null);
+    setIsDownloading(true);
+    try {
+      const { blob, fileName } = await claimsApi.downloadA1002(claimId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setDownloaded(true);
+    } catch (error) {
+      setDownloadError(
+        apiErrorMessage(error, 'Could not download the form. Please try again.')
+      );
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -143,6 +173,65 @@ export default function IdentityVerification({
 
   const renderSubStepContent = () => {
     switch (currentSubStep) {
+      case 'download':
+        return (
+          <div className="claims-sign-download">
+            <div className="claims-sign-form-card">
+              <div className="claims-sign-form-icon">
+                <FileText className="w-8 h-8" />
+              </div>
+              <div className="claims-sign-form-info">
+                <h3>Form A1002: Certificate of Life and Nationality</h3>
+                <p>
+                  We fill in Part A with the details from your claim. An
+                  authority in your country of residence completes Part B and
+                  stamps it.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleDownload}
+                className="claims-btn claims-btn-primary"
+                disabled={isDownloading}
+              >
+                <Download className="w-4 h-4" />
+                <span>{isDownloading ? 'Preparing...' : 'Download Form'}</span>
+              </button>
+            </div>
+
+            {downloaded && (
+              <div className="claims-success-message">
+                <CheckCircle className="w-5 h-5 text-green-500" />
+                <span>
+                  Form downloaded. Check your details in Part A before you print
+                  it.
+                </span>
+              </div>
+            )}
+
+            <ErrorNotice message={downloadError} />
+
+            <div className="claims-substep-nav">
+              <button
+                type="button"
+                onClick={handleSubStepBack}
+                className="claims-btn claims-btn-secondary"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSubStepNext}
+                className="claims-btn claims-btn-primary"
+              >
+                <span>Next</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        );
+
       case 'instructions':
         return (
           <div className="claims-sign-instructions">
@@ -160,8 +249,8 @@ export default function IdentityVerification({
             <div className="claims-instructions-list">
               <h4>Instructions:</h4>
               <ol>
-                <li>Print the identity confirmation form</li>
-                <li>Fill in your personal details</li>
+                <li>Print the form you downloaded (A1002)</li>
+                <li>Check your personal details in Part A</li>
                 <li>
                   Bring your passport or national ID to the certifying authority
                 </li>

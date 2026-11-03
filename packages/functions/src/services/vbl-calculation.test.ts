@@ -11,7 +11,9 @@ vi.mock('../utils/db', () => ({
 }));
 
 // Base eligible input for pre-2018
-function makeInput(overrides: Partial<VBLCalculationInput> = {}): VBLCalculationInput {
+function makeInput(
+  overrides: Partial<VBLCalculationInput> = {}
+): VBLCalculationInput {
   return {
     userType: 'insured_person',
     dateOfBirth: '1990-01-15',
@@ -30,7 +32,9 @@ function makeInput(overrides: Partial<VBLCalculationInput> = {}): VBLCalculation
 }
 
 // Post-2018 eligible input
-function makePost2018Input(overrides: Partial<VBLCalculationInput> = {}): VBLCalculationInput {
+function makePost2018Input(
+  overrides: Partial<VBLCalculationInput> = {}
+): VBLCalculationInput {
   return makeInput({
     employmentStart: '2019-01-01',
     employmentEnd: '2021-06-30',
@@ -40,7 +44,9 @@ function makePost2018Input(overrides: Partial<VBLCalculationInput> = {}): VBLCal
 }
 
 // Stage/Orchestra eligible input
-function makeStageInput(overrides: Partial<VBLCalculationInput> = {}): VBLCalculationInput {
+function makeStageInput(
+  overrides: Partial<VBLCalculationInput> = {}
+): VBLCalculationInput {
   return makeInput({
     isStageOrchestra: true,
     monthsContributed: 24,
@@ -99,7 +105,9 @@ describe('VBLCalculationService', () => {
         makeInput({ monthsContributed: -5 })
       );
       expect(result.isEligible).toBe(false);
-      expect(result.warnings).toContain('Months contributed cannot be negative');
+      expect(result.warnings).toContain(
+        'Months contributed cannot be negative'
+      );
     });
 
     it('rejects invalid age values', async () => {
@@ -129,7 +137,8 @@ describe('VBLCalculationService', () => {
   // ============================================================
   describe('pre-2018 calculation', () => {
     it('calculates eligible refund correctly', async () => {
-      const result = await VBLCalculationService.calculateVBLRefund(makeInput());
+      const result =
+        await VBLCalculationService.calculateVBLRefund(makeInput());
       expect(result.isEligible).toBe(true);
       expect(result.calculationMethod).toBe('pre2018');
       // 30 months × €50/month = €1500
@@ -233,9 +242,8 @@ describe('VBLCalculationService', () => {
   // ============================================================
   describe('post-2018 calculation', () => {
     it('calculates eligible refund correctly', async () => {
-      const result = await VBLCalculationService.calculateVBLRefund(
-        makePost2018Input()
-      );
+      const result =
+        await VBLCalculationService.calculateVBLRefund(makePost2018Input());
       expect(result.isEligible).toBe(true);
       expect(result.calculationMethod).toBe('post2018');
       expect(result.baseRefundAmount).toBe(1500); // 30 × 50
@@ -292,9 +300,8 @@ describe('VBLCalculationService', () => {
   // ============================================================
   describe('stage/orchestra calculation', () => {
     it('calculates eligible refund correctly', async () => {
-      const result = await VBLCalculationService.calculateVBLRefund(
-        makeStageInput()
-      );
+      const result =
+        await VBLCalculationService.calculateVBLRefund(makeStageInput());
       expect(result.isEligible).toBe(true);
       expect(result.calculationMethod).toBe('stage_orchestra');
       expect(result.baseRefundAmount).toBe(1200); // 24 × 50
@@ -419,9 +426,9 @@ describe('VBLCalculationService', () => {
       );
     });
 
-    it('prices months after the last table year (2026+) with the latest row', async () => {
-      // data/contributions.json ends at 2025. Until the official 2026 row is
-      // added, 2026 months must not be skipped (they used to contribute 0).
+    it('prices months after the last table year with the latest row', async () => {
+      // data/contributions.json ends at 2026. Until the next official row is
+      // added, later months must not be skipped (they used to contribute 0).
       const halfYear = (year: number) => ({
         employmentStart: `${year}-01-01`,
         employmentEnd: `${year}-06-30`,
@@ -437,18 +444,40 @@ describe('VBLCalculationService', () => {
         ],
       });
 
+      const in2027 = await VBLCalculationService.calculateVBLRefund(
+        makeInput(halfYear(2027))
+      );
       const in2026 = await VBLCalculationService.calculateVBLRefund(
         makeInput(halfYear(2026))
       );
-      const in2025 = await VBLCalculationService.calculateVBLRefund(
-        makeInput(halfYear(2025))
-      );
 
-      expect(in2026.isEligible).toBe(true);
-      expect(in2026.statePension!).toBeGreaterThan(0);
-      expect(in2026.vblKlassik!).toBeGreaterThan(0);
-      expect(in2026.statePension).toBeCloseTo(in2025.statePension!, 2);
-      expect(in2026.vblKlassik).toBeCloseTo(in2025.vblKlassik!, 2);
+      expect(in2027.isEligible).toBe(true);
+      expect(in2027.statePension!).toBeGreaterThan(0);
+      expect(in2027.vblKlassik!).toBeGreaterThan(0);
+      expect(in2027.statePension).toBeCloseTo(in2026.statePension!, 2);
+      expect(in2027.vblKlassik).toBeCloseTo(in2026.vblKlassik!, 2);
+    });
+
+    it('caps 2026 DRV months at the 2026 ceiling of 8,450', async () => {
+      // RVBeitrSBek 2026: ceiling 8,450 €/month, rate 18.6 % (employee
+      // 9.3 %). 6 × 8,450 × 0.093 = 4,715.10.
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeInput({
+          employmentStart: '2026-01-01',
+          employmentEnd: '2026-06-30',
+          monthsContributed: 6,
+          consecutiveMonthsContributed: 6,
+          periods: [
+            {
+              startDate: '2026-01-01',
+              endDate: '2026-06-30',
+              state: 'Bavaria',
+              grossMonthlySalary: 9000,
+            },
+          ],
+        })
+      );
+      expect(result.statePension).toBeCloseTo(4715.1, 2);
     });
 
     it('accepts generic Berlin from uploaded documents as a West period', async () => {
@@ -525,7 +554,10 @@ describe('VBLCalculationService', () => {
       );
 
       // Both should yield same amounts since salary above cap gets capped
-      expect(cappedResult.totalAmount).toBeCloseTo(uncappedResult.totalAmount, 2);
+      expect(cappedResult.totalAmount).toBeCloseTo(
+        uncappedResult.totalAmount,
+        2
+      );
     });
 
     it('uses post2018 method for periods ending after 2018', async () => {
@@ -734,6 +766,28 @@ describe('VBLCalculationService', () => {
       );
       expect(result.baseRefundAmount).toBeCloseTo(12 * 8050 * 0.045, 2);
     });
+
+    it('caps 2026 East periods at the nationwide 8,450 ceiling', async () => {
+      // Stage claims need 12 months; the employment end is first-of-month,
+      // as the production frontend sends it.
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeStageInput({
+          employmentStart: '2026-01-01',
+          employmentEnd: '2026-12-01',
+          monthsContributed: 12,
+          periods: [
+            {
+              startDate: '2026-01-01',
+              endDate: '2026-12-01',
+              state: 'Saxony',
+              grossMonthlySalary: 9000,
+              institution: 'vddb',
+            },
+          ],
+        })
+      );
+      expect(result.baseRefundAmount).toBeCloseTo(12 * 8450 * 0.045, 2);
+    });
   });
 
   // ============================================================
@@ -763,7 +817,9 @@ describe('VBLCalculationService', () => {
       expect(result.calculationDetails.contributionPeriod).toBe(30);
       expect(result.calculationDetails.westGermanyEligible).toBe(true);
       expect(result.calculationDetails.ageAtEmploymentEnd).toBe(35);
-      expect(result.calculationDetails.timeSinceEmploymentEnd).toBeGreaterThan(0);
+      expect(result.calculationDetails.timeSinceEmploymentEnd).toBeGreaterThan(
+        0
+      );
     });
 
     it('handles employment end exactly on 2018-01-01 as post-2018', async () => {

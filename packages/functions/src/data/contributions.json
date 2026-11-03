@@ -50,7 +50,8 @@
     "2022": { "westCap": 7050, "eastCap": 6750, "rates": { "drv": 0.093, "vblklassik": 0.0181, "vddb": 0.045, "vddko": 0.045 } },
     "2023": { "westCap": 7300, "eastCap": 7100, "rates": { "drv": 0.093, "vblklassik": 0.0181, "vddb": 0.045, "vddko": 0.045 } },
     "2024": { "westCap": 7550, "eastCap": 7450, "rates": { "drv": 0.093, "vblklassik": 0.0181, "vddb": 0.045, "vddko": 0.045 } },
-    "2025": { "westCap": 8050, "eastCap": null, "rates": { "drv": 0.093, "vblklassik": 0.0181, "vddb": 0.045, "vddko": 0.045 } }
+    "2025": { "westCap": 8050, "eastCap": null, "rates": { "drv": 0.093, "vblklassik": 0.0181, "vddb": 0.045, "vddko": 0.045 } },
+    "2026": { "westCap": 8450, "eastCap": null, "rates": { "drv": 0.093, "vblklassik": 0.0181, "vddb": 0.045, "vddko": 0.045 } }
   },
   "states": {
     "WEST": [
