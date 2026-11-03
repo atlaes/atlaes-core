@@ -3,9 +3,13 @@
  * country-specific fields, only the ones the chosen route needs —
  * IBAN/BIC for IBAN countries, US routing number, India IFSC, UK sort
  * code, Australia BSB, Canada transit/institution, Mexico CLABE, else a
- * plain account number. Pure and dependency-free: the GPR app keeps a
- * verbatim copy (apps/gpr/components/account/payout/bank-validation.ts).
+ * plain account number, plus the extra beneficiary fields the conversion
+ * partner needs for some currencies (tax ID, phone). Pure: the GPR app
+ * keeps verbatim copies of this file and currency-routing.ts
+ * (apps/gpr/components/account/payout/).
  */
+
+import { extraBeneficiaryFields, normaliseCurrency } from './currency-routing';
 
 export type PayoutRoute = 'A' | 'B' | 'C';
 
@@ -42,6 +46,10 @@ export interface BankDetailsInput {
   transitNumber?: string | null;
   institutionNumber?: string | null;
   clabe?: string | null;
+  /** Beneficiary tax ID (CPF for BRL, 12 digits for BDT). */
+  taxId?: string | null;
+  /** Beneficiary phone number in international format. */
+  phone?: string | null;
 }
 
 /** What the Zahlungserklärung and the payout queue need. */
@@ -55,6 +63,8 @@ export interface NormalizedAccount {
   accountNumber: string | null;
   routingLabel: string | null;
   routingValue: string | null;
+  taxId?: string | null;
+  phone?: string | null;
 }
 
 // IBAN lengths per country (SWIFT IBAN registry).
@@ -359,7 +369,13 @@ export interface BankValidationResult {
   ok: boolean;
   errors: Partial<
     Record<
-      BankFieldKey | 'accountHolder' | 'bank' | 'country' | 'currency',
+      | BankFieldKey
+      | 'accountHolder'
+      | 'bank'
+      | 'country'
+      | 'currency'
+      | 'taxId'
+      | 'phone',
       string
     >
   >;
@@ -398,7 +414,7 @@ export function validateBankDetails(
 ): BankValidationResult {
   const errors: BankValidationResult['errors'] = {};
   const country = (input.country || '').toUpperCase();
-  const currency = (input.currency || '').toUpperCase();
+  const currency = normaliseCurrency(input.currency);
   if (!input.accountHolder?.trim())
     errors.accountHolder = 'Please enter the account holder.';
   if (!input.bank?.trim()) errors.bank = 'Please enter the bank name.';
@@ -419,6 +435,28 @@ export function validateBankDetails(
     if (!CHECKS[field.key](value, country))
       errors[field.key] = MESSAGES[field.key];
   }
+  // Extra beneficiary fields the conversion partner needs (routing file).
+  const extra = route === 'A' ? [] : extraBeneficiaryFields(currency);
+  const taxId = (input.taxId ?? '').replace(/[\s./-]/g, '');
+  const phone = (input.phone ?? '').replace(/[\s()-]/g, '');
+  if (extra.includes('taxId') || taxId) {
+    const ok =
+      currency === 'BRL'
+        ? /^\d{11}$/.test(taxId)
+        : currency === 'BDT'
+          ? /^\d{12}$/.test(taxId)
+          : /^[A-Za-z0-9]{4,20}$/.test(taxId);
+    if (!ok)
+      errors.taxId =
+        currency === 'BRL'
+          ? 'Please enter your CPF (11 digits).'
+          : currency === 'BDT'
+            ? 'Please enter your 12-digit tax ID.'
+            : 'Please enter your tax ID.';
+  }
+  if ((extra.includes('phone') || phone) && !/^\+?\d{6,15}$/.test(phone))
+    errors.phone =
+      'Please enter your phone number with the country code, e.g. +55 11 91234 5678.';
   if (route === 'A' && !errors.iban && country && input.iban) {
     if (compact(input.iban).slice(0, 2) !== country)
       errors.iban = 'The IBAN does not match the account country.';
@@ -448,6 +486,8 @@ export function validateBankDetails(
       accountNumber,
       routingLabel: routing.label,
       routingValue: routing.value,
+      ...(taxId ? { taxId } : {}),
+      ...(phone ? { phone: phone.startsWith('+') ? phone : `+${phone}` } : {}),
     },
   };
 }

@@ -11,16 +11,21 @@ import { usePayoutView } from '@/components/account/payout/usePayout';
 
 const TITLE = 'Your refund';
 
-/** `/account/payout` → the first open task (review first, then release). */
+/**
+ * `/account/payout` → the first open task (review, release, decision
+ * upload, receipt), else the payout status once signed.
+ */
 export default function PayoutIndexPage() {
   const router = useRouter();
   const view = usePayoutView('/account/payout');
   const next =
     view.state === 'ready'
       ? (view.data.tasks[0]?.href ??
-        (view.data.release?.status === 'signed'
-          ? '/account/payout/release'
-          : null))
+        (view.data.transfer
+          ? '/account/payout/receipt'
+          : view.data.release?.status === 'signed'
+            ? '/account/payout/release'
+            : null))
       : null;
   useEffect(() => {
     if (next) router.replace(next);

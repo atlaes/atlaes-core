@@ -36,6 +36,15 @@ describe('providerMatches', () => {
     expect(providerMatches(allianz, null)).toBe(false);
     expect(providerMatches(allianz, '  ')).toBe(false);
   });
+
+  it('also matches the short label', () => {
+    const vbl = {
+      name: 'VBL Versorgungsanstalt des Bundes und der Länder',
+      shortName: 'VBL',
+    };
+    expect(providerMatches(vbl, ' vbl ')).toBe(true);
+    expect(providerMatches({ ...vbl, shortName: null }, 'VBL')).toBe(false);
+  });
 });
 
 describe('providerAddressPatch', () => {
@@ -87,8 +96,31 @@ describe('providerAddressPatch', () => {
       providerAddressPatch({ ...emptyClaim, bavProviderName: 'BVV' }, allianz)
     ).toBeNull();
     expect(
-      providerAddressPatch(emptyClaim, { ...allianz, street: null })
+      providerAddressPatch(emptyClaim, { ...allianz, postalCode: null })
     ).toBeNull();
+  });
+
+  it('fills a provider addressed by postal code only (no street)', () => {
+    expect(
+      providerAddressPatch(
+        { ...emptyClaim, bavProviderName: 'VBL' },
+        {
+          name: 'VBL Versorgungsanstalt des Bundes und der Länder',
+          shortName: 'VBL',
+          department: 'Kundenservice',
+          street: null,
+          postalCode: '76240',
+          city: 'Karlsruhe',
+        }
+      )
+    ).toEqual({
+      bavAddresseeType: 'provider',
+      bavRecipientName: 'VBL Versorgungsanstalt des Bundes und der Länder',
+      bavRecipientDepartment: 'Kundenservice',
+      bavRecipientStreet: null,
+      bavRecipientPostalCode: '76240',
+      bavRecipientCity: 'Karlsruhe',
+    });
   });
 
   it('leaves employer-addressed letters alone', () => {

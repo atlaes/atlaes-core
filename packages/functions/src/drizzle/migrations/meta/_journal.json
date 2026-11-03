@@ -218,6 +218,27 @@
       "when": 1791188254025,
       "tag": "0033_audit_fixes",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1791274654025,
+      "tag": "0034_blog_posts",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1791361054025,
+      "tag": "0035_direct_route_bav_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1791447454025,
+      "tag": "0036_escrow_payout_emails",
+      "breakpoints": true
     }
   ]
 }

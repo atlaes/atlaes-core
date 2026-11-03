@@ -21,6 +21,10 @@ import {
 } from '../drizzle/schema/claims';
 import { ClaimPdfService } from '../services/claim-pdf';
 import { getPresignedUrl } from '../utils/s3';
+import {
+  buildClientA1002,
+  ClientA1002Error,
+} from '../services/drv-pack/client-a1002';
 
 const claims = new Hono();
 
@@ -1244,5 +1248,37 @@ claims.get('/:id/pdf', authMiddleware, validateUuidParams('id'), async (c) => {
     );
   }
 });
+
+// Form A1002 (certificate of life and nationality) for the client's own DRV
+// refund claim, Part A pre-filled; the client has it certified and uploads
+// it on the identity-confirmation step.
+claims.get(
+  '/:id/forms/a1002',
+  authMiddleware,
+  validateUuidParams('id'),
+  async (c) => {
+    try {
+      const user = c.get('user');
+      const form = await buildClientA1002(c.req.param('id') as string, user.id);
+      return new Response(Buffer.from(form.bytes), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="${form.fileName}"`,
+          'Cache-Control': 'private, no-store',
+        },
+      });
+    } catch (error) {
+      if (error instanceof ClientA1002Error) {
+        return c.json({ success: false, error: error.message }, error.status);
+      }
+      logger.error('A1002 form error:', error);
+      return c.json(
+        { success: false, error: 'Failed to generate form A1002' },
+        500
+      );
+    }
+  }
+);
 
 export default claims;

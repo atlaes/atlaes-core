@@ -530,6 +530,37 @@ export const claimsApi = {
     return transformClaimResponse(response.data.claim);
   },
 
+  // Form A1002 (certificate of life and nationality), Part A pre-filled
+  // from the claim; the language follows the country of residence.
+  async downloadA1002(claimId: string): Promise<{
+    blob: Blob;
+    fileName: string;
+  }> {
+    try {
+      const response = await apiClient.get(`/claims/${claimId}/forms/a1002`, {
+        responseType: 'blob',
+      });
+      const disposition = String(response.headers['content-disposition'] ?? '');
+      const fileName =
+        /filename="([^"]+)"/.exec(disposition)?.[1] ?? 'A1002.pdf';
+      return { blob: response.data as Blob, fileName };
+    } catch (error) {
+      // A blob response hides the backend's JSON error; parse it back so
+      // apiErrorMessage can show it.
+      const data = (error as { response?: { data?: unknown } })?.response?.data;
+      if (data instanceof Blob) {
+        try {
+          (error as { response: { data: unknown } }).response.data = JSON.parse(
+            await data.text()
+          );
+        } catch {
+          // not JSON: keep the original error
+        }
+      }
+      throw error;
+    }
+  },
+
   // Record identity form download (the backend answers with a message only)
   async recordIdentityFormDownload(claimId: string): Promise<void> {
     await apiClient.post(`/claims/${claimId}/identity-form-downloaded`);

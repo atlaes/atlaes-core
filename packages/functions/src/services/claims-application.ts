@@ -1,4 +1,4 @@
-import { eq, and, sql, count, desc } from 'drizzle-orm';
+import { eq, and, sql, count, desc, inArray } from 'drizzle-orm';
 import { db } from '../utils/db';
 import {
   claimsTable,
@@ -34,6 +34,8 @@ import {
   validateBavRecipient,
 } from './bav-letters/intake-validation';
 import { ClaimHoldService } from './claim-holds';
+import { directProviderCodeOf } from './provider-refund/providers';
+import { submittedToDrv } from './drv-pack/route';
 import {
   buildBavPayoutRecord,
   summarizeSettlementList,
@@ -1451,9 +1453,11 @@ export class ClaimsApplicationService {
    *   for the law firm or mailed via the lettershop on direct handling.
    *   Without a complete recipient address (no provider-matrix row) the
    *   claim waits for ops to enter it: no package, no lettershop job.
-   * - DRV refund (GPR app): no package here — the submission pack (V0901,
-   *   A1310, …) is built at the firm's first download. Never the VBL L203.
-   *   Handed to the default law firm; on direct handling it waits for ops.
+   * - DRV refund (GPR): never the VBL L203 or the lettershop. Via
+   *   Vividius ('law_firm') the claim is handed to the default firm and
+   *   its portal builds the DRV pack at the first download
+   *   (LawFirmService.ensureSubmissionPack); on the direct route admin
+   *   generates, releases and records the dispatch (DirectSubmissionService).
    * - VddB/VddKO: no claim form for these institutions exists yet, so the
    *   claim is held for manual submission; it is never mailed with the
    *   VBL L203.
@@ -1487,6 +1491,19 @@ export class ClaimsApplicationService {
             holdError instanceof Error ? holdError.message : String(holdError),
         })
       );
+
+    if (caseType === 'drv_refund') {
+      if (handlingRoute === 'law_firm') {
+        // The firm's portal builds the DRV pack at its first download.
+        await this.handToLawFirm(claimId);
+        return;
+      }
+      logger.info(
+        'DRV claim submitted: direct route, admin generates and releases the pack',
+        { claimId, handlingRoute }
+      );
+      return;
+    }
 
     if (caseType === 'bav_cashout') {
       const recipientErrors = validateBavRecipient(row);
@@ -1543,17 +1560,20 @@ export class ClaimsApplicationService {
       return;
     }
 
-    if (caseType === 'drv_refund') {
-      if (handlingRoute === 'law_firm') {
-        await this.handToLawFirm(claimId);
-        return;
-      }
+    // KVBW ZVK, VddB, VddKO: admin builds the direct pack (cover letter,
+    // application, Postempfangsvollmacht) on the claim's direct-submission
+    // card; recording the dispatch there clears this hold.
+    const directProvider = directProviderCodeOf(row.pensionProvider);
+    if (directProvider) {
+      const provider = row.pensionProvider as string;
       await hold(
         'manual_submission_required',
-        'DRV refund on direct handling: nothing is sent automatically (there is no DRV pack outside the law-firm flow). Submit it to the DRV manually or switch handling to the law firm.',
+        `${provider} claim: submitted by the client via the postal agent, not through the lettershop. Generate the pack on the claim's "Direct submission" card, release it, post it and record the dispatch.`,
         [
-          `VSNR: ${row.vsnr || 'not given'}`,
-          'Mark the claim as manually submitted in the admin once it has been sent.',
+          `${provider} insurance number: ${row.svNummer || 'not given'}`,
+          directProvider === 'KVBW_ZVK'
+            ? 'Upload the completed, client-signed KVBW application form first.'
+            : `Add the ${provider} form "Angaben zur Steuer-Identifikationsnummer" as an extra document.`,
         ]
       );
       return;
@@ -2139,6 +2159,25 @@ export class ClaimsApplicationService {
       }
       const previousRoute =
         claim.handlingRoute ?? defaultHandlingRoute(claim.caseType);
+      const routeChanged = previousRoute !== input.handlingRoute;
+      // After the submission to the DRV (firm posting date or recorded
+      // direct dispatch) the ordinary route switch is locked (direct-route
+      // spec 29 Oct 2026): route, mandate and bank changes already
+      // communicated to the DRV go through the correction workflow.
+      const [submission] = await db
+        .select({
+          lawFirmSubmittedAt: claimsTable.lawFirmSubmittedAt,
+          submissionDispatchedAt: claimsTable.submissionDispatchedAt,
+          submissionPackS3Key: claimsTable.submissionPackS3Key,
+        })
+        .from(claimsTable)
+        .where(eq(claimsTable.id, claimId))
+        .limit(1);
+      if (routeChanged && submission && submittedToDrv(submission)) {
+        throw new Error(
+          'Invalid routing change: the claim was already submitted to the pension office; use the correction workflow'
+        );
+      }
       if (
         claim.lettershopSubmissionId &&
         input.handlingRoute === 'law_firm' &&
@@ -2169,6 +2208,23 @@ export class ClaimsApplicationService {
             handlingRouteSetBy: adminUserId,
             payoutTarget,
             lawFirmRef,
+            // A route change before submission takes the old pack out of
+            // dispatch: the frozen pack and the route-specific release
+            // fields are cleared so the documents regenerate for the new
+            // route (and new signatures are collected).
+            ...(routeChanged
+              ? {
+                  submissionPackS3Key: null,
+                  submissionPackGeneratedAt: null,
+                  submissionPackManifest: null,
+                  directPackReleasedAt: null,
+                  directPackReleasedBy: null,
+                  lawFirmReleasedAt: null,
+                  lawFirmReleasedBy: null,
+                  lawFirmRereleasedUntil: null,
+                  lawFirmDownloadedAt: null,
+                }
+              : {}),
             updatedAt: now,
           })
           .where(eq(claimsTable.id, claimId))
@@ -2187,6 +2243,9 @@ export class ClaimsApplicationService {
             payoutTarget,
             lawFirmRef,
             note: input.note,
+            clearedPack: routeChanged
+              ? (submission?.submissionPackS3Key ?? null)
+              : null,
           },
         });
 
@@ -2767,17 +2826,32 @@ export class ClaimsApplicationService {
    * Attaches an extra document to a bAV claim (role 'bav_extra'); the
    * package merges these after the standard enclosures in upload order.
    * Ops regenerate the package via POST /admin/claims/:id/package/regenerate.
+   *
+   * KVBW ZVK / VddB / VddKO refunds (direct provider pack) take extras too
+   * (tax-ID form, further evidence) and, as 'provider_form', the completed
+   * application form a provider without a fillable form needs (KVBW).
    */
   static async attachExtraDocument(
     claimId: string,
     adminUserId: string,
     file: File,
-    note?: string | null
+    note?: string | null,
+    role: 'bav_extra' | 'provider_form' = 'bav_extra'
   ): Promise<ClaimDocument> {
     const claim = await this.getClaimAsAdmin(claimId);
     if (!claim) throw new Error('Claim not found');
-    if (claim.caseType !== 'bav_cashout') {
-      throw new Error('Invalid document: only bAV cash-out claims take extras');
+    const providerRefund =
+      claim.caseType === 'vbl_refund' &&
+      directProviderCodeOf(claim.pensionProvider) !== null;
+    if (claim.caseType !== 'bav_cashout' && !providerRefund) {
+      throw new Error(
+        'Invalid document: only bAV cash-out and KVBW/VddB/VddKO refund claims take extras'
+      );
+    }
+    if (role === 'provider_form' && !providerRefund) {
+      throw new Error(
+        'Invalid document: the application form upload is for KVBW/VddB/VddKO refunds'
+      );
     }
     if (file.size > this.EXTRA_DOCUMENT_MAX_BYTES) {
       throw new Error('Invalid file: size exceeds 10MB limit');
@@ -2798,14 +2872,20 @@ export class ClaimsApplicationService {
           fileType: file.type,
           fileSize: file.size,
           s3Key,
-          documentType: 'bav_extra',
+          documentType: role,
           status: 'completed',
         })
         .returning();
       const [row] = await tx
         .insert(claimDocuments)
-        .values({ claimId, documentId: doc.id, documentRole: 'bav_extra' })
+        .values({ claimId, documentId: doc.id, documentRole: role })
         .returning();
+      // The pack content changes: a direct provider pack generated before
+      // this upload must be regenerated before release.
+      await tx
+        .update(claimsTable)
+        .set({ updatedAt: new Date() })
+        .where(eq(claimsTable.id, claimId));
       await tx.insert(auditLogs).values({
         userId: adminUserId,
         action: 'claim_extra_document_added',
@@ -2852,6 +2932,7 @@ export class ClaimsApplicationService {
       .select({
         id: claimDocuments.id,
         documentId: claimDocuments.documentId,
+        role: claimDocuments.documentRole,
         s3Key: documents.s3Key,
       })
       .from(claimDocuments)
@@ -2860,14 +2941,24 @@ export class ClaimsApplicationService {
         and(
           eq(claimDocuments.id, claimDocumentId),
           eq(claimDocuments.claimId, claimId),
-          eq(claimDocuments.documentRole, 'bav_extra')
+          inArray(claimDocuments.documentRole, ['bav_extra', 'provider_form'])
         )
       )
       .limit(1);
     if (!link) return false;
+    if (link.role === 'provider_form') {
+      // Ops remove only the form they uploaded on a provider refund; a bAV
+      // provider form is the client's upload.
+      const claim = await this.getClaimAsAdmin(claimId);
+      if (claim?.caseType !== 'vbl_refund') return false;
+    }
     await db.transaction(async (tx: any) => {
       await tx.delete(claimDocuments).where(eq(claimDocuments.id, link.id));
       await tx.delete(documents).where(eq(documents.id, link.documentId));
+      await tx
+        .update(claimsTable)
+        .set({ updatedAt: new Date() })
+        .where(eq(claimsTable.id, claimId));
       await tx.insert(auditLogs).values({
         userId: adminUserId,
         action: 'claim_extra_document_removed',

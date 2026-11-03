@@ -85,3 +85,30 @@ export function useReportMissing() {
     onSuccess: () => invalidate(),
   });
 }
+
+export function useUploadDecision() {
+  const invalidate = useInvalidatePayout();
+  return useMutation({
+    mutationFn: (files: File[]) => payoutApi.uploadDecision(files),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useDecisionNotReceived() {
+  const invalidate = useInvalidatePayout();
+  return useMutation({
+    mutationFn: () => payoutApi.decisionNotReceived(),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useConfirmReceipt() {
+  const invalidate = useInvalidatePayout();
+  return useMutation({
+    mutationFn: (v: {
+      releaseId: string;
+      status: 'confirmed' | 'not_received';
+    }) => payoutApi.confirmReceipt(v.releaseId, v.status),
+    onSuccess: () => invalidate(),
+  });
+}

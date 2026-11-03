@@ -143,7 +143,7 @@ function bavClaim(provider: string, overrides: Record<string, unknown> = {}) {
 const fakePackage = {
   pdfS3Key: 'claims/x/bav-package-1.pdf',
   bytes: new Uint8Array([1, 2, 3]),
-  templateId: 'A-LAW',
+  templateId: 'LAW-VESTED',
   signer: 'LAW',
   copy: null,
   missingPlaceholders: [],
@@ -297,14 +297,14 @@ describe('package generation without a recipient', () => {
         asAdmin: true,
       })
     ).rejects.toThrow(
-      /^Cannot generate bAV package: .*Recipient street is required/
+      /^Cannot generate bAV package: .*Recipient postal code is required/
     );
     const result = await ClaimsApplicationService.completeBavPackage(
       claimId,
       adminId
     );
     expect(result.generated).toBe(false);
-    expect(result.error).toContain('Recipient street is required');
+    expect(result.error).toContain('Recipient postal code is required');
 
     const r = await row(claimId);
     expect(r.pdfS3Key).toBeNull();
@@ -459,11 +459,11 @@ describe('admin: save the recipient (optionally to the matrix)', () => {
       ClaimsApplicationService.updateBavRecipientAsAdmin(claimId, adminId, {
         addresseeType: 'provider',
         name: 'Ergo',
-        street: ' ',
-        postalCode: '40477',
+        street: 'Victoriaplatz 2',
+        postalCode: ' ',
         city: 'Düsseldorf',
       })
-    ).rejects.toThrow('Invalid recipient: Recipient street is required');
+    ).rejects.toThrow('Invalid recipient: Recipient postal code is required');
     await expect(
       ClaimsApplicationService.updateBavRecipientAsAdmin(claimId, adminId, {
         addresseeType: 'employer',
@@ -506,7 +506,8 @@ describe('VddB / VddKO stage submission', () => {
     expect(claim.pensionProvider).toBe('VddB');
     expect(claim.stageDetails).toMatchObject(stageDetails);
     expect(claim.submissionHold).toBe('manual_submission_required');
-    expect(claim.submissionHoldReason).toContain('no VddB claim form');
+    // The direct provider pack is built on the admin card (provider-refund/).
+    expect(claim.submissionHoldReason).toContain('"Direct submission" card');
     expect(claim.pdfS3Key).toBeNull();
     expect(claim.lettershopSubmissionId).toBeNull();
     expect(pdf).not.toHaveBeenCalled();
@@ -619,7 +620,10 @@ describe('ZVK / KVBW submission', () => {
       expect(claim.pensionProvider).toBe(provider);
       expect(claim.submissionHold).toBe('manual_submission_required');
       expect(claim.submissionHoldReason).toContain(`${provider} claim`);
-      expect(claim.submissionHoldReason).toContain('VBL L203');
+      // KVBW goes through the direct provider pack; other ZVKs stay manual.
+      expect(claim.submissionHoldReason).toContain(
+        provider === 'ZVK (KVBW)' ? '"Direct submission" card' : 'VBL L203'
+      );
       expect(claim.pdfS3Key).toBeNull();
       expect(claim.lettershopSubmissionId).toBeNull();
       expect(pdf).not.toHaveBeenCalled();

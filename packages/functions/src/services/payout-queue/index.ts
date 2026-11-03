@@ -25,6 +25,7 @@ import {
 import { PROVIDER_REGISTER, summitFxCurrency } from '../payout-flow/providers';
 import { InvoicingService } from '../invoicing';
 import { claimPayoutColumns } from './claim-columns';
+import { isDirectDrvRefund } from '../drv-pack/route';
 import {
   atlaesAccount,
   collectionAccount,
@@ -146,6 +147,15 @@ export class PayoutQueueService {
       .where(eq(claimsTable.id, release.claimId))
       .limit(1);
     if (!claim) return [];
+    // Direct client submission: no transfer queue for this route (a
+    // release left from before a route change never produces lines).
+    if (isDirectDrvRefund(claim)) {
+      logger.warn('Payout queue: direct-route claim, no lines created', {
+        claimId: claim.id,
+        releaseId,
+      });
+      return [];
+    }
 
     const [receipt] = await db
       .select()
@@ -464,15 +474,12 @@ export class PayoutQueueService {
       } catch (error) {
         logger.error('[PayoutQueue] invoice paid failed', toErrorMeta(error));
       }
-    } else {
-      // TODO(Workflow D): transfer-confirmation e-mail to the client. The
-      // brief references "Workflow D" but its text is not in Part 3 yet.
-      logger.info(
-        '[PayoutQueue] client line paid — transfer confirmation pending (Workflow D)',
-        {
-          claimId: line.claimId,
-        }
-      );
+    }
+    // E3/E4A/E4B scheduling: Katja's transfer of the client amount is the
+    // payment (route A/C) or the TransferMate funding (route B).
+    if (line.kind === 'client') {
+      const { PayoutEmailService } = await import('../payout-emails');
+      await PayoutEmailService.run(line.claimId);
     }
 
     const [open] = await db
