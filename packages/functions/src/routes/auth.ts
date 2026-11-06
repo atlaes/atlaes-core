@@ -11,12 +11,10 @@ import {
   passwordChangeSchema,
   magicLinkRequestSchema,
   magicLinkVerifySchema,
+  REFRESH_TOKEN_TYPE,
 } from '../utils/auth';
 import { UserService } from '../services/user';
-import {
-  authMiddleware,
-  unverifiedSessionStillValid,
-} from '../middleware/auth';
+import { authMiddleware } from '../middleware/auth';
 import {
   RateLimit,
   rateLimiter,
@@ -140,23 +138,53 @@ auth.post(
     try {
       const { refreshToken } = c.req.valid('json');
 
-      // Sessions from before the address was proven end once it is.
       const payload = AuthService.verifyToken(refreshToken);
-      if ((payload as { type?: unknown }).type) {
+      // Only refresh tokens refresh. Access tokens, 2FA challenges and
+      // e-mail link tokens are refused, and so are refresh tokens from
+      // before this change (no `type`): those users sign in once more.
+      if ((payload as { type?: unknown }).type !== REFRESH_TOKEN_TYPE) {
         return c.json({ error: 'Token refresh failed' }, 401);
       }
+
+      const [stored] = await db
+        .select({
+          role: users.role,
+          emailVerified: users.emailVerified,
+          sessionsRevokedAt: users.sessionsRevokedAt,
+          deletedAt: users.deletedAt,
+        })
+        .from(users)
+        .where(eq(users.id, payload.userId))
+        .limit(1);
+      if (!stored || stored.deletedAt) {
+        return c.json({ error: 'Token refresh failed' }, 401);
+      }
+      // Logged out (here or on another device) after this token was issued.
       if (
-        payload.emailVerified !== true &&
-        !(await unverifiedSessionStillValid(payload.userId))
+        stored.sessionsRevokedAt &&
+        // iat has whole seconds: a token from the logout second counts as
+        // revoked (signing in again takes longer than that).
+        (payload.iat ?? 0) <=
+          Math.floor(stored.sessionsRevokedAt.getTime() / 1000)
       ) {
         return c.json(
           { error: 'Your session has ended. Please sign in again.' },
           401
         );
       }
+      // Sessions from before the address was proven end once it is.
+      if (payload.emailVerified !== true && stored.emailVerified === true) {
+        return c.json(
+          { error: 'Your session has ended. Please sign in again.' },
+          401
+        );
+      }
 
-      // Generate new tokens
-      const tokens = AuthService.refreshTokens(refreshToken);
+      // Role and verification come from the database, not the old token.
+      const tokens = AuthService.refreshTokens(refreshToken, {
+        role: stored.role,
+        emailVerified: stored.emailVerified,
+      });
 
       return c.json({
         message: 'Tokens refreshed successfully',
@@ -172,8 +200,13 @@ auth.post(
 // Logout endpoint
 auth.post('/logout', authMiddleware, async (c) => {
   try {
-    // In a real application, you might want to blacklist the token
-    // For now, we'll just return success
+    // Refresh tokens issued until now stop working on every device; the
+    // current access token runs out within its 15 minutes.
+    const user = c.get('user');
+    await db
+      .update(users)
+      .set({ sessionsRevokedAt: new Date() })
+      .where(eq(users.id, user.id));
     return c.json({ message: 'Logged out successfully' });
   } catch (error) {
     logger.error('Logout error:', error);

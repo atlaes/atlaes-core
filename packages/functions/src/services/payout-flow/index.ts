@@ -44,6 +44,11 @@ import {
   type PayoutReviewReason,
   type PayoutRouteChoiceLog,
 } from '../../drizzle/schema/payout';
+import {
+  fundsReceipts,
+  invoices,
+  statementLines,
+} from '../../drizzle/schema/payout-queue';
 import { computeFeeSplit, deregistrationSurchargeFor } from '../drv-pack/fee';
 import { DIRECT_ROUTE_NO_ESCROW, isDirectDrvRefund } from '../drv-pack/route';
 import { extractDrvRefundDecisionDetails } from '../drv-refund-decision-extraction';
@@ -436,14 +441,37 @@ export class PayoutFlowService {
     return row;
   }
 
-  /** The client's current (non-draft) claim, as the account area resolves it. */
+  /**
+   * The client's payout claim. The escrow payout exists for DRV refunds
+   * only, so a DRV refund wins over a more recently touched VBL or bAV
+   * claim of the same account; among several, the one that has a payout
+   * decision, then the most recently updated.
+   */
   static async claimForUser(userId: string): Promise<ClaimRow> {
     const rows = await db
       .select()
       .from(claimsTable)
       .where(eq(claimsTable.userId, userId))
       .orderBy(desc(claimsTable.updatedAt));
-    const row = rows.find((r) => r.status !== 'draft');
+    const submitted = rows.filter((r) => r.status !== 'draft');
+    const drv = submitted.filter(
+      (r) => resolveCaseType(r) === 'drv_refund'
+    );
+    let row: ClaimRow | undefined = drv[0];
+    if (drv.length > 1) {
+      const withDecision = await db
+        .select({ claimId: payoutDecisions.claimId })
+        .from(payoutDecisions)
+        .where(
+          inArray(
+            payoutDecisions.claimId,
+            drv.map((r) => r.id)
+          )
+        );
+      const ids = new Set(withDecision.map((d) => d.claimId));
+      row = drv.find((r) => ids.has(r.id)) ?? drv[0];
+    }
+    row = row ?? submitted[0];
     if (!row) throw new PayoutFlowError('No application found', 404);
     return row;
   }
@@ -1231,6 +1259,111 @@ export class PayoutFlowService {
       }
       await PayoutEmailService.run(r.claimId);
     }
+  }
+
+  /**
+   * Cancels a release the client has not signed yet, e.g. funds recorded
+   * with a typo or against the wrong case. Its invoice gets a cancellation
+   * (InvoicingService.cancel, no reissue); a statement line it came from
+   * goes back to the reconciliation queue so it can be assigned again; the
+   * funds can then be recorded afresh. A signed release has a ZE and
+   * possibly payout lines and is refused here.
+   */
+  static async cancelRelease(
+    releaseId: string,
+    input: { reason: string },
+    actor: Actor
+  ): Promise<void> {
+    const reason = input.reason.trim();
+    if (!reason) throw new PayoutFlowError('Give a reason for the cancellation');
+    const [r] = await db
+      .select()
+      .from(payoutReleases)
+      .where(eq(payoutReleases.id, releaseId))
+      .limit(1);
+    if (!r) throw new PayoutFlowError('Release not found', 404);
+    if (r.status !== 'open')
+      throw new PayoutFlowError(
+        r.status === 'signed'
+          ? 'The client has already signed this release; it cannot be cancelled here'
+          : 'The release is already cancelled',
+        409
+      );
+
+    const [updated] = await db
+      .update(payoutReleases)
+      .set({ status: 'cancelled', updatedAt: new Date() })
+      .where(
+        and(eq(payoutReleases.id, releaseId), eq(payoutReleases.status, 'open'))
+      )
+      .returning({ id: payoutReleases.id });
+    if (!updated)
+      throw new PayoutFlowError('The release changed meanwhile; reload', 409);
+
+    const receipts = await db
+      .select({
+        id: fundsReceipts.id,
+        statementLineId: fundsReceipts.statementLineId,
+      })
+      .from(fundsReceipts)
+      .where(eq(fundsReceipts.payoutReleaseId, releaseId));
+    const cancelledInvoices: string[] = [];
+    const invoiceErrors: string[] = [];
+    for (const receipt of receipts) {
+      const linked = await db
+        .select({ id: invoices.id, status: invoices.status })
+        .from(invoices)
+        .where(
+          and(
+            eq(invoices.fundsReceiptId, receipt.id),
+            eq(invoices.kind, 'invoice')
+          )
+        );
+      for (const inv of linked.filter((i) => i.status !== 'cancelled')) {
+        try {
+          const { InvoicingService } = await import('../invoicing');
+          await InvoicingService.cancel(inv.id, {
+            reissue: false,
+            actorId: actor.id,
+            reason: `Release cancelled: ${reason}`,
+          });
+          cancelledInvoices.push(inv.id);
+        } catch (error) {
+          // Already cancelled, or paid: ops handle it in the invoices list.
+          invoiceErrors.push(
+            error instanceof Error ? error.message : String(error)
+          );
+        }
+      }
+      if (receipt.statementLineId) {
+        await db
+          .update(fundsReceipts)
+          .set({ statementLineId: null })
+          .where(eq(fundsReceipts.id, receipt.id));
+        await db
+          .update(statementLines)
+          .set({
+            status: 'unmatched',
+            claimId: null,
+            resolvedBy: null,
+            resolvedAt: null,
+          })
+          .where(eq(statementLines.id, receipt.statementLineId));
+      }
+    }
+
+    await this.audit(actor, 'payout_release_cancelled', r.claimId, {
+      releaseId,
+      reason,
+      amountReceivedEur: r.amountReceivedEur,
+      valueDate: r.valueDate,
+      cancelledInvoices,
+      invoiceErrors,
+      statementLinesReopened: receipts
+        .map((x) => x.statementLineId)
+        .filter(Boolean),
+    });
+    await PayoutEmailService.run(r.claimId);
   }
 
   static async listOpenCustomerInputs() {

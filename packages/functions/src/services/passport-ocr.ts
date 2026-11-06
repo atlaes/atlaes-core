@@ -2,6 +2,12 @@ import { logger } from '../utils/logger';
 
 export interface PassportOCRResult {
   success: boolean;
+  /**
+   * Set when success is false. 'not_identity_document' means the file was
+   * read and is something else; 'unavailable' means OCR itself failed
+   * (not configured, provider error) and says nothing about the file.
+   */
+  reason?: 'not_identity_document' | 'unavailable';
   data?: {
     firstName: string;
     lastName: string;
@@ -47,6 +53,7 @@ export async function extractPassportData(
     logger.warn('MISTRAL_API_KEY not configured, skipping passport OCR');
     return {
       success: false,
+      reason: 'unavailable',
       error: 'OCR service not configured',
     };
   }
@@ -74,6 +81,7 @@ export async function extractPassportData(
       });
       return {
         success: false,
+        reason: 'not_identity_document',
         error: NOT_IDENTITY_DOCUMENT_ERROR,
       };
     }
@@ -102,6 +110,7 @@ export async function extractPassportData(
     logger.error('Mistral passport OCR error:', errorDetail);
     return {
       success: false,
+      reason: 'unavailable',
       error: error instanceof Error ? error.message : 'OCR processing failed',
     };
   }

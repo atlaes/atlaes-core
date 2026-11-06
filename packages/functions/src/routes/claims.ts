@@ -636,7 +636,10 @@ claims.delete(
               ? error.message
               : 'Failed to remove document',
         },
-        500
+        error instanceof Error &&
+          error.message === 'Cannot update a submitted claim'
+          ? 409
+          : 500
       );
     }
   }
@@ -941,7 +944,10 @@ claims.post(
               ? error.message
               : 'Failed to transition workflow',
         },
-        500
+        error instanceof Error &&
+          error.message === 'Cannot update a submitted claim'
+          ? 409
+          : 500
       );
     }
   }

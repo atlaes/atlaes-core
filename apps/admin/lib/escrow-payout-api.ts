@@ -157,6 +157,16 @@ export async function clearReleaseReview(releaseId: string) {
   await apiClient.post(`/admin/payout/releases/${releaseId}/clear-review`);
 }
 
+/**
+ * Cancels a release the client has not signed (wrong amount or case). Its
+ * invoice is cancelled and a statement line goes back to the queue.
+ */
+export async function cancelRelease(releaseId: string, reason: string) {
+  await apiClient.post(`/admin/payout/releases/${releaseId}/cancel`, {
+    reason,
+  });
+}
+
 export async function resolvePayoutTask(taskId: string, note: string | null) {
   await apiClient.post(`/admin/payout/tasks/${taskId}/resolve`, { note });
 }

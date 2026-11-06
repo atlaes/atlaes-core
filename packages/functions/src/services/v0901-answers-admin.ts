@@ -1,8 +1,10 @@
 /**
  * Ops edit the per-case V0901 answers (5.1/6.1/6.3/8.1) on the admin claim
- * page. Editable only for DRV refund cases whose submission pack has not
- * been generated yet: the pack is frozen at the firm's first download and
- * never rebuilt, so a later change would not reach the DRV.
+ * page. Editable only for DRV refund cases whose pack is not frozen yet:
+ * - law-firm route: frozen at the firm's first download, never rebuilt;
+ * - direct route: frozen once released for dispatch. Before that ops may
+ *   preview the pack, change answers and regenerate it.
+ * Same rule as the DRV pack data card (drv-pack-data-admin.ts).
  */
 
 import { eq } from 'drizzle-orm';
@@ -50,6 +52,9 @@ async function loadClaim(claimId: string) {
       v0901Answers: claimsTable.v0901Answers,
       submissionPackS3Key: claimsTable.submissionPackS3Key,
       submissionPackGeneratedAt: claimsTable.submissionPackGeneratedAt,
+      handlingRoute: claimsTable.handlingRoute,
+      directPackReleasedAt: claimsTable.directPackReleasedAt,
+      submissionDispatchedAt: claimsTable.submissionDispatchedAt,
     })
     .from(claimsTable)
     .where(eq(claimsTable.id, claimId))
@@ -58,12 +63,17 @@ async function loadClaim(claimId: string) {
   return claim;
 }
 
+function isFrozen(claim: Awaited<ReturnType<typeof loadClaim>>): boolean {
+  if (claim.directPackReleasedAt || claim.submissionDispatchedAt) return true;
+  return claim.handlingRoute !== 'direct' && !!claim.submissionPackS3Key;
+}
+
 function stateOf(
   claim: Awaited<ReturnType<typeof loadClaim>>
 ): V0901AnswersState {
   return {
     applicable: resolveCaseType(claim) === 'drv_refund',
-    frozen: !!claim.submissionPackS3Key,
+    frozen: isFrozen(claim),
     packGeneratedAt: claim.submissionPackGeneratedAt?.toISOString() ?? null,
     questions: v0901AnswerViews(claim.v0901Answers as V0901AnswerOverrides),
   };
@@ -83,9 +93,9 @@ export class V0901AnswersService {
     if (resolveCaseType(claim) !== 'drv_refund') {
       throw new V0901AnswersError('Only DRV refund cases have a V0901', 409);
     }
-    if (claim.submissionPackS3Key) {
+    if (isFrozen(claim)) {
       throw new V0901AnswersError(
-        'The submission pack is already generated and frozen; the V0901 answers can no longer change',
+        'The submission pack is frozen (downloaded by the firm or released for dispatch); the V0901 answers can no longer change',
         409
       );
     }

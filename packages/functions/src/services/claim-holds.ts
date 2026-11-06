@@ -31,7 +31,7 @@ export interface SetHoldOptions {
   notify?: boolean;
 }
 
-function adminClaimUrl(claimId: string): string {
+export function adminClaimUrl(claimId: string): string {
   return `${env.ADMIN_URL.replace(/\/$/, '')}/claims/${claimId}`;
 }
 

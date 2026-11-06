@@ -15,6 +15,7 @@
  *                                          409 once funds are recorded
  *   PUT   /releases/:id/invoice           { invoiceNumber }
  *   POST  /releases/:id/clear-review      clears "payout details need review"
+ *   POST  /releases/:id/cancel            cancels an unsigned release
  *   GET   /customer-inputs                open missing-period reports
  *   POST  /customer-inputs/:id/resolve    { note? }
  *
@@ -275,6 +276,22 @@ router.post(
     }
   }
 );
+
+router.post('/releases/:id/cancel', validateUuidParams('id'), async (c) => {
+  try {
+    const body = (await c.req.json().catch(() => ({}))) as {
+      reason?: unknown;
+    };
+    await PayoutFlowService.cancelRelease(
+      pid(c, 'id'),
+      { reason: typeof body.reason === 'string' ? body.reason : '' },
+      actorOf(c)
+    );
+    return c.json({ success: true });
+  } catch (error) {
+    return payoutFail(c, error, 'Admin payout cancel release');
+  }
+});
 
 router.get('/customer-inputs', async (c) => {
   try {

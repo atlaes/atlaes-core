@@ -449,6 +449,36 @@ describe('Auth Routes', () => {
 
       expect(res.status).toBe(401);
     });
+
+    it('refuses an access token as a refresh token', async () => {
+      const { token } = await createTestUserWithToken();
+      const res = await request('POST', '/api/auth/refresh', {
+        refreshToken: token,
+      });
+      expect(res.status).toBe(401);
+    });
+
+    it('refuses a refresh token as a session', async () => {
+      const { refreshToken } = await createTestUserWithToken();
+      const res = await request('GET', '/api/auth/me', undefined, {
+        Authorization: `Bearer ${refreshToken}`,
+      });
+      expect(res.status).toBe(401);
+    });
+
+    it('takes the role from the database, not the old token', async () => {
+      const { user, refreshToken } = await createTestUserWithToken();
+      await testClient`
+        UPDATE shared.users SET role = 'law_firm' WHERE id = ${user.id}::uuid
+      `;
+      const res = await request('POST', '/api/auth/refresh', { refreshToken });
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as any;
+      const claims = JSON.parse(
+        Buffer.from(data.tokens.accessToken.split('.')[1], 'base64url').toString()
+      );
+      expect(claims.role).toBe('law_firm');
+    });
   });
 
   // ============================================================
@@ -531,6 +561,16 @@ describe('Auth Routes', () => {
 
       expect(res.status).toBe(200);
       expect(data.message).toBe('Logged out successfully');
+    });
+
+    it('ends the refresh token on the server', async () => {
+      const { token, refreshToken } = await createTestUserWithToken();
+      const out = await request('POST', '/api/auth/logout', undefined, {
+        Authorization: `Bearer ${token}`,
+      });
+      expect(out.status).toBe(200);
+      const res = await request('POST', '/api/auth/refresh', { refreshToken });
+      expect(res.status).toBe(401);
     });
 
     it('returns 401 without token', async () => {

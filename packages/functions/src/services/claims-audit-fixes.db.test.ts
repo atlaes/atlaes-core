@@ -443,6 +443,7 @@ describe('submitting a DRV refund', () => {
 
   it('claimant edits are refused once submitted; foreign signatures always', async () => {
     const { user, claimId } = await drvClaim();
+    const passportDocId = await attachDoc(user.id, claimId, 'passport');
     const other = await newUser();
     const foreignSignature = await newSignature(other.id);
     await expect(
@@ -471,6 +472,13 @@ describe('submitting a DRV refund', () => {
         user.id,
         await newSignature(user.id)
       )
+    ).rejects.toThrow(/Cannot update a submitted claim/);
+    // Documents stay on the submitted claim, and the workflow is ops' now.
+    await expect(
+      ClaimsApplicationService.removeDocument(claimId, user.id, passportDocId)
+    ).rejects.toThrow(/Cannot update a submitted claim/);
+    await expect(
+      ClaimsApplicationService.transitionState(claimId, user.id, 'review')
     ).rejects.toThrow(/Cannot update a submitted claim/);
   });
 });
