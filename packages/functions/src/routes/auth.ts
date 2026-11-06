@@ -13,7 +13,10 @@ import {
   magicLinkVerifySchema,
 } from '../utils/auth';
 import { UserService } from '../services/user';
-import { authMiddleware } from '../middleware/auth';
+import {
+  authMiddleware,
+  unverifiedSessionStillValid,
+} from '../middleware/auth';
 import {
   RateLimit,
   rateLimiter,
@@ -93,6 +96,16 @@ auth.post('/login', zValidator('json', loginSchema), async (c) => {
       return c.json({ error: 'Invalid email or password' }, 401);
     }
 
+    // Admin and law-firm accounts sign in by e-mail link plus the
+    // authenticator code; a password (possibly set by whoever registered
+    // the address first) must not open them without the second factor.
+    if (user.role === 'admin' || user.role === 'law_firm') {
+      return c.json(
+        { error: 'Please sign in with the link sent to your e-mail.' },
+        403
+      );
+    }
+
     // Generate tokens
     const tokens = AuthService.generateTokens({
       userId: user.id,
@@ -126,6 +139,21 @@ auth.post(
   async (c) => {
     try {
       const { refreshToken } = c.req.valid('json');
+
+      // Sessions from before the address was proven end once it is.
+      const payload = AuthService.verifyToken(refreshToken);
+      if ((payload as { type?: unknown }).type) {
+        return c.json({ error: 'Token refresh failed' }, 401);
+      }
+      if (
+        payload.emailVerified !== true &&
+        !(await unverifiedSessionStillValid(payload.userId))
+      ) {
+        return c.json(
+          { error: 'Your session has ended. Please sign in again.' },
+          401
+        );
+      }
 
       // Generate new tokens
       const tokens = AuthService.refreshTokens(refreshToken);
@@ -247,14 +275,26 @@ auth.post(
     try {
       const { token } = c.req.valid('json');
 
-      const user = await UserService.verifyEmail(token);
+      // A signed e-mail link token, never a bare user id: the endpoint is
+      // unauthenticated, and taking an id let anyone verify any account.
+      let email: string;
+      try {
+        ({ email } = AuthService.verifyMagicLinkToken(token));
+      } catch {
+        return c.json({ error: 'Invalid or expired verification link' }, 400);
+      }
+      const user = await UserService.findByEmail(email);
+      if (!user) {
+        return c.json({ error: 'Invalid or expired verification link' }, 400);
+      }
+      await UserService.markEmailOwnerVerified(user.id);
 
       return c.json({
         message: 'Email verified successfully',
         user: {
           id: user.id,
           email: user.email,
-          emailVerified: user.emailVerified,
+          emailVerified: true,
         },
       });
     } catch (error) {
@@ -494,6 +534,14 @@ auth.post(
         logger.info(`New user created via magic link: ${user.email}`);
       }
 
+      // The link proves the address: verify the account, and if it was
+      // registered with a password before (possibly by someone else),
+      // clear that password and end the earlier sessions.
+      if (!user.emailVerified) {
+        await UserService.markEmailOwnerVerified(user.id);
+        user = { ...user, emailVerified: true };
+      }
+
       // Auto-assign admin role for allowed domains. Invited law-firm
       // members keep their role even on these domains, or they would be
       // flipped to admin at first login and lose the portal.
@@ -532,9 +580,8 @@ auth.post(
       // Law-firm members get no session from the link alone: they finish
       // with a TOTP code at /api/auth/2fa (portal brief: 2FA required).
       if (user.role === 'law_firm') {
-        const { createChallengeToken, TotpService } = await import(
-          '../services/totp/service'
-        );
+        const { createChallengeToken, TotpService } =
+          await import('../services/totp/service');
         return c.json({
           message: 'Two-factor sign-in required',
           twoFactorRequired: true,

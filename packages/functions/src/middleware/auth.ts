@@ -1,7 +1,28 @@
 import { Context, Next } from 'hono';
 import { verify } from 'jsonwebtoken';
+import { eq } from 'drizzle-orm';
 import { getJwtSecret } from '../utils/env';
 import { logger } from '../utils/logger';
+import { db } from '../utils/db';
+import { users } from '../drizzle/schema/shared';
+
+/**
+ * A session issued before the e-mail address was proven (password
+ * registration) stays valid only while the account is still unverified.
+ * Once the owner proves the address (magic link, Google, verification
+ * link) those sessions end: otherwise someone who registered a victim's
+ * address first keeps access to the victim's account and claim data.
+ */
+export async function unverifiedSessionStillValid(
+  userId: string
+): Promise<boolean> {
+  const [row] = await db
+    .select({ emailVerified: users.emailVerified })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  return !!row && !row.emailVerified;
+}
 
 export interface AuthUser {
   id: string;
@@ -37,8 +58,20 @@ export const authMiddleware = async (c: Context, next: Next) => {
     // Verify JWT token
     const decoded = verify(token, getJwtSecret()) as any;
 
-    if (!decoded || !decoded.userId || !decoded.email) {
+    // Session tokens carry no `type`; the 2FA challenge and the e-mail
+    // link tokens do and are not sessions.
+    if (!decoded || !decoded.userId || !decoded.email || decoded.type) {
       return c.json({ error: 'Invalid token' }, 401);
+    }
+
+    if (
+      decoded.emailVerified !== true &&
+      !(await unverifiedSessionStillValid(decoded.userId))
+    ) {
+      return c.json(
+        { error: 'Your session has ended. Please sign in again.' },
+        401
+      );
     }
 
     // Set user context
@@ -76,7 +109,14 @@ export const optionalAuthMiddleware = async (c: Context, next: Next) => {
       if (token) {
         const decoded = verify(token, getJwtSecret()) as any;
 
-        if (decoded && decoded.userId && decoded.email) {
+        if (
+          decoded &&
+          decoded.userId &&
+          decoded.email &&
+          !decoded.type &&
+          (decoded.emailVerified === true ||
+            (await unverifiedSessionStillValid(decoded.userId)))
+        ) {
           c.set('user', {
             id: decoded.userId,
             email: decoded.email,

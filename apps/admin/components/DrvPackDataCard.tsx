@@ -239,7 +239,10 @@ export function DrvPackDataCard({
       )}
       {save.isError && (
         <div className="mt-2">
-          <ErrorText error={save.error} fallback="Could not save the pack data" />
+          <ErrorText
+            error={save.error}
+            fallback="Could not save the pack data"
+          />
         </div>
       )}
     </form>

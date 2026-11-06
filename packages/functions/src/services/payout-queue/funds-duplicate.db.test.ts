@@ -284,4 +284,3 @@ describe('payout-details review gate (pre-UAT P0 #4)', () => {
     expect(lines.map((l) => l.kind).sort()).toEqual(['atlaes', 'client']);
   });
 });
-

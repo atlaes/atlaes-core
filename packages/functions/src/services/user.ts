@@ -341,6 +341,45 @@ export class UserService {
   }
 
   /**
+   * The owner proved control of the address (magic link, Google, the
+   * verification link). An account that was still unverified may have been
+   * registered with a password by someone else first, so the password is
+   * cleared (the owner signs in by link or sets a new one) and the sessions
+   * issued before verification end (see unverifiedSessionStillValid).
+   * Returns whether anything changed.
+   */
+  static async markEmailOwnerVerified(
+    userId: string
+  ): Promise<{ verified: boolean; passwordCleared: boolean }> {
+    const [current] = await db
+      .select({
+        emailVerified: users.emailVerified,
+        passwordHash: users.passwordHash,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!current || current.emailVerified)
+      return { verified: false, passwordCleared: false };
+    const passwordCleared = !!current.passwordHash;
+    await db.transaction(async (tx: any) => {
+      await tx
+        .update(users)
+        .set({ emailVerified: true, passwordHash: null, updatedAt: new Date() })
+        .where(eq(users.id, userId));
+      await tx.insert(auditLogs).values({
+        userId,
+        action: 'email_verified',
+        resource: 'user',
+        resourceId: userId,
+        details: { by: 'owner_proof', passwordCleared },
+      });
+    });
+    logger.info(`Email verified by owner proof for user: ${userId}`);
+    return { verified: true, passwordCleared };
+  }
+
+  /**
    * Mark email as verified
    */
   static async verifyEmail(userId: string): Promise<void> {
@@ -433,6 +472,14 @@ export class UserService {
       // Check if user exists by email (for account linking)
       const existingByEmail = await this.findByEmail(oauthData.email);
       if (existingByEmail) {
+        // Google vouches for the address: an unverified account found by
+        // e-mail may have been pre-registered by someone else.
+        if (
+          (oauthData.emailVerified ?? true) &&
+          !existingByEmail.emailVerified
+        ) {
+          await this.markEmailOwnerVerified(existingByEmail.id);
+        }
         // Link OAuth provider to existing account
         await db
           .update(users)

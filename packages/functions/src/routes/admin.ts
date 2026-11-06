@@ -642,8 +642,7 @@ admin.put('/claims/:id/drv-pack-data', validateUuidParams('id'), async (c) => {
       return c.json(
         {
           success: false,
-          error:
-            parsed.error.issues[0]?.message ?? 'Invalid DRV pack data',
+          error: parsed.error.issues[0]?.message ?? 'Invalid DRV pack data',
           details: parsed.error.flatten(),
         },
         400
@@ -666,7 +665,7 @@ admin.put('/claims/:id/drv-pack-data', validateUuidParams('id'), async (c) => {
   }
 });
 
- (a VddB/VddKO
+// Ops close a submission hold handled outside the system (a VddB/VddKO
 // claim submitted by hand, a package problem solved otherwise).
 const resolveHoldSchema = z.object({
   note: z.string().trim().min(1).max(1000),

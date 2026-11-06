@@ -618,9 +618,10 @@ const GENDER_TO_SEX: Record<string, string> = {
   other: 'diverse',
 };
 
-export function drvPackPatch(
-  data: Partial<ClaimData>
-): { vsnr?: string | null; sex?: string | null } {
+export function drvPackPatch(data: Partial<ClaimData>): {
+  vsnr?: string | null;
+  sex?: string | null;
+} {
   const patch: { vsnr?: string | null; sex?: string | null } = {};
   if (data.svNummer !== undefined) {
     const compact = data.svNummer.replace(/\s+/g, '').toUpperCase();
