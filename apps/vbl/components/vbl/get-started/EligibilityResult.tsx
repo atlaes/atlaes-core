@@ -413,13 +413,21 @@ export const EligibilityResult: React.FC = () => {
             </div>
           </div>
 
+          {/* The flow's reason (e.g. above the small-entitlement limit) tells
+              the client why and what would make a cash-out possible. */}
           <h2 className="text-2xl font-bold text-gray-900 mb-3">
-            This bAV cash-out cannot currently be started through CompanyPension
+            {ineligibilityInfo.title ||
+              'This bAV cash-out cannot currently be started through CompanyPension'}
           </h2>
           <p className="text-gray-600 mb-4">
-            Based on your answers, this case does not fit the bAV cash-out
-            process currently supported by CompanyPension.
+            {ineligibilityInfo.message ||
+              'Based on your answers, this case does not fit the bAV cash-out process currently supported by CompanyPension.'}
           </p>
+          {ineligibilityInfo.secondaryMessage && (
+            <p className="text-gray-600 mb-4">
+              {ineligibilityInfo.secondaryMessage}
+            </p>
+          )}
 
           <div className="bg-[#F5D4CF] border border-[#B92513] rounded-lg p-4 mb-6 text-left">
             <p className="text-sm text-[#7A1B0D] font-semibold">
