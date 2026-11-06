@@ -27,6 +27,27 @@ import { db } from '../utils/db';
 import { users } from '../drizzle/schema/shared';
 import { eq } from 'drizzle-orm';
 
+/** Every address on these domains becomes admin at magic-link sign-in. */
+const ADMIN_DOMAINS = ['atlaes.de', 'alibuas.com'];
+/**
+ * Single addresses that become admin on staging and other non-production
+ * stages only (APP_STAGE, set by resources/services). Production keeps the
+ * company domains above.
+ */
+const NON_PRODUCTION_ADMIN_EMAILS = ['kkalibuas@gmail.com'];
+
+export function isAutoAdminEmail(
+  email: string,
+  stage: string | undefined = process.env.APP_STAGE
+): boolean {
+  const normalized = email.trim().toLowerCase();
+  const domain = normalized.split('@')[1];
+  if (domain && ADMIN_DOMAINS.includes(domain)) return true;
+  return (
+    stage !== 'production' && NON_PRODUCTION_ADMIN_EMAILS.includes(normalized)
+  );
+}
+
 const auth = new Hono();
 
 // Initialize Google OAuth client
@@ -575,14 +596,12 @@ auth.post(
         user = { ...user, emailVerified: true };
       }
 
-      // Auto-assign admin role for allowed domains. Invited law-firm
-      // members keep their role even on these domains, or they would be
-      // flipped to admin at first login and lose the portal.
-      const ADMIN_DOMAINS = ['atlaes.de', 'alibuas.com'];
-      const emailDomain = email.split('@')[1]?.toLowerCase();
+      // Auto-assign admin role for allowed domains, plus single addresses
+      // on non-production stages. Invited law-firm members keep their role
+      // even on these domains, or they would be flipped to admin at first
+      // login and lose the portal.
       if (
-        emailDomain &&
-        ADMIN_DOMAINS.includes(emailDomain) &&
+        isAutoAdminEmail(email) &&
         user.role !== 'admin' &&
         user.role !== 'law_firm'
       ) {
