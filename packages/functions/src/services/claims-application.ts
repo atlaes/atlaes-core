@@ -595,7 +595,7 @@ function calculateAge(dateOfBirth: string, now = new Date()): number | null {
 const LETTERSHOP_SEND_PENDING = 'pending';
 
 /** Case types the VBL app charges the deposit for before submission. */
-const PAID_UP_FRONT_CASE_TYPES: ReadonlySet<ClaimCaseType> =
+export const PAID_UP_FRONT_CASE_TYPES: ReadonlySet<ClaimCaseType> =
   new Set<ClaimCaseType>(['vbl_refund', 'bav_cashout']);
 
 /** Claimant-side edits are only allowed while the claim is a draft. */

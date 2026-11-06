@@ -345,6 +345,9 @@ export const CLAIM_SUBMISSION_HOLDS = [
   'awaiting_provider_data',
   'manual_submission_required',
   'package_generation_failed',
+  // The client withdrew (Widerruf) after submission: ops decide whether to
+  // revoke the application with the provider. Set by ContractWithdrawalService.
+  'withdrawal_received',
 ] as const;
 export type ClaimSubmissionHold = (typeof CLAIM_SUBMISSION_HOLDS)[number];
 
@@ -352,6 +355,7 @@ export const SUBMISSION_HOLD_LABELS: Record<ClaimSubmissionHold, string> = {
   awaiting_provider_data: 'Waiting for provider data',
   manual_submission_required: 'Manual submission required',
   package_generation_failed: 'Package generation failed',
+  withdrawal_received: 'Withdrawal (Widerruf) received',
 };
 
 /** VddB / VddKO: stage and orchestra pension institutions. */

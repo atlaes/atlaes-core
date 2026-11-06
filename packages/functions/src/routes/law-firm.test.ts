@@ -351,6 +351,20 @@ describe('Law firm portal routes', () => {
       );
       expect(missing.status).toBe(400);
 
+      // Not before the pack was downloaded (built and frozen).
+      const early = await request(
+        'POST',
+        `/api/law-firm/claims/${claimSubmit.id}/events`,
+        memberA.token,
+        { event: 'submitted', date: '2026-09-10' }
+      );
+      expect(early.status).toBe(400);
+      expect((await early.json()).error).toMatch(/download the submission package/);
+      await testDb
+        .update(claimsTable)
+        .set({ submissionPackS3Key: 'claims/test/submission-pack.pdf' })
+        .where(eq(claimsTable.id, claimSubmit.id));
+
       const ok = await request(
         'POST',
         `/api/law-firm/claims/${claimSubmit.id}/events`,

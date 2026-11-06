@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   clearReleaseReview,
+  cancelRelease,
   downloadTransferMateCsv,
   getEscrow,
   publishDecision,
@@ -556,6 +557,22 @@ function ReleaseRow({ r, onDone }: { r: EscrowRelease; onDone: () => void }) {
         <p className="text-xs text-gray-500">
           Details reviewed {formatDate(r.reviewClearedAt, true)}.
         </p>
+      )}
+      {r.status === 'open' && (
+        <div>
+          <Button
+            disabled={act.isPending}
+            onClick={() => {
+              const reason = window.prompt(
+                'Cancel this release? Its invoice is cancelled and a statement line goes back to the reconciliation queue, so the funds can be recorded again. Reason:'
+              );
+              if (reason && reason.trim())
+                act.mutate(() => cancelRelease(r.releaseId, reason.trim()));
+            }}
+          >
+            Cancel release
+          </Button>
+        </div>
       )}
       {act.isError && (
         <ErrorText error={act.error} fallback="Could not save the change" />

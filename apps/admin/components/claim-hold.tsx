@@ -25,6 +25,8 @@ const HOLD_HELP: Record<string, string> = {
     'There is no claim form for this institution in the system yet, so nothing was sent to the lettershop. Submit the claim manually, then mark it as submitted here.',
   package_generation_failed:
     'The claim package could not be built after submission, so nothing was sent. Fix the data and regenerate, or resolve the hold once it has been handled otherwise.',
+  withdrawal_received:
+    'The client withdrew from the contract after the application was submitted. Check the 14-day window, revoke the application with the provider (or the law firm) if required, then resolve the hold with a note.',
 };
 
 /** Banner for a claim on a submission hold, with the matching action. */
