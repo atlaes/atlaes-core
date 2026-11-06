@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   claimRows: [] as unknown[],
   updateSet: vi.fn(),
   insertValues: vi.fn(),
+  // Rows the conditional update matched (markProcessing / markFailed).
+  updateReturning: [{ id: 'x' }] as unknown[],
 }));
 
 vi.mock('stripe', () => ({
@@ -33,14 +35,23 @@ vi.mock('../utils/db', () => ({
     update: () => ({
       set: (values: unknown) => {
         mocks.updateSet(values);
-        return { where: async () => undefined };
+        return {
+          where: () =>
+            Object.assign(Promise.resolve(undefined), {
+              returning: async () => mocks.updateReturning,
+            }),
+        };
       },
     }),
     insert: () => ({ values: mocks.insertValues }),
   },
 }));
 
-import { PaymentConfigError, PaymentService } from './payment';
+import {
+  PAYMENT_PROCESSING_MESSAGE,
+  PaymentConfigError,
+  PaymentService,
+} from './payment';
 
 const claimId = '11111111-1111-4111-8111-111111111111';
 const userId = '22222222-2222-4222-8222-222222222222';
@@ -179,5 +190,91 @@ describe('PaymentService.createCheckoutSession', () => {
     await expect(
       PaymentService.createCheckoutSession(checkout)
     ).rejects.toThrow('STRIPE_SECRET_KEY is unset');
+  });
+});
+
+describe('delayed payment methods (SEPA Direct Debit, ...)', () => {
+  const session = (payment_status: string) => ({
+    id: 'cs_sepa',
+    client_reference_id: claimId,
+    status: 'complete',
+    payment_status,
+    payment_intent: 'pi_sepa',
+  });
+  const event = (type: string, payment_status: string) =>
+    ({ type, data: { object: session(payment_status) } }) as any;
+
+  beforeEach(() => {
+    mocks.env.STRIPE_SECRET_KEY = 'sk_test_unit';
+    mocks.claimRows.length = 0;
+    mocks.claimRows.push({ id: claimId, userId, paymentStatus: 'pending' });
+    mocks.sessionsList.mockReset();
+    mocks.sessionsCreate.mockReset();
+    mocks.updateSet.mockReset();
+    mocks.insertValues.mockReset();
+    mocks.insertValues.mockResolvedValue(undefined);
+    mocks.updateReturning = [{ id: claimId }];
+  });
+
+  it('marks the claim processing when Checkout completes unpaid', async () => {
+    await PaymentService.handleWebhookEvent(
+      event('checkout.session.completed', 'unpaid')
+    );
+    expect(mocks.updateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentStatus: 'processing' })
+    );
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'payment_processing_webhook' })
+    );
+  });
+
+  it('records the payment when the delayed payment succeeds', async () => {
+    mocks.claimRows[0] = { id: claimId, userId, paymentStatus: 'processing' };
+    await PaymentService.handleWebhookEvent(
+      event('checkout.session.async_payment_succeeded', 'paid')
+    );
+    expect(mocks.updateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentStatus: 'paid' })
+    );
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'payment_completed_async' })
+    );
+  });
+
+  it('marks the claim failed when the delayed payment fails', async () => {
+    mocks.claimRows[0] = { id: claimId, userId, paymentStatus: 'processing' };
+    await PaymentService.handleWebhookEvent(
+      event('checkout.session.async_payment_failed', 'unpaid')
+    );
+    expect(mocks.updateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentStatus: 'failed' })
+    );
+  });
+
+  it('never touches a paid claim', async () => {
+    mocks.claimRows[0] = { id: claimId, userId, paymentStatus: 'paid' };
+    await PaymentService.handleWebhookEvent(
+      event('checkout.session.async_payment_failed', 'unpaid')
+    );
+    expect(mocks.updateSet).not.toHaveBeenCalled();
+  });
+
+  it('refuses a second Checkout while a payment is processing', async () => {
+    mocks.claimRows[0] = { id: claimId, userId, paymentStatus: 'processing' };
+    await expect(
+      PaymentService.createCheckoutSession(checkout)
+    ).rejects.toThrow(PAYMENT_PROCESSING_MESSAGE);
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+  });
+
+  it('refuses a second Checkout when Stripe has a completed unpaid session', async () => {
+    listBy({ complete: [session('unpaid')] });
+    await expect(
+      PaymentService.createCheckoutSession(checkout)
+    ).rejects.toThrow(PAYMENT_PROCESSING_MESSAGE);
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+    expect(mocks.updateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentStatus: 'processing' })
+    );
   });
 });

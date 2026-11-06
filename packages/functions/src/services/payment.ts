@@ -1,5 +1,5 @@
 import Stripe from 'stripe';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../utils/db';
 import { claimsTable } from '../drizzle/schema/claims';
 import { auditLogs } from '../drizzle/schema/shared';
@@ -8,6 +8,16 @@ import { logger } from '../utils/logger';
 
 const DEPOSIT_AMOUNT_CENTS = 19900; // €199.00
 const CURRENCY = 'eur';
+
+/**
+ * claims.payment_status while a delayed payment method (SEPA Direct Debit,
+ * bank transfer, ...) is on its way: Checkout is complete but Stripe has not
+ * confirmed the money yet. 'checkout.session.async_payment_succeeded' then
+ * marks it 'paid', '..._failed' marks it 'failed'.
+ */
+export const PAYMENT_PROCESSING = 'processing';
+export const PAYMENT_PROCESSING_MESSAGE =
+  'Your payment is being processed by your bank. This can take a few working days; you can continue once it is confirmed.';
 
 /** Payments are switched off: no Stripe key on this stage. */
 export class PaymentConfigError extends Error {
@@ -66,6 +76,9 @@ export class PaymentService {
     if (claim.paymentStatus === 'paid') {
       throw new Error('Payment already completed for this claim');
     }
+    if (claim.paymentStatus === PAYMENT_PROCESSING) {
+      throw new Error(PAYMENT_PROCESSING_MESSAGE);
+    }
 
     const existing = await this.findExistingSession(stripe, claimId, userEmail);
     if (existing?.status === 'complete' && existing.payment_status === 'paid') {
@@ -74,6 +87,11 @@ export class PaymentService {
         `Payment recorded from existing session: ${existing.id} for claim: ${claimId}`
       );
       throw new Error('Payment already completed for this claim');
+    }
+    // Completed with a delayed method: a second Checkout would charge twice.
+    if (existing?.status === 'complete' && existing.payment_status === 'unpaid') {
+      await this.markProcessing(claimId, userId, existing, 'payment_processing');
+      throw new Error(PAYMENT_PROCESSING_MESSAGE);
     }
     if (existing?.status === 'open' && existing.url) {
       logger.info(
@@ -173,6 +191,71 @@ export class PaymentService {
   }
 
   /**
+   * Checkout completed with a delayed payment method: the claim waits for
+   * Stripe's async result. Never downgrades a paid claim.
+   */
+  private static async markProcessing(
+    claimId: string,
+    userId: string,
+    session: Stripe.Checkout.Session,
+    action: string
+  ): Promise<void> {
+    const updated = await db
+      .update(claimsTable)
+      .set({
+        paymentStatus: PAYMENT_PROCESSING,
+        stripePaymentId: (session.payment_intent as string) ?? null,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(claimsTable.id, claimId),
+          sql`coalesce(${claimsTable.paymentStatus}, 'pending') not in ('paid', ${PAYMENT_PROCESSING})`
+        )
+      )
+      .returning({ id: claimsTable.id });
+    if (!updated.length) return;
+    await db.insert(auditLogs).values({
+      userId,
+      action,
+      resource: 'claim',
+      resourceId: claimId,
+      details: {
+        sessionId: session.id,
+        paymentIntent: session.payment_intent,
+        amount: DEPOSIT_AMOUNT_CENTS,
+        currency: CURRENCY,
+      },
+    });
+  }
+
+  /** The delayed payment failed: the client can pay again. */
+  private static async markFailed(
+    claimId: string,
+    userId: string,
+    session: Stripe.Checkout.Session
+  ): Promise<void> {
+    const updated = await db
+      .update(claimsTable)
+      .set({ paymentStatus: 'failed', updatedAt: new Date() })
+      .where(
+        and(
+          eq(claimsTable.id, claimId),
+          sql`coalesce(${claimsTable.paymentStatus}, 'pending') <> 'paid'`
+        )
+      )
+      .returning({ id: claimsTable.id });
+    if (!updated.length) return;
+    await db.insert(auditLogs).values({
+      userId,
+      action: 'payment_failed_async',
+      resource: 'claim',
+      resourceId: claimId,
+      details: { sessionId: session.id, paymentIntent: session.payment_intent },
+    });
+  }
+
+  /**
    * Verify a completed Checkout Session and update claim payment status.
    */
   static async verifySession({
@@ -208,6 +291,10 @@ export class PaymentService {
       return { success: true, claimId, paymentStatus: 'paid' };
     }
 
+    if (session.status === 'complete' && session.payment_status === 'unpaid') {
+      await this.markProcessing(claimId, userId, session, 'payment_processing');
+      return { success: false, claimId, paymentStatus: PAYMENT_PROCESSING };
+    }
     if (session.payment_status !== 'paid') {
       return { success: false, claimId, paymentStatus: session.payment_status };
     }
@@ -225,7 +312,7 @@ export class PaymentService {
    * Handle Stripe webhook events (idempotent backup for payment verification).
    */
   static async handleWebhookEvent(event: Stripe.Event): Promise<void> {
-    if (event.type !== 'checkout.session.completed') {
+    if (!HANDLED_EVENTS.has(event.type)) {
       return;
     }
 
@@ -237,7 +324,6 @@ export class PaymentService {
       return;
     }
 
-    // Idempotent — skip if already paid
     const [claim] = await db
       .select()
       .from(claimsTable)
@@ -249,25 +335,57 @@ export class PaymentService {
       return;
     }
 
+    // Idempotent: a paid claim never changes here.
     if (claim.paymentStatus === 'paid') {
       logger.info(`Webhook: claim ${claimId} already paid, skipping`);
       return;
     }
 
-    if (session.payment_status !== 'paid') {
-      logger.warn(
-        `Webhook: session not paid, status: ${session.payment_status}`
-      );
+    if (event.type === 'checkout.session.async_payment_failed') {
+      await this.markFailed(claimId, claim.userId, session);
+      logger.warn(`Webhook: delayed payment failed for claim: ${claimId}`);
       return;
     }
 
-    await this.recordPayment(
-      claimId,
-      claim.userId,
-      session,
-      'payment_completed_webhook'
-    );
+    if (session.payment_status === 'paid') {
+      await this.recordPayment(
+        claimId,
+        claim.userId,
+        session,
+        event.type === 'checkout.session.async_payment_succeeded'
+          ? 'payment_completed_async'
+          : 'payment_completed_webhook'
+      );
+      logger.info(`Webhook: payment recorded for claim: ${claimId}`);
+      return;
+    }
 
-    logger.info(`Webhook: payment recorded for claim: ${claimId}`);
+    // checkout.session.completed with a delayed method: money not there yet.
+    if (
+      event.type === 'checkout.session.completed' &&
+      session.payment_status === 'unpaid'
+    ) {
+      await this.markProcessing(
+        claimId,
+        claim.userId,
+        session,
+        'payment_processing_webhook'
+      );
+      logger.info(`Webhook: delayed payment pending for claim: ${claimId}`);
+      return;
+    }
+
+    logger.warn(`Webhook: session not paid, status: ${session.payment_status}`);
   }
 }
+
+/**
+ * Stripe events this service acts on. The EventBridge rule
+ * (resources/events/index.ts) and the Stripe event destination must send
+ * all three.
+ */
+export const HANDLED_EVENTS: ReadonlySet<string> = new Set([
+  'checkout.session.completed',
+  'checkout.session.async_payment_succeeded',
+  'checkout.session.async_payment_failed',
+]);

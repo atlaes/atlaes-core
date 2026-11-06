@@ -322,6 +322,10 @@ export function GetStartedOnboardingFlow() {
     resumeDraft();
   }, [user, data.claimId, loadFromClaim]);
 
+  // Shown when Checkout completed with a delayed payment method (SEPA
+  // Direct Debit, ...): Stripe confirms the money days later.
+  const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
+
   // Handle payment return from Stripe
   useEffect(() => {
     const handlePaymentReturn = async () => {
@@ -339,6 +343,10 @@ export function GetStartedOnboardingFlow() {
           localStorage.setItem('vbl_draft_claimId', result.claimId);
           setCurrentStep(3);
           setCurrentSubStep('identity');
+        } else if (result.paymentStatus === 'processing') {
+          setPaymentNotice(
+            'Thank you. Your payment is being processed by your bank, which can take a few working days. We will continue your application as soon as it is confirmed.'
+          );
         }
       } catch (err) {
         console.error('Payment verification failed:', err);
@@ -1029,6 +1037,11 @@ export function GetStartedOnboardingFlow() {
       variant={variant}
       showSubSteps={variant !== 'calculator' || !calculatorStopped}
     >
+      {paymentNotice && (
+        <div className="mx-auto mb-6 max-w-lg rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          {paymentNotice}
+        </div>
+      )}
       {flowError && (
         <div className="mx-auto mb-6 max-w-lg whitespace-pre-line rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {flowError}

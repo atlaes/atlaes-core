@@ -3,7 +3,11 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import Stripe from 'stripe';
 import { authMiddleware } from '../middleware/auth';
-import { PaymentConfigError, PaymentService } from '../services/payment';
+import {
+  PAYMENT_PROCESSING_MESSAGE,
+  PaymentConfigError,
+  PaymentService,
+} from '../services/payment';
 import { env } from '../utils/env';
 import { logger } from '../utils/logger';
 
@@ -59,7 +63,11 @@ payments.post(
       }
       const message =
         error instanceof Error ? error.message : 'Failed to create checkout session';
-      const status = message.includes('already completed') ? 400 : 500;
+      const status = message.includes('already completed')
+        ? 400
+        : message === PAYMENT_PROCESSING_MESSAGE
+          ? 409
+          : 500;
       return c.json({ success: false, error: message }, status);
     }
   }

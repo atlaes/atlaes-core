@@ -174,7 +174,16 @@ export const Payment: React.FC<PaymentProps> = ({
       window.location.href = url;
     } catch (err) {
       console.error('Payment initiation failed:', err);
-      setError('Unable to start payment. Please try again or contact support.');
+      // 409: a delayed payment (e.g. SEPA Direct Debit) is still with the
+      // bank; the server says so instead of opening a second Checkout.
+      const response = (
+        err as { response?: { status?: number; data?: { error?: unknown } } }
+      )?.response;
+      setError(
+        response?.status === 409 && typeof response.data?.error === 'string'
+          ? response.data.error
+          : 'Unable to start payment. Please try again or contact support.'
+      );
       setIsProcessing(false);
     }
   };
