@@ -20,7 +20,13 @@ const rule = new aws.cloudwatch.EventRule('StripeWebhookRule', {
   name: `atlaes-${$app.stage}-stripe-webhook`,
   eventBusName: STRIPE_EVENT_SOURCE,
   eventPattern: JSON.stringify({
-    'detail-type': ['checkout.session.completed'],
+    // Delayed methods (SEPA Direct Debit, ...) complete Checkout first and
+    // confirm the money days later (PaymentService.handleWebhookEvent).
+    'detail-type': [
+      'checkout.session.completed',
+      'checkout.session.async_payment_succeeded',
+      'checkout.session.async_payment_failed',
+    ],
   }),
 });
 
