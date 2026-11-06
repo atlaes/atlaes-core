@@ -73,7 +73,7 @@ function testimonialsGraph() {
   ]);
 }
 
-/** "Top Service Provider · Top Recommendation 2024 and 2025" from AWARDS. */
+/** "Top Service Provider · Top Recommendation 2024, 2025 and 2026" from AWARDS. */
 function awardsLine(): string {
   const titles = AWARDS.map((a) => a.title);
   const years: string[] = [];
@@ -82,7 +82,11 @@ function awardsLine(): string {
       if (years.indexOf(y) === -1) years.push(y);
     })
   );
-  return titles.join(' · ') + ' ' + years.join(' and ');
+  const yearList =
+    years.length > 1
+      ? years.slice(0, -1).join(', ') + ' and ' + years[years.length - 1]
+      : years.join('');
+  return titles.join(' · ') + ' ' + yearList;
 }
 
 /** Rating card (765:9463): score, stars, exact sentence, awards, link. */

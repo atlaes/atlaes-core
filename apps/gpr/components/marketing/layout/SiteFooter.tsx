@@ -29,6 +29,21 @@ const SOCIAL_ICON: { [label: string]: string } = {
   Email: '/marketing/social-email.svg',
 };
 
+/**
+ * Current-year ProvenExpert awards, shown above the 2024/2025 strip
+ * (badges from Johannes, 3 Nov 2026).
+ */
+const FOOTER_AWARD_BADGES = [
+  {
+    src: '/marketing/provenexpert-top-recommendation-2026.png',
+    alt: 'ProvenExpert Top Recommendation 2026',
+  },
+  {
+    src: '/marketing/provenexpert-top-service-provider-2026.png',
+    alt: 'ProvenExpert Top Service Provider 2026',
+  },
+];
+
 function LinkGroup({ title, links }: { title: string; links: FooterLink[] }) {
   return (
     <div className="mk-footer-group">
@@ -127,12 +142,29 @@ export function SiteFooter() {
               </li>
             ))}
           </ul>
-          <a href={EXTERNAL.provenExpertEn} target="_blank" rel="noopener">
+          <a
+            href={EXTERNAL.provenExpertEn}
+            target="_blank"
+            rel="noopener"
+            className="mk-footer-badges-link"
+          >
+            <span className="mk-footer-badges-current">
+              {FOOTER_AWARD_BADGES.map((b) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={b.src}
+                  src={b.src}
+                  alt={b.alt}
+                  width={89}
+                  height={89}
+                />
+              ))}
+            </span>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               className="mk-footer-badges"
               src="/marketing/provenexpert-badges.png"
-              alt="ProvenExpert profile"
+              alt="ProvenExpert Top Recommendation and Top Service Provider 2024 and 2025"
               width={390}
               height={89}
             />
