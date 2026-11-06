@@ -3,6 +3,7 @@ import { Resource } from 'sst';
 import { logger, toErrorMeta } from '../utils/logger';
 import { env } from '../utils/env';
 import { isE2eTestAddress } from '../utils/e2e';
+import { splitRecipients } from '../utils/email-recipients';
 import {
   GPR_BRAND,
   renderPayoutEmailHtml,
@@ -647,7 +648,7 @@ async function sendBrandedEmail(
     await sesClient.send(
       new SendEmailCommand({
         Source: `CompanyPension <${FROM_EMAIL}>`,
-        Destination: { ToAddresses: [to] },
+        Destination: { ToAddresses: splitRecipients(to) },
         Message: {
           Subject: { Data: email.subject, Charset: 'UTF-8' },
           Body: {
