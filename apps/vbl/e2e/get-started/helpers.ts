@@ -575,6 +575,13 @@ export async function completeBankDetails(page: Page) {
     page.getByRole('heading', { name: 'Enter your bank details' })
   ).toBeVisible({ timeout: 5_000 });
   await page.getByPlaceholder(/IBAN/i).fill('DE89370400440532013000');
+  // VddB/VddKO and the private bAV route also need the BIC and the bank's
+  // name (BankDetails.tsx needsBankNameAndBic); the IBAN above is Commerzbank.
+  const bic = page.locator('#bank-bic');
+  if (await bic.isVisible()) {
+    await bic.fill('COBADEFFXXX');
+    await page.getByPlaceholder('e.g. Commerzbank').fill('Commerzbank');
+  }
   await page.getByRole('button', { name: /Continue/i }).click();
 }
 

@@ -12,14 +12,12 @@ import {
 /**
  * Scenario 3 (eligibility check) — /get-started private bAV flow on staging.
  *
- * What the code does today (flows/private-sector.ts): the bAV check never
- * rejects. Every combination of the statutory-refund answer and the
- * statement value, under or over the BRSG II small-entitlement limits
- * (59.33 EUR / month, 7,119 EUR capital; lib/bav-thresholds.ts), reaches
- * "Your bAV cash-out can be started". The limits only drive an inline
- * "above the limit" warning in the logged-in "Basis of your cash-out
- * request" step (CashOutBasis.tsx), which needs a paid bAV claim and is not
- * covered here yet. The check offers Yes/No
+ * What the code does today (flows/private-sector.ts): with a state pension
+ * refund, every statement value reaches "Your bAV cash-out can be started".
+ * Without one, a value over the BRSG II small-entitlement limits
+ * (59.33 EUR / month, 7,119 EUR capital; lib/bav-thresholds.ts) is stopped
+ * before payment with "This pension is above the small-entitlement limit";
+ * at or under the limit it can be started. The check offers Yes/No
  * only; "not sure" exists only as guidance text on that later step.
  */
 
@@ -56,9 +54,13 @@ const AMOUNTS = [
 test.describe('eligibility · private bAV', () => {
   for (const refund of ['Yes', 'No'] as const) {
     for (const value of AMOUNTS) {
-      test(`statutory refund ${refund} · ${value.label} → can be started`, async ({
-        page,
-      }) => {
+      // Without a state pension refund, a statement above the limit is
+      // stopped before payment (privateAboveSmallEntitlementLimit); with a
+      // refund the amount doesn't matter.
+      const stopped = refund === 'No' && value.label.includes('over the limit');
+      test(`statutory refund ${refund} · ${value.label} → ${
+        stopped ? 'stopped above the limit' : 'can be started'
+      }`, async ({ page }) => {
         await startPrivate(page);
         await selectPrivateStatePensionRefund(page, refund);
         await selectPrivatePensionProvider(page, 'Allianz');
@@ -66,6 +68,20 @@ test.describe('eligibility · private bAV', () => {
           valueType: value.valueType,
           statementAmount: value.amount,
         });
+        if (stopped) {
+          await expect(
+            page.getByRole('heading', {
+              name: 'This pension is above the small-entitlement limit',
+            })
+          ).toBeVisible({ timeout: 5_000 });
+          await expect(
+            page.getByRole('button', { name: /Start bAV cash-out/i })
+          ).toHaveCount(0);
+          await expect(
+            page.getByRole('button', { name: /Go back/i })
+          ).toBeVisible();
+          return;
+        }
         await expectEligibleResult(page);
         await expect(
           page.getByRole('heading', {
