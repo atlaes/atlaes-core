@@ -1018,6 +1018,8 @@ export class ClaimsApplicationService {
       if (!existing) {
         throw new Error('Claim not found');
       }
+      // Submitted claims keep their documents; ops work from them.
+      assertDraft(existing);
 
       const result = await db
         .delete(claimDocuments)
@@ -1158,6 +1160,9 @@ export class ClaimsApplicationService {
       if (!existing) {
         throw new Error('Claim not found');
       }
+      // The client moves through the wizard states only while drafting;
+      // after submission the workflow belongs to ops.
+      assertDraft(existing);
 
       const previousState = existing.workflowState;
 

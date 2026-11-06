@@ -13,6 +13,8 @@ export const users = shared.table('users', {
   mfaEnabled: boolean('mfa_enabled').default(false),
   mfaSecret: varchar('mfa_secret', { length: 255 }),
   role: varchar('role', { length: 20 }).default('user'),
+  // Logout: refresh tokens issued before this are refused (0038).
+  sessionsRevokedAt: timestamp('sessions_revoked_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
