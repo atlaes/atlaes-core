@@ -22,7 +22,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
       { name: 'claimType', label: 'Claim Type' },
       { name: 'passportUpload', label: 'Passport Upload' },
       { name: 'currentAddress', label: 'Current Address' },
-      { name: 'germanSocialInsurance', label: 'German Social Insurance Number', optional: true },
+      { name: 'germanSocialInsurance', label: 'German pension insurance' },
     ],
   },
   {

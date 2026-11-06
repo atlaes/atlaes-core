@@ -326,6 +326,7 @@ export const Identity: React.FC<IdentityProps> = ({
     salutation: isPrivatePensionType && data.identity.salutation === '',
     nationality: data.identity.nationality.trim() === '',
     placeOfBirth: data.identity.placeOfBirth.trim() === '',
+    passportNumber: data.identity.passportNumber.trim() === '',
   };
   // Item 25: the missing-field highlight is live for the whole confirm
   // phase, so it's visible immediately for anything OCR left empty on
@@ -363,7 +364,8 @@ export const Identity: React.FC<IdentityProps> = ({
     data.identity.gender !== '' &&
     (!isPrivatePensionType || data.identity.salutation !== '') &&
     data.identity.nationality.trim() !== '' &&
-    data.identity.placeOfBirth.trim() !== '';
+    data.identity.placeOfBirth.trim() !== '' &&
+    data.identity.passportNumber.trim() !== '';
   const canProceed = isCalculator
     ? calculatorIdentityValid
     : defaultIdentityValid;
@@ -696,6 +698,38 @@ export const Identity: React.FC<IdentityProps> = ({
               />
               <MissingHint
                 show={showMissingHighlights && missingFields.lastName}
+              />
+            </div>
+
+            {/* Required at submit. OCR fills it when the scan is readable;
+                otherwise (ID card, blurry scan) the client types it. */}
+            <div>
+              <FieldLabel
+                label="Passport / ID document number"
+                showMissing={
+                  showMissingHighlights && missingFields.passportNumber
+                }
+                htmlFor="identity-passport-number"
+              />
+              <input
+                id="identity-passport-number"
+                type="text"
+                autoComplete="off"
+                value={data.identity.passportNumber}
+                onChange={(e) =>
+                  updateIdentity({
+                    passportNumber: e.target.value.toUpperCase(),
+                  })
+                }
+                placeholder="e.g. PA1234567"
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none ${
+                  showMissingHighlights && missingFields.passportNumber
+                    ? 'border-red-400'
+                    : 'border-gray-300'
+                }`}
+              />
+              <MissingHint
+                show={showMissingHighlights && missingFields.passportNumber}
               />
             </div>
           </>

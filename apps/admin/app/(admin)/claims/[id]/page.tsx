@@ -21,6 +21,7 @@ import {
   ClaimPayoutTarget,
 } from '@/lib/admin-api';
 import { V0901AnswersCard } from '@/components/V0901AnswersCard';
+import { DrvPackDataCard } from '@/components/DrvPackDataCard';
 import { EscrowPayoutCard } from '@/components/EscrowPayoutCard';
 import { DeregistrationSurchargeCard } from '@/components/DeregistrationSurchargeCard';
 import { DirectSubmissionCard } from '@/components/DirectSubmissionCard';
@@ -509,6 +510,12 @@ export default function ClaimDetailPage() {
               </div>
             </dl>
           </Section>
+
+          <DrvPackDataCard
+            claimId={claim.id}
+            wrap={(body) => <Section title="DRV pack data">{body}</Section>}
+            onChanged={invalidate}
+          />
 
           <V0901AnswersCard
             claimId={claim.id}

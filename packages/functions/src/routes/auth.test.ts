@@ -1,4 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  beforeAll,
+  afterAll,
+} from 'vitest';
 import { Hono } from 'hono';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -28,7 +36,8 @@ const createdSessionEmails: string[] = [];
 describe('Auth Routes', () => {
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
-    process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing-purposes-only-32-chars';
+    process.env.JWT_SECRET =
+      'test-jwt-secret-key-for-testing-purposes-only-32-chars';
 
     testClient = postgres(TEST_DATABASE_URL, { max: 5 });
     testDb = drizzle(testClient, { schema });
@@ -95,12 +104,16 @@ describe('Auth Routes', () => {
     createdSessionEmails.push(email);
 
     // Request and verify magic link
-    const reqRes = await request('POST', '/api/auth/magic-link/request', { email });
-    const reqData = await reqRes.json() as any;
+    const reqRes = await request('POST', '/api/auth/magic-link/request', {
+      email,
+    });
+    const reqData = (await reqRes.json()) as any;
     const token = new URL(reqData.magicLink).searchParams.get('token');
 
-    const verifyRes = await request('POST', '/api/auth/magic-link/verify', { token });
-    const verifyData = await verifyRes.json() as any;
+    const verifyRes = await request('POST', '/api/auth/magic-link/verify', {
+      token,
+    });
+    const verifyData = (await verifyRes.json()) as any;
 
     if (verifyData.user?.id) createdUserIds.push(verifyData.user.id);
 
@@ -157,7 +170,7 @@ describe('Auth Routes', () => {
         email,
       });
 
-      const data = await res.json() as any;
+      const data = (await res.json()) as any;
 
       expect(res.status).toBe(200);
       expect(data.message).toBe('Magic link sent to your email address.');
@@ -177,7 +190,7 @@ describe('Auth Routes', () => {
         },
       });
 
-      const data = await res.json() as any;
+      const data = (await res.json()) as any;
       expect(res.status).toBe(200);
 
       // Verify session was saved
@@ -188,7 +201,9 @@ describe('Auth Routes', () => {
         .limit(1);
 
       expect(sessions.length).toBe(1);
-      expect(sessions[0].numberOfJobs).toBe(gprSessionData.calculatorData.numberOfJobs);
+      expect(sessions[0].numberOfJobs).toBe(
+        gprSessionData.calculatorData.numberOfJobs
+      );
     });
 
     it('returns 400 for invalid email', async () => {
@@ -207,7 +222,7 @@ describe('Auth Routes', () => {
         email,
         redirectUrl: '/claims/abc?step=2',
       });
-      const data = await res.json() as any;
+      const data = (await res.json()) as any;
 
       expect(res.status).toBe(200);
       expect(new URL(data.magicLink).searchParams.get('redirect')).toBe(
@@ -241,7 +256,7 @@ describe('Auth Routes', () => {
         email,
         callbackUrl: 'https://www.companypension.de',
       });
-      const allowedData = await allowed.json() as any;
+      const allowedData = (await allowed.json()) as any;
       expect(allowed.status).toBe(200);
       expect(
         allowedData.magicLink.startsWith(
@@ -253,7 +268,7 @@ describe('Auth Routes', () => {
         email,
         callbackUrl: 'https://evil.com',
       });
-      const otherData = await other.json() as any;
+      const otherData = (await other.json()) as any;
       expect(other.status).toBe(200);
       expect(otherData.magicLink.startsWith('https://evil.com')).toBe(false);
     });
@@ -288,7 +303,7 @@ describe('Auth Routes', () => {
       const reqRes = await request('POST', '/api/auth/magic-link/request', {
         email,
       });
-      const reqData = await reqRes.json() as any;
+      const reqData = (await reqRes.json()) as any;
 
       // Extract token from magic link
       const token = new URL(reqData.magicLink).searchParams.get('token');
@@ -298,7 +313,7 @@ describe('Auth Routes', () => {
         token,
       });
 
-      const data = await res.json() as any;
+      const data = (await res.json()) as any;
 
       expect(res.status).toBe(200);
       expect(data.message).toBe('Login successful');
@@ -315,20 +330,35 @@ describe('Auth Routes', () => {
       createdSessionEmails.push(email);
 
       // First magic link to create user
-      const firstReqRes = await request('POST', '/api/auth/magic-link/request', { email });
-      const firstReqData = await firstReqRes.json() as any;
-      const firstToken = new URL(firstReqData.magicLink).searchParams.get('token');
-      const firstVerifyRes = await request('POST', '/api/auth/magic-link/verify', { token: firstToken });
-      const firstVerifyData = await firstVerifyRes.json() as any;
-      if (firstVerifyData.user?.id) createdUserIds.push(firstVerifyData.user.id);
+      const firstReqRes = await request(
+        'POST',
+        '/api/auth/magic-link/request',
+        { email }
+      );
+      const firstReqData = (await firstReqRes.json()) as any;
+      const firstToken = new URL(firstReqData.magicLink).searchParams.get(
+        'token'
+      );
+      const firstVerifyRes = await request(
+        'POST',
+        '/api/auth/magic-link/verify',
+        { token: firstToken }
+      );
+      const firstVerifyData = (await firstVerifyRes.json()) as any;
+      if (firstVerifyData.user?.id)
+        createdUserIds.push(firstVerifyData.user.id);
 
       // Second magic link for same user (returning user)
-      const reqRes = await request('POST', '/api/auth/magic-link/request', { email });
-      const reqData = await reqRes.json() as any;
+      const reqRes = await request('POST', '/api/auth/magic-link/request', {
+        email,
+      });
+      const reqData = (await reqRes.json()) as any;
       const token = new URL(reqData.magicLink).searchParams.get('token');
 
-      const res = await request('POST', '/api/auth/magic-link/verify', { token });
-      const data = await res.json() as any;
+      const res = await request('POST', '/api/auth/magic-link/verify', {
+        token,
+      });
+      const data = (await res.json()) as any;
 
       expect(res.status).toBe(200);
       expect(data.user.email).toBe(email);
@@ -349,14 +379,16 @@ describe('Auth Routes', () => {
           eligibilityData: gprSessionData.eligibilityData,
         },
       });
-      const reqData = await reqRes.json() as any;
+      const reqData = (await reqRes.json()) as any;
 
       // Extract token
       const token = new URL(reqData.magicLink).searchParams.get('token');
 
       // Verify
-      const res = await request('POST', '/api/auth/magic-link/verify', { token });
-      const data = await res.json() as any;
+      const res = await request('POST', '/api/auth/magic-link/verify', {
+        token,
+      });
+      const data = (await res.json()) as any;
 
       expect(res.status).toBe(200);
       expect(data.gprApplication).toBeDefined();
@@ -373,7 +405,7 @@ describe('Auth Routes', () => {
         token: 'invalid-token',
       });
 
-      const data = await res.json() as any;
+      const data = (await res.json()) as any;
 
       expect(res.status).toBe(400);
       expect(data.error).toBe('Invalid or expired magic link');
@@ -382,7 +414,8 @@ describe('Auth Routes', () => {
     it('returns 400 for expired token', async () => {
       // Malformed token simulating expiration
       const res = await request('POST', '/api/auth/magic-link/verify', {
-        token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJ0eXBlIjoibWFnaWNfbGluayIsImV4cCI6MH0.fake',
+        token:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJ0eXBlIjoibWFnaWNfbGluayIsImV4cCI6MH0.fake',
       });
 
       expect(res.status).toBe(400);
@@ -401,7 +434,7 @@ describe('Auth Routes', () => {
         refreshToken,
       });
 
-      const data = await res.json() as any;
+      const data = (await res.json()) as any;
 
       expect(res.status).toBe(200);
       expect(data.message).toBe('Tokens refreshed successfully');
@@ -430,7 +463,7 @@ describe('Auth Routes', () => {
         Authorization: `Bearer ${token}`,
       });
 
-      const data = await res.json() as any;
+      const data = (await res.json()) as any;
 
       expect(res.status).toBe(200);
       expect(data.user.email).toBe(user.email);
@@ -448,7 +481,7 @@ describe('Auth Routes', () => {
       const res = await request('GET', '/api/auth/me', undefined, {
         Authorization: `Bearer ${token}`,
       });
-      const data = await res.json() as any;
+      const data = (await res.json()) as any;
 
       expect(res.status).toBe(200);
       expect(data.user).toMatchObject({
@@ -494,7 +527,7 @@ describe('Auth Routes', () => {
         Authorization: `Bearer ${token}`,
       });
 
-      const data = await res.json() as any;
+      const data = (await res.json()) as any;
 
       expect(res.status).toBe(200);
       expect(data.message).toBe('Logged out successfully');
@@ -526,7 +559,7 @@ describe('Auth Routes', () => {
         { Authorization: `Bearer ${token}` }
       );
 
-      const data = await res.json() as any;
+      const data = (await res.json()) as any;
 
       expect(res.status).toBe(200);
       expect(data.message).toBe('Profile updated successfully');
@@ -541,6 +574,119 @@ describe('Auth Routes', () => {
       });
 
       expect(res.status).toBe(401);
+    });
+  });
+
+  // ============================================================
+  // Pre-account takeover (pre-UAT audit P0 #2)
+  // ============================================================
+
+  describe('an address registered first by someone else', () => {
+    const PASSWORD = 'Attacker-Passw0rd!';
+
+    async function attackerRegisters(email: string) {
+      const res = await request('POST', '/api/auth/register', {
+        email,
+        password: PASSWORD,
+        firstName: 'Mallory',
+        lastName: 'Example',
+      });
+      const data = (await res.json()) as any;
+      expect(res.status).toBe(201);
+      createdUserIds.push(data.user.id);
+      return data;
+    }
+
+    async function ownerSignsInByLink(email: string) {
+      createdSessionEmails.push(email);
+      const reqRes = await request('POST', '/api/auth/magic-link/request', {
+        email,
+      });
+      const link = ((await reqRes.json()) as any).magicLink;
+      const token = new URL(link).searchParams.get('token');
+      const res = await request('POST', '/api/auth/magic-link/verify', {
+        token,
+      });
+      expect(res.status).toBe(200);
+      return (await res.json()) as any;
+    }
+
+    it('loses its session and password once the owner signs in by link', async () => {
+      const email = uniqueEmail();
+      const attacker = await attackerRegisters(email);
+
+      // Until the owner shows up, the registrant's session works.
+      let me = await request('GET', '/api/auth/me', undefined, {
+        Authorization: `Bearer ${attacker.tokens.accessToken}`,
+      });
+      expect(me.status).toBe(200);
+
+      const owner = await ownerSignsInByLink(email);
+      expect(owner.user.id).toBe(attacker.user.id);
+      expect(owner.user.emailVerified).toBe(true);
+
+      me = await request('GET', '/api/auth/me', undefined, {
+        Authorization: `Bearer ${attacker.tokens.accessToken}`,
+      });
+      expect(me.status).toBe(401);
+      const refreshed = await request('POST', '/api/auth/refresh', {
+        refreshToken: attacker.tokens.refreshToken,
+      });
+      expect(refreshed.status).toBe(401);
+      const login = await request('POST', '/api/auth/login', {
+        email,
+        password: PASSWORD,
+      });
+      expect(login.status).toBe(401);
+
+      // The owner's session works.
+      me = await request('GET', '/api/auth/me', undefined, {
+        Authorization: `Bearer ${owner.tokens.accessToken}`,
+      });
+      expect(me.status).toBe(200);
+    });
+
+    it('verify-email needs a signed link, not a user id', async () => {
+      const email = uniqueEmail();
+      const attacker = await attackerRegisters(email);
+      const res = await request('POST', '/api/auth/verify-email', {
+        token: attacker.user.id,
+      });
+      expect(res.status).toBe(400);
+      const [u] = await testDb
+        .select({ emailVerified: users.emailVerified })
+        .from(users)
+        .where(eq(users.id, attacker.user.id));
+      expect(u.emailVerified).toBe(false);
+    });
+
+    it('a password never opens an admin or law-firm account', async () => {
+      const email = uniqueEmail();
+      const attacker = await attackerRegisters(email);
+      await testDb
+        .update(users)
+        .set({ role: 'law_firm' })
+        .where(eq(users.id, attacker.user.id));
+      const login = await request('POST', '/api/auth/login', {
+        email,
+        password: PASSWORD,
+      });
+      expect(login.status).toBe(403);
+    });
+
+    it('a 2FA challenge token is not a session', async () => {
+      const { createChallengeToken } = await import('../services/totp/service');
+      const { user } = await createTestUserWithToken();
+      const { challengeToken } = createChallengeToken({
+        userId: user.id,
+        email: user.email,
+        emailVerified: true,
+        role: 'law_firm',
+      });
+      const me = await request('GET', '/api/auth/me', undefined, {
+        Authorization: `Bearer ${challengeToken}`,
+      });
+      expect(me.status).toBe(401);
     });
   });
 

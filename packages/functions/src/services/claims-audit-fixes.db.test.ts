@@ -33,6 +33,8 @@ import { BavLetterPackageService } from './bav-letters';
 import { ClaimPdfService } from './claim-pdf';
 import { LettershopService } from './lettershop';
 import { DEFAULT_LAW_FIRM_ID } from './law-firm';
+import { drvPackClientFromClaim } from './law-firm-pack';
+import { DrvPackDataService } from './drv-pack-data-admin';
 import claimsRouter from '../routes/claims';
 
 const tag = Math.random().toString(36).slice(2, 8);
@@ -128,6 +130,8 @@ async function drvClaim(
     germanPostalCode: '10115',
     germanCity: 'Berlin',
     moveOutDate: '2024-07-15',
+    svNummer: '12 150785 S 123',
+    germanContributionMonths: 38,
     accountHolderName: 'Juan Specimen',
     bankName: 'Commerzbank',
     iban: 'DE89370400440532013000',
@@ -588,5 +592,80 @@ describe('POST /api/claims', () => {
 
     const bad = await put({ eurAccountRequest: { consent: true } });
     expect(bad.status).toBe(400);
+  });
+});
+
+describe('GPR claims produce a DRV pack (pre-UAT P0 #1)', () => {
+  it('the wizard fields fill vsnr, sex and the contribution months', async () => {
+    const { claimId } = await drvClaim();
+    const r = await row(claimId);
+    expect(r.vsnr).toBe('12150785S123');
+    expect(r.sex).toBe('male');
+    expect(r.germanContributionMonths).toBe(38);
+    expect(drvPackClientFromClaim(r).missing).toEqual([]);
+  });
+
+  it('gender "other" maps to diverse; clearing the SV number clears vsnr', async () => {
+    const { user, claimId } = await drvClaim();
+    await ClaimsApplicationService.updateClaim(claimId, user.id, {
+      gender: 'other',
+      svNummer: '',
+    } as any);
+    const r = await row(claimId);
+    expect(r.sex).toBe('diverse');
+    expect(r.vsnr).toBeNull();
+    expect(drvPackClientFromClaim(r).missing).toEqual([
+      'insurance number (VSNR)',
+    ]);
+  });
+
+  it('submit needs the contribution months', async () => {
+    const { user, claimId } = await drvClaim({
+      germanContributionMonths: undefined,
+    });
+    await db
+      .update(claimsTable)
+      .set({ germanContributionMonths: null })
+      .where(eq(claimsTable.id, claimId));
+    const v = await ClaimsApplicationService.validateForSubmission(
+      claimId,
+      user.id
+    );
+    expect(v.errors).toEqual(['German contribution months are required']);
+  });
+
+  it('ops complete the missing pack data until the pack is frozen', async () => {
+    const admin = await newUser('admin');
+    const { user, claimId } = await drvClaim();
+    await ClaimsApplicationService.updateClaim(claimId, user.id, {
+      svNummer: '',
+    } as any);
+    let s = await DrvPackDataService.get(claimId);
+    expect(s.applicable).toBe(true);
+    expect(s.missing).toEqual(['insurance number (VSNR)']);
+
+    s = await DrvPackDataService.update(claimId, admin.id, {
+      vsnr: '12150785S123',
+    });
+    expect(s.values.vsnr).toBe('12150785S123');
+    expect(s.missing).toEqual([]);
+    expect(await audits(claimId, 'claim_drv_pack_data_updated')).toHaveLength(
+      1
+    );
+
+    await db
+      .update(claimsTable)
+      .set({ submissionPackS3Key: 'claims/x/submission-pack/frozen.pdf' })
+      .where(eq(claimsTable.id, claimId));
+    await expect(
+      DrvPackDataService.update(claimId, admin.id, { sex: 'female' })
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('is not applicable to VBL claims', async () => {
+    const { claimId } = await vblClaim(true);
+    const s = await DrvPackDataService.get(claimId);
+    expect(s.applicable).toBe(false);
+    expect(s.missing).toEqual([]);
   });
 });

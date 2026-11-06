@@ -31,6 +31,11 @@ export default function GermanSocialInsurance({
   const { goToNextStep } = useClaimsStore();
 
   const [svNumber, setSvNumber] = useState('');
+  // Time paid into the German pension insurance. The DRV pack needs it
+  // (from 60 months a Willenserklärung is added for non-agreement states);
+  // an estimate is fine, the DRV checks it against its own record.
+  const [years, setYears] = useState('');
+  const [months, setMonths] = useState('');
   const [showPayslipUpload, setShowPayslipUpload] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -40,6 +45,27 @@ export default function GermanSocialInsurance({
       setSvNumber(claim.germanSocialInsuranceNumber);
     }
   }, [claim?.germanSocialInsuranceNumber]);
+
+  useEffect(() => {
+    const total = claim?.germanContributionMonths;
+    if (typeof total === 'number' && total > 0) {
+      setYears(String(Math.floor(total / 12)));
+      setMonths(String(total % 12));
+    }
+  }, [claim?.germanContributionMonths]);
+
+  const yearsNum = years === '' ? 0 : Number(years);
+  const monthsNum = months === '' ? 0 : Number(months);
+  const contributionMonths =
+    Number.isInteger(yearsNum) &&
+    Number.isInteger(monthsNum) &&
+    yearsNum >= 0 &&
+    yearsNum <= 50 &&
+    monthsNum >= 0 &&
+    monthsNum <= 11
+      ? yearsNum * 12 + monthsNum
+      : 0;
+  const contributionValid = contributionMonths >= 1;
 
   // Find existing payslip document
   const payslipDoc = documents?.find((doc) => doc.documentRole === 'payslip');
@@ -69,13 +95,15 @@ export default function GermanSocialInsurance({
   };
 
   const handleContinue = async () => {
-    // Save SV number if provided
-    if (svNumber.trim()) {
-      await updateMutation.mutateAsync({
-        claimId,
-        data: { germanSocialInsuranceNumber: svNumber.trim() },
-      });
-    }
+    if (!contributionValid) return;
+    await updateMutation.mutateAsync({
+      claimId,
+      data: {
+        // Sent even when empty so a cleared number is cleared on the claim.
+        germanSocialInsuranceNumber: svNumber.trim(),
+        germanContributionMonths: contributionMonths,
+      },
+    });
     await completeMutation.mutateAsync({
       claimId,
       stepName: 'germanSocialInsurance',
@@ -95,15 +123,64 @@ export default function GermanSocialInsurance({
     <ClaimsStepContainer
       claimId={claimId}
       stepName="germanSocialInsurance"
-      title="German Social Insurance Number"
-      description="Enter your German Social Insurance Number (optional)."
-      canContinue={!isSubmitting}
+      title="German pension insurance"
+      description="Tell us how long you paid into the German pension insurance and, if you have it, your social insurance number."
+      canContinue={!isSubmitting && contributionValid}
       onContinue={handleContinue}
     >
       <div className="claims-form">
         <div className="claims-form-group">
+          <span className="claims-label" id="contributionLabel">
+            How long did you pay into the German pension insurance?
+          </span>
+          <div
+            role="group"
+            aria-labelledby="contributionLabel"
+            style={{ display: 'flex', gap: '0.75rem' }}
+          >
+            <label style={{ flex: 1 }}>
+              <span className="claims-help-text">Years</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={50}
+                value={years}
+                onChange={(e) => setYears(e.target.value)}
+                placeholder="e.g. 3"
+                className="claims-input"
+                disabled={isSubmitting}
+              />
+            </label>
+            <label style={{ flex: 1 }}>
+              <span className="claims-help-text">Months</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={11}
+                value={months}
+                onChange={(e) => setMonths(e.target.value)}
+                placeholder="e.g. 6"
+                className="claims-input"
+                disabled={isSubmitting}
+              />
+            </label>
+          </div>
+          <span className="claims-help-text">
+            Count every month you worked in Germany with pension contributions
+            deducted from your salary. An estimate is fine.
+          </span>
+          {(years !== '' || months !== '') && !contributionValid && (
+            <span className="claims-form-error">
+              Enter at least one month (years up to 50, months 0 to 11).
+            </span>
+          )}
+        </div>
+
+        <div className="claims-form-group">
           <label htmlFor="svNumber" className="claims-label">
-            German Social Insurance Number (SV-Nummer)
+            German Social Insurance Number (SV-Nummer, optional)
           </label>
           <input
             type="text"

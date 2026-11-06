@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  clearReleaseReview,
   downloadTransferMateCsv,
   getEscrow,
   publishDecision,
@@ -12,7 +13,9 @@ import {
   setDecisionDirect,
   setExpectedArrival,
   setPayoutHold,
+  setReleaseInvoiceNumber,
   type DecisionRecipient,
+  type EscrowRelease,
   type EscrowTransfer,
 } from '@/lib/escrow-payout-api';
 import {
@@ -217,6 +220,18 @@ export function EscrowPayoutCard({
           />
         )}
       </div>
+
+      {/* Releases: invoice number and payout-details review */}
+      {(s.releases ?? []).length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            Releases
+          </h3>
+          {(s.releases ?? []).map((r) => (
+            <ReleaseRow key={r.releaseId} r={r} onDone={refresh} />
+          ))}
+        </div>
+      )}
 
       {/* Transfers */}
       {s.transfers.length > 0 && (
@@ -434,6 +449,116 @@ function PublishUpload({
       </Button>
       {publish.isError && (
         <ErrorText error={publish.error} fallback="Could not publish" />
+      )}
+    </div>
+  );
+}
+
+const REVIEW_REASON_LABEL: Record<string, string> = {
+  bank_details_changed: 'Bank details changed',
+  holder_not_client: 'Account holder is not the client',
+  country_mismatch: 'Bank country differs from the residence',
+};
+
+/**
+ * One release: funds, status, the invoice number the client's payment
+ * instruction needs (entered by hand when Lexoffice is not connected) and
+ * the "payout details need review" gate. A signed release under review is
+ * not queued for the law firm until it is marked reviewed.
+ */
+function ReleaseRow({ r, onDone }: { r: EscrowRelease; onDone: () => void }) {
+  const [invoice, setInvoice] = useState('');
+  const act = useMutation({
+    mutationFn: (fn: () => Promise<unknown>) => fn(),
+    onSuccess: () => {
+      setInvoice('');
+      onDone();
+    },
+  });
+  return (
+    <div className="space-y-2 rounded-md border border-gray-200 p-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span className="font-medium tabular-nums">
+          €{r.amountReceivedEur.toFixed(2)}
+        </span>
+        <span className="text-gray-500">
+          received {formatDate(r.valueDate)}
+        </span>
+        <StatusDot tone={r.status === 'signed' ? 'good' : 'wait'}>
+          {r.status === 'signed'
+            ? 'Payment instruction signed'
+            : 'Waiting for the client to sign'}
+        </StatusDot>
+        <span className="text-gray-500">
+          Invoice {r.invoiceNumber ?? 'missing'}
+        </span>
+      </div>
+      {r.status === 'open' && !r.invoiceNumber && (
+        <div className="flex flex-wrap items-end gap-2">
+          <Field
+            label="Invoice number"
+            htmlFor={`inv-${r.releaseId}`}
+            hint="Needed before the client can sign; Lexoffice fills it when connected."
+          >
+            <input
+              id={`inv-${r.releaseId}`}
+              value={invoice}
+              onChange={(e) => setInvoice(e.target.value)}
+              maxLength={50}
+              className={inputClass}
+            />
+          </Field>
+          <Button
+            disabled={act.isPending || !invoice.trim()}
+            onClick={() =>
+              act.mutate(() =>
+                setReleaseInvoiceNumber(r.releaseId, invoice.trim())
+              )
+            }
+          >
+            Save invoice number
+          </Button>
+        </div>
+      )}
+      {r.reviewPending && (
+        <div className="space-y-2 rounded-md bg-amber-50 p-3 text-amber-900">
+          <p className="font-medium">
+            Payout details need review
+            {r.status === 'signed'
+              ? ': the payout is not queued for the law firm until reviewed.'
+              : '.'}
+          </p>
+          <ul className="list-disc pl-5 text-xs">
+            {r.reviewReasons.map((x, i) => (
+              <li key={i}>
+                {REVIEW_REASON_LABEL[x.kind] ?? x.kind}
+                {x.detail ? `: ${x.detail}` : ''}
+              </li>
+            ))}
+          </ul>
+          <Button
+            variant="primary"
+            disabled={act.isPending}
+            onClick={() => {
+              if (
+                window.confirm(
+                  'Confirm the payout details were checked with the client and are correct.'
+                )
+              )
+                act.mutate(() => clearReleaseReview(r.releaseId));
+            }}
+          >
+            Mark details reviewed
+          </Button>
+        </div>
+      )}
+      {!r.reviewPending && r.reviewClearedAt && (
+        <p className="text-xs text-gray-500">
+          Details reviewed {formatDate(r.reviewClearedAt, true)}.
+        </p>
+      )}
+      {act.isError && (
+        <ErrorText error={act.error} fallback="Could not save the change" />
       )}
     </div>
   );

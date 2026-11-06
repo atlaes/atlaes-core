@@ -50,8 +50,20 @@ async function resolveSubject(
       const p = verify(header.replace(/^Bearer\s+/i, ''), getJwtSecret()) as {
         userId?: string;
         type?: string;
+        role?: string;
+        emailVerified?: boolean;
       };
-      if (p.userId && !p.type) subject = await TotpService.loadSubject(p.userId);
+      if (p.userId && !p.type) {
+        const loaded = await TotpService.loadSubject(p.userId);
+        // A session issued for another role (e.g. a client session from
+        // a password registration made before the address was invited to
+        // the firm) or before the address was proven must not set up the
+        // authenticator for the portal account.
+        subject =
+          loaded && p.role === loaded.role && p.emailVerified === true
+            ? loaded
+            : null;
+      }
     } catch {
       subject = null;
     }
@@ -86,7 +98,12 @@ async function resolveSubject(
 function fail(c: Context, error: unknown) {
   if (error instanceof TwoFactorError) {
     return c.json(
-      { success: false, error: error.message, code: error.code, ...error.extra },
+      {
+        success: false,
+        error: error.message,
+        code: error.code,
+        ...error.extra,
+      },
       error.status
     );
   }
@@ -99,19 +116,27 @@ function invalid(c: Context, issues: z.ZodIssue[]) {
     {
       success: false,
       error: 'Validation failed',
-      issues: issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      issues: issues.map((i) => ({
+        path: i.path.join('.'),
+        message: i.message,
+      })),
     },
     400
   );
 }
 
-const subjectSchema = z.object({ challengeToken: z.string().min(1).optional() });
+const subjectSchema = z.object({
+  challengeToken: z.string().min(1).optional(),
+});
 const codeSchema = subjectSchema.extend({
   code: z.string().regex(/^\s*\d{3}\s?\d{3}\s*$/, 'Enter the 6-digit code'),
 });
 const verifySchema = subjectSchema
   .extend({
-    code: z.string().regex(/^\s*\d{3}\s?\d{3}\s*$/).optional(),
+    code: z
+      .string()
+      .regex(/^\s*\d{3}\s?\d{3}\s*$/)
+      .optional(),
     recoveryCode: z.string().min(8).max(32).optional(),
   })
   .refine((v) => !!v.code !== !!v.recoveryCode, {
@@ -170,7 +195,11 @@ twoFactor.post('/enrol/confirm', async (c) => {
       parsed.data.code,
       portalClientIp(c)
     );
-    return c.json({ success: true, recoveryCodes, ...sessionResponse(subject) });
+    return c.json({
+      success: true,
+      recoveryCodes,
+      ...sessionResponse(subject),
+    });
   } catch (error) {
     return fail(c, error);
   }

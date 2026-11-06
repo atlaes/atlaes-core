@@ -99,17 +99,299 @@ const ENGLISH_COUNTRY_ISO: Record<string, string> = {
   egypt: 'EG',
 };
 
-/** ISO 3166-1 alpha-2 from an ISO code, a German or an English country name. */
-export function countryIso(value: string | null | undefined): string | null {
-  const v = (value ?? '').trim();
-  if (!v) return null;
-  if (/^[A-Za-z]{2}$/.test(v)) return v.toUpperCase();
-  const lower = v.toLowerCase();
+/**
+ * ICAO / ISO 3166-1 alpha-3 codes as printed in a passport MRZ and often
+ * returned by the passport OCR as the nationality ("PHL", "IND"). Germany's
+ * MRZ code is the single letter "D".
+ */
+const ALPHA3_ISO: Record<string, string> = {
+  D: 'DE',
+  DEU: 'DE',
+  AFG: 'AF',
+  ALB: 'AL',
+  DZA: 'DZ',
+  ARG: 'AR',
+  ARM: 'AM',
+  AUS: 'AU',
+  AUT: 'AT',
+  AZE: 'AZ',
+  BGD: 'BD',
+  BLR: 'BY',
+  BEL: 'BE',
+  BOL: 'BO',
+  BIH: 'BA',
+  BRA: 'BR',
+  BGR: 'BG',
+  KHM: 'KH',
+  CMR: 'CM',
+  CAN: 'CA',
+  CHL: 'CL',
+  CHN: 'CN',
+  COL: 'CO',
+  CRI: 'CR',
+  HRV: 'HR',
+  CUB: 'CU',
+  CYP: 'CY',
+  CZE: 'CZ',
+  DNK: 'DK',
+  DOM: 'DO',
+  ECU: 'EC',
+  EGY: 'EG',
+  SLV: 'SV',
+  EST: 'EE',
+  ETH: 'ET',
+  FIN: 'FI',
+  FRA: 'FR',
+  GEO: 'GE',
+  GHA: 'GH',
+  GRC: 'GR',
+  GTM: 'GT',
+  HND: 'HN',
+  HKG: 'HK',
+  HUN: 'HU',
+  ISL: 'IS',
+  IND: 'IN',
+  IDN: 'ID',
+  IRN: 'IR',
+  IRQ: 'IQ',
+  IRL: 'IE',
+  ISR: 'IL',
+  ITA: 'IT',
+  JAM: 'JM',
+  JPN: 'JP',
+  JOR: 'JO',
+  KAZ: 'KZ',
+  KEN: 'KE',
+  KOR: 'KR',
+  RKS: 'XK',
+  XKX: 'XK',
+  KGZ: 'KG',
+  LVA: 'LV',
+  LBN: 'LB',
+  LTU: 'LT',
+  LUX: 'LU',
+  MYS: 'MY',
+  MLT: 'MT',
+  MEX: 'MX',
+  MDA: 'MD',
+  MNG: 'MN',
+  MNE: 'ME',
+  MAR: 'MA',
+  MOZ: 'MZ',
+  MMR: 'MM',
+  NPL: 'NP',
+  NLD: 'NL',
+  NZL: 'NZ',
+  NIC: 'NI',
+  NGA: 'NG',
+  MKD: 'MK',
+  NOR: 'NO',
+  PAK: 'PK',
+  PAN: 'PA',
+  PRY: 'PY',
+  PER: 'PE',
+  PHL: 'PH',
+  POL: 'PL',
+  PRT: 'PT',
+  ROU: 'RO',
+  RUS: 'RU',
+  SAU: 'SA',
+  SEN: 'SN',
+  SRB: 'RS',
+  SGP: 'SG',
+  SVK: 'SK',
+  SVN: 'SI',
+  ZAF: 'ZA',
+  ESP: 'ES',
+  LKA: 'LK',
+  SWE: 'SE',
+  CHE: 'CH',
+  SYR: 'SY',
+  TWN: 'TW',
+  TJK: 'TJ',
+  TZA: 'TZ',
+  THA: 'TH',
+  TUN: 'TN',
+  TUR: 'TR',
+  TKM: 'TM',
+  UGA: 'UG',
+  UKR: 'UA',
+  ARE: 'AE',
+  GBR: 'GB',
+  USA: 'US',
+  URY: 'UY',
+  UZB: 'UZ',
+  VEN: 'VE',
+  VNM: 'VN',
+  ZWE: 'ZW',
+};
+
+/** Nationality as written in English on a passport ("Indian", "Filipino"). */
+const DEMONYM_ISO: Record<string, string> = {
+  afghan: 'AF',
+  albanian: 'AL',
+  algerian: 'DZ',
+  american: 'US',
+  argentine: 'AR',
+  argentinian: 'AR',
+  armenian: 'AM',
+  australian: 'AU',
+  austrian: 'AT',
+  azerbaijani: 'AZ',
+  bangladeshi: 'BD',
+  belarusian: 'BY',
+  bolivian: 'BO',
+  bosnian: 'BA',
+  brazilian: 'BR',
+  british: 'GB',
+  bulgarian: 'BG',
+  cambodian: 'KH',
+  cameroonian: 'CM',
+  canadian: 'CA',
+  chilean: 'CL',
+  chinese: 'CN',
+  colombian: 'CO',
+  'costa rican': 'CR',
+  croatian: 'HR',
+  cuban: 'CU',
+  czech: 'CZ',
+  dominican: 'DO',
+  ecuadorian: 'EC',
+  egyptian: 'EG',
+  ethiopian: 'ET',
+  filipino: 'PH',
+  filipina: 'PH',
+  french: 'FR',
+  georgian: 'GE',
+  german: 'DE',
+  ghanaian: 'GH',
+  greek: 'GR',
+  guatemalan: 'GT',
+  honduran: 'HN',
+  hungarian: 'HU',
+  indian: 'IN',
+  indonesian: 'ID',
+  iranian: 'IR',
+  iraqi: 'IQ',
+  irish: 'IE',
+  israeli: 'IL',
+  italian: 'IT',
+  jamaican: 'JM',
+  japanese: 'JP',
+  jordanian: 'JO',
+  kazakh: 'KZ',
+  kazakhstani: 'KZ',
+  kenyan: 'KE',
+  korean: 'KR',
+  'south korean': 'KR',
+  kosovar: 'XK',
+  kosovan: 'XK',
+  kyrgyz: 'KG',
+  lebanese: 'LB',
+  macedonian: 'MK',
+  malaysian: 'MY',
+  mexican: 'MX',
+  moldovan: 'MD',
+  mongolian: 'MN',
+  montenegrin: 'ME',
+  moroccan: 'MA',
+  mozambican: 'MZ',
+  nepalese: 'NP',
+  nepali: 'NP',
+  'new zealander': 'NZ',
+  nicaraguan: 'NI',
+  nigerian: 'NG',
+  pakistani: 'PK',
+  panamanian: 'PA',
+  paraguayan: 'PY',
+  peruvian: 'PE',
+  polish: 'PL',
+  portuguese: 'PT',
+  romanian: 'RO',
+  russian: 'RU',
+  saudi: 'SA',
+  senegalese: 'SN',
+  serbian: 'RS',
+  singaporean: 'SG',
+  'south african': 'ZA',
+  spanish: 'ES',
+  'sri lankan': 'LK',
+  swiss: 'CH',
+  syrian: 'SY',
+  taiwanese: 'TW',
+  tajik: 'TJ',
+  tanzanian: 'TZ',
+  thai: 'TH',
+  tunisian: 'TN',
+  turkish: 'TR',
+  ugandan: 'UG',
+  ukrainian: 'UA',
+  uruguayan: 'UY',
+  uzbek: 'UZ',
+  venezuelan: 'VE',
+  vietnamese: 'VN',
+  zimbabwean: 'ZW',
+};
+
+let intlEnglishNames: Map<string, string> | null = null;
+
+/** Every English country name ICU knows ("Vietnam", "Sri Lanka") → ISO. */
+function englishNameIso(lower: string): string | null {
+  if (!intlEnglishNames) {
+    intlEnglishNames = new Map();
+    try {
+      const names = new Intl.DisplayNames(['en'], { type: 'region' });
+      for (let a = 65; a <= 90; a++) {
+        for (let b = 65; b <= 90; b++) {
+          const code = String.fromCharCode(a, b);
+          const name = names.of(code);
+          if (name && name !== code)
+            intlEnglishNames.set(name.toLowerCase(), code);
+        }
+      }
+    } catch {
+      // Runtime without ICU region names: the static tables still apply.
+    }
+  }
+  return intlEnglishNames.get(lower) ?? null;
+}
+
+function lookupCountry(raw: string): string | null {
+  const v = raw.trim();
+  if (/^[A-Za-z]{2}$/.test(v)) {
+    const up = v.toUpperCase();
+    return up === 'UK' ? 'GB' : up;
+  }
+  if (/^[A-Za-z]{1,3}$/.test(v) && ALPHA3_ISO[v.toUpperCase()])
+    return ALPHA3_ISO[v.toUpperCase()];
+  const lower = v.toLowerCase().replace(/\s+/g, ' ');
   if (ENGLISH_COUNTRY_ISO[lower]) return ENGLISH_COUNTRY_ISO[lower];
+  if (DEMONYM_ISO[lower]) return DEMONYM_ISO[lower];
   for (const [iso, de] of Object.entries(COUNTRY_NAME_DE)) {
     if (de.toLowerCase() === lower) return iso;
   }
-  return null;
+  return englishNameIso(lower);
+}
+
+/**
+ * ISO 3166-1 alpha-2 from what a client or the passport OCR wrote as a
+ * country or nationality: an alpha-2 or MRZ alpha-3 code, an English or
+ * German country name, or an English nationality ("Indian"). Official
+ * long forms ("Republic of the Philippines") are reduced first.
+ */
+export function countryIso(value: string | null | undefined): string | null {
+  const v = (value ?? '').trim();
+  if (!v) return null;
+  const direct = lookupCountry(v);
+  if (direct) return direct;
+  const reduced = v
+    .replace(
+      /^(the\s+)?((federal|islamic|democratic|socialist|people's|united)\s+)*(republic|kingdom|state|commonwealth)\s+of\s+(the\s+)?/i,
+      ''
+    )
+    .replace(/\s*\(.*\)\s*$/, '')
+    .replace(/\s+(citizen|national)$/i, '');
+  return reduced && reduced !== v ? lookupCountry(reduced) : null;
 }
 
 /**

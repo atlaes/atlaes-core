@@ -127,6 +127,8 @@ export interface Claim {
 
   // German Social Insurance
   svNummer?: string;
+  /** Total months of German pension contributions (DRV pack). */
+  germanContributionMonths?: number | null;
 
   // Last German Address
   germanStreet?: string;
@@ -260,6 +262,7 @@ export interface UpdateClaimRequestFlat {
   currentPostalCode?: string;
   currentCountry?: string;
   svNummer?: string;
+  germanContributionMonths?: number;
   germanStreet?: string;
   germanPostalCode?: string;
   germanCity?: string;

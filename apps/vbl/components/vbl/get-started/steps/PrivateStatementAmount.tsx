@@ -51,10 +51,10 @@ const NumberInput: React.FC<NumberInputProps> = ({
     <input
       aria-label={label}
       type="text"
-      inputMode="numeric"
-      pattern="[0-9]*"
+      inputMode="decimal"
       value={value}
-      onChange={(event) => onChange(event.target.value.replace(/[^\d]/g, ''))}
+      // Keep the decimal comma: "41,20" must stay 41.20 EUR, not 4120.
+      onChange={(event) => onChange(event.target.value.replace(/[^\d.,]/g, ''))}
       placeholder={placeholder}
       className="h-12 w-full rounded-[8px] border border-[#D3DAE8] bg-white px-4 text-[16px] text-[#1F2937] shadow-sm transition-all focus:border-[#9FE870] focus:outline-none focus:ring-2 focus:ring-[#9FE870]/20"
     />

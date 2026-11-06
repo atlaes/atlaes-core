@@ -397,7 +397,7 @@ function buildExtractionPrompt(pensionType: PensionDocumentType): string {
     'For salary, return only digits as a string, with no currency symbol and no separators.',
     'For private bAV documents, extract whether the German state pension refund / DRV refund is already approved as statePensionRefundReceived: yes or no. If unclear, use null.',
     'For private bAV documents, extract bavStatementValueType as monthly_pension, capital_amount, or not_found. Use monthly_pension for projected monthly pension at retirement. Use capital_amount for a one-time value, capital value, surrender value, or lump-sum amount.',
-    'For private bAV documents, return bavStatementAmount as digits only when an amount is visible, with no currency symbol and no separators.',
+    'For private bAV documents, return bavStatementAmount when an amount is visible, exactly as printed including its decimal and thousands separators (for example "41,20" or "12.400,00"), with no currency symbol.',
     'Return this exact JSON shape:',
     JSON.stringify({
       provider: null,
@@ -471,7 +471,7 @@ function normalizeExtraction(
     bavStatementValueType: normalizeBavStatementValueType(
       parsed.bavStatementValueType
     ),
-    bavStatementAmount: normalizeDigits(parsed.bavStatementAmount),
+    bavStatementAmount: normalizeEuroAmount(parsed.bavStatementAmount),
   };
 
   if (pensionType === 'bav_private') {
@@ -618,6 +618,37 @@ function normalizeYear(value: unknown): string | null {
   const text = String(value ?? '').trim();
   const match = text.match(/\b(19|20)\d{2}\b/);
   return match ? match[0] : null;
+}
+
+/**
+ * A euro amount as printed on a German statement ("41,20 €", "12.400,00",
+ * "1,234.50" or a JSON number) → a dot-decimal string with two places
+ * ("41.20"), the format claims.bav_benefit_amount and the onboarding form
+ * expect. Stripping every separator turned "41,20" into 4120. A single
+ * separator followed by exactly three digits is a thousands separator.
+ */
+export function normalizeEuroAmount(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  let s = String(value).replace(/[^0-9.,]/g, '');
+  if (s === '') return null;
+  const lastComma = s.lastIndexOf(',');
+  const lastDot = s.lastIndexOf('.');
+  if (lastComma !== -1 && lastDot !== -1) {
+    s =
+      lastComma > lastDot
+        ? s.replace(/\./g, '').replace(',', '.')
+        : s.replace(/,/g, '');
+  } else if (lastComma !== -1 || lastDot !== -1) {
+    const sep = lastComma !== -1 ? ',' : '.';
+    const parts = s.split(sep);
+    s =
+      parts.length === 2 && parts[1].length !== 3
+        ? parts.join('.')
+        : parts.join('');
+  }
+  const n = Number(s);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n.toFixed(2);
 }
 
 function normalizeDigits(value: unknown): string | null {

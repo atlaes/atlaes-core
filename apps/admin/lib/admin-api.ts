@@ -598,3 +598,44 @@ export async function setV0901Answers(
   );
   return data;
 }
+
+export type DrvPackSex = 'male' | 'female' | 'diverse' | 'none';
+
+export interface DrvPackDataValues {
+  vsnr: string | null;
+  sex: DrvPackSex | null;
+  germanContributionMonths: number | null;
+  moveOutDate: string | null;
+  germanStreet: string | null;
+  germanPostalCode: string | null;
+  germanCity: string | null;
+}
+
+export interface DrvPackDataState {
+  applicable: boolean;
+  frozen: boolean;
+  frozenReason: string | null;
+  values: DrvPackDataValues;
+  intake: { svNummer: string | null; gender: string | null };
+  missing: string[];
+}
+
+export async function getDrvPackData(
+  claimId: string
+): Promise<DrvPackDataState> {
+  const { data } = await apiClient.get(
+    `/admin/claims/${claimId}/drv-pack-data`
+  );
+  return data;
+}
+
+export async function setDrvPackData(
+  claimId: string,
+  values: Partial<DrvPackDataValues>
+): Promise<DrvPackDataState> {
+  const { data } = await apiClient.put(
+    `/admin/claims/${claimId}/drv-pack-data`,
+    values
+  );
+  return data;
+}
