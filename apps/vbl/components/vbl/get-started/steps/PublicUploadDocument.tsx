@@ -39,8 +39,9 @@ const MONTHS = [
   'December',
 ];
 
+// No plain "Berlin": East Berlin cannot be claimed (public-sector flow,
+// INELIGIBLE_STATES), so the client has to say which part.
 const FEDERAL_STATES = [
-  'Berlin',
   'Baden-Württemberg',
   'Bavaria',
   'Berlin (West)',
@@ -119,7 +120,12 @@ function mapExtractionToUploadForm(
   return {
     provider,
     vblPlan: provider === 'VBL' ? details.vblPlan || '' : '',
-    federalState: details.federalState || '',
+    // The document rarely says East or West Berlin; leave it for the
+    // client to choose instead of accepting a plain "Berlin".
+    federalState:
+      details.federalState && FEDERAL_STATES.includes(details.federalState)
+        ? details.federalState
+        : '',
     startMonth: details.startMonth || '',
     startYear: details.startYear || '',
     endMonth: details.endMonth || '',

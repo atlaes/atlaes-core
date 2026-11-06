@@ -319,7 +319,11 @@ export function OnboardingFlow({
   }, [hasPersistedCalculatorStopAnswer]);
 
   // Example: determine DRV eligibility (in real app, this would come from backend)
-  const drvEligibilityDate = '15 Mar 2027';
+  // The DRV refund date was a hard-coded placeholder ('15 Mar 2027') shown
+  // to every client, and its reminder button stored nothing. Hidden until
+  // the date is derived from the client's data (24 months after leaving the
+  // German insurance; rule to be confirmed) and wired to /api/vbl/reminders.
+  const drvEligibilityDate: string | undefined = undefined;
   const isDRVEligibleNow = false;
 
   // Handle pension type selection completion

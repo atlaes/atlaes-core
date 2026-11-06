@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Upload, Calendar, ChevronDown } from 'lucide-react';
+import { Upload, Calendar, ChevronDown, Info } from 'lucide-react';
 import ClaimsStepContainer from '../ClaimsStepContainer';
 import { useClaimsStore } from '@/lib/stores/claims-store';
 import {
@@ -111,6 +111,10 @@ export default function PassportUpload({ claimId }: PassportUploadProps) {
   const [subStep, setSubStep] = useState<PassportSubStep>('upload');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  // True while the client swaps an uploaded passport for another file.
+  const [replacing, setReplacing] = useState(false);
+  // Set when the file was saved but could not be read automatically.
+  const [ocrNotice, setOcrNotice] = useState<string | null>(null);
 
   // Form state for passport details
   const [formData, setFormData] = useState({
@@ -148,10 +152,10 @@ export default function PassportUpload({ claimId }: PassportUploadProps) {
 
   // If passport is already uploaded, show details form
   useEffect(() => {
-    if (hasPassport && subStep === 'upload') {
+    if (hasPassport && subStep === 'upload' && !replacing) {
       setSubStep('details');
     }
-  }, [hasPassport, subStep]);
+  }, [hasPassport, subStep, replacing]);
 
   const handleFileChange = async (file: File) => {
     if (!file) return;
@@ -202,16 +206,33 @@ export default function PassportUpload({ claimId }: PassportUploadProps) {
         };
         console.log('[PassportUpload] Normalized form data:', normalizedData);
         setFormData(normalizedData);
+        setOcrNotice(null);
       } else {
         console.log('[PassportUpload] No OCR data received');
+        setOcrNotice(
+          result.ocrError ||
+            'We could not read your passport automatically. Please enter the details below.'
+        );
       }
+      setReplacing(false);
 
       // Transition to details view
       console.log('[PassportUpload] Transitioning to details view');
       setSubStep('details');
     } catch (error) {
       console.error('[PassportUpload] Upload error:', error);
-      setUploadError(error instanceof Error ? error.message : 'Upload failed');
+      // Show the server's reason ("not a passport or national ID") instead
+      // of axios' "Request failed with status code 400".
+      const serverError = (
+        error as { response?: { data?: { error?: unknown } } }
+      )?.response?.data?.error;
+      setUploadError(
+        typeof serverError === 'string' && serverError
+          ? serverError
+          : error instanceof Error
+            ? error.message
+            : 'Upload failed'
+      );
     }
   };
 
@@ -289,7 +310,10 @@ export default function PassportUpload({ claimId }: PassportUploadProps) {
         title="Upload your passport"
         description="The German Pension Office requires your passport to verify your identity. We use it to prepare your refund documents automatically on your behalf."
         canContinue={hasPassport}
-        onContinue={() => setSubStep('details')}
+        onContinue={() => {
+          setReplacing(false);
+          setSubStep('details');
+        }}
       >
         <div
           className={`claims-upload-zone ${isDragOver ? 'drag-over' : ''}`}
@@ -336,6 +360,28 @@ export default function PassportUpload({ claimId }: PassportUploadProps) {
       continueText={isSubmitting ? 'Saving...' : 'Confirm and continue'}
     >
       <div className="claims-passport-form">
+        {ocrNotice && (
+          <div className="claims-info-box">
+            <Info className="w-5 h-5 text-blue-500" />
+            <p>{ocrNotice}</p>
+          </div>
+        )}
+        <p className="claims-form-label">
+          {passportDoc?.fileName
+            ? `Uploaded file: ${passportDoc.fileName} · `
+            : ''}
+          <button
+            type="button"
+            className="claims-link"
+            onClick={() => {
+              setUploadError(null);
+              setReplacing(true);
+              setSubStep('upload');
+            }}
+          >
+            Upload a different file
+          </button>
+        </p>
         {/* Row 1: First Name / Last Name */}
         <div className="claims-form-row">
           <div className="claims-form-group">

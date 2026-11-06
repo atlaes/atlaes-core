@@ -202,12 +202,17 @@ export interface ClaimDocument {
   claimId: string;
   documentId: string;
   documentRole: ClaimDocumentRole;
+  // The API sends fileName/fileType; filename/mimeType are kept for older
+  // responses.
   document?: {
     id: string;
-    filename: string;
-    mimeType: string;
-    size: number;
-    s3Key: string;
+    fileName?: string;
+    fileType?: string;
+    filename?: string;
+    mimeType?: string;
+    size?: number;
+    s3Key?: string;
+    status?: string;
     url?: string;
   };
   createdAt: string;
@@ -235,6 +240,8 @@ export interface PassportOCRData {
 export interface UploadDocumentResult {
   claimDocument: ClaimDocument;
   ocr?: PassportOCRData | null;
+  /** Set when the file was saved but OCR could not read it. */
+  ocrError?: string;
 }
 
 export interface CreateClaimRequest {
@@ -343,7 +350,7 @@ function transformClaimResponse(claim: Claim): Claim {
 function transformDocumentResponse(doc: ClaimDocument): ClaimDocument {
   return {
     ...doc,
-    fileName: doc.document?.filename,
+    fileName: doc.document?.fileName ?? doc.document?.filename,
     fileUrl: doc.document?.url,
   };
 }
@@ -497,6 +504,7 @@ export const claimsApi = {
         attachResponse.data.claimDocument
       ),
       ocr: ocrData || null,
+      ocrError: uploadResponse.data.ocrError,
     };
   },
 

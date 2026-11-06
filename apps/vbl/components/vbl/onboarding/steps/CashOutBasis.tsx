@@ -335,8 +335,6 @@ export const CashOutBasis: React.FC<CashOutBasisProps> = ({ onNext }) => {
     [updateCashOutBasis]
   );
 
-  const canProceed =
-    isCashOutBasisComplete(basis) && !uploadingDecision && !uploadingStatement;
   const showMissing = submitAttempted;
 
   const amountValue = normalizeEuroAmount(basis.benefitAmount);
@@ -351,6 +349,15 @@ export const CashOutBasis: React.FC<CashOutBasisProps> = ({ onNext }) => {
     limit !== null && amountNumber !== null && amountNumber > limit;
   const amountRequired =
     basis.benefitForm === 'pension' || basis.benefitForm === 'capital';
+
+  // Above the § 3 BetrAVG small-entitlement limit (without a DRV refund) the
+  // backend refuses the submission, which comes after the payment: stop
+  // here instead of letting the client pay for a claim that cannot go out.
+  const canProceed =
+    isCashOutBasisComplete(basis) &&
+    !amountAboveLimit &&
+    !uploadingDecision &&
+    !uploadingStatement;
 
   const handleContinue = () => {
     if (!canProceed) {
@@ -630,8 +637,10 @@ export const CashOutBasis: React.FC<CashOutBasisProps> = ({ onNext }) => {
                     <span>
                       This is above the {formatEuro(limit)} EUR limit for a
                       small-entitlement payout in {new Date().getFullYear()}.
-                      Without a DRV refund, {providerName} is unlikely to pay
-                      out. Please check the value on your statement.
+                      Without a DRV refund, {providerName} cannot pay it out,
+                      so we cannot file this request. Please check the value
+                      on your statement; if your DRV contributions were
+                      refunded, answer “Yes” above.
                     </span>
                   </p>
                 )}

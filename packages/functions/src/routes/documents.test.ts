@@ -9,11 +9,19 @@ const mocks = vi.hoisted(() => ({
   uploadFile: vi.fn(),
   deleteFile: vi.fn(),
   extractPassportData: vi.fn(),
+  selectRows: vi.fn(),
+  deleteWhere: vi.fn(),
 }));
 
 vi.mock('../utils/db', () => ({
   db: {
     insert: mocks.insert,
+    select: () => ({
+      from: () => ({
+        where: () => ({ limit: () => mocks.selectRows() }),
+      }),
+    }),
+    delete: () => ({ where: mocks.deleteWhere }),
   },
 }));
 
@@ -54,6 +62,7 @@ describe('documents route', () => {
   it('rejects a passport upload before saving when OCR says it is not a passport or national ID', async () => {
     mocks.extractPassportData.mockResolvedValue({
       success: false,
+      reason: 'not_identity_document',
       error: 'Uploaded file is not a passport or national ID',
     });
 
@@ -145,6 +154,90 @@ describe('documents route', () => {
     expect(mocks.extractPassportData.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.uploadFile.mock.invocationCallOrder[0]
     );
+  });
+
+  it('keeps the passport file when OCR itself fails, so the client can type the details', async () => {
+    mocks.extractPassportData.mockResolvedValue({
+      success: false,
+      reason: 'unavailable',
+      error: 'Mistral API error: 503',
+    });
+
+    const formData = new FormData();
+    formData.append(
+      'file',
+      new File(['passport scan'], 'NewZealand.pdf', {
+        type: 'application/pdf',
+      })
+    );
+    formData.append('documentType', 'passport');
+
+    const res = await app.fetch(
+      new Request('http://localhost/api/documents/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${createToken()}` },
+        body: formData,
+      })
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.ocr).toBeNull();
+    expect(body.ocrError).toMatch(/enter the details yourself/);
+    expect(JSON.stringify(body)).not.toContain('Mistral');
+    expect(mocks.uploadFile).toHaveBeenCalledOnce();
+    expect(mocks.values).toHaveBeenCalledWith(
+      expect.objectContaining({ ocrData: null })
+    );
+  });
+
+  describe('DELETE /:id', () => {
+    const userId = '11111111-1111-1111-1111-111111111111';
+    const del = () =>
+      app.fetch(
+        new Request('http://localhost/api/documents/doc-1', {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${createToken()}` },
+        })
+      );
+
+    it('refuses ops-generated files stored under the client', async () => {
+      mocks.selectRows.mockResolvedValue([
+        { id: 'doc-1', userId, s3Key: 'claims/c1/letters/x.pdf' },
+      ]);
+      const res = await del();
+      expect(res.status).toBe(403);
+      expect(mocks.deleteWhere).not.toHaveBeenCalled();
+      expect(mocks.deleteFile).not.toHaveBeenCalled();
+    });
+
+    it('keeps the file when the document is still attached to a claim', async () => {
+      mocks.selectRows.mockResolvedValue([
+        { id: 'doc-1', userId, s3Key: `documents/${userId}/a.pdf` },
+      ]);
+      mocks.deleteWhere.mockRejectedValue(
+        Object.assign(new Error('fk'), { code: '23503' })
+      );
+      const res = await del();
+      expect(res.status).toBe(409);
+      expect(mocks.deleteFile).not.toHaveBeenCalled();
+    });
+
+    it('deletes the record, then the file', async () => {
+      mocks.selectRows.mockResolvedValue([
+        { id: 'doc-1', userId, s3Key: `documents/${userId}/a.pdf` },
+      ]);
+      mocks.deleteWhere.mockResolvedValue(undefined);
+      const res = await del();
+      expect(res.status).toBe(200);
+      expect(mocks.deleteFile).toHaveBeenCalledWith(
+        `documents/${userId}/a.pdf`
+      );
+      expect(mocks.deleteWhere.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.deleteFile.mock.invocationCallOrder[0]
+      );
+    });
   });
 });
 
