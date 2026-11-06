@@ -9,6 +9,7 @@ import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { logger, toErrorMeta } from '../../../utils/logger';
 import { env } from '../../../utils/env';
 import { isE2eTestAddress } from '../../../utils/e2e';
+import { splitRecipients } from '../../../utils/email-recipients';
 
 const sesClient = new SESClient({ region: env.SES_REGION });
 const isSesAvailable = !!process.env.SST_RESOURCE_AtlaesEmail;
@@ -120,7 +121,7 @@ export async function sendClientUpdateEmail(
     await sesClient.send(
       new SendEmailCommand({
         Source: `${mail.fromName} <${env.SES_FROM_EMAIL}>`,
-        Destination: { ToAddresses: [mail.to] },
+        Destination: { ToAddresses: splitRecipients(mail.to) },
         ReplyToAddresses: mail.replyTo ? [mail.replyTo] : undefined,
         Message: {
           Subject: { Data: mail.subject, Charset: 'UTF-8' },

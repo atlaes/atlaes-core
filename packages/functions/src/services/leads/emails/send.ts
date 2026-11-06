@@ -3,6 +3,7 @@ import { Resource } from 'sst';
 import { env } from '../../../utils/env';
 import { isE2eTestAddress } from '../../../utils/e2e';
 import { logger, toErrorMeta } from '../../../utils/logger';
+import { splitRecipients } from '../../../utils/email-recipients';
 import { leadsConfig } from '../config';
 
 const sesClient = new SESClient({ region: env.SES_REGION });
@@ -59,7 +60,7 @@ export async function sendLeadMail(
       new SendEmailCommand({
         Source: `${leadsConfig.senderName} <${leadsConfig.fromEmail}>`,
         ReplyToAddresses: [leadsConfig.replyTo],
-        Destination: { ToAddresses: [mail.to] },
+        Destination: { ToAddresses: splitRecipients(mail.to) },
         Message: {
           Subject: { Data: mail.subject, Charset: 'UTF-8' },
           Body: {
