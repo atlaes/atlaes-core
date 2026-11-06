@@ -379,6 +379,50 @@ function deregistrationSurchargeView(
 // Service
 // ---------------------------------------------------------------------------
 
+const DUPLICATE_WINDOW_DAYS = 14;
+
+/** An earlier release that records the same money, or null. */
+export function findDuplicateRelease(
+  releases: Pick<
+    ReleaseRow,
+    'id' | 'status' | 'amountReceivedEur' | 'valueDate' | 'statementReference'
+  >[],
+  input: {
+    amountEur: number;
+    valueDate: string;
+    statementReference?: string | null;
+    confirmAdditionalPayment?: boolean;
+  }
+): {
+  id: string;
+  status: string;
+  amountReceivedEur: string;
+  valueDate: string;
+  sameReference: boolean;
+} | null {
+  const ref = input.statementReference?.trim() || null;
+  const day = (d: string) => Date.parse(`${d}T00:00:00Z`) / 86_400_000;
+  for (const r of releases) {
+    if (r.status === 'cancelled') continue;
+    const sameReference = !!ref && r.statementReference?.trim() === ref;
+    const sameMoney =
+      Math.abs(Number(r.amountReceivedEur) - input.amountEur) < 0.005 &&
+      !!r.valueDate &&
+      Math.abs(day(String(r.valueDate)) - day(input.valueDate)) <=
+        DUPLICATE_WINDOW_DAYS;
+    if (sameReference || (sameMoney && !input.confirmAdditionalPayment)) {
+      return {
+        id: r.id,
+        status: r.status,
+        amountReceivedEur: String(r.amountReceivedEur),
+        valueDate: String(r.valueDate),
+        sameReference,
+      };
+    }
+  }
+  return null;
+}
+
 export class PayoutFlowService {
   // ---------------- lookups ----------------
 
@@ -593,6 +637,12 @@ export class PayoutFlowService {
       amountEur: number;
       valueDate: IsoDate;
       statementReference?: string | null;
+      /**
+       * Ops confirm a genuine further payment for a case whose earlier
+       * release is already signed (same amount within 14 days would
+       * otherwise be refused as the same money recorded twice).
+       */
+      confirmAdditionalPayment?: boolean;
     },
     actor: Actor | null = null
   ): Promise<ReleaseRow> {
@@ -607,13 +657,26 @@ export class PayoutFlowService {
     // One open release per case: funds recorded by ops and again by the
     // statement import (or twice by ops) must not produce two releases,
     // two invoices and two ZEs. Cancel the open one first to re-record.
-    const open = (await this.releases(claimId)).find(
-      (r) => r.status === 'open'
-    );
+    const existing = await this.releases(claimId);
+    const open = existing.find((r) => r.status === 'open');
     if (open) {
       throw new PayoutFlowError(
         `Funds are already recorded for this case (open release ${open.id}); cancel it before recording again`,
         409
+      );
+    }
+    // Once the client has signed, the release is no longer "open", so the
+    // check above let the same money through again (ops' manual record,
+    // then the statement line, or the line assigned by hand): a second
+    // release, invoice, ZE and payout line. The same statement reference is
+    // always the same money; the same amount within 14 days is treated as
+    // the same money unless ops confirm a further payment.
+    const duplicate = findDuplicateRelease(existing, input);
+    if (duplicate) {
+      throw new PayoutFlowError(
+        `These funds are already recorded for this case (release ${duplicate.id}, €${Number(duplicate.amountReceivedEur).toFixed(2)} on ${duplicate.valueDate}, ${duplicate.status})${duplicate.sameReference ? '' : '; if this is a further payment, confirm it as an additional payment'}`,
+        409,
+        'funds_already_recorded'
       );
     }
     const cfg = payoutFeeConfig();
@@ -1120,6 +1183,14 @@ export class PayoutFlowService {
       releaseId,
       invoiceNumber,
     });
+    // The invoice number can be what the release invitation (E1) waited
+    // for; plan now instead of at the next daily run.
+    await PayoutEmailService.run(r.claimId).catch((error) =>
+      logger.error('Payout: e-mail run after invoice number failed', {
+        claimId: r.claimId,
+        ...toErrorMeta(error),
+      })
+    );
   }
 
   /** ATLAES Admin cleared "payout details need review". */
@@ -1145,6 +1216,21 @@ export class PayoutFlowService {
         .where(eq(claimsTable.id, r.claimId));
     }
     await this.audit(actor, 'payout_review_cleared', r.claimId, { releaseId });
+    // A release signed while the review was pending was not queued; queue
+    // it now (no-op while another release of the case still needs review)
+    // and let E3 go out.
+    if (r.status === 'signed') {
+      try {
+        const { PayoutQueueService } = await import('../payout-queue');
+        await PayoutQueueService.onReleased(r.id);
+      } catch (error) {
+        logger.error('Payout: queueing after review failed', {
+          claimId: r.claimId,
+          ...toErrorMeta(error),
+        });
+      }
+      await PayoutEmailService.run(r.claimId);
+    }
   }
 
   static async listOpenCustomerInputs() {

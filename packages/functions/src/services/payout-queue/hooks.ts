@@ -15,6 +15,7 @@ export interface FundsRecordedEvent {
   valueDate: string;
   statementReference: string | null;
   actorId: string | null;
+  confirmAdditionalPayment?: boolean;
 }
 
 /** Returns the payout_releases row id the flow created. */
@@ -27,6 +28,7 @@ export async function notifyPayoutFlowFundsRecorded(
       amountEur: event.amountReceivedEur,
       valueDate: event.valueDate,
       statementReference: event.statementReference,
+      confirmAdditionalPayment: event.confirmAdditionalPayment ?? false,
     },
     event.actorId ? { id: event.actorId } : null
   );

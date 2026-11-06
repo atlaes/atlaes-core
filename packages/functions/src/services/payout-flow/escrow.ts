@@ -658,6 +658,22 @@ export class PayoutEscrowService {
           receiptStatus: r.receiptStatus ?? null,
           receiptStatusAt: iso(r.receiptStatusAt),
         })),
+      // Every live release, for the admin controls that unblock it: the
+      // invoice number (needed before the client can sign; Lexoffice sets
+      // it when configured) and the payout-details review (holds the
+      // transfer lines until cleared).
+      releases: releases
+        .filter((r) => r.status !== 'cancelled')
+        .map((r) => ({
+          releaseId: r.id,
+          status: r.status,
+          amountReceivedEur: Number(r.amountReceivedEur),
+          valueDate: r.valueDate ?? null,
+          invoiceNumber: r.invoiceNumber ?? null,
+          reviewPending: r.reviewRequired && !r.reviewClearedAt,
+          reviewReasons: r.reviewRequired ? (r.reviewReasons ?? []) : [],
+          reviewClearedAt: iso(r.reviewClearedAt),
+        })),
       emails: emails.map((e) => ({
         id: e.id,
         template: e.template,

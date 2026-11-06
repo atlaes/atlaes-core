@@ -12,7 +12,18 @@ import { AuthService } from '../../utils/auth';
 import { auditLogs, users } from '../../drizzle/schema/shared';
 import { claimsTable } from '../../drizzle/schema/claims';
 import { payoutReleases } from '../../drizzle/schema/payout';
-import { fundsReceipts, invoices } from '../../drizzle/schema/payout-queue';
+import {
+  fundsReceipts,
+  invoices,
+  payoutLines,
+} from '../../drizzle/schema/payout-queue';
+import {
+  payoutEmailLog,
+  payoutTasks,
+} from '../../drizzle/schema/payout-emails';
+import { clearPayoutAccountCache } from '../payout-accounts';
+import { PayoutFlowService } from '../payout-flow';
+import { PayoutQueueService } from '.';
 import { setInvoiceProviderForTests, type InvoiceProvider } from '../invoicing';
 import { DEFAULT_LAW_FIRM_ID } from '../law-firm';
 import { FundsService } from './funds';
@@ -45,6 +56,8 @@ const fakeProvider: InvoiceProvider = {
 };
 
 beforeAll(async () => {
+  process.env.ATLAES_IBAN = 'DE02100100100006820101';
+  clearPayoutAccountCache();
   setInvoiceProviderForTests(fakeProvider);
   app = new Hono();
   app.route('/api/admin/payout', payoutAdmin);
@@ -91,6 +104,9 @@ beforeAll(async () => {
 afterAll(async () => {
   setInvoiceProviderForTests(null);
   if (claimId) {
+    await db.delete(payoutLines).where(eq(payoutLines.claimId, claimId));
+    await db.delete(payoutEmailLog).where(eq(payoutEmailLog.claimId, claimId));
+    await db.delete(payoutTasks).where(eq(payoutTasks.claimId, claimId));
     await db.delete(invoices).where(eq(invoices.claimId, claimId));
     await db.delete(fundsReceipts).where(eq(fundsReceipts.claimId, claimId));
     await db.delete(payoutReleases).where(eq(payoutReleases.claimId, claimId));
@@ -157,3 +173,115 @@ describe('funds received twice', () => {
     ).toHaveLength(1);
   });
 });
+
+async function signRelease(
+  releaseId: string,
+  review: { reviewRequired: boolean } = { reviewRequired: false }
+) {
+  await db
+    .update(payoutReleases)
+    .set({
+      status: 'signed',
+      signedAt: new Date(),
+      route: 'A',
+      zeS3Key: `claims/${claimId}/ze.pdf`,
+      account: {
+        accountHolder: 'Anita Sharma',
+        bank: 'Commerzbank',
+        country: 'DE',
+        currency: 'EUR',
+        iban: 'DE89370400440532013000',
+      },
+      reviewRequired: review.reviewRequired,
+      reviewReasons: review.reviewRequired
+        ? [{ kind: 'bank_details_changed', detail: 'IBAN changed' }]
+        : [],
+    })
+    .where(eq(payoutReleases.id, releaseId));
+}
+
+const releasesOfClaim = () =>
+  db.select().from(payoutReleases).where(eq(payoutReleases.claimId, claimId));
+
+describe('funds received again after signing (pre-UAT P0 #3)', () => {
+  it('refuses the same money once the release is signed', async () => {
+    const [first] = await releasesOfClaim();
+    await signRelease(first.id);
+
+    // The bank statement arrives a week after ops recorded the funds.
+    await expect(
+      FundsService.recordFundsReceived({
+        claimId,
+        amountEur: 3038.49,
+        valueDate: '2026-09-25',
+        statementReference: null,
+        actorId: null,
+      })
+    ).rejects.toMatchObject({ status: 409, code: 'funds_already_recorded' });
+
+    // The same statement reference is always the same money.
+    await expect(
+      FundsService.recordFundsReceived({
+        claimId,
+        amountEur: 3038.49,
+        valueDate: '2026-12-01',
+        statementReference: `BEITRAGSERSTATTUNG ${tag}`,
+        actorId: adminId,
+        confirmAdditionalPayment: true,
+      })
+    ).rejects.toMatchObject({ status: 409 });
+    expect(await releasesOfClaim()).toHaveLength(1);
+  });
+
+  it('records a further payment ops confirm', async () => {
+    const res = await app.request(
+      `http://localhost/api/admin/payout/claims/${claimId}/funds`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amountEur: 3038.49,
+          valueDate: '2026-09-25',
+          confirmAdditionalPayment: true,
+        }),
+      }
+    );
+    expect(res.status).toBe(201);
+    expect(await releasesOfClaim()).toHaveLength(2);
+  });
+});
+
+describe('payout-details review gate (pre-UAT P0 #4)', () => {
+  it('a signed release under review is queued only after it is cleared', async () => {
+    const second = (await releasesOfClaim()).find((r) => r.status === 'open')!;
+    await signRelease(second.id, { reviewRequired: true });
+    await db
+      .update(claimsTable)
+      .set({ payoutDetailsReviewRequired: true })
+      .where(eq(claimsTable.id, claimId));
+
+    // What sign() calls right after signing.
+    expect(await PayoutQueueService.onReleased(second.id)).toEqual([]);
+    const queued = await PayoutQueueService.listQueue(DEFAULT_LAW_FIRM_ID);
+    expect(
+      queued.cases.flatMap((c) => c.lines).some((l) => l.id === second.id)
+    ).toBe(false);
+    expect(
+      await db
+        .select()
+        .from(payoutLines)
+        .where(eq(payoutLines.payoutReleaseId, second.id))
+    ).toHaveLength(0);
+
+    await PayoutFlowService.clearReview(second.id, { id: adminId });
+    const lines = await db
+      .select()
+      .from(payoutLines)
+      .where(eq(payoutLines.payoutReleaseId, second.id));
+    expect(lines.map((l) => l.kind).sort()).toEqual(['atlaes', 'client']);
+  });
+});
+

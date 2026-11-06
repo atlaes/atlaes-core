@@ -44,6 +44,8 @@ export interface RecordFundsInput {
   statementLineId?: string | null;
   statementReference?: string | null;
   actorId?: string | null;
+  /** Admin only: a further payment, not the same money recorded again. */
+  confirmAdditionalPayment?: boolean;
 }
 
 export interface RecordFundsResult {
@@ -106,6 +108,7 @@ export class FundsService {
       valueDate: input.valueDate,
       statementReference: input.statementReference ?? null,
       actorId: input.actorId ?? null,
+      confirmAdditionalPayment: input.confirmAdditionalPayment ?? false,
     });
 
     const [receipt] = await db

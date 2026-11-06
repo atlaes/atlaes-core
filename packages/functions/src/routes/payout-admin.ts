@@ -191,6 +191,7 @@ const fundsSchema = z.object({
   amountEur: z.number().positive(),
   valueDate: isoDate,
   reference: z.string().max(500).nullable().optional(),
+  confirmAdditionalPayment: z.boolean().optional(),
 });
 
 router.post('/claims/:id/funds', validateUuidParams('id'), async (c) => {
@@ -204,6 +205,7 @@ router.post('/claims/:id/funds', validateUuidParams('id'), async (c) => {
       valueDate: parsed.data.valueDate,
       statementReference: parsed.data.reference ?? null,
       actorId: actorOf(c).id,
+      confirmAdditionalPayment: parsed.data.confirmAdditionalPayment,
     });
     return c.json(
       {

@@ -156,6 +156,21 @@ export class PayoutQueueService {
       });
       return [];
     }
+    // "Payout details need review" (changed IBAN, third-party holder, …)
+    // holds the transfer until ATLAES clears it. Checked here, not only in
+    // the queue listing, because signing calls this directly: the lines
+    // (and with them E3 "added to the payout queue") must not exist before
+    // the review is cleared. clearReview queues the release afterwards.
+    if (
+      claim.payoutDetailsReviewRequired ||
+      (release.reviewRequired && !release.reviewClearedAt)
+    ) {
+      logger.info('Payout queue: release waits for the details review', {
+        claimId: claim.id,
+        releaseId,
+      });
+      return [];
+    }
 
     const [receipt] = await db
       .select()

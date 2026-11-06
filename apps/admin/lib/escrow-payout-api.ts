@@ -37,6 +37,17 @@ export interface EscrowTask {
   resolutionNote: string | null;
 }
 
+export interface EscrowRelease {
+  releaseId: string;
+  status: 'open' | 'signed';
+  amountReceivedEur: number;
+  valueDate: string | null;
+  invoiceNumber: string | null;
+  reviewPending: boolean;
+  reviewReasons: { kind: string; detail: string }[];
+  reviewClearedAt: string | null;
+}
+
 export interface EscrowView {
   today: string;
   pendingUpload: {
@@ -53,6 +64,7 @@ export interface EscrowView {
   decisionDirectToClientAt: string | null;
   decisionNotReceivedAt: string | null;
   transfers: EscrowTransfer[];
+  releases: EscrowRelease[];
   emails: EscrowEmail[];
   tasks: EscrowTask[];
 }
@@ -128,6 +140,21 @@ export async function setExpectedArrival(
   await apiClient.put(`${base(claimId)}/releases/${releaseId}/arrival`, {
     date,
   });
+}
+
+/** Lexoffice invoice number by hand (the client signs only once it exists). */
+export async function setReleaseInvoiceNumber(
+  releaseId: string,
+  invoiceNumber: string
+) {
+  await apiClient.put(`/admin/payout/releases/${releaseId}/invoice`, {
+    invoiceNumber,
+  });
+}
+
+/** Clears "payout details need review"; a signed release is then queued. */
+export async function clearReleaseReview(releaseId: string) {
+  await apiClient.post(`/admin/payout/releases/${releaseId}/clear-review`);
 }
 
 export async function resolvePayoutTask(taskId: string, note: string | null) {
