@@ -973,6 +973,24 @@
 .mk-footer-social a:hover {
   opacity: 0.8;
 }
+.mk-footer-badges-link {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 390px;
+}
+/* Gap and width line the 2026 badges up with the strip's columns below. */
+.mk-footer-badges-current {
+  display: flex;
+  gap: 3%;
+}
+.mk-footer-badges-current img {
+  display: block;
+  width: 22.8%;
+  max-width: 89px;
+  height: auto;
+}
 .mk-footer-badges {
   display: block;
   width: 100%;

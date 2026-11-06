@@ -5,8 +5,8 @@
  *
  * Award-certificate gate (MT-08 / D-15 / S-17): only title/year pairs whose
  * certificate is retained are published — the handoff confirms 2024 and
- * 2025 for both titles; 2026 is NOT published until both 2026 certificates
- * are in the archive (open point 1).
+ * 2025 for both titles; Johannes sent both 2026 certificates on
+ * 3 Nov 2026 (open point 1 closed).
  *
  * Review wall: the platform renders the review cards from
  * `content/reviews.ts` (ten cards), so the handoff's own rule for a wall
@@ -49,8 +49,8 @@ export interface Award {
 }
 
 export const AWARDS: Award[] = [
-  { title: 'Top Service Provider', years: ['2024', '2025'] },
-  { title: 'Top Recommendation', years: ['2024', '2025'] },
+  { title: 'Top Service Provider', years: ['2024', '2025', '2026'] },
+  { title: 'Top Recommendation', years: ['2024', '2025', '2026'] },
 ];
 
 const scoreBold =
