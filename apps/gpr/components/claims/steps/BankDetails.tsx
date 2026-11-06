@@ -14,6 +14,7 @@ interface BankFormData {
   accountHolderName: string;
   bankName: string;
   bankCountry: string;
+  bankCity: string;
   // EUR fields
   iban: string;
   // AUD fields
@@ -33,6 +34,23 @@ const CURRENCIES: { code: Currency; label: string }[] = [
   { code: 'NZD', label: 'New Zealand Dollar (NZD)' },
 ];
 
+/** ISO 13616 mod-97 check on a compact IBAN. */
+function isValidIban(raw: string): boolean {
+  const iban = raw.replace(/\s/g, '').toUpperCase();
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(iban)) return false;
+  const rearranged = iban.slice(4) + iban.slice(0, 4);
+  let remainder = 0;
+  for (const ch of rearranged) {
+    const value = ch >= 'A' ? (ch.charCodeAt(0) - 55).toString() : ch;
+    for (const digit of value) {
+      remainder = (remainder * 10 + Number(digit)) % 97;
+    }
+  }
+  return remainder === 1;
+}
+
+const SWIFT_BIC = /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/;
+
 // Full ISO list shared with the eligibility widgets (codes stored as before).
 const COUNTRIES = COUNTRY_OPTIONS;
 
@@ -51,6 +69,7 @@ export default function BankDetails({ claimId }: BankDetailsProps) {
     accountHolderName: '',
     bankName: '',
     bankCountry: '',
+    bankCity: '',
     iban: '',
     bsb: '',
     accountNumber: '',
@@ -68,6 +87,7 @@ export default function BankDetails({ claimId }: BankDetailsProps) {
         accountHolderName: claim.bankDetails?.accountHolderName || '',
         bankName: claim.bankDetails?.bankName || '',
         bankCountry: claim.bankDetails?.bankCountry || '',
+        bankCity: claim.bankDetails?.bankCity || '',
         iban: claim.bankDetails?.iban || '',
         bsb: claim.bankDetails?.bsb || '',
         accountNumber: claim.bankDetails?.accountNumber || '',
@@ -124,13 +144,17 @@ export default function BankDetails({ claimId }: BankDetailsProps) {
     if (!formData.bankCountry) {
       newErrors.bankCountry = 'Bank country is required';
     }
+    // The DRV payment section prints "bank name, city".
+    if (!formData.bankCity.trim()) {
+      newErrors.bankCity = 'Bank city is required';
+    }
 
     // Currency-specific validation
     if (formData.preferredCurrency === 'EUR') {
       if (!formData.iban.trim()) {
         newErrors.iban = 'IBAN is required for EUR payments';
-      } else if (formData.iban.replace(/\s/g, '').length < 15) {
-        newErrors.iban = 'Please enter a valid IBAN';
+      } else if (!isValidIban(formData.iban)) {
+        newErrors.iban = 'Please check your IBAN; it is not valid';
       }
     } else if (formData.preferredCurrency === 'AUD') {
       if (!formData.bsb.trim()) {
@@ -143,13 +167,19 @@ export default function BankDetails({ claimId }: BankDetailsProps) {
       }
     } else {
       // USD, GBP, CHF, CAD, NZD
-      if (!formData.swiftBic.trim()) {
-        newErrors.swiftBic = 'SWIFT/BIC code is required';
-      } else if (formData.swiftBic.length < 8 || formData.swiftBic.length > 11) {
-        newErrors.swiftBic = 'SWIFT/BIC must be 8-11 characters';
-      }
       if (!formData.accountNumber.trim()) {
         newErrors.accountNumber = 'Account number is required';
+      }
+    }
+    // Every payment outside the euro goes by international transfer, which
+    // needs the bank's SWIFT/BIC (AUD included: the BSB alone is domestic).
+    // For EUR it is optional (non-German SEPA accounts print it on the form).
+    const bic = formData.swiftBic.trim().toUpperCase();
+    if (formData.preferredCurrency !== 'EUR' || bic) {
+      if (!bic) {
+        newErrors.swiftBic = 'SWIFT/BIC code is required';
+      } else if (!SWIFT_BIC.test(bic)) {
+        newErrors.swiftBic = 'SWIFT/BIC must be 8 or 11 letters and digits';
       }
     }
 
@@ -164,10 +194,11 @@ export default function BankDetails({ claimId }: BankDetailsProps) {
       accountHolderName: true,
       bankName: true,
       bankCountry: true,
+      bankCity: true,
       iban: formData.preferredCurrency === 'EUR',
       bsb: formData.preferredCurrency === 'AUD',
       accountNumber: formData.preferredCurrency !== 'EUR',
-      swiftBic: !['EUR', 'AUD'].includes(formData.preferredCurrency),
+      swiftBic: formData.preferredCurrency !== 'EUR',
     });
 
     if (!validate()) return;
@@ -180,12 +211,18 @@ export default function BankDetails({ claimId }: BankDetailsProps) {
           accountHolderName: formData.accountHolderName,
           bankName: formData.bankName,
           bankCountry: formData.bankCountry,
-          iban: formData.preferredCurrency === 'EUR' ? formData.iban : undefined,
-          bsb: formData.preferredCurrency === 'AUD' ? formData.bsb : undefined,
+          bankCity: formData.bankCity.trim(),
+          // Fields the chosen currency does not use are cleared (''), so an
+          // IBAN left over from an earlier EUR choice cannot end up on the
+          // DRV form ahead of the new account number.
+          iban:
+            formData.preferredCurrency === 'EUR'
+              ? formData.iban.replace(/\s/g, '').toUpperCase()
+              : '',
+          bsb: formData.preferredCurrency === 'AUD' ? formData.bsb : '',
           accountNumber:
-            formData.preferredCurrency !== 'EUR' ? formData.accountNumber : undefined,
-          swiftBic:
-            !['EUR', 'AUD'].includes(formData.preferredCurrency) ? formData.swiftBic : undefined,
+            formData.preferredCurrency !== 'EUR' ? formData.accountNumber.trim() : '',
+          swiftBic: formData.swiftBic.trim().toUpperCase(),
         },
       },
     });
@@ -196,9 +233,37 @@ export default function BankDetails({ claimId }: BankDetailsProps) {
 
   const isSubmitting = updateMutation.isPending || completeMutation.isPending;
 
+  const renderSwiftField = (required: boolean) => (
+    <div className="claims-form-group">
+      <label htmlFor="swiftBic" className="claims-label">
+        SWIFT/BIC Code{' '}
+        {required ? (
+          <span className="claims-required">*</span>
+        ) : (
+          '(optional)'
+        )}
+      </label>
+      <input
+        type="text"
+        id="swiftBic"
+        value={formData.swiftBic}
+        onChange={(e) => handleChange('swiftBic', e.target.value.toUpperCase())}
+        onBlur={() => handleBlur('swiftBic')}
+        placeholder="e.g., AAAAAABBCCC"
+        className={`claims-input ${touched.swiftBic && errors.swiftBic ? 'error' : ''}`}
+        maxLength={11}
+        disabled={isSubmitting}
+      />
+      {touched.swiftBic && errors.swiftBic && (
+        <span className="claims-error-text">{errors.swiftBic}</span>
+      )}
+    </div>
+  );
+
   const renderCurrencyFields = () => {
     if (formData.preferredCurrency === 'EUR') {
       return (
+        <>
         <div className="claims-form-group">
           <label htmlFor="iban" className="claims-label">
             IBAN <span className="claims-required">*</span>
@@ -217,6 +282,8 @@ export default function BankDetails({ claimId }: BankDetailsProps) {
             <span className="claims-error-text">{errors.iban}</span>
           )}
         </div>
+        {renderSwiftField(false)}
+        </>
       );
     }
 
@@ -263,6 +330,7 @@ export default function BankDetails({ claimId }: BankDetailsProps) {
               )}
             </div>
           </div>
+          {renderSwiftField(true)}
         </>
       );
     }
@@ -270,25 +338,7 @@ export default function BankDetails({ claimId }: BankDetailsProps) {
     // USD, GBP, CHF, CAD, NZD
     return (
       <>
-        <div className="claims-form-group">
-          <label htmlFor="swiftBic" className="claims-label">
-            SWIFT/BIC Code <span className="claims-required">*</span>
-          </label>
-          <input
-            type="text"
-            id="swiftBic"
-            value={formData.swiftBic}
-            onChange={(e) => handleChange('swiftBic', e.target.value.toUpperCase())}
-            onBlur={() => handleBlur('swiftBic')}
-            placeholder="e.g., AAAAAABBCCC"
-            className={`claims-input ${touched.swiftBic && errors.swiftBic ? 'error' : ''}`}
-            maxLength={11}
-            disabled={isSubmitting}
-          />
-          {touched.swiftBic && errors.swiftBic && (
-            <span className="claims-error-text">{errors.swiftBic}</span>
-          )}
-        </div>
+        {renderSwiftField(true)}
 
         <div className="claims-form-group">
           <label htmlFor="accountNumber" className="claims-label">
@@ -412,6 +462,25 @@ export default function BankDetails({ claimId }: BankDetailsProps) {
                 <span className="claims-error-text">{errors.bankCountry}</span>
               )}
             </div>
+          </div>
+
+          <div className="claims-form-group">
+            <label htmlFor="bankCity" className="claims-label">
+              Bank City <span className="claims-required">*</span>
+            </label>
+            <input
+              type="text"
+              id="bankCity"
+              value={formData.bankCity}
+              onChange={(e) => handleChange('bankCity', e.target.value)}
+              onBlur={() => handleBlur('bankCity')}
+              placeholder="City of your bank or branch"
+              className={`claims-input ${touched.bankCity && errors.bankCity ? 'error' : ''}`}
+              disabled={isSubmitting}
+            />
+            {touched.bankCity && errors.bankCity && (
+              <span className="claims-error-text">{errors.bankCity}</span>
+            )}
           </div>
 
           {/* Currency-specific fields */}

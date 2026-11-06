@@ -410,12 +410,88 @@ export class ContractWithdrawalService {
     logger.info(
       `Contract withdrawal confirmed for claim ${resolved.claim.id} (path: ${path}, submitted: ${applicationAlreadySubmitted})`
     );
+    await notifyOpsOfWithdrawal({
+      claimId: resolved.claim.id,
+      name: details.fullName || null,
+      contractDate: resolved.claim.createdAt ?? null,
+      paymentDate: resolved.claim.paidAt ?? null,
+      applicationAlreadySubmitted,
+      receivedAt: now,
+    });
 
     return {
       contract: { ...details, alreadyWithdrawn: true },
       emailUsed: details.email,
       revocationRequired: applicationAlreadySubmitted,
     };
+  }
+}
+
+const WITHDRAWAL_WINDOW_DAYS = 14;
+
+/** Days since the contract date, and whether that is within the window. */
+export function withdrawalWindow(
+  contractDate: Date | null,
+  receivedAt: Date
+): { days: number | null; withinWindow: boolean | null } {
+  if (!contractDate) return { days: null, withinWindow: null };
+  const days = Math.floor(
+    (receivedAt.getTime() - contractDate.getTime()) / 86_400_000
+  );
+  return { days, withinWindow: days <= WITHDRAWAL_WINDOW_DAYS };
+}
+
+/**
+ * Tells ops. A submitted claim gets the 'withdrawal_received' hold (ops
+ * e-mail + admin banner; ops decide on revoking the application); an
+ * unsubmitted one was already stopped above and only needs the e-mail.
+ * Never fails the withdrawal itself.
+ */
+async function notifyOpsOfWithdrawal(input: {
+  claimId: string;
+  name: string | null;
+  contractDate: Date | null;
+  paymentDate: Date | null;
+  applicationAlreadySubmitted: boolean;
+  receivedAt: Date;
+}): Promise<void> {
+  const window = withdrawalWindow(input.contractDate, input.receivedAt);
+  const day = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : 'unknown');
+  const lines = [
+    `Contract date ${day(input.contractDate)}, payment ${day(input.paymentDate)}, withdrawal received ${day(input.receivedAt)}.`,
+    window.days === null
+      ? 'The contract date is unknown; check the 14-day window by hand.'
+      : window.withinWindow
+        ? `Within the ${WITHDRAWAL_WINDOW_DAYS}-day window (${window.days} days).`
+        : `Outside the ${WITHDRAWAL_WINDOW_DAYS}-day window (${window.days} days); check whether the right to withdraw still applied.`,
+  ];
+  try {
+    if (input.applicationAlreadySubmitted) {
+      const { ClaimHoldService } = await import('./claim-holds');
+      await ClaimHoldService.setHold(
+        input.claimId,
+        'withdrawal_received',
+        'The client withdrew after the application was submitted. Decide whether to revoke it with the provider.',
+        { triggeredBy: 'user', detailLines: lines }
+      );
+    } else {
+      const { sendOpsClaimAttentionEmail } = await import('./email');
+      const { adminClaimUrl } = await import('./claim-holds');
+      await sendOpsClaimAttentionEmail({
+        subject: `Withdrawal (Widerruf) received: ${input.name || 'a client'} (claim ${input.claimId.slice(0, 8)})`,
+        summary: 'Withdrawal received before submission; the claim is stopped.',
+        detailLines: [
+          ...lines,
+          'Refund the deposit if one was paid.',
+        ],
+        claimUrl: adminClaimUrl(input.claimId),
+      });
+    }
+  } catch (error) {
+    logger.error('Ops withdrawal notice failed', {
+      claimId: input.claimId,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 

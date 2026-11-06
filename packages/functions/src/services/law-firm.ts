@@ -934,7 +934,12 @@ export class LawFirmService {
       rereleasedUntil: claim.lawFirmRereleasedUntil,
       lawFirmRef: claim.lawFirmRef,
     });
-    const drv = isBavCashout(claim) ? null : drvPackClientFromClaim(claim);
+    // Only DRV refunds have a DRV pack; VBL and bAV cases bring their own
+    // package (L203 / Abfindung letters).
+    const drv =
+      resolveCaseType(claim) === 'drv_refund'
+        ? drvPackClientFromClaim(claim)
+        : null;
 
     const [correspondence, events, userInfo] = await Promise.all([
       this.listCorrespondence(claimId),
@@ -1155,6 +1160,29 @@ export class LawFirmService {
       if (!fresh?.pdfS3Key) return null;
       bytes = new Uint8Array(await downloadFile(fresh.pdfS3Key));
       manifest = { kind: 'bav_letter_package', sourceKey: fresh.pdfS3Key };
+    } else if (resolveCaseType(claim) !== 'drv_refund') {
+      // VBL refund: the firm gets the L203 package stored at submission
+      // (ClaimsApplicationService.dispatchSubmittedClaim), regenerated if
+      // it is missing. Not the DRV pack: it needs DRV data a VBL claim
+      // never collects.
+      let sourceKey = claim.pdfS3Key;
+      if (!sourceKey) {
+        const { ClaimPdfService } = await import('./claim-pdf');
+        try {
+          sourceKey = (
+            await ClaimPdfService.generateAndStoreForClaim(
+              claim.id,
+              claim.userId
+            )
+          ).pdfS3Key;
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : 'package generation failed';
+          throw new Error(`Invalid download: ${message}`);
+        }
+      }
+      bytes = new Uint8Array(await downloadFile(sourceKey));
+      manifest = { kind: 'vbl_claim_package', sourceKey };
     } else {
       const mapping = drvPackClientFromClaim(claim);
       if (!mapping.client) {
@@ -1549,6 +1577,14 @@ export class LawFirmService {
     if (!check.ok) throw new Error(`Invalid event: ${check.reason}`);
     if (input.event === 'submitted' && !input.date) {
       throw new Error('Invalid event: submission date is required');
+    }
+    // The pack is built and frozen at the firm's first download; a
+    // submission recorded before that has no pack on file matching what
+    // went to the provider.
+    if (input.event === 'submitted' && !claim.submissionPackS3Key) {
+      throw new Error(
+        'Invalid event: download the submission package before recording the submission'
+      );
     }
 
     const next = nextCaseState(current, input.event);

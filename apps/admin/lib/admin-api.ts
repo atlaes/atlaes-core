@@ -31,12 +31,14 @@ export interface EurAccountRequest {
 export type ClaimSubmissionHold =
   | 'awaiting_provider_data'
   | 'manual_submission_required'
-  | 'package_generation_failed';
+  | 'package_generation_failed'
+  | 'withdrawal_received';
 
 export const SUBMISSION_HOLD_LABELS: Record<ClaimSubmissionHold, string> = {
   awaiting_provider_data: 'Waiting for provider data',
   manual_submission_required: 'Manual submission required',
   package_generation_failed: 'Package generation failed',
+  withdrawal_received: 'Withdrawal (Widerruf) received',
 };
 
 export interface ClaimListItem {

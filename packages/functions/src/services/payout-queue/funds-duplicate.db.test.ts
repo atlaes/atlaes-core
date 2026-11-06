@@ -284,3 +284,105 @@ describe('payout-details review gate (pre-UAT P0 #4)', () => {
     expect(lines.map((l) => l.kind).sort()).toEqual(['atlaes', 'client']);
   });
 });
+
+describe('cancelling an unsigned release (pre-UAT P1)', () => {
+  it('cancels the release and its invoice, then lets the funds be recorded again', async () => {
+    const [client] = await db
+      .insert(users)
+      .values({
+        email: `test-funds-cancel-${tag}@example.com`,
+        emailVerified: true,
+      })
+      .returning();
+    userIds.push(client.id);
+    const [c] = await db
+      .insert(claimsTable)
+      .values({
+        userId: client.id,
+        caseType: 'drv_refund',
+        status: 'submitted',
+        firstName: 'Ravi',
+        lastName: `Kumar${tag}`,
+        handlingRoute: 'law_firm',
+        lawFirmId: DEFAULT_LAW_FIRM_ID,
+        lawFirmRef: '06154-26',
+      })
+      .returning();
+    try {
+      // Typo: 3083.49 instead of 3038.49.
+      const typo = await FundsService.recordFundsReceived({
+        claimId: c.id,
+        amountEur: 3083.49,
+        valueDate: '2026-09-18',
+        actorId: adminId,
+      });
+
+      const missingReason = await app.request(
+        `http://localhost/api/admin/payout/releases/${typo.payoutReleaseId}/cancel`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${adminToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        }
+      );
+      expect(missingReason.status).toBe(400);
+
+      const res = await app.request(
+        `http://localhost/api/admin/payout/releases/${typo.payoutReleaseId}/cancel`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${adminToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ reason: 'Amount typo' }),
+        }
+      );
+      expect(res.status).toBe(200);
+
+      const [release] = await db
+        .select({ status: payoutReleases.status })
+        .from(payoutReleases)
+        .where(eq(payoutReleases.id, typo.payoutReleaseId!));
+      expect(release.status).toBe('cancelled');
+      const invs = await db
+        .select({ kind: invoices.kind, status: invoices.status })
+        .from(invoices)
+        .where(eq(invoices.claimId, c.id));
+      expect(invs).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ kind: 'invoice', status: 'cancelled' }),
+          expect.objectContaining({ kind: 'cancellation' }),
+        ])
+      );
+
+      // The correct amount can now be recorded.
+      const fixed = await FundsService.recordFundsReceived({
+        claimId: c.id,
+        amountEur: 3038.49,
+        valueDate: '2026-09-18',
+        actorId: adminId,
+      });
+      expect(fixed.payoutReleaseId).not.toBe(typo.payoutReleaseId);
+
+      // A cancelled release cannot be cancelled again.
+      await expect(
+        PayoutFlowService.cancelRelease(
+          typo.payoutReleaseId!,
+          { reason: 'again' },
+          { id: adminId, email: 'admin@example.com' } as any
+        )
+      ).rejects.toMatchObject({ status: 409 });
+    } finally {
+      await db.delete(payoutEmailLog).where(eq(payoutEmailLog.claimId, c.id));
+      await db.delete(payoutTasks).where(eq(payoutTasks.claimId, c.id));
+      await db.delete(invoices).where(eq(invoices.claimId, c.id));
+      await db.delete(fundsReceipts).where(eq(fundsReceipts.claimId, c.id));
+      await db.delete(payoutReleases).where(eq(payoutReleases.claimId, c.id));
+      await db.delete(claimsTable).where(eq(claimsTable.id, c.id));
+    }
+  });
+});

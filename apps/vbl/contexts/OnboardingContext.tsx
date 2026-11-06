@@ -985,7 +985,8 @@ export function OnboardingProvider({
         case 'bank-details': {
           // bAV/private: the letters also need the BIC and the bank's name.
           const bavBankOk =
-            data.pensionType !== 'private' ||
+            (data.pensionType !== 'private' &&
+              !isStageProvider(data.membership.pensionProvider)) ||
             isBavBankComplete(data.bankDetails);
           // Own IBAN: just need IBAN
           if (data.bankDetails.accountOption === 'own_iban') {

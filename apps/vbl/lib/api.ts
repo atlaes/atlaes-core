@@ -59,8 +59,13 @@ apiClient.interceptors.response.use(
           // around the last onboarding step, the refresh silently corrupts
           // itself, and every later request (including the delete + re-enter
           // retry) inherits the broken token.
-          const { accessToken } = response.data.tokens;
+          const { accessToken, refreshToken: nextRefreshToken } =
+            response.data.tokens;
           localStorage.setItem('accessToken', accessToken);
+          // The refresh token rotates; keep the new one.
+          if (typeof nextRefreshToken === 'string' && nextRefreshToken) {
+            localStorage.setItem('refreshToken', nextRefreshToken);
+          }
 
           // Retry the original request with new token
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;

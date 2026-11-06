@@ -3,7 +3,7 @@
  * Read-only aggregation over claims and their workflow entries.
  */
 
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '../utils/db';
 import { claimsTable, claimWorkflowStates } from '../drizzle/schema/claims';
 import {
@@ -13,6 +13,7 @@ import {
   type ClaimCaseType,
 } from '../drizzle/schema/claims';
 import { users } from '../drizzle/schema/shared';
+import { PAID_UP_FRONT_CASE_TYPES } from './claims-application';
 
 export interface AttentionItem {
   id: string;
@@ -157,10 +158,12 @@ export class AdminOverviewService {
       )
       .orderBy(sql`${claimsTable.submittedAt} asc nulls last`)
       .limit(limit);
-    // Past draft but payment not through.
+    // Past draft but the up-front deposit not through. DRV refunds are
+    // fee-on-success and have no deposit, so they never belong here.
     const paymentIssues = await base()
       .where(
         and(
+          inArray(claimsTable.caseType, [...PAID_UP_FRONT_CASE_TYPES]),
           sql`${claimsTable.status} in ('ready', 'submitted', 'processing')`,
           sql`coalesce(${claimsTable.paymentStatus}, 'pending') in ('failed', 'pending')`
         )

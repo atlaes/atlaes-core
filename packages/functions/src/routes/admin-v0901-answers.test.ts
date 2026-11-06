@@ -196,6 +196,36 @@ describe('admin V0901 answers', () => {
     expect(res.status).toBe(409);
   });
 
+  it('direct route: editable while the pack is only previewed, frozen once released', async () => {
+    const previewed = await makeClaim(ownerId, {
+      handlingRoute: 'direct',
+      submissionPackS3Key: 'claims/x/submission-pack.pdf',
+      submissionPackGeneratedAt: new Date(),
+    });
+    const get: Json = await (
+      await call('GET', answersPath(previewed.id), adminToken)
+    ).json();
+    expect(get.frozen).toBe(false);
+    expect(
+      (
+        await call('PUT', answersPath(previewed.id), adminToken, {
+          foreignContributions: true,
+        })
+      ).status
+    ).toBe(200);
+
+    const released = await makeClaim(ownerId, {
+      handlingRoute: 'direct',
+      submissionPackS3Key: 'claims/x/submission-pack.pdf',
+      submissionPackGeneratedAt: new Date(),
+      directPackReleasedAt: new Date(),
+    });
+    const res = await call('PUT', answersPath(released.id), adminToken, {
+      foreignContributions: true,
+    });
+    expect(res.status).toBe(409);
+  });
+
   it('refuses cases without a V0901 (bAV)', async () => {
     const claim = await makeClaim(ownerId, { caseType: 'bav_cashout' });
     const get: Json = await (

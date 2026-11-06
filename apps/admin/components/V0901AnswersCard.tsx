@@ -55,8 +55,10 @@ export function V0901AnswersCard({
     <div>
       <p className="mb-3 text-xs text-gray-500">
         {s.frozen
-          ? `The submission pack was generated${s.packGeneratedAt ? ` on ${formatDate(s.packGeneratedAt, true)}` : ''} and is frozen, so these answers can no longer change.`
-          : 'Fixed answers from the annotated form unless changed here. Changes apply when the law firm downloads the pack; details for a "Ja" answer are completed by the lawyer.'}
+          ? 'The submission pack is frozen (downloaded by the law firm or released for dispatch), so these answers can no longer change.'
+          : s.packGeneratedAt
+            ? `A pack was generated on ${formatDate(s.packGeneratedAt, true)}. Changes here reach it only after you regenerate it on the Direct submission card.`
+            : 'Fixed answers from the annotated form unless changed here. Changes apply when the pack is built; details for a "Ja" answer are completed by the lawyer.'}
       </p>
       <ul className="divide-y divide-gray-100">
         {s.questions.map((question) => {

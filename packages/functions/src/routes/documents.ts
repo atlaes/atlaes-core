@@ -87,8 +87,8 @@ documentsRouter.post('/upload', authMiddleware, async (c) => {
     if (documentType === 'passport') {
       logger.info('Triggering passport OCR...');
       ocrResult = await extractPassportData(fileBuffer, file.name, file.type);
-      if (!ocrResult.success) {
-        logger.warn('Passport OCR failed:', ocrResult.error);
+      if (!ocrResult.success && ocrResult.reason === 'not_identity_document') {
+        logger.warn('Passport OCR rejected the file:', ocrResult.error);
         return c.json(
           {
             success: false,
@@ -98,7 +98,15 @@ documentsRouter.post('/upload', authMiddleware, async (c) => {
           400
         );
       }
-      logger.info('Passport OCR completed successfully');
+      if (!ocrResult.success) {
+        // OCR is down or failed on its own side. Keep the file so the client
+        // can type the details by hand instead of being stuck on this step.
+        logger.warn('Passport OCR unavailable, saving without data:', {
+          error: ocrResult.error,
+        });
+      } else {
+        logger.info('Passport OCR completed successfully');
+      }
     }
 
     // Generate a unique S3 key (in production, this would upload to S3)
@@ -137,7 +145,11 @@ documentsRouter.post('/upload', authMiddleware, async (c) => {
         createdAt: document.createdAt,
       },
       ocr: ocrResult?.success ? ocrResult.data : null,
-      ocrError: ocrResult && !ocrResult.success ? ocrResult.error : undefined,
+      // Client-facing: the provider's raw message stays in the logs.
+      ocrError:
+        ocrResult && !ocrResult.success
+          ? 'We could not read your document automatically. Please enter the details yourself.'
+          : undefined,
     });
   } catch (error) {
     logger.error('Document upload error:', error);
@@ -219,15 +231,56 @@ documentsRouter.delete('/:id', authMiddleware, async (c) => {
       );
     }
 
-    // Delete from S3
-    if (doc.s3Key) {
-      await deleteFile(doc.s3Key);
+    // Ops-generated files (letters, payout statements, correspondence,
+    // extras) are stored under the client's userId too, but under
+    // claims/... keys. Clients may delete only what they uploaded here.
+    if (!doc.s3Key?.startsWith(`documents/${user.id}/`)) {
+      return c.json(
+        {
+          success: false,
+          error: 'This document cannot be deleted.',
+        },
+        403
+      );
     }
 
-    // Delete from database
-    await db
-      .delete(documents)
-      .where(and(eq(documents.id, documentId), eq(documents.userId, user.id)));
+    // Database first: a document still attached to a claim (or used as
+    // correspondence, a signature source, ...) is protected by a foreign
+    // key. Deleting the S3 object first left such claims pointing at a
+    // file that no longer exists.
+    try {
+      await db
+        .delete(documents)
+        .where(
+          and(eq(documents.id, documentId), eq(documents.userId, user.id))
+        );
+    } catch (error) {
+      const code = (error as { code?: string; cause?: { code?: string } })
+        ?.code ?? (error as { cause?: { code?: string } })?.cause?.code;
+      if (code === '23503') {
+        return c.json(
+          {
+            success: false,
+            error:
+              'This document is attached to a claim and cannot be deleted. Replace it in the claim instead.',
+          },
+          409
+        );
+      }
+      throw error;
+    }
+
+    if (doc.s3Key) {
+      try {
+        await deleteFile(doc.s3Key);
+      } catch (error) {
+        // The record is gone; an orphaned object is harmless.
+        logger.warn('Deleted document record but S3 delete failed', {
+          documentId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
 
     logger.info(`Document deleted: ${documentId} by user ${user.id}`);
 

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { ArrowRight, CreditCard, Info, User } from 'lucide-react';
 import {
   BankAccountOption,
+  isStageProvider,
   isValidBic,
   normalizeBic,
   useOnboarding,
@@ -17,7 +18,15 @@ import {
 const isValidIbanFormat = (raw: string): boolean => {
   const iban = raw.replace(/\s+/g, '').toUpperCase();
   if (iban.length < 15 || iban.length > 34) return false;
-  return /^[A-Z]{2}\d{2}[A-Z0-9]+$/.test(iban);
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]+$/.test(iban)) return false;
+  // ISO 7064 mod-97 check digits: catches a typo before the letter is sent.
+  const rearranged = iban.slice(4) + iban.slice(0, 4);
+  let remainder = 0;
+  for (const ch of rearranged) {
+    const digits = /\d/.test(ch) ? ch : String(ch.charCodeAt(0) - 55);
+    for (const d of digits) remainder = (remainder * 10 + Number(d)) % 97;
+  }
+  return remainder === 1;
 };
 
 interface BankDetailsProps {
@@ -106,12 +115,32 @@ export const BankDetails: React.FC<BankDetailsProps> = ({
 
   // bAV/private: the Abfindung letters and the provider's payout need the
   // BIC and the bank's name as well (backend: validateBavClientIntake).
+  // VddB/VddKO: the direct provider form needs the bank name (and BIC,
+  // field 25), so they collect both too.
   const isPrivatePensionType = data.pensionType === 'private';
+  const needsBankNameAndBic =
+    isPrivatePensionType ||
+    isStageProvider(data.membership.pensionProvider);
+  // A bAV cash-out is paid by the provider straight into the account named
+  // in the letter, and the letter goes out at submission: there is no step
+  // that adds an account later, so "open a EUR account" cannot work there.
+  const destinationOptions = isPrivatePensionType
+    ? DESTINATION_OPTIONS.filter((o) => o.value !== 'open_free_account')
+    : DESTINATION_OPTIONS;
+  useEffect(() => {
+    if (
+      isPrivatePensionType &&
+      data.bankDetails.accountOption === 'open_free_account'
+    ) {
+      updateBankDetails({ accountOption: 'own_iban' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPrivatePensionType, data.bankDetails.accountOption]);
   const bicIsValid = isValidBic(data.bankDetails.swiftBic);
   const bicShowsError =
     normalizeBic(data.bankDetails.swiftBic).length >= 8 && !bicIsValid;
   const bavBankOk =
-    !isPrivatePensionType ||
+    !needsBankNameAndBic ||
     (bicIsValid && data.bankDetails.bankName.trim() !== '');
 
   const canContinueOwn =
@@ -173,7 +202,7 @@ export const BankDetails: React.FC<BankDetailsProps> = ({
     ) : null;
 
   const renderBavBankFields = () =>
-    isPrivatePensionType ? (
+    needsBankNameAndBic ? (
       <>
         <div className="mb-4">
           <label
@@ -501,7 +530,7 @@ export const BankDetails: React.FC<BankDetailsProps> = ({
       </p>
 
       <div className="mb-8 grid gap-4">
-        {DESTINATION_OPTIONS.map((option) => {
+        {destinationOptions.map((option) => {
           const isSelected = data.bankDetails.accountOption === option.value;
 
           return (

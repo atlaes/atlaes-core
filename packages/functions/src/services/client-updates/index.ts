@@ -91,8 +91,10 @@ export function accountUrl(): string {
   return `${base}/account`;
 }
 
+// The admin has no client-updates screen yet; links go to pages that
+// exist (the claim page, the home dashboard) instead of a 404.
 export function adminCaseUrl(claimId: string): string {
-  return `${env.ADMIN_URL.replace(/\/$/, '')}/claims/${claimId}/client-updates`;
+  return `${env.ADMIN_URL.replace(/\/$/, '')}/claims/${claimId}`;
 }
 
 function isoFromDate(d: Date | string | null | undefined): IsoDate | null {
@@ -1466,7 +1468,7 @@ export class ClientUpdatesService {
         detailLines: warnings.map(
           (w) => `${w.claimant}: ${w.kind.replace(/_/g, ' ')} — ${w.detail}`
         ),
-        claimUrl: `${env.ADMIN_URL.replace(/\/$/, '')}/client-updates`,
+        claimUrl: `${env.ADMIN_URL.replace(/\/$/, '')}/home`,
       }).catch(() => false);
     }
 

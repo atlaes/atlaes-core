@@ -70,6 +70,8 @@ export interface TokenPayload {
   exp?: number;
 }
 
+export const REFRESH_TOKEN_TYPE = 'refresh';
+
 export class AuthService {
   private static readonly SALT_ROUNDS = 12;
   private static readonly ACCESS_TOKEN_EXPIRY = '15m';
@@ -119,8 +121,12 @@ export class AuthService {
         ...payload,
       };
 
+      // `type: 'refresh'` keeps the two apart: the auth middleware refuses
+      // any typed token as a session, and /auth/refresh accepts only this
+      // type, so neither token can stand in for the other.
       const refreshTokenPayload = {
         ...payload,
+        type: REFRESH_TOKEN_TYPE,
       };
 
       const accessToken = jwt.sign(
@@ -170,6 +176,9 @@ export class AuthService {
   static refreshAccessToken(refreshToken: string): string {
     try {
       const payload = this.verifyToken(refreshToken);
+      if ((payload as { type?: unknown }).type !== REFRESH_TOKEN_TYPE) {
+        throw new Error('Not a refresh token');
+      }
 
       // Create payload without exp - let jwt.sign handle expiry via expiresIn option
       const newAccessTokenPayload = {
@@ -193,18 +202,30 @@ export class AuthService {
   }
 
   /**
-   * Generate new tokens from a refresh token
+   * Generate new tokens from a refresh token. `current` carries the stored
+   * role and verification state, which win over what the old token says.
    */
-  static refreshTokens(refreshToken: string): AuthTokens {
+  static refreshTokens(
+    refreshToken: string,
+    current?: { role?: string | null; emailVerified?: boolean | null }
+  ): AuthTokens {
     try {
       const payload = this.verifyToken(refreshToken);
+      if ((payload as { type?: unknown }).type !== REFRESH_TOKEN_TYPE) {
+        throw new Error('Not a refresh token');
+      }
+      const role = current?.role || payload.role || 'user';
+      const emailVerified =
+        typeof current?.emailVerified === 'boolean'
+          ? current.emailVerified
+          : payload.emailVerified;
 
       // Create payloads without exp - let jwt.sign handle expiry via expiresIn option
       const newAccessTokenPayload = {
         userId: payload.userId,
         email: payload.email,
-        emailVerified: payload.emailVerified,
-        role: payload.role || 'user',
+        emailVerified,
+        role,
         ...(typeof payload.mfa === 'number' ? { mfa: payload.mfa } : {}),
       };
 
@@ -213,11 +234,8 @@ export class AuthService {
       });
 
       const refreshTokenPayload = {
-        userId: payload.userId,
-        email: payload.email,
-        emailVerified: payload.emailVerified,
-        role: payload.role || 'user',
-        ...(typeof payload.mfa === 'number' ? { mfa: payload.mfa } : {}),
+        ...newAccessTokenPayload,
+        type: REFRESH_TOKEN_TYPE,
       };
 
       const newRefreshToken = jwt.sign(refreshTokenPayload, getJwtSecret(), {

@@ -8,7 +8,10 @@ import { users, profiles } from '../drizzle/schema/shared';
 import { claimsTable } from '../drizzle/schema/claims';
 import withdrawals from './withdrawals';
 import { AuthService } from '../utils/auth';
-import { WITHDRAWAL_NOT_FOUND_MESSAGE } from '../services/contract-withdrawal';
+import {
+  WITHDRAWAL_NOT_FOUND_MESSAGE,
+  withdrawalWindow,
+} from '../services/contract-withdrawal';
 
 // Focused tests for the contract-withdrawal endpoints
 // (POST /api/withdrawals/identify and /confirm). Self-contained harness
@@ -256,9 +259,11 @@ describe('Contract withdrawal endpoints', () => {
 
     // The submitted pension application is NOT cancelled/reversed.
     const claim = await testClient`
-      SELECT status FROM claims.claims WHERE id = ${claimId}::uuid
+      SELECT status, submission_hold FROM claims.claims WHERE id = ${claimId}::uuid
     `;
     expect(claim[0].status).toBe('submitted');
+    // Ops see it: the claim is put on the withdrawal hold.
+    expect(claim[0].submission_hold).toBe('withdrawal_received');
   });
 
   it('confirm (authenticated owner) skips the name/email re-check', async () => {
@@ -359,5 +364,21 @@ describe('Contract withdrawal endpoints', () => {
     expect(res.status).toBe(404);
     const data = await res.json();
     expect(data.error).toBe(WITHDRAWAL_NOT_FOUND_MESSAGE);
+  });
+});
+
+describe('withdrawalWindow', () => {
+  it('counts days from the contract date against 14', () => {
+    const contract = new Date('2026-11-01T10:00:00Z');
+    expect(
+      withdrawalWindow(contract, new Date('2026-11-15T09:00:00Z'))
+    ).toEqual({ days: 13, withinWindow: true });
+    expect(
+      withdrawalWindow(contract, new Date('2026-11-20T09:00:00Z'))
+    ).toEqual({ days: 18, withinWindow: false });
+    expect(withdrawalWindow(null, new Date())).toEqual({
+      days: null,
+      withinWindow: null,
+    });
   });
 });

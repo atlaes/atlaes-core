@@ -148,8 +148,11 @@ const applicationUpdateSchema = z.object({
 // hence the tight per-address cap on top of the size and MIME checks below.
 const extractPensionDocumentLimiter = rateLimiter({
   windowMs: 60 * 60 * 1000,
-  max: 15,
-  message: 'Too many document uploads. Please try again in an hour.',
+  // 15 tripped for a team testing from one office network; 40 still caps
+  // the paid OCR runs per address.
+  max: 40,
+  message:
+    'Too many document uploads. Please try again in an hour, or enter the details manually.',
 });
 
 vbl.post('/extract-pension-document', extractPensionDocumentLimiter, async (c) => {
