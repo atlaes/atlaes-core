@@ -77,6 +77,15 @@ interface ReviewInformationProps {
   claimId: string;
 }
 
+function formatContributionTime(total: number): string {
+  const y = Math.floor(total / 12);
+  const m = total % 12;
+  const parts = [];
+  if (y) parts.push(`${y} year${y === 1 ? '' : 's'}`);
+  if (m) parts.push(`${m} month${m === 1 ? '' : 's'}`);
+  return parts.join(' ') || '0 months';
+}
+
 export default function ReviewInformation({ claimId }: ReviewInformationProps) {
   const { data: claim } = useClaimQuery(claimId);
   const { data: documents } = useClaimDocumentsQuery(claimId);
@@ -285,9 +294,19 @@ export default function ReviewInformation({ claimId }: ReviewInformationProps) {
           isExpanded={expandedSections.has('insurance')}
           onToggle={() => toggleSection('insurance')}
           onEdit={() => handleEdit('germanSocialInsurance')}
-          isComplete={true} // Optional step
+          isComplete={!!claim?.germanContributionMonths}
         >
           <div className="claims-review-grid">
+            <div className="claims-review-item">
+              <span className="claims-review-label">
+                German contribution time
+              </span>
+              <span className="claims-review-value">
+                {claim?.germanContributionMonths
+                  ? formatContributionTime(claim.germanContributionMonths)
+                  : 'Missing'}
+              </span>
+            </div>
             <div className="claims-review-item">
               <span className="claims-review-label">SV-Nummer</span>
               <span className="claims-review-value">

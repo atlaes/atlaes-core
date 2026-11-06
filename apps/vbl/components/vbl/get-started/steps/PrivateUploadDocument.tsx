@@ -424,11 +424,12 @@ export const PrivateUploadDocument: React.FC = () => {
             <input
               aria-label="Pension value"
               type="text"
-              inputMode="numeric"
+              inputMode="decimal"
               value={form.statementAmount}
+              // Keep the decimal comma: "41,20" must stay 41.20 EUR.
               onChange={(event) =>
                 updateForm({
-                  statementAmount: event.target.value.replace(/[^\d]/g, ''),
+                  statementAmount: event.target.value.replace(/[^\d.,]/g, ''),
                 })
               }
               placeholder="Pension value"

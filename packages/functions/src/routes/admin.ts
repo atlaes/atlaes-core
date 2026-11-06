@@ -21,6 +21,11 @@ import {
   V0901AnswersService,
 } from '../services/v0901-answers-admin';
 import { v0901AnswersSchema } from '../services/drv-pack/v0901-answers';
+import {
+  DrvPackDataError,
+  DrvPackDataService,
+  drvPackDataSchema,
+} from '../services/drv-pack-data-admin';
 import { LAW_FIRM_MEMBER_ROLES } from '../drizzle/schema/shared';
 
 const admin = new Hono();
@@ -613,7 +618,55 @@ admin.put('/claims/:id/v0901-answers', validateUuidParams('id'), async (c) => {
   }
 });
 
-// Ops close a submission hold handled outside the system (a VddB/VddKO
+// DRV pack data ops complete on a GPR case (VSNR, sex, contribution
+// months, move-out date, last German address) until the pack is frozen.
+admin.get('/claims/:id/drv-pack-data', validateUuidParams('id'), async (c) => {
+  try {
+    return c.json({
+      success: true,
+      ...(await DrvPackDataService.get(c.req.param('id') as string)),
+    });
+  } catch (error) {
+    if (error instanceof DrvPackDataError) {
+      return c.json({ success: false, error: error.message }, error.status);
+    }
+    logger.error('Admin DRV pack data error', toErrorMeta(error));
+    return c.json({ success: false, error: 'Failed to load pack data' }, 500);
+  }
+});
+
+admin.put('/claims/:id/drv-pack-data', validateUuidParams('id'), async (c) => {
+  try {
+    const parsed = await parseJsonBody(c, drvPackDataSchema);
+    if (!parsed.success) {
+      return c.json(
+        {
+          success: false,
+          error:
+            parsed.error.issues[0]?.message ?? 'Invalid DRV pack data',
+          details: parsed.error.flatten(),
+        },
+        400
+      );
+    }
+    return c.json({
+      success: true,
+      ...(await DrvPackDataService.update(
+        c.req.param('id') as string,
+        c.get('user').id,
+        parsed.data
+      )),
+    });
+  } catch (error) {
+    if (error instanceof DrvPackDataError) {
+      return c.json({ success: false, error: error.message }, error.status);
+    }
+    logger.error('Admin DRV pack data update error', toErrorMeta(error));
+    return c.json({ success: false, error: 'Failed to save pack data' }, 500);
+  }
+});
+
+ (a VddB/VddKO
 // claim submitted by hand, a package problem solved otherwise).
 const resolveHoldSchema = z.object({
   note: z.string().trim().min(1).max(1000),

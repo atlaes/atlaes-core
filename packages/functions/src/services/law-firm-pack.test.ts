@@ -39,6 +39,18 @@ describe('countryIso', () => {
     expect(countryIso('India')).toBe('IN');
     expect(countryIso('South Korea')).toBe('KR');
     expect(countryIso('Atlantis')).toBeNull();
+    // What the passport OCR returns as the nationality (pre-UAT audit).
+    expect(countryIso('PHL')).toBe('PH');
+    expect(countryIso('IND')).toBe('IN');
+    expect(countryIso('D')).toBe('DE');
+    expect(countryIso('Indian')).toBe('IN');
+    expect(countryIso('FILIPINO')).toBe('PH');
+    expect(countryIso('Brazilian')).toBe('BR');
+    expect(countryIso('Republic of the Philippines')).toBe('PH');
+    expect(countryIso("People's Republic of China")).toBe('CN');
+    expect(countryIso('Vietnam')).toBe('VN');
+    expect(countryIso('Sri Lanka')).toBe('LK');
+    expect(countryIso('UK')).toBe('GB');
     expect(countryIso(null)).toBeNull();
   });
 });

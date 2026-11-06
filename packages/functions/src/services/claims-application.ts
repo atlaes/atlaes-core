@@ -189,6 +189,8 @@ export interface ClaimData
     ClaimBavDetails,
     ClaimBankDetails {
   svNummer?: string;
+  /** DRV refund: months of German pension contributions (V0901 pack). */
+  germanContributionMonths?: number;
   pensionProvider?: string;
   stageDetails?: StageDetails;
   certifyingAuthority?: CertifyingAuthority;
@@ -229,6 +231,8 @@ export interface Claim {
 
   // German Social Insurance / membership or insurance number
   svNummer: string | null;
+  /** DRV refund: months of German contributions the client stated. */
+  germanContributionMonths: number | null;
   // Public-sector institution (VBL, ZVK, VddB, VddKO, …) and the VddB/
   // VddKO stage answers (migration 0023)
   pensionProvider: string | null;
@@ -445,6 +449,7 @@ function mapRowToClaim(row: any): Claim {
     currentPostalCode: row.currentPostalCode,
     currentCountry: row.currentCountry,
     svNummer: row.svNummer,
+    germanContributionMonths: row.germanContributionMonths ?? null,
     pensionProvider: row.pensionProvider ?? null,
     stageDetails: (row.stageDetails ?? null) as StageDetails | null,
     germanStreet: row.germanStreet,
@@ -600,6 +605,33 @@ function assertDraft(claim: Pick<Claim, 'status'>): void {
   }
 }
 
+/**
+ * The GPR wizard saves the SV number and the passport gender under the
+ * intake names (sv_nummer, gender); the DRV pack (V0901/A1310/A1002), the
+ * letter matching and the payout statement import read claims.vsnr and
+ * claims.sex. Write both so a submitted claim can produce its pack.
+ */
+const GENDER_TO_SEX: Record<string, string> = {
+  male: 'male',
+  female: 'female',
+  // V0901 "divers"; ops can change it to "ohne Angabe" if the client asks.
+  other: 'diverse',
+};
+
+export function drvPackPatch(
+  data: Partial<ClaimData>
+): { vsnr?: string | null; sex?: string | null } {
+  const patch: { vsnr?: string | null; sex?: string | null } = {};
+  if (data.svNummer !== undefined) {
+    const compact = data.svNummer.replace(/\s+/g, '').toUpperCase();
+    patch.vsnr = compact && compact.length <= 20 ? compact : null;
+  }
+  if (data.gender !== undefined) {
+    patch.sex = GENDER_TO_SEX[data.gender] ?? null;
+  }
+  return patch;
+}
+
 export class ClaimsApplicationService {
   /**
    * Create a new claim for a user. `caseType` defaults from the
@@ -749,6 +781,7 @@ export class ClaimsApplicationService {
         .set({
           ...data,
           ...caseTypePatch,
+          ...(existing.caseType === 'drv_refund' ? drvPackPatch(data) : {}),
           updatedAt: new Date(),
         })
         .where(and(eq(claimsTable.id, claimId), eq(claimsTable.userId, userId)))
@@ -1303,6 +1336,11 @@ export class ClaimsApplicationService {
         if (!claim.bankName) errors.push('Bank name is required');
         if (!claim.iban?.trim() && !claim.accountNumber?.trim())
           errors.push('IBAN or account number is required');
+        if (
+          claim.germanContributionMonths === null ||
+          claim.germanContributionMonths === undefined
+        )
+          errors.push('German contribution months are required');
         if (!claim.confirmationAccuracyAccepted)
           errors.push('Accuracy confirmation is required');
         if (!claim.confirmationAuthorizationAccepted)

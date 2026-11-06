@@ -262,7 +262,7 @@ export async function listBlogPosts(
   const params: Record<string, string> = {};
   if (filters.site) params.site = filters.site;
   if (filters.status) params.status = filters.status;
-  const { data } = await apiClient.get(`${BASE}/`, { params });
+  const { data } = await apiClient.get(BASE, { params });
   return data.posts;
 }
 
@@ -274,7 +274,7 @@ export async function getBlogPost(id: string): Promise<BlogPostResult> {
 export async function createBlogPost(
   input: BlogPostInput
 ): Promise<BlogPostResult> {
-  const { data } = await apiClient.post(`${BASE}/`, input);
+  const { data } = await apiClient.post(BASE, input);
   return { post: data.post, seo: data.seo, preview: data.preview };
 }
 

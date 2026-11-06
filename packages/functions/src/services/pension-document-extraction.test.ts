@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   extractPensionDocumentDetails,
   PensionDocumentExtractionConfigError,
+  normalizeEuroAmount,
 } from './pension-document-extraction';
 
 const originalFetch = global.fetch;
@@ -117,7 +118,8 @@ describe('pension document extraction', () => {
       provider: 'BVV',
       statePensionRefundReceived: 'yes',
       bavStatementValueType: 'monthly_pension',
-      bavStatementAmount: '8750',
+      // "87,50 EUR" keeps its cents (was 8750).
+      bavStatementAmount: '87.50',
     });
     expect(result.missingFields).toEqual([]);
     expect(result.rawText).toContain('BVV Statement');
@@ -133,5 +135,23 @@ describe('pension document extraction', () => {
         apiKey: '',
       })
     ).rejects.toBeInstanceOf(PensionDocumentExtractionConfigError);
+  });
+});
+
+describe('normalizeEuroAmount', () => {
+  it.each([
+    ['41,20 €', '41.20'],
+    ['87,50 EUR', '87.50'],
+    ['12.400,00', '12400.00'],
+    ['12.400', '12400.00'],
+    ['1,234.50', '1234.50'],
+    ['4120', '4120.00'],
+    ['45,5', '45.50'],
+    [41.2, '41.20'],
+    ['', null],
+    [null, null],
+    ['0,00', null],
+  ])('%s -> %s', (input, expected) => {
+    expect(normalizeEuroAmount(input)).toBe(expected);
   });
 });

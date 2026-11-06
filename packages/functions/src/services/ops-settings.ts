@@ -106,14 +106,30 @@ export type PayoutReviewsSetting = z.output<typeof payoutReviewsSettingSchema>;
 export const DEFAULT_PAYOUT_TIMERS: PayoutTimersSetting =
   payoutTimersSettingSchema.parse({});
 
-/** Owner spec: the GPR BCC; CompanyPension review destinations follow. */
-export const DEFAULT_PAYOUT_REVIEWS: PayoutReviewsSetting = {
-  gpr: {
-    links: [],
-    trustpilotBcc: 'germanypensionrefund.com+4500ec0d02@invite.trustpilot.com',
-  },
-  bav: { links: [], trustpilotBcc: null },
-};
+/** The live GPR Trustpilot invitation address (owner spec). */
+export const GPR_TRUSTPILOT_BCC =
+  'germanypensionrefund.com+4500ec0d02@invite.trustpilot.com';
+
+/**
+ * Owner spec: the GPR BCC; CompanyPension review destinations follow.
+ * Only production defaults to the live Trustpilot address: on staging and
+ * locally every BCC would send a real invitation for a test case, so there
+ * the default is none (ops can still save one in Settings).
+ */
+export function defaultPayoutReviews(
+  stage: string | undefined = process.env.APP_STAGE
+): PayoutReviewsSetting {
+  return {
+    gpr: {
+      links: [],
+      trustpilotBcc: stage === 'production' ? GPR_TRUSTPILOT_BCC : null,
+    },
+    bav: { links: [], trustpilotBcc: null },
+  };
+}
+
+export const DEFAULT_PAYOUT_REVIEWS: PayoutReviewsSetting =
+  defaultPayoutReviews();
 
 export const DEFAULT_POSTAL_AGENT: PostalAgent = {
   salutation: 'Frau',

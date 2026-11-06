@@ -102,6 +102,9 @@ const updateClaimSchema = z.object({
 
   // German Social Insurance / VBL, ZVK, VddB or VddKO membership number
   svNummer: z.string().max(50).optional(),
+  // DRV refund: total months of German pension contributions (V0901 pack:
+  // decides the Willenserklärung for non-agreement states at 60 months).
+  germanContributionMonths: z.number().int().min(1).max(600).optional(),
 
   // Public-sector institution (VBL, a ZVK, KVBW, VddB, VddKO) and the
   // VddB/VddKO stage employment answers
