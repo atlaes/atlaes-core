@@ -37,7 +37,9 @@ concurrency:
 
 jobs:
   e2e:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04 (2026-11), which Playwright 1.58
+    # can't install Chromium on. Move up together with a Playwright upgrade.
+    runs-on: ubuntu-24.04
     environment: staging
     timeout-minutes: 45
     permissions:
