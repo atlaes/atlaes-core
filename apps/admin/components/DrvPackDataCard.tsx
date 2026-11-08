@@ -60,6 +60,23 @@ function toValues(f: Form): Partial<DrvPackDataValues> {
 }
 
 /**
+ * Only the fields ops changed: the backend validates every field it gets,
+ * so re-sending an untouched value the wizard stored in an older format
+ * (e.g. a VSNR with dashes) would refuse the whole save.
+ */
+function changedValues(f: Form, initial: Form): Partial<DrvPackDataValues> {
+  const next = toValues(f);
+  const before = toValues(initial);
+  const out: Partial<DrvPackDataValues> = {};
+  for (const k of Object.keys(next) as (keyof DrvPackDataValues)[]) {
+    if (JSON.stringify(next[k]) !== JSON.stringify(before[k])) {
+      (out as Record<string, unknown>)[k] = next[k];
+    }
+  }
+  return out;
+}
+
+/**
  * DRV pack data (VSNR, sex, contribution months, move-out date, last German
  * address) for a GPR case. Shows what the pack builder still misses and
  * lets ops complete it, e.g. when the client skipped the optional SV
@@ -114,7 +131,7 @@ export function DrvPackDataCard({
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        save.mutate(toValues(form));
+        save.mutate(changedValues(form, toForm(s.values)));
       }}
     >
       {s.missing.length > 0 ? (

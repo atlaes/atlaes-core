@@ -428,6 +428,18 @@ export function findDuplicateRelease(
   return null;
 }
 
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, v) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(
+          Object.entries(v as Record<string, unknown>).sort(([a], [b]) =>
+            a < b ? -1 : a > b ? 1 : 0
+          )
+        )
+      : v
+  );
+}
+
 export class PayoutFlowService {
   // ---------------- lookups ----------------
 
@@ -454,9 +466,7 @@ export class PayoutFlowService {
       .where(eq(claimsTable.userId, userId))
       .orderBy(desc(claimsTable.updatedAt));
     const submitted = rows.filter((r) => r.status !== 'draft');
-    const drv = submitted.filter(
-      (r) => resolveCaseType(r) === 'drv_refund'
-    );
+    const drv = submitted.filter((r) => resolveCaseType(r) === 'drv_refund');
     let row: ClaimRow | undefined = drv[0];
     if (drv.length > 1) {
       const withDecision = await db
@@ -1275,7 +1285,8 @@ export class PayoutFlowService {
     actor: Actor
   ): Promise<void> {
     const reason = input.reason.trim();
-    if (!reason) throw new PayoutFlowError('Give a reason for the cancellation');
+    if (!reason)
+      throw new PayoutFlowError('Give a reason for the cancellation');
     const [r] = await db
       .select()
       .from(payoutReleases)
@@ -1642,8 +1653,17 @@ export class PayoutFlowService {
       }
     );
     const prevReasons = (release.reviewReasons ?? []) as PayoutReviewReason[];
+    // jsonb does not keep key order: compare with sorted keys.
     const changedFromLastSave =
-      JSON.stringify(release.account ?? null) !== JSON.stringify(account);
+      canonicalJson(release.account ?? null) !== canonicalJson(account);
+    // ATLAES's review clearance covers the account it was given for: saving
+    // the same account again keeps it, a different account needs a new
+    // review (otherwise the stale clearance hides "Mark details reviewed"
+    // while the claim flag holds the payout queue, or lets an unreviewed
+    // account through).
+    const keepClearance =
+      !changedFromLastSave && release.reviewClearedAt !== null;
+    const needsReview = reasons.length > 0 && !keepClearance;
     const [updated] = await db
       .update(payoutReleases)
       .set({
@@ -1652,16 +1672,27 @@ export class PayoutFlowService {
         // EUR → SEPA without a choice; otherwise the route step decides.
         route: currency === 'EUR' ? 'A' : null,
         routeChoice: null,
-        reviewRequired: reasons.length > 0,
+        reviewRequired: needsReview,
         reviewReasons: reasons,
+        reviewClearedAt: keepClearance ? release.reviewClearedAt : null,
+        reviewClearedBy: keepClearance ? release.reviewClearedBy : null,
         updatedAt: new Date(),
       })
       .where(eq(payoutReleases.id, releaseId))
       .returning();
+    // The claim flag covers every live release of the case (as in
+    // clearReview), not just this one.
+    const othersPending = (await this.releases(claim.id)).some(
+      (x) =>
+        x.id !== releaseId &&
+        x.status !== 'cancelled' &&
+        x.reviewRequired &&
+        !x.reviewClearedAt
+    );
     await db
       .update(claimsTable)
       .set({
-        payoutDetailsReviewRequired: reasons.length > 0,
+        payoutDetailsReviewRequired: needsReview || othersPending,
         updatedAt: new Date(),
       })
       .where(eq(claimsTable.id, claim.id));

@@ -247,8 +247,51 @@ describe('delayed payment methods (SEPA Direct Debit, ...)', () => {
       event('checkout.session.async_payment_failed', 'unpaid')
     );
     expect(mocks.updateSet).toHaveBeenCalledWith(
-      expect.objectContaining({ paymentStatus: 'failed' })
+      expect.objectContaining({
+        paymentStatus: 'failed',
+        stripePaymentId: 'pi_sepa',
+      })
     );
+  });
+
+  it('lets the client pay again after the delayed payment failed', async () => {
+    // Stripe keeps the failed session at complete/unpaid.
+    mocks.claimRows[0] = {
+      id: claimId,
+      userId,
+      paymentStatus: 'failed',
+      stripePaymentId: 'pi_sepa',
+    };
+    listBy({ complete: [session('unpaid')] });
+    mocks.sessionsCreate.mockResolvedValue({
+      id: 'cs_retry',
+      url: 'https://checkout.stripe.com/retry',
+    });
+
+    const result = await PaymentService.createCheckoutSession(checkout);
+
+    expect(result).toEqual({
+      url: 'https://checkout.stripe.com/retry',
+      sessionId: 'cs_retry',
+      reused: false,
+    });
+    expect(mocks.updateSet).not.toHaveBeenCalledWith(
+      expect.objectContaining({ paymentStatus: 'processing' })
+    );
+  });
+
+  it('still refuses a second Checkout when a newer delayed payment is pending', async () => {
+    mocks.claimRows[0] = {
+      id: claimId,
+      userId,
+      paymentStatus: 'failed',
+      stripePaymentId: 'pi_old',
+    };
+    listBy({ complete: [session('unpaid')] });
+    await expect(
+      PaymentService.createCheckoutSession(checkout)
+    ).rejects.toThrow(PAYMENT_PROCESSING_MESSAGE);
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
   });
 
   it('never touches a paid claim', async () => {

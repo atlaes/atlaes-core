@@ -544,6 +544,9 @@ export function drvPackClientFromClaim(c: DrvClaimFields): DrvPackMapping {
   need('last name', c.lastName);
   need('date of birth', c.dateOfBirth);
   need('insurance number (VSNR)', c.vsnr);
+  // Rows filled before the wizard checked the format (migration 0037).
+  if (c.vsnr && !/^\d{8}[A-Z]\d{3}$/.test(c.vsnr.replace(/\s+/g, '')))
+    missing.push('insurance number (VSNR) in the format 12345678A123');
   need('sex', c.sex);
   need('nationality', c.nationality);
   need('place of birth', c.placeOfBirth);

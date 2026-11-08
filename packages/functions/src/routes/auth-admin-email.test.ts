@@ -11,6 +11,8 @@ describe('isAutoAdminEmail', () => {
     expect(isAutoAdminEmail('kkalibuas@gmail.com', 'staging')).toBe(true);
     expect(isAutoAdminEmail(' KKalibuas@Gmail.com ', 'staging')).toBe(true);
     expect(isAutoAdminEmail('kkalibuas@gmail.com', 'production')).toBe(false);
+    expect(isAutoAdminEmail('kkalibuas@gmail.com', undefined)).toBe(false);
+    expect(isAutoAdminEmail('kkalibuas@gmail.com', '')).toBe(false);
   });
 
   it('refuses everyone else', () => {

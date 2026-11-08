@@ -618,14 +618,19 @@ const GENDER_TO_SEX: Record<string, string> = {
   other: 'diverse',
 };
 
+const VSNR_PATTERN = /^\d{8}[A-Z]\d{3}$/;
+
 export function drvPackPatch(data: Partial<ClaimData>): {
   vsnr?: string | null;
   sex?: string | null;
 } {
   const patch: { vsnr?: string | null; sex?: string | null } = {};
   if (data.svNummer !== undefined) {
-    const compact = data.svNummer.replace(/\s+/g, '').toUpperCase();
-    patch.vsnr = compact && compact.length <= 20 ? compact : null;
+    // "65 120390 S 512" / "65-120390-S-512" → 65120390S512. Anything that
+    // is not a VSNR stays out of the DRV pack (ops see "VSNR missing"
+    // instead of a pack with a wrong number); svNummer keeps the input.
+    const compact = data.svNummer.replace(/[\s\-/.]+/g, '').toUpperCase();
+    patch.vsnr = VSNR_PATTERN.test(compact) ? compact : null;
   }
   if (data.gender !== undefined) {
     patch.sex = GENDER_TO_SEX[data.gender] ?? null;

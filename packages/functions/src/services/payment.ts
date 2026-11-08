@@ -16,6 +16,12 @@ const CURRENCY = 'eur';
  * marks it 'paid', '..._failed' marks it 'failed'.
  */
 export const PAYMENT_PROCESSING = 'processing';
+
+function paymentIntentId(session: Stripe.Checkout.Session): string | null {
+  const pi = session.payment_intent;
+  if (!pi) return null;
+  return typeof pi === 'string' ? pi : pi.id;
+}
 export const PAYMENT_PROCESSING_MESSAGE =
   'Your payment is being processed by your bank. This can take a few working days; you can continue once it is confirmed.';
 
@@ -80,7 +86,16 @@ export class PaymentService {
       throw new Error(PAYMENT_PROCESSING_MESSAGE);
     }
 
-    const existing = await this.findExistingSession(stripe, claimId, userEmail);
+    // After a failed delayed payment Stripe keeps that session at
+    // complete/unpaid; it must not block a new attempt.
+    const failedPaymentIntent =
+      claim.paymentStatus === 'failed' ? claim.stripePaymentId : null;
+    const existing = await this.findExistingSession(
+      stripe,
+      claimId,
+      userEmail,
+      failedPaymentIntent
+    );
     if (existing?.status === 'complete' && existing.payment_status === 'paid') {
       await this.recordPayment(claimId, userId, existing, 'payment_completed');
       logger.info(
@@ -89,8 +104,16 @@ export class PaymentService {
       throw new Error('Payment already completed for this claim');
     }
     // Completed with a delayed method: a second Checkout would charge twice.
-    if (existing?.status === 'complete' && existing.payment_status === 'unpaid') {
-      await this.markProcessing(claimId, userId, existing, 'payment_processing');
+    if (
+      existing?.status === 'complete' &&
+      existing.payment_status === 'unpaid'
+    ) {
+      await this.markProcessing(
+        claimId,
+        userId,
+        existing,
+        'payment_processing'
+      );
       throw new Error(PAYMENT_PROCESSING_MESSAGE);
     }
     if (existing?.status === 'open' && existing.url) {
@@ -141,11 +164,13 @@ export class PaymentService {
    * The Checkout Session for this claim that is paid or still open, if
    * any. Stripe cannot filter by client_reference_id, so the customer's
    * sessions are listed by e-mail and matched here; paid wins over open.
+   * An unpaid session whose delayed payment already failed is skipped.
    */
   private static async findExistingSession(
     stripe: Stripe,
     claimId: string,
-    userEmail: string
+    userEmail: string,
+    failedPaymentIntent: string | null = null
   ): Promise<Stripe.Checkout.Session | null> {
     for (const status of ['complete', 'open'] as const) {
       const { data } = await stripe.checkout.sessions.list({
@@ -153,7 +178,15 @@ export class PaymentService {
         status,
         limit: 20,
       });
-      const match = data.find((s) => s.client_reference_id === claimId);
+      const match = data.find(
+        (s) =>
+          s.client_reference_id === claimId &&
+          !(
+            failedPaymentIntent &&
+            s.payment_status !== 'paid' &&
+            paymentIntentId(s) === failedPaymentIntent
+          )
+      );
       if (match) return match;
     }
     return null;
@@ -210,7 +243,11 @@ export class PaymentService {
       .where(
         and(
           eq(claimsTable.id, claimId),
-          sql`coalesce(${claimsTable.paymentStatus}, 'pending') not in ('paid', ${PAYMENT_PROCESSING})`
+          sql`coalesce(${claimsTable.paymentStatus}, 'pending') not in ('paid', ${PAYMENT_PROCESSING})`,
+          // The webhook for this session's failure may arrive before (or a
+          // reload of the success URL after) checkout.session.completed:
+          // the payment that failed stays failed.
+          sql`not (coalesce(${claimsTable.paymentStatus}, 'pending') = 'failed' and coalesce(${claimsTable.stripePaymentId}, '') = ${paymentIntentId(session) ?? ''})`
         )
       )
       .returning({ id: claimsTable.id });
@@ -237,7 +274,13 @@ export class PaymentService {
   ): Promise<void> {
     const updated = await db
       .update(claimsTable)
-      .set({ paymentStatus: 'failed', updatedAt: new Date() })
+      .set({
+        paymentStatus: 'failed',
+        // Which payment failed: markProcessing and findExistingSession
+        // skip it, so the client can start a new Checkout.
+        stripePaymentId: paymentIntentId(session),
+        updatedAt: new Date(),
+      })
       .where(
         and(
           eq(claimsTable.id, claimId),
@@ -291,6 +334,13 @@ export class PaymentService {
       return { success: true, claimId, paymentStatus: 'paid' };
     }
 
+    if (
+      claim.paymentStatus === 'failed' &&
+      session.payment_status !== 'paid' &&
+      claim.stripePaymentId === paymentIntentId(session)
+    ) {
+      return { success: false, claimId, paymentStatus: 'failed' };
+    }
     if (session.status === 'complete' && session.payment_status === 'unpaid') {
       await this.markProcessing(claimId, userId, session, 'payment_processing');
       return { success: false, claimId, paymentStatus: PAYMENT_PROCESSING };
