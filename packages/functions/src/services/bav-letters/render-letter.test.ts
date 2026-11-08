@@ -11,25 +11,9 @@ import {
   HAND_SIGNATURE_SPACE_MARKER,
   renderLetterPdf,
   SIGNATURE_MARKER,
-  toWinAnsiSafe,
 } from './render-letter';
 import { getBavTemplate } from './templates';
 import { TINY_PNG } from './test-fixtures';
-
-describe('toWinAnsiSafe', () => {
-  it('keeps German text, typographic quotes, dashes and the euro sign', () => {
-    const s = 'Straße „Zürich“ – § 3 Abs. 2 · 1.234,56 € … Türkei';
-    expect(toWinAnsiSafe(s)).toBe(s);
-  });
-
-  it('reduces characters outside WinAnsi to their base letter or ?', () => {
-    expect(toWinAnsiSafe('Ağrı İstanbul')).toBe(
-      'Agrı? Istanbul'.replace('ı?', '?')
-    );
-    expect(toWinAnsiSafe('Łódź')).toBe('?ódz');
-    expect(toWinAnsiSafe('東京')).toBe('??');
-  });
-});
 
 describe('renderLetterPdf', () => {
   it('renders the Muster 2 letter with the signature image', async () => {

@@ -22,6 +22,7 @@ import {
   formatDateCompactDe,
   setTextField,
 } from './acroform';
+import { pdfTextWidth, toPdfText } from '../../utils/pdf-text';
 
 export type A1002Language = 'en' | 'sp' | 'pg';
 
@@ -135,7 +136,7 @@ async function fillEnglish(data: A1002Data): Promise<PDFDocument> {
   const page = doc.getPages()[0];
   const h = page.getHeight();
   const draw = (text: string, pos: { x: number; yTop: number }) =>
-    page.drawText(text, {
+    page.drawText(toPdfText(text), {
       x: pos.x,
       y: h - pos.yTop - font.heightAtSize(EN_LAYOUT.size, { descender: false }),
       size: EN_LAYOUT.size,
@@ -167,9 +168,8 @@ async function fillPortuguese(data: A1002Data): Promise<PDFDocument> {
     maxWidth: number
   ) => {
     let size: number = L.size;
-    while (size > 6 && font.widthOfTextAtSize(text, size) > maxWidth)
-      size -= 0.5;
-    page.drawText(text, {
+    while (size > 6 && pdfTextWidth(font, text, size) > maxWidth) size -= 0.5;
+    page.drawText(toPdfText(text), {
       x: pos.x,
       y: h - pos.yTop - font.heightAtSize(size, { descender: false }),
       size,
@@ -179,7 +179,7 @@ async function fillPortuguese(data: A1002Data): Promise<PDFDocument> {
   drawComb(page, font, compactVsnr(data.vsnr), L.vsnrComb);
   // The name box is tall enough for two lines: wrap before shrinking.
   const name = `${data.lastName}, ${data.firstName}`;
-  if (font.widthOfTextAtSize(name, L.size) <= L.maxWidth.name) {
+  if (pdfTextWidth(font, name, L.size) <= L.maxWidth.name) {
     draw(name, L.name, L.maxWidth.name);
   } else {
     draw(`${data.lastName},`, L.name, L.maxWidth.name);

@@ -61,6 +61,31 @@ describe('assembleClaimPdf', () => {
     }
   });
 
+  it('builds the package when claim data holds tabs, line breaks or letters outside WinAnsi', async () => {
+    // A tab pasted into an address line used to abort the package with
+    // "WinAnsi cannot encode \"\t\" (0x0009)".
+    const bytes = await assembleClaimPdf({
+      claim: {
+        ...claim,
+        firstName: 'Łukasz\u200b',
+        currentAddressLine1: 'Mabini Street\t12',
+        currentAddressLine2: 'Unit 4\r\nTower B',
+        currentCity: 'Manila\t',
+        placeOfBirth: 'Kraków\u00a0Nowa Huta',
+        bankName: 'Commerzbank\tAG',
+      },
+      signaturePng: PNG_1X1,
+      passport: { bytes: PNG_1X1, fileType: 'image/png' },
+      postalAgent: {
+        name: 'Anna\tKliem',
+        lines: ['Kaskelstr.\t46', '10317 Berlin'],
+      },
+      now: new Date('2026-07-06T00:00:00Z'),
+    });
+    const doc = await PDFDocument.load(bytes);
+    expect(doc.getPageCount()).toBe(7);
+  });
+
   it('assembles with a non-A4 PDF passport, normalizing it to a single A4 page', async () => {
     const passportPdf = await buildNonA4Pdf();
     const bytes = await assembleClaimPdf({

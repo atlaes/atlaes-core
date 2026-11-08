@@ -17,6 +17,7 @@ import {
   type DirectOp,
 } from './direct-layout';
 import { directFieldValues, type DirectDocFields } from './direct-cover-letter';
+import { pdfTextWidth } from '../../utils/pdf-text';
 
 /**
  * procedure_description: "mein Beitragserstattungsverfahren bei [DRV
@@ -50,7 +51,7 @@ export function buildPostalAuthorityPlan(
   );
   // "wohnhaft" + the multiline address, continuation lines aligned.
   const lead = 'wohnhaft ';
-  const indent = font.widthOfTextAtSize(lead, DIRECT_LAYOUT.fontSize);
+  const indent = pdfTextWidth(font, lead, DIRECT_LAYOUT.fontSize);
   input.clientResidentialAddress.forEach((l, i, all) => {
     const text = `${i === 0 ? lead : ''}${l}${i === all.length - 1 ? ',' : ''}`;
     w.para(text, i === 0 ? { hanging: indent } : { indent });

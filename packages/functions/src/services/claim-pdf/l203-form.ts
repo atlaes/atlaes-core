@@ -14,6 +14,7 @@ import {
   countryToIso3,
   splitStreetHouseNumber,
 } from './format';
+import { toPdfText } from '../../utils/pdf-text';
 
 export interface L203Data {
   vblReference: string;
@@ -340,7 +341,9 @@ export function fillL203Fields(doc: PDFDocument, data: L203Data): void {
 
   const form = doc.getForm();
   const setText = (name: string, value: string) =>
-    form.getTextField(`topmostSubform[0].Page1[0].${name}[0]`).setText(value);
+    form
+      .getTextField(`topmostSubform[0].Page1[0].${name}[0]`)
+      .setText(toPdfText(value));
 
   const { street, houseNumber } = resolveStreetAndHouseNumber(
     data.addressLine1,
@@ -371,7 +374,7 @@ export function fillL203Fields(doc: PDFDocument, data: L203Data): void {
 
   form
     .getTextField('topmostSubform[0].Page2[0].ort_datum[0]')
-    .setText(data.ortDatum);
+    .setText(toPdfText(data.ortDatum));
   form
     .getTextField('topmostSubform[0].Page2[0].Anlagen[0]')
     .setText(ANLAGEN_TEXT);

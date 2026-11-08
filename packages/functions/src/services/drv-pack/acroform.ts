@@ -17,6 +17,7 @@ import {
   PDFRef,
   StandardFonts,
 } from 'pdf-lib';
+import { toPdfText } from '../../utils/pdf-text';
 
 export function setTextField(
   form: PDFForm,
@@ -25,7 +26,7 @@ export function setTextField(
 ): void {
   if (value === null || value === undefined) return;
   const field = form.getTextField(name);
-  field.setText(value);
+  field.setText(toPdfText(value, { multiline: field.isMultiline() }));
 }
 
 /** Decoded on-values of every widget of a button field, trimmed. */
@@ -138,7 +139,7 @@ export function drawComb(
   spec: CombSpec
 ): void {
   const y = page.getHeight() - spec.baselineTop;
-  [...text].forEach((ch, i) => {
+  [...toPdfText(text)].forEach((ch, i) => {
     const w = font.widthOfTextAtSize(ch, spec.size);
     page.drawText(ch, {
       x: spec.left + i * spec.cell + (spec.cell - w) / 2,

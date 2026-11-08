@@ -16,6 +16,7 @@ import { loadGprAsset } from './assets';
 import { drawComb, formatDateDe } from './acroform';
 import { VIVIDIUS } from './cover-letter';
 import { compactVsnr, formatVsnr } from './register';
+import { toPdfText } from '../../utils/pdf-text';
 
 interface Writer {
   line: (
@@ -50,7 +51,7 @@ function writer(
   const lh = (size: number) => size * 1.35;
   const put = (text: string, size: number, b: boolean, x: number) => {
     const f = b ? bold : font;
-    page.drawText(text, {
+    page.drawText(toPdfText(text), {
       x,
       y: A4.height - cursor - f.heightAtSize(size, { descender: false }),
       size,
@@ -260,7 +261,7 @@ export async function appendRueckantwort(
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const h = page.getHeight();
   const put = (text: string, p: { x: number; yTop: number; size: number }) =>
-    page.drawText(text, {
+    page.drawText(toPdfText(text), {
       x: p.x,
       y: h - p.yTop - font.heightAtSize(p.size, { descender: false }),
       size: p.size,
