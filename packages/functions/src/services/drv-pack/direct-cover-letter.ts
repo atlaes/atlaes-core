@@ -23,6 +23,7 @@ import {
   renderDirectPlan,
   type DirectOp,
 } from './direct-layout';
+import { pdfTextWidth } from '../../utils/pdf-text';
 
 /** Values of the direct-route template placeholders, already formatted. */
 export interface DirectDocFields {
@@ -109,7 +110,7 @@ export function buildDirectCoverLetterPlan(
     x:
       A4.width -
       DIRECT_LAYOUT.marginRight -
-      font.widthOfTextAtSize(placeDate, DIRECT_LAYOUT.fontSize),
+      pdfTextWidth(font, placeDate, DIRECT_LAYOUT.fontSize),
   });
 
   // Subject.

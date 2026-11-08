@@ -1,4 +1,5 @@
 import type { PDFFont } from 'pdf-lib';
+import { toPdfText } from '../../utils/pdf-text';
 
 /** Greedy word-wrap; preserves explicit \n breaks. */
 export function wrapText(
@@ -8,7 +9,7 @@ export function wrapText(
   maxWidth: number
 ): string[] {
   const lines: string[] = [];
-  for (const paragraph of text.split('\n')) {
+  for (const paragraph of toPdfText(text, { multiline: true }).split('\n')) {
     const words = paragraph.split(/\s+/).filter(Boolean);
     if (words.length === 0) {
       lines.push('');

@@ -16,6 +16,7 @@ import { PDFDocument, PDFFont, StandardFonts } from 'pdf-lib';
 import { A4 } from '../claim-pdf/constants';
 import { wrapText } from '../claim-pdf/text-layout';
 import { loadGprAsset } from './assets';
+import { toPdfText } from '../../utils/pdf-text';
 
 export const VIVIDIUS = {
   name: 'Vividius Rechtsanwälte',
@@ -263,7 +264,7 @@ export async function renderCoverLetter(
     if (op.kind === 'text') {
       const f = op.bold ? bold : font;
       const ascent = f.heightAtSize(op.size, { descender: false });
-      page.drawText(op.text, {
+      page.drawText(toPdfText(op.text), {
         x: op.x,
         y: A4.height - op.yTop - ascent,
         size: op.size,

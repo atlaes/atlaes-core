@@ -16,6 +16,7 @@
 import { PDFDocument, PDFFont, PDFPage, StandardFonts } from 'pdf-lib';
 import { A4, COVER_LAYOUT } from '../claim-pdf/constants';
 import { wrapText } from '../claim-pdf/text-layout';
+import { toPdfText } from '../../utils/pdf-text';
 
 /** Put this on its own line where the signature image should be drawn. */
 export const SIGNATURE_MARKER = '⁣SIGNATURE⁣';
@@ -60,38 +61,6 @@ const LAYOUT = {
 
 const SUBJECT_PREFIXES = ['Antrag auf'];
 const DEFAULT_BOLD_LINES = ['Postempfangsvollmacht', 'Vollmacht', 'Anlagen'];
-
-// WinAnsi (the encoding of pdf-lib's standard Helvetica) covers Latin-1
-// plus the 0x80–0x9F specials. Anything else is reduced to its base letter
-// (NFD, combining marks dropped) or, failing that, to "?", so an unusual
-// character in a name or address never aborts the whole package.
-const WIN_ANSI_SPECIALS = new Set('€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ'.split(''));
-
-export function toWinAnsiSafe(text: string): string {
-  let out = '';
-  for (const ch of text) {
-    const code = ch.codePointAt(0) ?? 0;
-    if (
-      code < 0x80 ||
-      (code >= 0xa0 && code <= 0xff) ||
-      WIN_ANSI_SPECIALS.has(ch)
-    ) {
-      out += ch;
-      continue;
-    }
-    const stripped = ch.normalize('NFD').replace(/[̀-ͯ]/g, '');
-    const base = stripped.codePointAt(0) ?? 0;
-    if (
-      stripped.length > 0 &&
-      (base < 0x80 || (base >= 0xa0 && base <= 0xff))
-    ) {
-      out += stripped[0];
-    } else {
-      out += '?';
-    }
-  }
-  return out;
-}
 
 interface Cursor {
   page: PDFPage;
@@ -215,7 +184,7 @@ export async function renderLetterPages(
       if (trimmed !== 'Anlagen') size = LAYOUT.titleFontSize;
     }
 
-    const safe = toWinAnsiSafe(line);
+    const safe = toPdfText(line);
     // Keep the PEV's two-column signature line (multiple spaces) intact:
     // wrapText collapses runs of spaces, so only wrap when needed.
     if (useFont.widthOfTextAtSize(safe, size) <= maxWidth) {

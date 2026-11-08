@@ -16,6 +16,7 @@ import { PDFDict, PDFDocument, PDFName, StandardFonts } from 'pdf-lib';
 import type { PDFForm } from 'pdf-lib';
 import { resolveStreetAndHouseNumber } from '../claim-pdf/l203-form';
 import { STAGE_BENEFIT_INFO, type StageBenefit } from './providers';
+import { toPdfText } from '../../utils/pdf-text';
 
 export type StageProvider = 'VddB' | 'VddKO';
 
@@ -155,7 +156,9 @@ export async function fillStageForm(data: StageFormData): Promise<PDFDocument> {
   const n = NAMES[data.provider];
   const set = (field: string, value: string | null | undefined) => {
     const v = (value ?? '').trim();
-    if (v) form.getTextField(field).setText(v);
+    if (!v) return;
+    const tf = form.getTextField(field);
+    tf.setText(toPdfText(v, { multiline: tf.isMultiline() }));
   };
 
   selectWidget(

@@ -13,6 +13,7 @@
 import { PDFDocument, PDFFont, StandardFonts } from 'pdf-lib';
 import { A4 } from '../claim-pdf/constants';
 import { wrapText } from '../claim-pdf/text-layout';
+import { toPdfText } from '../../utils/pdf-text';
 
 export type DirectOp =
   | {
@@ -102,7 +103,7 @@ export class FlowWriter {
     this.ops.push({
       kind: 'text',
       page: this.page,
-      text,
+      text: toPdfText(text),
       x,
       yTop,
       size: o.size ?? DIRECT_LAYOUT.fontSize,
@@ -230,7 +231,7 @@ export async function renderDirectPlan(
     const page = pages[op.page];
     if (op.kind === 'text') {
       const f = op.bold ? fonts.bold : fonts.font;
-      page.drawText(op.text, {
+      page.drawText(toPdfText(op.text), {
         x: op.x,
         y: A4.height - op.yTop - f.heightAtSize(op.size, { descender: false }),
         size: op.size,

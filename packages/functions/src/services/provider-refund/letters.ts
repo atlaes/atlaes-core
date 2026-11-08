@@ -21,6 +21,7 @@ import {
   type DirectOp,
 } from '../drv-pack/direct-layout';
 import type { ProviderRefundProvider } from './providers';
+import { pdfTextWidth } from '../../utils/pdf-text';
 
 export interface ProviderLetterFields {
   clientFullName: string;
@@ -75,9 +76,7 @@ function recipientFontSize(lines: string[], font: PDFFont): number {
   let size = DIRECT_LAYOUT.fontSize;
   while (
     size > 8 &&
-    lines.some(
-      (l) => font.widthOfTextAtSize(l, size) > RECIPIENT_WINDOW.maxWidth
-    )
+    lines.some((l) => pdfTextWidth(font, l, size) > RECIPIENT_WINDOW.maxWidth)
   )
     size -= 0.5;
   return size;
@@ -114,7 +113,7 @@ export function buildProviderCoverLetterPlan(
     x:
       A4.width -
       DIRECT_LAYOUT.marginRight -
-      font.widthOfTextAtSize(placeDate, DIRECT_LAYOUT.fontSize),
+      pdfTextWidth(font, placeDate, DIRECT_LAYOUT.fontSize),
   });
 
   // Subject.
@@ -187,7 +186,7 @@ export function buildProviderPostalAuthorityPlan(
   );
   // "wohnhaft" + the multiline address, continuation lines aligned.
   const lead = 'wohnhaft ';
-  const indent = font.widthOfTextAtSize(lead, DIRECT_LAYOUT.fontSize);
+  const indent = pdfTextWidth(font, lead, DIRECT_LAYOUT.fontSize);
   input.clientResidentialAddress.forEach((l, i, all) => {
     const text = `${i === 0 ? lead : ''}${l}${i === all.length - 1 ? ',' : ''}`;
     w.para(text, i === 0 ? { hanging: indent } : { indent });
