@@ -60,6 +60,21 @@ jobs:
             | tar -xz -C ~/.config/sst/bin --strip-components=1
           ~/.config/sst/bin/pulumi version
 
+      # Same for Bun (GitHub releases also 504 on 2026-11-08): npm publishes
+      # the same binary, and npm pack checks its integrity hash. sst 3.19.3
+      # expects Bun 1.2.1 (BUN_VERSION in sst's pkg/global/global.go).
+      - name: Install Bun for SST
+        continue-on-error: true
+        env:
+          BUN_VERSION: 1.2.1
+        run: |
+          cd "$RUNNER_TEMP"
+          npm pack --silent "@oven/bun-linux-x64-baseline@${BUN_VERSION}"
+          tar -xzf "oven-bun-linux-x64-baseline-${BUN_VERSION}.tgz"
+          mkdir -p ~/.config/sst/bin
+          install -m 0755 package/bin/bun ~/.config/sst/bin/bun
+          ~/.config/sst/bin/bun --version
+
       - name: Deploy to staging
         run: npx sst deploy --stage staging
         env:
