@@ -43,6 +43,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # SST downloads Pulumi from GitHub release assets on every fresh
+      # runner; on 2026-11-08 those returned HTTP 504 for hours ("Could not
+      # install pulumi"). get.pulumi.com serves the same build, so put it
+      # where SST looks (~/.config/sst/bin). Keep PULUMI_VERSION in step
+      # with the SST version in package.json (sst 3.19.3 -> 3.210.0); on a
+      # mismatch or a failure here SST just downloads its own copy.
+      - name: Install Pulumi for SST
+        continue-on-error: true
+        env:
+          PULUMI_VERSION: 3.210.0
+        run: |
+          mkdir -p ~/.config/sst/bin
+          curl -fsSL --retry 5 --retry-all-errors \
+            "https://get.pulumi.com/releases/sdk/pulumi-v${PULUMI_VERSION}-linux-x64.tar.gz" \
+            | tar -xz -C ~/.config/sst/bin --strip-components=1
+          ~/.config/sst/bin/pulumi version
+
       - name: Deploy to staging
         run: npx sst deploy --stage staging
         env:
