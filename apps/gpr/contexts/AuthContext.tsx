@@ -1,5 +1,7 @@
 'use client';
 
+import type { AxiosRequestConfig } from 'axios';
+
 import React, {
   createContext,
   useCallback,
@@ -154,6 +156,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const logout = useCallback(() => {
+    const accessToken = localStorage.getItem('accessToken');
+    const refreshToken = localStorage.getItem('refreshToken');
     // Clear tokens
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
@@ -161,10 +165,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // Clear user
     setUser(null);
 
-    // Call logout endpoint
-    apiClient.post('/auth/logout').catch(() => {
-      // Ignore errors on logout
-    });
+    // Tell the server with the tokens read above (the API client reads
+    // them from localStorage, which is already cleared). The refresh token
+    // goes in the body so logout also ends a session whose access token
+    // has expired; _retry skips the client's refresh-and-redirect on 401.
+    if (accessToken || refreshToken) {
+      apiClient
+        .post('/auth/logout', { refreshToken }, {
+          headers: accessToken
+            ? { Authorization: `Bearer ${accessToken}` }
+            : {},
+          _retry: true,
+        } as AxiosRequestConfig & { _retry: boolean })
+        .catch(() => {
+          // Ignore errors on logout
+        });
+    }
   }, []);
 
   const updateProfile = useCallback(async (data: Partial<User['profile']>) => {

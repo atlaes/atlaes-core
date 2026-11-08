@@ -28,6 +28,10 @@ describe('toPdfText', () => {
     expect(toPdfText('Ağrı İstanbul')).toBe('Agri Istanbul');
     expect(toPdfText('Łódź')).toBe('Lódz');
     expect(toPdfText('東京')).toBe('??');
+    // Decomposed accents (e + U+0301) compose back to WinAnsi letters.
+    expect(toPdfText('Jose\u0301 Mu\u0308ller')).toBe('José Müller');
+    // A combining mark with no composed form is dropped, not "?".
+    expect(toPdfText('Ba\u0331d')).toBe('Bad');
   });
 
   it('handles null and undefined', () => {

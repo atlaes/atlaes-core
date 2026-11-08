@@ -345,8 +345,13 @@ export const CashOutBasis: React.FC<CashOutBasisProps> = ({ onNext }) => {
       : basis.benefitForm === 'capital'
         ? thresholds.capital
         : null;
+  // The limit only applies without a DRV refund (route B); with one the
+  // amount fields are hidden, so a prefilled amount must not block here.
   const amountAboveLimit =
-    limit !== null && amountNumber !== null && amountNumber > limit;
+    basis.drvRefundReceived === 'no' &&
+    limit !== null &&
+    amountNumber !== null &&
+    amountNumber > limit;
   const amountRequired =
     basis.benefitForm === 'pension' || basis.benefitForm === 'capital';
 
@@ -637,10 +642,10 @@ export const CashOutBasis: React.FC<CashOutBasisProps> = ({ onNext }) => {
                     <span>
                       This is above the {formatEuro(limit)} EUR limit for a
                       small-entitlement payout in {new Date().getFullYear()}.
-                      Without a DRV refund, {providerName} cannot pay it out,
-                      so we cannot file this request. Please check the value
-                      on your statement; if your DRV contributions were
-                      refunded, answer “Yes” above.
+                      Without a DRV refund, {providerName} cannot pay it out, so
+                      we cannot file this request. Please check the value on
+                      your statement; if your DRV contributions were refunded,
+                      answer “Yes” above.
                     </span>
                   </p>
                 )}

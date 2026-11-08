@@ -60,7 +60,13 @@ export const authMiddleware = async (c: Context, next: Next) => {
 
     // Session tokens carry no `type`; the 2FA challenge and the e-mail
     // link tokens do and are not sessions.
-    if (!decoded || !decoded.userId || !decoded.email || decoded.type) {
+    if (
+      !decoded ||
+      !decoded.userId ||
+      !decoded.email ||
+      decoded.type ||
+      isLegacyRefreshToken(decoded)
+    ) {
       return c.json({ error: 'Invalid token' }, 401);
     }
 
@@ -99,6 +105,20 @@ export const authMiddleware = async (c: Context, next: Next) => {
   }
 };
 
+/**
+ * Refresh tokens from before the access/refresh split carry no `type` but
+ * live 7 days; access tokens live 15 minutes. Without this check such a
+ * token would pass as a session for up to 7 days after the deploy, beyond
+ * the reach of logout. Harmless once those tokens have expired.
+ */
+function isLegacyRefreshToken(decoded: { iat?: number; exp?: number }) {
+  return (
+    typeof decoded.iat === 'number' &&
+    typeof decoded.exp === 'number' &&
+    decoded.exp - decoded.iat > 2 * 60 * 60
+  );
+}
+
 export const optionalAuthMiddleware = async (c: Context, next: Next) => {
   try {
     const authHeader = c.req.header('Authorization');
@@ -114,6 +134,7 @@ export const optionalAuthMiddleware = async (c: Context, next: Next) => {
           decoded.userId &&
           decoded.email &&
           !decoded.type &&
+          !isLegacyRefreshToken(decoded) &&
           (decoded.emailVerified === true ||
             (await unverifiedSessionStillValid(decoded.userId)))
         ) {

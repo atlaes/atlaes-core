@@ -152,6 +152,9 @@ export const leadsReminderCron = new sst.aws.Cron('LeadsReminderCron', {
     vpc,
     link: [postgres, email],
     environment: {
+      // Stage-dependent defaults (e.g. the Trustpilot BCC in ops-settings)
+      // read APP_STAGE; without it a cron falls back to non-production.
+      APP_STAGE: $app.stage,
       NODE_ENV: 'production',
       SES_FROM_EMAIL: 'noreply@companypension.de',
       LEADS_NOTIFY_EMAIL: process.env.LEADS_NOTIFY_EMAIL ?? '',
@@ -179,6 +182,9 @@ export const clientUpdatesCron = new sst.aws.Cron('ClientUpdatesCron', {
     vpc,
     link: [postgres, bucket, email],
     environment: {
+      // Stage-dependent defaults (e.g. the Trustpilot BCC in ops-settings)
+      // read APP_STAGE; without it a cron falls back to non-production.
+      APP_STAGE: $app.stage,
       NODE_ENV: 'production',
       SES_FROM_EMAIL: 'noreply@companypension.de',
       OPS_NOTIFICATION_EMAIL: process.env.OPS_NOTIFICATION_EMAIL ?? '',
@@ -203,6 +209,9 @@ export const payoutEmailsCron = new sst.aws.Cron('PayoutEmailsCron', {
     vpc,
     link: [postgres, bucket, email],
     environment: {
+      // Stage-dependent defaults (e.g. the Trustpilot BCC in ops-settings)
+      // read APP_STAGE; without it a cron falls back to non-production.
+      APP_STAGE: $app.stage,
       NODE_ENV: 'production',
       SES_FROM_EMAIL: 'noreply@companypension.de',
       OPS_NOTIFICATION_EMAIL: process.env.OPS_NOTIFICATION_EMAIL ?? '',

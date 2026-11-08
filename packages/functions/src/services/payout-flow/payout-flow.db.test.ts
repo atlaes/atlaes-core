@@ -208,6 +208,50 @@ describe('payout flow (db)', () => {
     expect(claim.payoutDetailsReviewRequired).toBe(true);
   });
 
+  it('keeps a review clearance for the same account but not for a new one', async () => {
+    const st = await PayoutFlowService.getClientState(userId);
+    const id = st.release!.id;
+    const details = {
+      accountHolder: 'Joseph Okafor',
+      bank: 'Commerzbank',
+      country: 'DE',
+      currency: 'EUR',
+      iban: 'DE89370400440532013000',
+      bic: 'COBADEFFXXX',
+    };
+    const flag = async () =>
+      (
+        await db
+          .select({ f: claimsTable.payoutDetailsReviewRequired })
+          .from(claimsTable)
+          .where(eq(claimsTable.id, claimId))
+      )[0].f;
+    await PayoutFlowService.clearReview(id, { id: adminId });
+    expect(await flag()).toBe(false);
+
+    // Same account saved again: still reviewed.
+    const same = await PayoutFlowService.saveBankDetails(userId, id, details);
+    expect(same.release.reviewRequired).toBe(false);
+    expect(await flag()).toBe(false);
+
+    // A different account: a new review, the old clearance is gone.
+    const changed = await PayoutFlowService.saveBankDetails(userId, id, {
+      ...details,
+      iban: 'DE02120300000000202051',
+      bic: 'BYLADEM1001',
+      bank: 'DKB',
+    });
+    expect(changed.validation.ok).toBe(true);
+    expect(changed.release.reviewRequired).toBe(true);
+    const [rel] = await db
+      .select()
+      .from(payoutReleases)
+      .where(eq(payoutReleases.id, id));
+    expect(rel.reviewClearedAt).toBeNull();
+    expect(rel.reviewClearedBy).toBeNull();
+    expect(await flag()).toBe(true);
+  });
+
   it('refuses to sign without an invoice number, then signs and releases', async () => {
     const st = await PayoutFlowService.getClientState(userId);
     const id = st.release!.id;

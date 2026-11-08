@@ -15,7 +15,9 @@ import * as schema from '../drizzle/schema';
 import { users, profiles } from '../drizzle/schema/shared';
 import { pendingSessions } from '../drizzle/schema/gpr';
 import auth from './auth';
+import jwt from 'jsonwebtoken';
 import { AuthService } from '../utils/auth';
+import { getJwtSecret } from '../utils/env';
 import { gprSessionData } from '../test/fixtures';
 
 // Test database connection
@@ -475,7 +477,10 @@ describe('Auth Routes', () => {
       expect(res.status).toBe(200);
       const data = (await res.json()) as any;
       const claims = JSON.parse(
-        Buffer.from(data.tokens.accessToken.split('.')[1], 'base64url').toString()
+        Buffer.from(
+          data.tokens.accessToken.split('.')[1],
+          'base64url'
+        ).toString()
       );
       expect(claims.role).toBe('law_firm');
     });
@@ -486,6 +491,19 @@ describe('Auth Routes', () => {
   // ============================================================
 
   describe('GET /api/auth/me', () => {
+    it('refuses an untyped 7-day token (refresh token from before the split)', async () => {
+      const { user } = await createTestUserWithToken();
+      const legacy = jwt.sign(
+        { userId: user.id, email: user.email, emailVerified: true },
+        getJwtSecret(),
+        { expiresIn: '7d' }
+      );
+      const res = await request('GET', '/api/auth/me', undefined, {
+        Authorization: `Bearer ${legacy}`,
+      });
+      expect(res.status).toBe(401);
+    });
+
     it('returns user data with valid token', async () => {
       const { user, token } = await createTestUserWithToken();
 
@@ -570,6 +588,22 @@ describe('Auth Routes', () => {
       });
       expect(out.status).toBe(200);
       const res = await request('POST', '/api/auth/refresh', { refreshToken });
+      expect(res.status).toBe(401);
+    });
+
+    it('ends the session with only the refresh token (access token expired)', async () => {
+      const { refreshToken } = await createTestUserWithToken();
+      const out = await request('POST', '/api/auth/logout', { refreshToken });
+      expect(out.status).toBe(200);
+      const res = await request('POST', '/api/auth/refresh', { refreshToken });
+      expect(res.status).toBe(401);
+    });
+
+    it('does not accept an access token in place of the refresh token', async () => {
+      const { token } = await createTestUserWithToken();
+      const res = await request('POST', '/api/auth/logout', {
+        refreshToken: token,
+      });
       expect(res.status).toBe(401);
     });
 

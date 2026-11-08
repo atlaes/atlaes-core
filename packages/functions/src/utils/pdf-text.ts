@@ -9,7 +9,8 @@ import type { PDFFont } from 'pdf-lib';
  *
  * - tabs and other spacing characters become a plain space;
  * - line breaks become a space, or "\n" with `multiline`;
- * - control and zero-width characters are dropped;
+ * - control and zero-width characters, and combining marks that do not
+ *   compose (after NFC) with the letter before them, are dropped;
  * - other letters fall back to their base letter (NFD, or a short
  *   table for letters without a decomposition such as ł), then to "?".
  */
@@ -58,7 +59,9 @@ export function toPdfText(
   options: { multiline?: boolean } = {}
 ): string {
   if (!text) return '';
+  // NFC first: a decomposed "é" (e + U+0301) is one WinAnsi letter.
   const normalised = text
+    .normalize('NFC')
     .replace(LINE_BREAKS, options.multiline ? '\n' : ' ')
     .replace(SPACES, ' ')
     .replace(DROPPED, '');
@@ -68,6 +71,8 @@ export function toPdfText(
       out += ch;
       continue;
     }
+    // A combining mark with no composed form: keep the base letter only.
+    if (/\p{M}/u.test(ch)) continue;
     const mapped = FALLBACKS[ch];
     if (mapped) {
       out += mapped;

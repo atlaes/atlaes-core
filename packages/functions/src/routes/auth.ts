@@ -14,7 +14,7 @@ import {
   REFRESH_TOKEN_TYPE,
 } from '../utils/auth';
 import { UserService } from '../services/user';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 import {
   RateLimit,
   rateLimiter,
@@ -31,7 +31,7 @@ import { eq } from 'drizzle-orm';
 const ADMIN_DOMAINS = ['atlaes.de', 'alibuas.com'];
 /**
  * Single addresses that become admin on staging and other non-production
- * stages only (APP_STAGE, set by resources/services). Production keeps the
+ * stages only (APP_STAGE, set by resources/services; unset = off). Production keeps the
  * company domains above.
  */
 const NON_PRODUCTION_ADMIN_EMAILS = ['kkalibuas@gmail.com'];
@@ -44,7 +44,10 @@ export function isAutoAdminEmail(
   const domain = normalized.split('@')[1];
   if (domain && ADMIN_DOMAINS.includes(domain)) return true;
   return (
-    stage !== 'production' && NON_PRODUCTION_ADMIN_EMAILS.includes(normalized)
+    // Fails closed like the e2e login: no stage (or production) = off.
+    !!stage &&
+    stage !== 'production' &&
+    NON_PRODUCTION_ADMIN_EMAILS.includes(normalized)
   );
 }
 
@@ -218,16 +221,34 @@ auth.post(
   }
 );
 
-// Logout endpoint
-auth.post('/logout', authMiddleware, async (c) => {
+// Logout endpoint. Accepts the access token, or the refresh token in the
+// body: after 15 idle minutes the access token has expired, and the logout
+// must still end the refresh token.
+auth.post('/logout', optionalAuthMiddleware, async (c) => {
   try {
     // Refresh tokens issued until now stop working on every device; the
     // current access token runs out within its 15 minutes.
-    const user = c.get('user');
+    let userId: string | undefined = c.get('user')?.id;
+    if (!userId) {
+      const body = (await c.req.json().catch(() => null)) as {
+        refreshToken?: unknown;
+      } | null;
+      if (typeof body?.refreshToken === 'string') {
+        try {
+          const payload = AuthService.verifyToken(body.refreshToken);
+          if ((payload as { type?: unknown }).type === REFRESH_TOKEN_TYPE) {
+            userId = payload.userId;
+          }
+        } catch {
+          // expired or forged: nothing to end
+        }
+      }
+    }
+    if (!userId) return c.json({ error: 'Authentication required' }, 401);
     await db
       .update(users)
       .set({ sessionsRevokedAt: new Date() })
-      .where(eq(users.id, user.id));
+      .where(eq(users.id, userId));
     return c.json({ message: 'Logged out successfully' });
   } catch (error) {
     logger.error('Logout error:', error);
@@ -762,6 +783,18 @@ auth.post(
       if (!email) {
         return c.json({ error: 'Email not provided by Google' }, 400);
       }
+      // Sign-in links to the account with this address, so Google must
+      // vouch for it: an unverified Google address could take over (or
+      // pre-register) someone else's account.
+      if (!emailVerified) {
+        return c.json(
+          {
+            error:
+              'Google has not verified this e-mail address. Please verify it with Google, or sign in with an e-mail link.',
+          },
+          400
+        );
+      }
 
       // Find or create user
       const user = await UserService.findOrCreateOAuthUser({
@@ -832,6 +865,18 @@ auth.post(
 
       if (!email) {
         return c.json({ error: 'Email not provided by Google' }, 400);
+      }
+      // Sign-in links to the account with this address, so Google must
+      // vouch for it: an unverified Google address could take over (or
+      // pre-register) someone else's account.
+      if (!emailVerified) {
+        return c.json(
+          {
+            error:
+              'Google has not verified this e-mail address. Please verify it with Google, or sign in with an e-mail link.',
+          },
+          400
+        );
       }
 
       // Find or create user
