@@ -168,8 +168,9 @@ export interface StageDetails {
 }
 
 /**
- * Membership step for a stage provider (Membership.tsx, item 26): two
- * internal screens, the first one with the membership number.
+ * Membership step for a stage provider (Membership.tsx): three internal
+ * screens — pension details with the membership number (Figma
+ * 2346-19055), last employment, then leaving & current occupation.
  */
 export async function completeStageMembership(
   page: Page,
@@ -177,11 +178,16 @@ export async function completeStageMembership(
   s: StageDetails
 ) {
   await expect(
-    page.getByRole('heading', { name: 'Stage or orchestra employment details' })
+    page.getByRole('heading', { name: `${provider} pension details` })
   ).toBeVisible({ timeout: 15_000 });
   await page
     .getByLabel(`${provider} membership number`)
     .fill(s.membershipNumber);
+  await page.getByRole('button', { name: /Continue/i }).click();
+
+  await expect(
+    page.getByRole('heading', { name: 'Stage or orchestra employment details' })
+  ).toBeVisible();
   await page.getByPlaceholder('e.g. Berlin State Opera').fill(s.stageName);
   await page
     .getByPlaceholder('e.g. Violinist, actor, stage technician')
