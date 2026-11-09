@@ -120,9 +120,15 @@ async function mockPendingSession(page: Page) {
 
 // `details` overrides let a test mock a stage (VddB/VddKO) statement without
 // repeating the whole extraction envelope.
+// `envelope` overrides the confidence scores and missingFields, to mock a
+// document the extractor could only partly read.
 async function mockExtraction(
   page: Page,
-  details: Record<string, string | null> = {}
+  details: Record<string, string | null> = {},
+  envelope: {
+    confidence?: Record<string, number>;
+    missingFields?: string[];
+  } = {}
 ) {
   await page.route('**/api/vbl/extract-pension-document', async (route) => {
     await route.fulfill({
@@ -156,8 +162,9 @@ async function mockExtraction(
             salary: 0.78,
             statePensionRefund: 0,
             bavStatementValue: 0,
+            ...envelope.confidence,
           },
-          missingFields: [],
+          missingFields: envelope.missingFields ?? [],
           model: 'mistral-ocr-latest+mistral-large-latest',
         },
       }),
@@ -1088,6 +1095,149 @@ test.describe('Manual VBL calculator', () => {
       ],
       userType: 'insured_person',
     });
+  });
+
+  test('flags undetected and low-confidence upload details instead of pre-filling them', async ({
+    page,
+  }) => {
+    // Design QA 2976:723 / 2978:764: a statement whose period and salary were
+    // only guessed, and whose provider was not found at all.
+    await mockExtraction(
+      page,
+      {
+        provider: null,
+        vblPlan: null,
+        federalState: 'Berlin',
+        startMonth: 'January',
+        startYear: '2015',
+        endMonth: 'December',
+        endYear: '2015',
+        averageMonthlyGrossSalary: '1443',
+      },
+      {
+        confidence: { provider: 0, dates: 0.3, salary: 0.2 },
+        missingFields: ['provider', 'vblPlan'],
+      }
+    );
+
+    await chooseUpload(page, 'VBL / ZVK refund');
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'We found these details in your document',
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', {
+        name: /Company pension provider Select company pension provider/,
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /German federal state Berlin/ })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /Start year Select start year/ })
+    ).toBeVisible();
+    await expect(
+      page.getByLabel('Average monthly gross salary (€)')
+    ).toHaveValue('');
+    // Provider, start/end month and year, and salary.
+    const missing = page.getByText('Missing details', { exact: true });
+    await expect(missing).toHaveCount(6);
+    await expect(missing.first()).toHaveCSS('color', 'rgb(116, 20, 22)');
+    await expect(missing.first()).toHaveCSS('font-family', /Roboto/);
+    await expect(continueButton(page)).toBeDisabled();
+
+    await chooseDropdownOption(page, 'Company pension provider', 'VBL');
+    // A plan the document did not show is not assumed either.
+    await expect(missing).toHaveCount(6);
+    await page.getByRole('button', { name: 'VBLklassik' }).click();
+    await chooseDropdownOption(page, 'Start month', 'March');
+    await chooseDropdownOption(page, 'Start year', '2022');
+    await chooseDropdownOption(page, 'End month', 'August');
+    await chooseDropdownOption(page, 'End year', '2023');
+    await page.getByLabel('Average monthly gross salary (€)').fill('4000');
+    await expect(missing).toHaveCount(0);
+    await expect(continueButton(page)).toBeEnabled();
+  });
+
+  test('flags an empty federal state on the upload review and ignores earlier manual entries', async ({
+    page,
+  }) => {
+    await mockExtraction(
+      page,
+      { federalState: null },
+      { missingFields: ['federalState'] }
+    );
+
+    // Pick a state on the manual path first, then switch to the upload.
+    await chooseManual(page, 'VBL / ZVK refund');
+    await chooseDropdownOption(page, 'Employer’s federal state', 'Hesse');
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
+    await page.getByRole('button', { name: /Upload document/ }).click();
+    await continueButton(page).click();
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await page.getByTestId('calculator-upload-dropzone').click();
+    const fileChooser = await fileChooserPromise;
+    await fileChooser.setFiles({
+      name: 'vbl-statement.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF test'),
+    });
+    await continueButton(page).click();
+
+    await expect(
+      page.getByRole('button', {
+        name: /German federal state Select federal state/,
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByText('Missing details', { exact: true })
+    ).toHaveCount(1);
+    await expect(continueButton(page)).toBeDisabled();
+  });
+
+  test('sets the upload notes left-aligned in Roboto and body copy in Inter', async ({
+    page,
+  }) => {
+    await page.goto('/calculator');
+    await page.getByRole('button', { name: 'VBL / ZVK refund' }).click();
+    await continueButton(page).click();
+
+    const note = page.getByText(
+      /You can upload only the relevant page and hide details that are not needed for this check\. If you continue/
+    );
+    await expect(note).toHaveCSS('text-align', 'left');
+    await expect(note).toHaveCSS('font-family', /Roboto/);
+    await expect(note).toHaveCSS('font-size', '14px');
+    await expect(
+      page.getByText(
+        'Upload your pension statement for a faster estimate, or answer a few questions yourself.'
+      )
+    ).toHaveCSS('font-family', /Inter/);
+  });
+
+  test('centres the estimate with equal space above and below', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await mockCalculation(page, 7500);
+    await mockExtraction(page);
+    await chooseUpload(page, 'VBL / ZVK refund');
+    await continueButton(page).click();
+
+    const heading = page.getByRole('heading', {
+      name: 'Your estimated VBL/ZVK refund',
+    });
+    await expect(heading).toBeVisible();
+    const main = await page.getByRole('main').boundingBox();
+    const content = await heading.locator('..').boundingBox();
+    expect(main && content).toBeTruthy();
+    const top = content!.y - main!.y;
+    const bottom = main!.y + main!.height - (content!.y + content!.height);
+    expect(Math.abs(top - bottom)).toBeLessThan(2);
+    // The page fills the viewport.
+    expect(main!.height).toBeGreaterThan(900 - 40);
   });
 
   test('offers VBL and ZVK on the upload review and keeps the extracted ZVK provider', async ({
