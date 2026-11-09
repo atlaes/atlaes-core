@@ -724,6 +724,10 @@ auth.post(
   }
 );
 
+// Google OAuth: lets the sign-up screens hide the button when the client
+// credentials are not set (staging returned 500 from /google/authorize).
+auth.get('/google/config', (c) => c.json({ configured: !!googleClient }));
+
 // Google OAuth: Get authorization URL
 auth.get('/google/authorize', async (c) => {
   try {

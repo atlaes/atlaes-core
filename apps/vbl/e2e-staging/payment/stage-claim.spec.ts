@@ -84,7 +84,9 @@ test('VddB refund: check → login → pay → passport → stage details (membe
   await expect(
     page.getByRole('button', { name: /Employment Details/i })
   ).toBeVisible();
-  await page.getByRole('button', { name: /Continue to confirmation/i }).click();
+  await page
+    .getByRole('button', { name: /Continue to (confirmation|declarations)/i })
+    .click();
   await completeConfirmStep(page);
   await completeSignature(page);
   await expect(

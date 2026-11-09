@@ -29,7 +29,16 @@ function GoogleCallbackContent() {
         localStorage.setItem('accessToken', data.tokens.accessToken);
         localStorage.setItem('refreshToken', data.tokens.refreshToken);
 
-        router.push('/dashboard');
+        // Back into the claim flow the client started from (set by
+        // CreateAccount). Only same-origin paths; a full load so the auth
+        // context picks up the new tokens.
+        const stored = sessionStorage.getItem('vbl_oauth_return');
+        sessionStorage.removeItem('vbl_oauth_return');
+        const target =
+          stored && stored.startsWith('/') && !stored.startsWith('//')
+            ? stored
+            : '/dashboard';
+        window.location.assign(target);
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : 'Google sign-in failed';

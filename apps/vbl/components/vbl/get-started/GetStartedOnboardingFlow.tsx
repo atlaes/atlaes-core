@@ -26,6 +26,7 @@ import {
 import {
   clearAllFlowPersistence,
   clearCompletedDirectFlowPersistence,
+  draftMatchesFlowIdentity,
   loadFlowIdentity,
   saveFlowIdentity,
 } from '@/lib/flow-persistence';
@@ -75,10 +76,14 @@ export function GetStartedOnboardingFlow() {
   const [calculatorOrigin] = useState(
     () => loadFlowIdentity()?.origin === 'calculator'
   );
+  // Every public/stage claim uses the Figma layout (the calculator variant:
+  // full-name field, payment consents, Review → Confirm → Signature). It
+  // used to depend on `calculatorOrigin`, a localStorage flag left by
+  // earlier runs, so the same tester saw the layout flip between runs
+  // (QA board 2026-11-09). The origin now only decides cleanup and where
+  // "Return to start" goes.
   const variant: OnboardingVariant =
-    calculatorOrigin && data.pensionType !== 'private'
-      ? 'calculator'
-      : 'default';
+    data.pensionType !== 'private' ? 'calculator' : 'default';
 
   // Receiving components gain typed variant props in Tasks 3–7. Evaluate the
   // local guard now so private/bAV claims remain on the default variant.
@@ -310,7 +315,18 @@ export function GetStartedOnboardingFlow() {
 
       try {
         const result = await getClaim(storedClaimId);
-        if (result.success && result.claim.status === 'draft') {
+        if (
+          result.success &&
+          result.claim.status === 'draft' &&
+          draftMatchesFlowIdentity(
+            {
+              pensionType: result.claim.pensionType,
+              pensionProvider:
+                result.claim.pensionProvider || result.claim.bavProviderName,
+            },
+            loadFlowIdentity()
+          )
+        ) {
           loadFromClaim(result.claim);
         } else {
           localStorage.removeItem('vbl_draft_claimId');
@@ -881,7 +897,7 @@ export function GetStartedOnboardingFlow() {
     clearAllFlowPersistence();
     resetOnboarding();
     resetEligibility();
-    router.push('/calculator');
+    router.push(calculatorOrigin ? '/calculator' : '/get-started');
   };
 
   const handleRemindDRV = () => {

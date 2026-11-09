@@ -545,7 +545,7 @@ test.describe('Onboarding Edge Cases', () => {
 
       // The calculator flow now reaches Signature through Review → Confirm.
       await expect(
-        page.getByRole('heading', { name: 'Review', exact: true })
+        page.getByRole('heading', { name: 'Review your refund request' })
       ).toBeVisible({ timeout: 5_000 });
       await page
         .getByRole('button', { name: 'Continue to declarations' })

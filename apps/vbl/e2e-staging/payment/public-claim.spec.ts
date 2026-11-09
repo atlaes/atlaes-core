@@ -66,7 +66,9 @@ test('VBL refund: login → pay → passport → details → sign → submitted'
   await expect(
     page.getByRole('heading', { name: 'Review your refund request' })
   ).toBeVisible({ timeout: 20_000 });
-  await page.getByRole('button', { name: /Continue to confirmation/i }).click();
+  await page
+    .getByRole('button', { name: /Continue to (confirmation|declarations)/i })
+    .click();
   // Per-institution declarations and authorisations.
   await completeConfirmStep(page);
   await completeSignature(page);

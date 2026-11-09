@@ -762,11 +762,11 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
   // cash-out request →". Per the final-review triage note, VBL-24's
   // enabled-state wording is used for both states here (documented once,
   // rather than swapping copy when the button becomes enabled/disabled).
-  const reviewHeading = isCalculator
-    ? 'Review'
-    : isPrivatePensionType
-      ? 'Review your bAV cash-out request'
-      : 'Review your refund request';
+  // QA board 2026-11-09 (#19): Figma 2346-11503 heads the public/stage
+  // review "Review your refund request" too, not just "Review".
+  const reviewHeading = isPrivatePensionType
+    ? 'Review your bAV cash-out request'
+    : 'Review your refund request';
   const reviewIntro = isPrivatePensionType
     ? 'Please review your information carefully before submitting your bAV cash-out request.'
     : 'Please review your information before submitting your refund request.';

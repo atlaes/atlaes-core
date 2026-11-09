@@ -618,8 +618,7 @@ export async function completeReview(
   const isCalculator = variant === 'calculator';
   await expect(
     page.getByRole('heading', {
-      name: isCalculator ? 'Review' : 'Review your refund request',
-      exact: isCalculator,
+      name: 'Review your refund request',
     })
   ).toBeVisible({ timeout: 10_000 });
   await page

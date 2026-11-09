@@ -46,51 +46,83 @@ export async function uploadSpecimenPassport(
     notes.push(`${label}: ${value}`);
   };
 
-  const firstName = page.getByPlaceholder('John');
-  const lastName = page.getByPlaceholder('Smith');
-  await check('first name', firstName, specimen.givenNames, () =>
-    firstName.fill(specimen.givenNames)
-  );
-  await check('last name', lastName, specimen.surname, () =>
-    lastName.fill(specimen.surname)
-  );
-
-  const [year, month, day] = specimen.dateOfBirth.split('-');
-  const dayInput = page.getByPlaceholder('Day');
-  const yearInput = page.getByPlaceholder('Year');
-  await check('birth day', dayInput, String(Number(day)), () =>
-    dayInput.fill(String(Number(day)))
-  );
-  await check('birth year', yearInput, year, () => yearInput.fill(year));
+  // Public/stage claims use the Figma layout (one "Full Name" field and a
+  // native date input); bAV keeps first/middle/last and day/month/year.
+  const fullName = page.locator('#calculator-full-name');
   const selects = page.locator('select');
-  const MONTHS = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
-  ];
-  const monthSelect = selects.first();
-  if ((await monthSelect.inputValue()) === '') {
-    notes.push('birth month: empty, filled');
-    await monthSelect.selectOption(MONTHS[Number(month) - 1]);
+  if (await fullName.isVisible()) {
+    await check(
+      'full name',
+      fullName,
+      `${specimen.givenNames} ${specimen.surname}`,
+      () => fullName.fill(`${specimen.givenNames} ${specimen.surname}`)
+    );
+    const birthDate = page.locator('#calculator-date-of-birth');
+    await check('birth date', birthDate, specimen.dateOfBirth, () =>
+      birthDate.fill(specimen.dateOfBirth)
+    );
+    const genderSelect = page.locator('#calculator-gender');
+    const gender = specimen.sex === 'F' ? 'female' : 'male';
+    if ((await genderSelect.inputValue()) === '') {
+      notes.push('gender: empty, filled');
+      await genderSelect.selectOption(gender);
+    } else {
+      expect(await genderSelect.inputValue(), 'OCR gender').toBe(gender);
+    }
   } else {
-    notes.push(`birth month: ${await monthSelect.inputValue()}`);
+    const firstName = page.getByPlaceholder('John');
+    const lastName = page.getByPlaceholder('Smith');
+    await check('first name', firstName, specimen.givenNames, () =>
+      firstName.fill(specimen.givenNames)
+    );
+    await check('last name', lastName, specimen.surname, () =>
+      lastName.fill(specimen.surname)
+    );
+
+    const [year, month, day] = specimen.dateOfBirth.split('-');
+    const dayInput = page.getByPlaceholder('Day');
+    const yearInput = page.getByPlaceholder('Year');
+    await check('birth day', dayInput, String(Number(day)), () =>
+      dayInput.fill(String(Number(day)))
+    );
+    await check('birth year', yearInput, year, () => yearInput.fill(year));
+    const MONTHS = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    const monthSelect = selects.first();
+    if ((await monthSelect.inputValue()) === '') {
+      notes.push('birth month: empty, filled');
+      await monthSelect.selectOption(MONTHS[Number(month) - 1]);
+    } else {
+      notes.push(`birth month: ${await monthSelect.inputValue()}`);
+    }
+    const genderSelect = selects.nth(1);
+    const gender = specimen.sex === 'F' ? 'female' : 'male';
+    if ((await genderSelect.inputValue()) === '') {
+      notes.push('gender: empty, filled');
+      await genderSelect.selectOption(gender);
+    } else {
+      expect(await genderSelect.inputValue(), 'OCR gender').toBe(gender);
+    }
   }
-  const genderSelect = selects.nth(1);
-  const gender = specimen.sex === 'F' ? 'female' : 'male';
-  if ((await genderSelect.inputValue()) === '') {
-    notes.push('gender: empty, filled');
-    await genderSelect.selectOption(gender);
+
+  const passportNumber = page.locator('#identity-passport-number');
+  if ((await passportNumber.inputValue()).trim() === '') {
+    notes.push('passport number: empty, filled');
+    await passportNumber.fill(specimen.passportNumber);
   } else {
-    expect(await genderSelect.inputValue(), 'OCR gender').toBe(gender);
+    notes.push(`passport number: ${await passportNumber.inputValue()}`);
   }
 
   const nationality = page.getByPlaceholder('e.g. Australian');
