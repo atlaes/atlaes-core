@@ -145,6 +145,16 @@ const CASH_OUT_BASIS_SECTION: ReviewSection = {
   calculatorIcon: 'scale',
 };
 
+// QA board 2987:344 / Figma 2346-11503: the four public/stage review
+// sections use the Figma "Bold" glyphs (dark green on a lime circle). The
+// sections Figma does not draw keep their lucide glyph.
+const CALCULATOR_REVIEW_ICON_SRC: Partial<Record<string, string>> = {
+  personal: '/assets/onboarding/review-personal.svg',
+  address: '/assets/onboarding/review-address.svg',
+  membership: '/assets/onboarding/review-pension.svg',
+  bank: '/assets/onboarding/review-bank.svg',
+};
+
 const SALUTATION_LABELS: Record<string, string> = {
   herr: 'Herr',
   frau: 'Frau',
@@ -762,11 +772,11 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
   // cash-out request →". Per the final-review triage note, VBL-24's
   // enabled-state wording is used for both states here (documented once,
   // rather than swapping copy when the button becomes enabled/disabled).
-  const reviewHeading = isCalculator
-    ? 'Review'
-    : isPrivatePensionType
-      ? 'Review your bAV cash-out request'
-      : 'Review your refund request';
+  // QA board 2026-11-09 (#19): Figma 2346-11503 heads the public/stage
+  // review "Review your refund request" too, not just "Review".
+  const reviewHeading = isPrivatePensionType
+    ? 'Review your bAV cash-out request'
+    : 'Review your refund request';
   const reviewIntro = isPrivatePensionType
     ? 'Please review your information carefully before submitting your bAV cash-out request.'
     : 'Please review your information before submitting your refund request.';
@@ -778,7 +788,9 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
     : null;
 
   return (
-    <div className="max-w-lg mx-auto">
+    <div
+      className={isCalculator ? 'mx-auto max-w-[594px]' : 'max-w-lg mx-auto'}
+    >
       <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
         {reviewHeading}
       </h2>
@@ -786,7 +798,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
       <p className="text-gray-600 text-center mb-8">{reviewIntro}</p>
 
       {/* Accordion Sections */}
-      <div className="space-y-3 mb-8">
+      <div className={isCalculator ? 'mb-8 space-y-2.5' : 'space-y-3 mb-8'}>
         {reviewSections.map((section) => {
           // Task 15 (VBL-25): the Health insurance section auto-expands and
           // gets red-highlighted styling + an inline error label while
@@ -799,13 +811,19 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
           const CalculatorIcon = isCalculator
             ? getOnboardingSubStepGlyph(section.calculatorIcon)
             : null;
+          const calculatorIconSrc = isCalculator
+            ? CALCULATOR_REVIEW_ICON_SRC[section.id]
+            : undefined;
+          const calculatorIconTestId = `calculator-review-icon-${section.id}-${section.calculatorIcon}`;
 
           return (
             <div
               key={section.id}
               className={
+                // QA board 3001:890 / Figma 2346-11503: white cards with a
+                // subtle #D9DBE9 border.
                 isCalculator
-                  ? 'rounded-xl overflow-hidden border border-gray-200 bg-white'
+                  ? 'overflow-hidden rounded-[10px] border border-[#D9DBE9] bg-white'
                   : `rounded-xl overflow-hidden border ${
                       isIncompleteHealthInsurance
                         ? 'border-red-300 bg-red-50'
@@ -819,23 +837,38 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
                 aria-controls={`review-section-${section.id}`}
                 aria-expanded={isExpanded}
                 onClick={() => toggleSection(section.id)}
-                className="w-full px-5 py-4 flex items-center justify-between"
+                className={`w-full flex items-center justify-between ${
+                  isCalculator ? 'min-h-[60px] px-5 py-3' : 'px-5 py-4'
+                }`}
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                    className={
                       isCalculator
-                        ? 'bg-[#9FE870] text-[#163300]'
-                        : isIncompleteHealthInsurance
-                          ? 'bg-red-200 text-red-700'
-                          : 'bg-[#9FE870] text-[#163300]'
-                    }`}
+                        ? 'flex h-[33.5px] w-[33.5px] flex-shrink-0 items-center justify-center rounded-full border-[1.67px] border-white bg-[#9FE870] text-[#163300]'
+                        : `w-8 h-8 rounded-lg flex items-center justify-center ${
+                            isIncompleteHealthInsurance
+                              ? 'bg-red-200 text-red-700'
+                              : 'bg-[#9FE870] text-[#163300]'
+                          }`
+                    }
                   >
-                    {CalculatorIcon ? (
+                    {calculatorIconSrc ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={calculatorIconSrc}
+                        alt=""
+                        aria-hidden="true"
+                        width={20}
+                        height={20}
+                        className="h-5 w-5"
+                        data-testid={calculatorIconTestId}
+                      />
+                    ) : CalculatorIcon ? (
                       <CalculatorIcon
                         aria-hidden="true"
                         className="h-5 w-5"
-                        data-testid={`calculator-review-icon-${section.id}-${section.calculatorIcon}`}
+                        data-testid={calculatorIconTestId}
                       />
                     ) : (
                       section.icon
@@ -844,7 +877,7 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
                   <span
                     className={`font-semibold ${
                       isCalculator
-                        ? 'text-[#163300]'
+                        ? 'text-[18px] leading-[1.35] text-[#163300]'
                         : isIncompleteHealthInsurance
                           ? 'text-red-700'
                           : 'text-[#163300]'
@@ -917,7 +950,11 @@ export const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
       {onContinue ? (
         <button
           onClick={onContinue}
-          className="w-full py-4 px-6 bg-[#9FE870] text-[#163300] font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-[#8AD860] transition-colors"
+          className={`${
+            isCalculator
+              ? 'mx-auto h-12 max-w-[399px] rounded-[5px] px-6'
+              : 'py-4 px-6 rounded-lg'
+          } w-full bg-[#9FE870] text-[#163300] font-semibold flex items-center justify-center gap-2 hover:bg-[#8AD860] transition-colors`}
         >
           {isCalculator
             ? 'Continue to declarations'

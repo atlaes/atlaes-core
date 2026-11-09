@@ -22,8 +22,6 @@ interface ConfirmStepProps {
   // Advance to the Signature step (enabled only when the whole Confirm step is
   // complete — all four answers No and all eight boxes checked).
   onContinue: () => void;
-  // Secondary "Back to review" link.
-  onBackToReview: () => void;
   // Resolve true only when the backend committed the stop. A rejection or a
   // false response keeps the answer at No and leaves this dialog retryable.
   onStop: (reasons: string[]) => Promise<boolean>;
@@ -148,7 +146,6 @@ function germanWordingForProvider(provider: string): string | null {
 
 export const ConfirmStep: React.FC<ConfirmStepProps> = ({
   onContinue,
-  onBackToReview,
   onStop,
   onReturnToStart,
   isContinueEnabled,
@@ -368,48 +365,62 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
   const germanWording = germanWordingForProvider(provider);
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div
+      className={isCalculator ? 'mx-auto max-w-[816px]' : 'mx-auto max-w-lg'}
+    >
       <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">
         Confirm your refund information
       </h2>
       <div className="mx-auto mb-2 h-0.5 w-16 bg-gray-200" />
-      <p className="mb-8 text-center text-gray-600">
-        {isCalculator
-          ? 'Please review your answers before continuing to your signature.'
-          : 'Please review your answers and confirm the declarations that will be included in your refund application.'}
+      {/* QA board 2987:490 / Figma 2346-13500 */}
+      <p
+        className={`mb-8 text-center text-gray-600 ${
+          isCalculator ? 'mx-auto max-w-[590px]' : ''
+        }`}
+      >
+        Please review your answers and confirm the declarations that will be
+        included in your refund application.
       </p>
 
-      {/* Section 1 — Your answers */}
-      <div className="mb-8">
-        <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
-          Your answers
-        </h3>
-        <div className="space-y-3">
+      {/* Section 1 — Your answers. The Figma layout (2346-13500) is one
+          bordered card with a row per question and the answer as a
+          highlighted badge next to a plain "Edit" link. */}
+      {isCalculator ? (
+        <div className="mb-10 overflow-hidden rounded-[10px] border-2 border-[#D9DBE9] bg-white">
+          <h3 className="px-5 py-4 text-[20px] font-semibold leading-[1.34] text-[#454846] sm:px-6">
+            Your answers
+          </h3>
           {ANSWER_QUESTIONS.map(({ key, label }) => {
             const value = confirm[key];
             const isEditing = editingKeys.has(key);
             return (
               <div
                 key={key}
-                className="rounded-xl border border-gray-200 bg-white p-4"
+                className="border-t-2 border-[#D9DBE9] px-5 py-5 sm:px-6"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm text-gray-700">{label}</p>
-                  <button
-                    type="button"
-                    onClick={() => toggleEditing(key)}
-                    className="flex flex-shrink-0 items-center gap-1 text-sm font-medium text-[#163300] hover:underline"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Edit
-                  </button>
+                <div className="flex items-center justify-between gap-4">
+                  <p className="max-w-[408px] text-base leading-[1.34] text-[#454846]">
+                    {label}
+                  </p>
+                  <div className="flex flex-shrink-0 items-center gap-6 sm:gap-12 sm:pr-8">
+                    <span
+                      data-testid={`confirm-answer-badge-${key}`}
+                      className="flex h-[26px] items-center justify-center rounded-[5px] bg-[#EEF4EA] px-5 text-sm leading-[22px] tracking-[0.14px] text-[#454745]"
+                    >
+                      {value === 'yes' ? 'Yes' : 'No'}
+                    </span>
+                    <button
+                      type="button"
+                      aria-expanded={isEditing}
+                      onClick={() => toggleEditing(key)}
+                      className="text-base font-medium text-[#163300] hover:underline"
+                    >
+                      Edit
+                    </button>
+                  </div>
                 </div>
 
-                {!isEditing ? (
-                  <p className="mt-2 text-sm font-semibold text-gray-900">
-                    {value === 'yes' ? 'Yes' : 'No'}
-                  </p>
-                ) : (
+                {isEditing && (
                   <div className="mt-3 flex gap-2">
                     {(['no', 'yes'] as const).map((option) => (
                       <button
@@ -435,7 +446,64 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
             );
           })}
         </div>
-      </div>
+      ) : (
+        <div className="mb-8">
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
+            Your answers
+          </h3>
+          <div className="space-y-3">
+            {ANSWER_QUESTIONS.map(({ key, label }) => {
+              const value = confirm[key];
+              const isEditing = editingKeys.has(key);
+              return (
+                <div
+                  key={key}
+                  className="rounded-xl border border-gray-200 bg-white p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm text-gray-700">{label}</p>
+                    <button
+                      type="button"
+                      onClick={() => toggleEditing(key)}
+                      className="flex flex-shrink-0 items-center gap-1 text-sm font-medium text-[#163300] hover:underline"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </button>
+                  </div>
+
+                  {!isEditing ? (
+                    <p className="mt-2 text-sm font-semibold text-gray-900">
+                      {value === 'yes' ? 'Yes' : 'No'}
+                    </p>
+                  ) : (
+                    <div className="mt-3 flex gap-2">
+                      {(['no', 'yes'] as const).map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          aria-pressed={value === option}
+                          data-testid={`confirm-answer-${key}-${option}`}
+                          onClick={(event) =>
+                            handleSelectAnswer(key, option, event.currentTarget)
+                          }
+                          className={`flex-1 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                            value === option
+                              ? 'border-[#9FE870] bg-[#F0FDE4] text-[#163300]'
+                              : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          {option === 'yes' ? 'Yes' : 'No'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Section 2 — Important declarations */}
       {!isCalculator && (
@@ -516,10 +584,17 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
       )}
 
       {/* CTA */}
+      {/* Kept although Figma 2346-13500 has no button: the flow needs it
+          (QA board 2987:553). The bottom "Back to review" link is gone
+          (2987:490): the layout's Back button already does that. */}
       <button
         onClick={onContinue}
         disabled={!canContinue}
-        className={`flex w-full items-center justify-center gap-2 rounded-lg px-6 py-4 font-semibold transition-colors ${
+        className={`flex w-full items-center justify-center gap-2 px-6 font-semibold transition-colors ${
+          isCalculator
+            ? 'mx-auto h-12 max-w-[399px] rounded-[5px]'
+            : 'rounded-lg py-4'
+        } ${
           canContinue
             ? 'bg-[#9FE870] text-[#163300] hover:bg-[#8AD860]'
             : 'cursor-not-allowed bg-gray-200 text-gray-500'
@@ -527,12 +602,6 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
       >
         Continue to signature
         <ArrowRight className="h-4 w-4" />
-      </button>
-      <button
-        onClick={onBackToReview}
-        className="mt-4 w-full text-center text-sm font-medium text-[#163300] hover:underline"
-      >
-        Back to review
       </button>
 
       {/* Stop-confirmation modal */}
@@ -544,31 +613,38 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
             aria-modal="true"
             aria-labelledby="stop-confirmation-title"
             tabIndex={-1}
+            // QA board 2987:600 / Figma 2346-14276: centred text, no icon,
+            // green primary and outlined secondary button, 355px wide.
             className={
               isCalculator
-                ? 'w-full max-w-[560px] rounded-[22px] bg-white p-9 shadow-2xl'
+                ? 'w-full max-w-[818px] rounded-[25px] bg-white px-6 py-12 text-center shadow-2xl sm:px-[108px] sm:py-[83px]'
                 : 'w-full max-w-md rounded-2xl bg-white p-6 shadow-xl'
             }
           >
-            <div className="mb-4 flex items-start gap-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#F5D4CF]">
-                <AlertCircle className="h-5 w-5 text-[#B92513]" />
-              </div>
+            {isCalculator ? (
               <h3
                 id="stop-confirmation-title"
-                className={
-                  isCalculator
-                    ? 'text-[26px] font-bold leading-10 text-gray-900'
-                    : 'text-lg font-bold text-gray-900'
-                }
+                className="text-2xl font-semibold leading-8 tracking-[-0.36px] text-[#0E0F0B]"
               >
-                This answer will stop your refund application
+                Confirm your refund information
               </h3>
-            </div>
+            ) : (
+              <div className="mb-4 flex items-start gap-3">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#F5D4CF]">
+                  <AlertCircle className="h-5 w-5 text-[#B92513]" />
+                </div>
+                <h3
+                  id="stop-confirmation-title"
+                  className="text-lg font-bold text-gray-900"
+                >
+                  Confirm your refund information
+                </h3>
+              </div>
+            )}
             <p
               className={
                 isCalculator
-                  ? 'mt-6 text-[18px] leading-8 text-[#50576A]'
+                  ? 'mt-5 text-base leading-[1.34] text-[#454846]'
                   : 'mb-6 text-sm leading-6 text-gray-600'
               }
             >
@@ -576,7 +652,10 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
               is Yes. Are you sure you want to change your answer?
             </p>
             {stopError && (
-              <p className="mb-3 text-sm text-[#B92513]" role="alert">
+              <p
+                className={`text-sm text-[#B92513] ${isCalculator ? 'mt-4' : 'mb-3'}`}
+                role="alert"
+              >
                 {stopError}
               </p>
             )}
@@ -584,7 +663,7 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
               data-testid={isCalculator ? 'calculator-stop-actions' : undefined}
               className={
                 isCalculator
-                  ? 'mt-6 flex flex-col gap-3'
+                  ? 'mx-auto mt-9 flex w-full max-w-[355px] flex-col gap-5'
                   : 'flex flex-col gap-2'
               }
             >
@@ -594,7 +673,7 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
                 disabled={isStopping}
                 className={
                   isCalculator
-                    ? 'h-[72px] w-full rounded-lg bg-[#B92513] px-6 font-semibold text-white transition-colors hover:bg-[#9E1F10] disabled:cursor-not-allowed disabled:opacity-60'
+                    ? 'h-[53px] w-full rounded-[10px] bg-[#9FE870] px-6 text-[18px] font-semibold leading-5 text-[#231F20] shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-colors hover:bg-[#8AD860] disabled:cursor-not-allowed disabled:opacity-60'
                     : 'w-full rounded-lg bg-[#B92513] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#9E1F10] disabled:cursor-not-allowed disabled:opacity-60'
                 }
               >
@@ -606,7 +685,7 @@ export const ConfirmStep: React.FC<ConfirmStepProps> = ({
                 disabled={isStopping}
                 className={
                   isCalculator
-                    ? 'h-[72px] w-full rounded-lg border border-gray-300 bg-white px-6 font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60'
+                    ? 'h-[53px] w-full rounded-[10px] border-2 border-[#231F20] bg-transparent px-6 text-[18px] font-semibold leading-5 text-[#231F20] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60'
                     : 'w-full rounded-lg border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60'
                 }
               >

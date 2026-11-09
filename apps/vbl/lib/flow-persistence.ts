@@ -413,6 +413,36 @@ export function loadFlowIdentity(): PersistedFlowIdentity | null {
   return safeReadLocal<PersistedFlowIdentity>(FLOW_IDENTITY_KEY);
 }
 
+// A stored `vbl_draft_claimId` survives across runs. When this run already
+// knows what it is claiming (the calculator or eligibility walk wrote the
+// identity), a draft for another pension type or provider belongs to an
+// earlier run: resuming it would switch e.g. a VddB claim into the bAV
+// flow (QA board 2026-11-09). Unknown values on either side match.
+export function draftMatchesFlowIdentity(
+  claim: { pensionType?: unknown; pensionProvider?: unknown },
+  identity: Pick<
+    PersistedFlowIdentity,
+    'pensionType' | 'pensionProvider'
+  > | null
+): boolean {
+  if (!identity) return true;
+  const claimType =
+    typeof claim.pensionType === 'string' ? claim.pensionType : '';
+  if (identity.pensionType && claimType && identity.pensionType !== claimType) {
+    return false;
+  }
+  const claimProvider =
+    typeof claim.pensionProvider === 'string' ? claim.pensionProvider : '';
+  if (
+    identity.pensionProvider &&
+    claimProvider &&
+    identity.pensionProvider.toLowerCase() !== claimProvider.toLowerCase()
+  ) {
+    return false;
+  }
+  return true;
+}
+
 export function clearFlowIdentity(): void {
   safeClearLocal(FLOW_IDENTITY_KEY);
 }

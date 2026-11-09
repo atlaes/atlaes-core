@@ -147,6 +147,11 @@ export const Membership: React.FC<MembershipProps> = ({
 
   const providerLabel =
     selectedProvider?.label || data.membership.pensionProvider || '';
+  // Latched on mount-time emptiness so the picker does not swap back to the
+  // locked box after the first choice (the client can still correct it).
+  const [providerMissing] = useState(
+    () => data.membership.pensionProvider.trim() === ''
+  );
   const displayProviderLabel =
     providerLabel === 'VBL' ? 'VBLklassik' : providerLabel;
   const isVblProvider =
@@ -156,7 +161,7 @@ export const Membership: React.FC<MembershipProps> = ({
 
   // All copy on this screen is derived dynamically from the actual
   // provider name substituted in, per the design reference helper copy
-  // pattern ("You can find this number on letters or statements from VBL.").
+  // pattern ("You can find this number on your VBL letters or statements.").
   const providerNameForCopy = isVblProvider ? 'VBL' : providerLabel;
 
   // Dynamic membership number label and helper text based on selection.
@@ -179,9 +184,11 @@ export const Membership: React.FC<MembershipProps> = ({
       ? `Enter your ${providerNameForCopy} ${isVblProvider ? 'insurance' : 'membership'} number`
       : 'Enter your membership number';
 
+  // QA board 2987:203 / Figma 2346-8578: "You can find this number on your
+  // VBL letters or statements."
   const helperText = providerNameForCopy
-    ? `You can find this number on letters or statements from ${providerNameForCopy}.`
-    : 'You can find this number on letters or statements from your pension provider.';
+    ? `You can find this number on your ${providerNameForCopy} letters or statements.`
+    : 'You can find this number on your pension provider’s letters or statements.';
 
   // Item 26: screen 2 gets its own heading/intro per the design reference
   // (Eligibility/VBL-5.png — "Leaving stage or orchestra employment" /
@@ -230,15 +237,59 @@ export const Membership: React.FC<MembershipProps> = ({
             VBL-5.png doesn't repeat this block on the second screen). */}
         {!isStageScreen2 && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor={
+                providerMissing ? 'membership-provider-fallback' : undefined
+              }
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Selected company pension
             </label>
-            <div
-              className="w-full px-4 py-3 rounded-lg text-gray-700 font-medium"
-              style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)' }}
-            >
-              {displayProviderLabel}
-            </div>
+            {providerMissing ? (
+              // QA board 2026-11-09: the provider did not arrive (stale
+              // browser state from an earlier run, new tab, resume), so
+              // the locked box rendered empty and Continue never enabled.
+              // Let the client pick it instead of leaving them stuck.
+              isPrivatePensionType ? (
+                <input
+                  id="membership-provider-fallback"
+                  type="text"
+                  value={data.membership.pensionProvider}
+                  onChange={(e) =>
+                    updateMembership({ pensionProvider: e.target.value })
+                  }
+                  placeholder="Name of your pension provider"
+                  className="w-full px-4 py-3 border border-red-400 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+                />
+              ) : (
+                <select
+                  id="membership-provider-fallback"
+                  value={data.membership.pensionProvider}
+                  onChange={(e) =>
+                    updateMembership({ pensionProvider: e.target.value })
+                  }
+                  className="w-full px-4 py-3 border border-red-400 rounded-lg bg-white focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none"
+                >
+                  <option value="" disabled>
+                    Select your company pension
+                  </option>
+                  {PENSION_PROVIDERS.filter((p) => p.value !== 'VBL').map(
+                    (p) => (
+                      <option key={p.value} value={p.value}>
+                        {p.label}
+                      </option>
+                    )
+                  )}
+                </select>
+              )
+            ) : (
+              <div
+                className="w-full px-4 py-3 rounded-lg text-gray-700 font-medium"
+                style={{ backgroundColor: 'rgba(159, 232, 112, 0.2)' }}
+              >
+                {displayProviderLabel}
+              </div>
+            )}
           </div>
         )}
 

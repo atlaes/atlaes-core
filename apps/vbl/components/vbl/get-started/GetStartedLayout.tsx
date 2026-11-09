@@ -1,7 +1,7 @@
 'use client';
 
 import React, { ReactNode } from 'react';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { CompanyPensionLogo } from '@/components/vbl/icons/CompanyPensionLogo';
 import { FlowFooterLinks } from '@/components/vbl/FlowFooterLinks';
 import {
@@ -257,11 +257,9 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
                             : 'border-2 border-white/70 text-white'
                       }`}
                     >
-                      {isStepCompleted(step.id) ? (
-                        <Check className="w-4 h-4" />
-                      ) : (
-                        step.id
-                      )}
+                      {/* QA board 3001:865 / Figma 2346-18864: completed
+                          steps keep their number (no checkmark). */}
+                      {step.id}
                     </div>
                     <span
                       className={`hidden whitespace-nowrap text-[16px] font-semibold sm:inline ${
@@ -313,7 +311,9 @@ export const GetStartedLayout: React.FC<GetStartedLayoutProps> = ({
         </div>
 
         {/* Content Area */}
-        <div className="min-h-[690px] px-7 py-8 sm:px-8">
+        {/* QA board 2987:120/223/276: more room below each step's Continue
+            button (Figma leaves roughly 60-160px under it). */}
+        <div className="min-h-[690px] px-7 pb-14 pt-8 sm:px-8 sm:pb-24">
           {/* Back Button */}
           {showBack && onBack && (
             <button

@@ -712,7 +712,7 @@ test.describe('Calculator identity fields', () => {
     await completeAddress(page);
     await completeBankDetails(page);
     await expect(
-      page.getByRole('heading', { name: 'Review', exact: true })
+      page.getByRole('heading', { name: 'Review your refund request' })
     ).toBeVisible({ timeout: 10_000 });
   }
 
@@ -1127,7 +1127,7 @@ test.describe('Calculator identity fields', () => {
     };
 
     await expect(
-      page.getByRole('heading', { name: 'Review', exact: true })
+      page.getByRole('heading', { name: 'Review your refund request' })
     ).toBeVisible({ timeout: 10_000 });
     await assertCalculatorSubsteps();
 
@@ -1800,7 +1800,7 @@ test.describe('Calculator identity fields', () => {
     await completeAddress(page);
     await completeBankDetails(page);
     await expect(
-      page.getByRole('heading', { name: 'Review', exact: true })
+      page.getByRole('heading', { name: 'Review your refund request' })
     ).toBeVisible({ timeout: 10_000 });
     await page.getByRole('button', { name: 'Personal information' }).click();
     await expect(

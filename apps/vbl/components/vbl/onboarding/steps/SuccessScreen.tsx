@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ArrowRight, Check, Bell } from 'lucide-react';
+import { ArrowRight, Bell } from 'lucide-react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import type { OnboardingVariant } from '@/components/vbl/onboarding/onboarding-variant';
 
@@ -61,16 +61,24 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
 
   return (
     <div className="max-w-lg mx-auto text-center">
-      {/* Success Checkmark */}
+      {/* Success Checkmark. QA board 2987:705 / 3001:892, Figma
+          2346-13407: dark green circle with a white check inside a light
+          green ring. */}
       <div
         data-testid="success-main-icon"
-        className="w-24 h-24 bg-[#9FE870] rounded-full flex items-center justify-center mx-auto mb-6"
+        className="mx-auto mb-6 flex h-[121px] w-[121px] items-center justify-center rounded-full bg-[#BCEF9B]"
       >
-        <Check
-          aria-hidden="true"
-          className="w-12 h-12 text-[#163300]"
-          strokeWidth={3}
-        />
+        <div className="flex h-[95px] w-[95px] items-center justify-center rounded-full bg-[#163300]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/assets/onboarding/success-check-mark.svg"
+            alt=""
+            aria-hidden="true"
+            width={51}
+            height={38}
+            className="h-[38px] w-[51px]"
+          />
+        </div>
       </div>
 
       {/* Title */}
@@ -91,16 +99,21 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
         <ul className="space-y-3">
           {whatHappensNext.map((item, index) => (
             <li key={index} className="flex items-start gap-3">
-              <div
+              {/* Figma 2346-13407: dark green check circles. */}
+              <span
                 data-testid={`success-next-step-icon-${index}`}
-                className="w-5 h-5 bg-[#9FE870] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                className="mt-0.5 flex h-[17px] w-[17px] flex-shrink-0 rounded-full bg-white"
               >
-                <Check
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/assets/onboarding/success-list-check.svg"
+                  alt=""
                   aria-hidden="true"
-                  className="w-3 h-3 text-[#163300]"
-                  strokeWidth={3}
+                  width={17}
+                  height={17}
+                  className="h-[17px] w-[17px]"
                 />
-              </div>
+              </span>
               <span className="text-sm text-gray-700">{item}</span>
             </li>
           ))}

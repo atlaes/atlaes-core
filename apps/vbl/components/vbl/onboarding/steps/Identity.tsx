@@ -121,6 +121,7 @@ export const Identity: React.FC<IdentityProps> = ({
   const calculatorBirthDateInputRef = useRef<HTMLInputElement | null>(null);
   const calculatorNationalityInputRef = useRef<HTMLInputElement | null>(null);
   const calculatorPlaceOfBirthInputRef = useRef<HTMLInputElement | null>(null);
+  const calculatorPassportInputRef = useRef<HTMLInputElement | null>(null);
   const calculatorGenderInputRef = useRef<HTMLSelectElement | null>(null);
   const calculatorLocallyWrittenFullNameRef = useRef<string | null>(null);
   // Figma VBL-16: inline error state on the upload dropzone when the user
@@ -354,7 +355,8 @@ export const Identity: React.FC<IdentityProps> = ({
     calculatorBirthDateError === null &&
     data.identity.gender !== '' &&
     data.identity.nationality.trim() !== '' &&
-    data.identity.placeOfBirth.trim() !== '';
+    data.identity.placeOfBirth.trim() !== '' &&
+    data.identity.passportNumber.trim() !== '';
 
   const defaultIdentityValid =
     data.identity.firstName.trim() !== '' &&
@@ -391,6 +393,10 @@ export const Identity: React.FC<IdentityProps> = ({
       setCalculatorSubmitAttempted(true);
       if (!calculatorName) {
         calculatorFullNameInputRef.current?.focus();
+        return;
+      }
+      if (data.identity.passportNumber.trim() === '') {
+        calculatorPassportInputRef.current?.focus();
         return;
       }
       if (data.identity.nationality.trim() === '') {
@@ -700,40 +706,39 @@ export const Identity: React.FC<IdentityProps> = ({
                 show={showMissingHighlights && missingFields.lastName}
               />
             </div>
-
-            {/* Required at submit. OCR fills it when the scan is readable;
-                otherwise (ID card, blurry scan) the client types it. */}
-            <div>
-              <FieldLabel
-                label="Passport / ID document number"
-                showMissing={
-                  showMissingHighlights && missingFields.passportNumber
-                }
-                htmlFor="identity-passport-number"
-              />
-              <input
-                id="identity-passport-number"
-                type="text"
-                autoComplete="off"
-                value={data.identity.passportNumber}
-                onChange={(e) =>
-                  updateIdentity({
-                    passportNumber: e.target.value.toUpperCase(),
-                  })
-                }
-                placeholder="e.g. PA1234567"
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none ${
-                  showMissingHighlights && missingFields.passportNumber
-                    ? 'border-red-400'
-                    : 'border-gray-300'
-                }`}
-              />
-              <MissingHint
-                show={showMissingHighlights && missingFields.passportNumber}
-              />
-            </div>
           </>
         )}
+
+        {/* Required at submit. OCR fills it when the scan is readable;
+              otherwise (ID card, blurry scan) the client types it. */}
+        <div>
+          <FieldLabel
+            label="Passport / ID document number"
+            showMissing={showMissingHighlights && missingFields.passportNumber}
+            htmlFor="identity-passport-number"
+          />
+          <input
+            ref={calculatorPassportInputRef}
+            id="identity-passport-number"
+            type="text"
+            autoComplete="off"
+            value={data.identity.passportNumber}
+            onChange={(e) =>
+              updateIdentity({
+                passportNumber: e.target.value.toUpperCase(),
+              })
+            }
+            placeholder="e.g. PA1234567"
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none ${
+              showMissingHighlights && missingFields.passportNumber
+                ? 'border-red-400'
+                : 'border-gray-300'
+            }`}
+          />
+          <MissingHint
+            show={showMissingHighlights && missingFields.passportNumber}
+          />
+        </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>

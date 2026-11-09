@@ -196,13 +196,14 @@ export async function completeStageMembership(
   await expect(
     page.getByRole('heading', { name: 'Leaving stage or orchestra employment' })
   ).toBeVisible();
-  // Radios render as ['yes', 'no'] and ['no', 'yes'] (StageMembershipDetails).
-  await page.locator('input[name="permanentlyStopped"]').first().check();
+  // Both radio pairs render Yes / No (StageMembershipDetails); pick by value
+  // so the order does not matter.
+  await page.locator('input[name="permanentlyStopped"][value="yes"]').check();
   await page.locator('select').selectOption('contract_ended');
   await page
     .getByPlaceholder('e.g. Office employee, self-employed, freelancer')
     .fill(s.currentOccupation);
-  await page.locator('input[name="unableToWorkHealth"]').first().check();
+  await page.locator('input[name="unableToWorkHealth"][value="no"]').check();
   await page.getByRole('button', { name: /Continue/i }).click();
 }
 

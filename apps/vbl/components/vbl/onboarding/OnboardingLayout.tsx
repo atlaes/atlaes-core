@@ -2,7 +2,7 @@
 
 import React, { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { CompanyPensionLogo } from '@/components/vbl/icons/CompanyPensionLogo';
 import { FlowFooterLinks } from '@/components/vbl/FlowFooterLinks';
 import {
@@ -236,11 +236,9 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
                             : 'border-2 border-white/70 text-white'
                       }`}
                     >
-                      {isStepCompleted(step.id) ? (
-                        <Check className="w-4 h-4" />
-                      ) : (
-                        step.id
-                      )}
+                      {/* QA board 3001:865 / Figma 2346-18864: completed
+                          steps keep their number (no checkmark). */}
+                      {step.id}
                     </div>
                     <span
                       className={`text-sm font-medium ${
@@ -284,8 +282,9 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
           </div>
         </div>
 
-        {/* Content Area */}
-        <div className="p-8">
+        {/* Content Area. QA board 2987:120/223/276: more room below each
+            step's Continue button (Figma leaves roughly 60-160px under it). */}
+        <div className="px-8 pb-14 pt-8 sm:pb-24">
           {/* Back Button */}
           {showBack && (
             <button
