@@ -602,7 +602,12 @@ export async function completeSignature(page: Page) {
     await page.mouse.up();
   }
 
-  await page.getByLabel('I confirm that this is my legal signature.').check();
+  // Public/stage (Figma layout, 2346-11141) and bAV word the box differently.
+  await page
+    .getByLabel(
+      /^I confirm that this is my (legal signature\.|signature and authorize CompanyPension to use it for these purposes\.)$/
+    )
+    .check();
   await page.getByRole('button', { name: /Continue/i }).click();
 }
 

@@ -651,10 +651,11 @@ export const Signature: React.FC<SignatureProps> = ({
         Add your signature
       </h2>
       <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
+      {/* QA board 2987:649 / Figma 2346-11141 copy for the Figma layout. */}
       <p className="text-gray-600 text-center mb-8">
-        Your signature will be used to sign your refund request and authorize
-        CompanyPension to receive correspondence from the pension provider for
-        this process.
+        {variant === 'calculator'
+          ? 'Your signature will be used to sign your refund application and a limited power of attorney authorizing CompanyPension to receive correspondence and communicate with your pension institution for this refund process.'
+          : 'Your signature will be used to sign your refund request and authorize CompanyPension to receive correspondence from the pension provider for this process.'}
       </p>
 
       {/* Mode Toggle */}
@@ -818,9 +819,16 @@ export const Signature: React.FC<SignatureProps> = ({
           onChange={(e) => handleLegalConfirmation(e.target.checked)}
           className="mt-1 h-4 w-4 rounded border-gray-300 text-[#9FE870] focus:ring-[#9FE870]"
         />
-        <span className="text-sm text-gray-700">
-          I confirm that this is my legal signature.
-        </span>
+        {variant === 'calculator' ? (
+          <span className="text-base leading-[1.17] text-[#454846]">
+            I confirm that this is my signature and authorize CompanyPension to
+            use it for these purposes.
+          </span>
+        ) : (
+          <span className="text-sm text-gray-700">
+            I confirm that this is my legal signature.
+          </span>
+        )}
       </label>
 
       {/* Continue Button */}
@@ -829,7 +837,8 @@ export const Signature: React.FC<SignatureProps> = ({
         disabled={!canProceed || isUploading}
         className={`${
           variant === 'calculator'
-            ? 'mt-10 w-full rounded-lg px-6 py-4 text-[18px] font-semibold flex items-center justify-center gap-2 transition-colors'
+            ? // Figma 2346-11141: 399px x 48px, 5px radius, 16px label.
+              'mx-auto mt-10 flex h-12 w-full max-w-[399px] items-center justify-center gap-2 rounded-[5px] px-6 text-base font-semibold transition-colors'
             : 'w-full mt-8 py-4 px-6 font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors'
         } ${
           canProceed && !isUploading

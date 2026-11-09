@@ -651,7 +651,6 @@ export function OnboardingFlow({
           <ConfirmStep
             variant={variant}
             onContinue={handleConfirmContinue}
-            onBackToReview={() => setCurrentSubStep('review')}
             onStop={handleConfirmStop}
             onReturnToStart={handleReturnToStart}
             onStopStateChange={setCalculatorStopped}

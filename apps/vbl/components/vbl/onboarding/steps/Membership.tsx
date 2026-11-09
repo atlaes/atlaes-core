@@ -161,7 +161,7 @@ export const Membership: React.FC<MembershipProps> = ({
 
   // All copy on this screen is derived dynamically from the actual
   // provider name substituted in, per the design reference helper copy
-  // pattern ("You can find this number on letters or statements from VBL.").
+  // pattern ("You can find this number on your VBL letters or statements.").
   const providerNameForCopy = isVblProvider ? 'VBL' : providerLabel;
 
   // Dynamic membership number label and helper text based on selection.
@@ -184,9 +184,11 @@ export const Membership: React.FC<MembershipProps> = ({
       ? `Enter your ${providerNameForCopy} ${isVblProvider ? 'insurance' : 'membership'} number`
       : 'Enter your membership number';
 
+  // QA board 2987:203 / Figma 2346-8578: "You can find this number on your
+  // VBL letters or statements."
   const helperText = providerNameForCopy
-    ? `You can find this number on letters or statements from ${providerNameForCopy}.`
-    : 'You can find this number on letters or statements from your pension provider.';
+    ? `You can find this number on your ${providerNameForCopy} letters or statements.`
+    : 'You can find this number on your pension provider’s letters or statements.';
 
   // Item 26: screen 2 gets its own heading/intro per the design reference
   // (Eligibility/VBL-5.png — "Leaving stage or orchestra employment" /

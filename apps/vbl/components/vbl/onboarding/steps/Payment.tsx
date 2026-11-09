@@ -194,7 +194,15 @@ export const Payment: React.FC<PaymentProps> = ({
       <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
         {copy.heading}
       </h2>
-      <div className="w-16 h-0.5 bg-gray-200 mx-auto mb-2" />
+      {/* QA board 2987:137 / Figma 2346-8222: the Figma-layout divider spans
+          the card width as a 1px #E8E8E8 line. */}
+      <div
+        className={
+          isCalculator
+            ? 'mb-3 mt-3 h-px w-full bg-[#E8E8E8]'
+            : 'w-16 h-0.5 bg-gray-200 mx-auto mb-2'
+        }
+      />
       {copy.intro && (
         <p className="text-gray-600 text-center mb-8">{copy.intro}</p>
       )}
@@ -313,12 +321,24 @@ export const Payment: React.FC<PaymentProps> = ({
 
         {/* Public: bank note above the secure label; bAV moves its
             disclaimer below the button (Figma 1156-4761) */}
+        {/* QA board 2981:1403 / Figma 2346-8218: the note below the fee
+            details and the Stripe line are 14px #6A6C6A in the Figma layout. */}
         {!isPrivate && (
-          <p className="text-xs text-gray-500 text-center mb-6">
+          <p
+            className={
+              isCalculator
+                ? 'mb-6 text-center text-sm leading-[1.3] text-[#6A6C6A]'
+                : 'text-xs text-gray-500 text-center mb-6'
+            }
+          >
             {copy.bankNote}
           </p>
         )}
-        <p className="text-xs text-gray-500 text-center mb-6 flex items-center justify-center gap-1">
+        <p
+          className={`${
+            isCalculator ? 'text-sm text-[#6A6C6A]' : 'text-xs text-gray-500'
+          } mb-6 flex items-center justify-center gap-1 text-center`}
+        >
           {isCalculator && (
             <ShieldCheck
               aria-hidden="true"

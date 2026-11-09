@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { ArrowRight, CreditCard, Info, User } from 'lucide-react';
+import { ArrowRight, Info } from 'lucide-react';
 import {
   BankAccountOption,
   isStageProvider,
@@ -50,31 +50,33 @@ type BankDetailsPhase =
   | 'trusted_details'
   | 'phone_entry';
 
+// QA board 2987:284 / Figma 2346-9367: the option icons are the Figma
+// exports (53px grey squircle with a person / two people / bank glyph).
 const DESTINATION_OPTIONS: {
   value: BankAccountOption;
   label: string;
   description: string;
-  icon: React.ReactNode;
+  icon: string;
 }[] = [
   {
     value: 'own_iban',
     label: 'My own EUR / SEPA account',
     description: 'Use a EUR / SEPA bank account in your own name.',
-    icon: <CreditCard className="h-6 w-6" />,
+    icon: '/assets/onboarding/bank-option-own-account.svg',
   },
   {
     value: 'trusted_third_party',
     label: 'A trusted person’s EUR / SEPA account',
     description:
       'Use the account of someone you trust, such as a partner, family member or close friend.',
-    icon: <User className="h-6 w-6" />,
+    icon: '/assets/onboarding/bank-option-trusted-account.svg',
   },
   {
     value: 'open_free_account',
     label: 'I want to open a EUR account',
     description:
       'Open a EUR account through our account-opening partner, SummitFX.',
-    icon: <CreditCard className="h-6 w-6" />,
+    icon: '/assets/onboarding/bank-option-open-account.svg',
   },
 ];
 
@@ -119,8 +121,7 @@ export const BankDetails: React.FC<BankDetailsProps> = ({
   // field 25), so they collect both too.
   const isPrivatePensionType = data.pensionType === 'private';
   const needsBankNameAndBic =
-    isPrivatePensionType ||
-    isStageProvider(data.membership.pensionProvider);
+    isPrivatePensionType || isStageProvider(data.membership.pensionProvider);
   // A bAV cash-out is paid by the provider straight into the account named
   // in the letter, and the letter goes out at submission: there is no step
   // that adds an account later, so "open a EUR account" cannot work there.
@@ -545,15 +546,15 @@ export const BankDetails: React.FC<BankDetailsProps> = ({
                   : 'border-gray-200 bg-white hover:border-gray-300'
               }`}
             >
-              <div
-                className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg ${
-                  isSelected
-                    ? 'bg-[#9FE870] text-[#163300]'
-                    : 'bg-gray-100 text-gray-500'
-                }`}
-              >
-                {option.icon}
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={option.icon}
+                alt=""
+                aria-hidden="true"
+                width={53}
+                height={53}
+                className="h-[53px] w-[53px] flex-shrink-0"
+              />
               <div>
                 <p className="font-semibold text-gray-900">{option.label}</p>
                 <p className="mt-1 text-sm text-gray-600">

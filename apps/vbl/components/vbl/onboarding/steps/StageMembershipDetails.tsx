@@ -129,6 +129,7 @@ export const StageMembershipDetails: React.FC<StageMembershipDetailsProps> = ({
                 <input
                   type="radio"
                   name="permanentlyStopped"
+                  value={v}
                   checked={s.permanentlyStopped === v}
                   onChange={() => updateStageDetails({ permanentlyStopped: v })}
                   className="w-4 h-4 text-[#9FE870] focus:ring-[#9FE870]"
@@ -150,7 +151,8 @@ export const StageMembershipDetails: React.FC<StageMembershipDetailsProps> = ({
                 }
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FE870] focus:border-transparent outline-none appearance-none bg-white"
               >
-                <option value="">Select a reason</option>
+                {/* QA board 3001:870 / Figma 2346-19459 */}
+                <option value="">Select reason for leaving</option>
                 {REASONS_FOR_LEAVING.map((r) => (
                   <option key={r.value} value={r.value}>
                     {r.label}
@@ -161,12 +163,18 @@ export const StageMembershipDetails: React.FC<StageMembershipDetailsProps> = ({
             </div>
           </div>
 
+          {/* Shown once "Other" is picked; Figma 2346-19459 labels it
+              "Other reason for leaving". */}
           {s.reasonForLeaving === 'other' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Other (please specify)
+              <label
+                htmlFor="stage-reason-for-leaving-other"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Other reason for leaving
               </label>
               <input
+                id="stage-reason-for-leaving-other"
                 type="text"
                 value={s.reasonForLeavingOther}
                 onChange={(e) =>
@@ -203,12 +211,14 @@ export const StageMembershipDetails: React.FC<StageMembershipDetailsProps> = ({
           <p className="text-sm text-gray-700 mb-3">
             Are you currently unable to work for health reasons?
           </p>
+          {/* QA board 3001:870: same Yes / No order as the question above. */}
           <div className="flex items-center gap-6">
-            {(['no', 'yes'] as const).map((v) => (
+            {(['yes', 'no'] as const).map((v) => (
               <label key={v} className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
                   name="unableToWorkHealth"
+                  value={v}
                   checked={s.unableToWorkHealth === v}
                   onChange={() => updateStageDetails({ unableToWorkHealth: v })}
                   className="w-4 h-4 text-[#9FE870] focus:ring-[#9FE870]"
