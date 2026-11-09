@@ -15,11 +15,19 @@ interface MembershipProps {
   setBackOverride?: (handler: (() => void) | null) => void;
 }
 
-// Item 26: the combined "Stage or orchestra employment details" screen is
-// split into two sequential internal phases for stage/orchestra providers
-// (VddB, VddKO) — mirrors the BankDetails phase pattern. Non-stage
-// providers never leave 'details'.
-type MembershipPhase = 'details' | 'stage-screen-1' | 'stage-screen-2';
+// Stage/orchestra providers (VddB, VddKO) walk three internal phases —
+// mirrors the BankDetails phase pattern:
+//   'stage-pension'  — pension details (selected pension + membership
+//                      number), its own screen as in Figma 2346-19055
+//                      (QA board 2026-11-09)
+//   'stage-screen-1' — last stage/orchestra employment (item 26)
+//   'stage-screen-2' — leaving & current occupation (item 26)
+// Non-stage providers never leave 'details'.
+type MembershipPhase =
+  | 'details'
+  | 'stage-pension'
+  | 'stage-screen-1'
+  | 'stage-screen-2';
 
 const PENSION_PROVIDERS = [
   { value: 'VBLklassik', label: 'VBLklassik', shortLabel: 'VBLklassik' },
@@ -46,26 +54,29 @@ export const Membership: React.FC<MembershipProps> = ({
   // still REQUIRED, just relabeled.
   const isPrivatePensionType = data.pensionType === 'private';
 
-  // Stage / orchestra (VddB, VddKO) needs the membership number (screen 1)
-  // plus an extended employment details form over two screens.
+  // Stage / orchestra (VddB, VddKO) needs the membership number (pension
+  // details screen) plus an extended employment details form over two
+  // screens.
   const isStageProvider =
     data.membership.pensionProvider === 'VddB' ||
     data.membership.pensionProvider === 'VddKO';
 
-  // Item 26: two-screen split for stage providers. Self-review rule: on
-  // resume (loadFromClaim) or any fresh mount, always land on screen 1 —
-  // the simplest safe default regardless of how complete the saved stage
-  // data already is.
+  // On resume (loadFromClaim) or any fresh mount, always land on the first
+  // stage screen — the simplest safe default regardless of how complete the
+  // saved stage data already is.
   const [phase, setPhase] = useState<MembershipPhase>(
-    isStageProvider ? 'stage-screen-1' : 'details'
+    isStageProvider ? 'stage-pension' : 'details'
   );
 
   const s = data.membership.stageDetails;
 
-  // Stage screen 1 also takes the VddB/VddKO membership number: the
-  // institution knows the claimant by it (stored as the claim's svNummer).
+  // The VddB/VddKO membership number: the institution knows the claimant by
+  // it (stored as the claim's svNummer).
+  const pensionScreenValid =
+    data.membership.pensionProvider.trim() !== '' &&
+    data.membership.membershipNumber.trim() !== '';
+
   const screen1Valid =
-    data.membership.membershipNumber.trim() !== '' &&
     s.stageName.trim() !== '' &&
     s.rolePosition.trim() !== '' &&
     s.employmentEndDate !== '';
@@ -82,6 +93,10 @@ export const Membership: React.FC<MembershipProps> = ({
     );
   })();
 
+  const handleBackToPension = useCallback(() => {
+    setPhase('stage-pension');
+  }, []);
+
   const handleBackToScreen1 = useCallback(() => {
     setPhase('stage-screen-1');
   }, []);
@@ -89,29 +104,42 @@ export const Membership: React.FC<MembershipProps> = ({
   // Safety net: the pension provider can arrive slightly after this
   // component mounts (e.g. the Stripe-return sessionStorage restore in
   // GetStartedOnboardingFlow), which would otherwise leave phase stuck on
-  // 'details' for a stage provider. Promote to screen 1 if that happens;
-  // never demote away from an in-progress stage phase.
+  // 'details' for a stage provider. Promote to the pension screen if that
+  // happens; never demote away from an in-progress stage phase.
   useEffect(() => {
     if (isStageProvider && phase === 'details') {
-      setPhase('stage-screen-1');
+      setPhase('stage-pension');
     }
   }, [isStageProvider, phase]);
 
-  // Register/release the global Back override while on screen 2. Screen 1
-  // relies on the flow's default Back behavior (leaving the membership
-  // sub-step entirely), matching BankDetails' destination phase.
+  // Register/release the global Back override while on the employment
+  // screens, so Back steps through the stage screens one at a time. The
+  // pension screen relies on the flow's default Back behavior (leaving the
+  // membership sub-step entirely), matching BankDetails' destination phase.
   useEffect(() => {
     if (!setBackOverride) return;
-    if (isStageProvider && phase === 'stage-screen-2') {
+    if (isStageProvider && phase === 'stage-screen-1') {
+      setBackOverride(handleBackToPension);
+    } else if (isStageProvider && phase === 'stage-screen-2') {
       setBackOverride(handleBackToScreen1);
     } else {
       setBackOverride(null);
     }
     return () => setBackOverride(null);
-  }, [isStageProvider, phase, setBackOverride, handleBackToScreen1]);
+  }, [
+    isStageProvider,
+    phase,
+    setBackOverride,
+    handleBackToPension,
+    handleBackToScreen1,
+  ]);
 
   const handleContinue = () => {
     if (isStageProvider) {
+      if (phase === 'stage-pension') {
+        setPhase('stage-screen-1');
+        return;
+      }
       if (phase === 'stage-screen-1') {
         setPhase('stage-screen-2');
         return;
@@ -126,12 +154,14 @@ export const Membership: React.FC<MembershipProps> = ({
 
   // Overall substep completion (used for the tab bar / review-section
   // completeness check) is unchanged — canProceedFromSubStep('membership')
-  // still requires every field across both screens.
+  // still requires every field across all stage screens.
   const canProceedOverall = canProceedFromSubStep('membership');
   const canProceed = isStageProvider
-    ? phase === 'stage-screen-1'
-      ? screen1Valid
-      : screen2Valid
+    ? phase === 'stage-screen-2'
+      ? screen2Valid
+      : phase === 'stage-screen-1'
+        ? screen1Valid
+        : pensionScreenValid
     : canProceedOverall;
 
   // Client #15: the pension provider is always known by this point — it's
@@ -193,14 +223,18 @@ export const Membership: React.FC<MembershipProps> = ({
   // Item 26: screen 2 gets its own heading/intro per the design reference
   // (Eligibility/VBL-5.png — "Leaving stage or orchestra employment" /
   // "Please provide a few more details for your refund request."). Screen 1
-  // keeps the original combined-screen heading/intro (Eligibility/VBL-4.png).
+  // keeps the original heading/intro (Eligibility/VBL-4.png). The stage
+  // pension screen uses the same "<Provider> pension details" copy as every
+  // other public provider (Figma 2346-19055).
   // Final review fix (CRITICAL 1): bAV/private (non-stage) claimants get the
   // Get-Started/Private-Flow/VBL-5.png heading/intro instead of the generic
   // "<Provider> pension details" copy.
+  const isStageScreen1 = isStageProvider && phase === 'stage-screen-1';
   const isStageScreen2 = isStageProvider && phase === 'stage-screen-2';
+  const isStageEmploymentScreen = isStageScreen1 || isStageScreen2;
   const heading = isStageScreen2
     ? 'Leaving stage or orchestra employment'
-    : isStageProvider
+    : isStageScreen1
       ? 'Stage or orchestra employment details'
       : isPrivatePensionType
         ? 'Company pension membership details'
@@ -209,7 +243,7 @@ export const Membership: React.FC<MembershipProps> = ({
           : 'Pension details';
   const intro = isStageScreen2
     ? 'Please provide a few more details for your refund request.'
-    : isStageProvider
+    : isStageScreen1
       ? 'Please provide details about your last stage or orchestra employment in Germany.'
       : isPrivatePensionType
         ? "Enter the details from your company pension document. We'll use this information for your bAV cash-out request."
@@ -232,10 +266,10 @@ export const Membership: React.FC<MembershipProps> = ({
             screen (eligibility sets it for the public flow; the calculator
             bridge sets it via sessionStorage for the others), so it is
             never re-editable here — there is no dropdown fallback, even if
-            the provider were somehow empty in context. Item 26: hidden on
-            stage screen 2, matching the design reference (Eligibility/
-            VBL-5.png doesn't repeat this block on the second screen). */}
-        {!isStageScreen2 && (
+            the provider were somehow empty in context. Hidden on the stage
+            employment screens: it lives on the pension details screen
+            (Figma 2346-19055). */}
+        {!isStageEmploymentScreen && (
           <div>
             <label
               htmlFor={
@@ -293,7 +327,7 @@ export const Membership: React.FC<MembershipProps> = ({
           </div>
         )}
 
-        {!isStageScreen2 && (
+        {!isStageEmploymentScreen && (
           <div>
             <label
               htmlFor="membership-reference"
@@ -323,14 +357,12 @@ export const Membership: React.FC<MembershipProps> = ({
           </div>
         )}
 
-        {isStageProvider && (
+        {isStageEmploymentScreen && (
           <div className="pt-2">
             <StageMembershipDetails
               embedded
               section={
-                phase === 'stage-screen-2'
-                  ? 'leaving-occupation'
-                  : 'last-employment'
+                isStageScreen2 ? 'leaving-occupation' : 'last-employment'
               }
             />
           </div>
