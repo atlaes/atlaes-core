@@ -13,6 +13,7 @@ import {
   Inbox,
   Newspaper,
   Building2,
+  ClipboardCheck,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -55,6 +56,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
       icon: Inbox,
       count: letters.data,
       active: pathname.startsWith('/letters'),
+    },
+    {
+      href: '/eligibility-leads',
+      label: 'Eligibility leads',
+      icon: ClipboardCheck,
+      count: undefined,
+      active: pathname.startsWith('/eligibility-leads'),
     },
     {
       href: '/law-firms',
@@ -158,6 +166,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <Link href="/letters" className="text-gray-700">
               DRV letters
               {letters.data ? ` (${letters.data})` : ''}
+            </Link>
+            <Link href="/eligibility-leads" className="text-gray-700">
+              Eligibility leads
             </Link>
             <Link href="/law-firms" className="text-gray-700">
               Law firms

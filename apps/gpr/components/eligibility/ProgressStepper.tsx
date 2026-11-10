@@ -9,89 +9,28 @@ interface Step {
   subLabel?: string;
 }
 
+/**
+ * The one step counter of the flow (ST-034): check flows show
+ * "Check your eligibility (1/2 · 2/2)" → "Create account"; the
+ * calculator flow "Basic eligibility" → "Create account".
+ */
 export default function ProgressStepper() {
-  const { currentStep, flowType } = useEligibilityCheck();
+  const { step, flowType, decision } = useEligibilityCheck();
+  const isCalc = flowType === 'calculator';
 
-  // Calculator flow: "Basic eligibility" -> "Create account"
-  const stepsCalculator: Step[] = [
-    { label: 'Basic eligibility' },
-    { label: 'Create account' },
-  ];
+  const first: Step = isCalc
+    ? { label: 'Basic eligibility' }
+    : {
+        label: 'Check your eligibility',
+        subLabel: step === 'countries' ? '(1/2)' : '(2/2)',
+      };
+  const displaySteps: Step[] = [first, { label: 'Create account' }];
 
-  // 2-step flow: "Check your eligibility (x/2)" -> "Create account"
-  const steps2Step: Step[] = [
-    { label: 'Check your eligibility', subLabel: '(1/2)' },
-    { label: 'Create account' },
-  ];
-
-  // 3-step flow: "Check your eligibility (x/2)" -> "Additional info" -> "Create account"
-  const steps3Step: Step[] = [
-    { label: 'Check your eligibility', subLabel: '(1/2)' },
-    { label: 'Additional info' },
-    { label: 'Create account' },
-  ];
-
-  const getSteps = () => {
-    switch (flowType) {
-      case 'calculator': return stepsCalculator;
-      case '2-step': return steps2Step;
-      case '3-step': return steps3Step;
-      default: return stepsCalculator;
-    }
-  };
-
-  const steps = getSteps();
-
-  // Map current step to progress step index based on flow type
-  const getProgressStepIndex = () => {
-    if (flowType === 'calculator') {
-      // 0 = citizenship -> Basic eligibility
-      // 1+ = result/account -> Create account
-      return currentStep === 0 ? 0 : 1;
-    }
-
-    if (flowType === '2-step') {
-      // 0,1 = eligibility check steps -> "Check your eligibility"
-      // 2+ = result/account -> "Create account"
-      return currentStep <= 1 ? 0 : 1;
-    }
-
-    if (flowType === '3-step') {
-      // 0,1 = eligibility check -> "Check your eligibility"
-      // 2 = additional info -> "Additional info"
-      // 3+ = result/account -> "Create account"
-      if (currentStep <= 1) return 0;
-      if (currentStep === 2) return 1;
-      return 2;
-    }
-
-    return 0;
-  };
-
-  const progressIndex = getProgressStepIndex();
-
-  // Update step label with sub-step indicator for 2-step and 3-step flows
-  const getUpdatedSteps = () => {
-    if (flowType === '2-step' && currentStep <= 1) {
-      return steps.map((step, i) => {
-        if (i === 0) {
-          return { ...step, subLabel: `(${currentStep + 1}/2)` };
-        }
-        return step;
-      });
-    }
-    if (flowType === '3-step' && currentStep <= 1) {
-      return steps.map((step, i) => {
-        if (i === 0) {
-          return { ...step, subLabel: `(${currentStep + 1}/2)` };
-        }
-        return step;
-      });
-    }
-    return steps;
-  };
-
-  const displaySteps = getUpdatedSteps();
+  const progressIndex =
+    step === 'account' ||
+    (step === 'result' && decision && decision.result !== 'NOT_NOW')
+      ? 1
+      : 0;
 
   // Check if a step is completed
   const isStepCompleted = (index: number) => {
@@ -114,8 +53,8 @@ export default function ProgressStepper() {
                   isStepCompleted(index)
                     ? 'completed'
                     : isStepCurrent(index)
-                    ? 'current'
-                    : 'pending'
+                      ? 'current'
+                      : 'pending'
                 }`}
               >
                 {isStepCompleted(index) ? (

@@ -8,8 +8,22 @@ import React, {
   useMemo,
   ReactNode,
 } from 'react';
-import { GPRFormData, GPRCalculationResult, JobData } from '@/hooks/useGPRCalculator';
-import { EligibilityFormData, EligibilityResult } from '@/hooks/useEligibilityCheck';
+import {
+  GPRFormData,
+  GPRCalculationResult,
+  JobData,
+} from '@/hooks/useGPRCalculator';
+import { EligibilityResult } from '@/hooks/useEligibilityCheck';
+
+/** Legacy eligibility answers (pre GPR-ELIG-2026-11-10 shape). */
+export interface EligibilityFormData {
+  citizenship: string;
+  residence: string;
+  lastEmploymentMonth: string;
+  lastEmploymentYear: string;
+  contributionDuration: string;
+  dateOfBirth: string;
+}
 import apiClient from '@/lib/api';
 
 // Session data structure matching the backend API
@@ -70,7 +84,8 @@ export function GPRSessionProvider({
   const [calculatorData, setCalculatorDataState] = useState<GPRFormData | null>(
     initialCalculatorData
   );
-  const [eligibilityData, setEligibilityDataState] = useState<EligibilityFormData | null>(null);
+  const [eligibilityData, setEligibilityDataState] =
+    useState<EligibilityFormData | null>(null);
 
   const setCalculatorData = useCallback((data: GPRFormData) => {
     setCalculatorDataState(data);
@@ -111,9 +126,11 @@ export function GPRSessionProvider({
         ? {
             citizenship: eligibilityData.citizenship || undefined,
             residence: eligibilityData.residence || undefined,
-            lastEmploymentMonth: eligibilityData.lastEmploymentMonth || undefined,
+            lastEmploymentMonth:
+              eligibilityData.lastEmploymentMonth || undefined,
             lastEmploymentYear: eligibilityData.lastEmploymentYear || undefined,
-            contributionDuration: eligibilityData.contributionDuration || undefined,
+            contributionDuration:
+              eligibilityData.contributionDuration || undefined,
             dateOfBirth: eligibilityData.dateOfBirth || undefined,
           }
         : undefined,

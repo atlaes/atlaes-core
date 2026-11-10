@@ -2,10 +2,12 @@
 
 /**
  * Hero flow card = step 1 of the intake flow (Homepage Build Sheet, Hero):
- * citizenship + country of residence as searchable selects, no personal
- * data. Submitting routes into the existing funnel (`FUNNEL_ENTRY`) with
- * `?citizenship=…&residence=…` plus the attribution params, so the funnel
- * prefills the answers and never re-asks them.
+ * citizenship + country of residence as searchable selects (eligibility
+ * brief § 7: word-start search, aliases, likely country + top five first),
+ * no personal data. Submitting routes into the existing funnel
+ * (`FUNNEL_ENTRY`) with `?citizenship=XX&residence=XX` (ISO codes) plus the
+ * attribution params, so the funnel prefills the answers and never
+ * re-asks them.
  */
 import {
   useEffect,
@@ -16,9 +18,15 @@ import {
   type FormEvent,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { COUNTRIES } from '@/data/countries';
 import { FUNNEL_ENTRY } from '@/content/registries/links';
 import { handoffAttributionQuery } from '@/lib/attribution';
+import CountryCombobox from '@/components/eligibility/CountryCombobox';
+import {
+  TOP_CITIZENSHIPS,
+  TOP_RESIDENCES,
+  likelyCountry,
+  resolveCountry,
+} from '@/lib/country-search';
 import {
   preliminaryHint,
   type PreliminaryHint,
@@ -41,14 +49,10 @@ export const FLOW_CARD_COPY = {
   microcopy: 'No personal details are needed to see your answer.',
 } as const;
 
-/** Canonical country name for a typed value (case-insensitive), or null. */
+/** ISO code for a typed value (name, alias), or null. */
 export function matchCountry(value: string): string | null {
-  const needle = value.trim().toLowerCase();
-  if (!needle) return null;
-  for (let i = 0; i < COUNTRIES.length; i++) {
-    if (COUNTRIES[i].toLowerCase() === needle) return COUNTRIES[i];
-  }
-  return null;
+  const hit = resolveCountry(value);
+  return hit ? hit.code : null;
 }
 
 /** Pure: the funnel URL for a submitted card. */
@@ -66,54 +70,21 @@ export function funnelHref(
   return FUNNEL_ENTRY + '?' + params.toString();
 }
 
-function CountryField({
-  id,
-  listId,
-  label,
-  value,
-  onChange,
-  invalid,
-}: {
-  id: string;
-  listId: string;
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  invalid: boolean;
-}) {
-  return (
-    <div className="mk-field">
-      <label htmlFor={id} className="mk-field-label">
-        {label}
-      </label>
-      <span className="mk-flow-input">
-        <input
-          id={id}
-          name={id}
-          list={listId}
-          className={'mk-input' + (invalid ? ' mk-input-invalid' : '')}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          autoComplete="off"
-          placeholder="Start typing…"
-          aria-invalid={invalid || undefined}
-          required
-        />
-      </span>
-    </div>
-  );
-}
-
 export function FlowCard() {
   const router = useRouter();
   const uid = useId();
-  const listId = uid + '-countries';
-  const [citizenship, setCitizenship] = useState('');
-  const [residence, setResidence] = useState('');
+  const [citizenshipMatch, setCitizenship] = useState<string | null>(null);
+  const [residenceMatch, setResidence] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
-
-  const citizenshipMatch = matchCountry(citizenship);
-  const residenceMatch = matchCountry(residence);
+  // Ordering hint from the browser locale only (no cookie, nothing stored).
+  const [likely, setLikely] = useState<string | null>(null);
+  useEffect(() => {
+    const langs =
+      navigator.languages && navigator.languages.length
+        ? navigator.languages
+        : [navigator.language];
+    setLikely(likelyCountry(langs, null));
+  }, []);
   const invalidCitizenship = touched && !citizenshipMatch;
   const invalidResidence = touched && !residenceMatch;
   const ready = Boolean(citizenshipMatch && residenceMatch);
@@ -180,29 +151,32 @@ export function FlowCard() {
         {FLOW_CARD_COPY.heading}
       </p>
       <p className="mk-flow-sub">{FLOW_CARD_COPY.subline}</p>
-      <datalist id={listId}>
-        {COUNTRIES.map((c) => (
-          <option key={c} value={c} />
-        ))}
-      </datalist>
-      <CountryField
+      <CountryCombobox
         id={uid + '-citizenship'}
-        listId={listId}
         label={FLOW_CARD_COPY.citizenship}
-        value={citizenship}
+        value={citizenshipMatch}
         onChange={setCitizenship}
+        likely={likely}
+        top={TOP_CITIZENSHIPS}
         invalid={invalidCitizenship}
+        fieldClassName="mk-field"
+        labelClassName="mk-field-label"
+        inputClassName="mk-input"
       />
-      <CountryField
+      <CountryCombobox
         id={uid + '-residence'}
-        listId={listId}
         label={FLOW_CARD_COPY.residence}
-        value={residence}
+        value={residenceMatch}
         onChange={setResidence}
+        likely={likely}
+        top={TOP_RESIDENCES}
         invalid={invalidResidence}
+        fieldClassName="mk-field"
+        labelClassName="mk-field-label"
+        inputClassName="mk-input"
       />
-      {/* Preliminary hint from the country-only verdict rules
-          (lib/eligibility-verdicts.ts), verbatim verdict texts. */}
+      {/* Preliminary hint: Step A1–A5 of lib/eligibility-rules.ts with the
+          NOT_NOW copy. */}
       <div
         className="mk-flow-hint"
         data-open={verdict ? 'true' : 'false'}

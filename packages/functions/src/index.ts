@@ -31,6 +31,9 @@ import lawFirmLetters, { adminLetters } from './routes/law-firm-letters';
 import migrations from './routes/migrations';
 import payments from './routes/payments';
 import leads from './routes/leads';
+import eligibilityLeads, {
+  adminEligibilityLeads,
+} from './routes/eligibility-leads';
 import account from './routes/account';
 import clientUpdatesAdmin from './routes/client-updates-admin';
 import payout from './routes/payout';
@@ -81,6 +84,7 @@ app.route('/api/admin/letters', adminLetters);
 app.route('/api/migrations', migrations);
 app.route('/api/payments', payments);
 app.route('/api/leads', leads);
+app.route('/api/eligibility-leads', eligibilityLeads);
 app.route('/api/account', account);
 app.route('/api/admin/client-updates', clientUpdatesAdmin);
 app.route('/api/account/payout', payout);
@@ -88,6 +92,7 @@ app.route('/api/admin/payout', payoutAdmin);
 app.route('/api/admin/integrations', integrationsAdmin);
 app.route('/api/admin/direct-submission', directSubmissionAdmin);
 app.route('/api/admin/blog', adminBlog);
+app.route('/api/admin/eligibility-leads', adminEligibilityLeads);
 app.route('/api/blog', blog);
 // Staging e2e support; 404 unless the e2e guard passes (utils/e2e.ts).
 app.route('/api/e2e', e2e);
