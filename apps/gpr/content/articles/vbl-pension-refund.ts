@@ -29,11 +29,11 @@ const page: ArticleData = {
   showReviewer: false,
   datePublished: '2025-07-06',
   dateModified: '2026-11-10',
-  imageUrl: 'https://www.germanypensionrefund.com/blog/vbl-pension-refund.jpg',
+  imageUrl: 'https://www.germanypensionrefund.com/marketing/posts/vbl-pension-refund.jpg',
   blocks: [
     {
       t: 'img',
-      url: '/blog/vbl-pension-refund.jpg',
+      url: '/marketing/posts/vbl-pension-refund.jpg',
       alt: 'German public service employees',
       cover: true,
     },

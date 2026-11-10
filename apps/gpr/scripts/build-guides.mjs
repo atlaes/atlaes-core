@@ -1092,7 +1092,7 @@ const PAGES = [
     datePublished: '2025-07-06',
     dateModified: '2026-11-10',
     cover: {
-      url: '/blog/vbl-pension-refund.jpg',
+      url: '/marketing/posts/vbl-pension-refund.jpg',
       alt: 'German public service employees',
     },
     faqEnd: /^Have more questions\?/,
@@ -1126,7 +1126,7 @@ const PAGES = [
     datePublished: '2026-08-19',
     dateModified: '2026-11-10',
     cover: {
-      url: '/blog/cash-out-german-company-pension-bav.png',
+      url: '/marketing/posts/cash-out-german-company-pension-bav.png',
       alt: 'Unlocked padlock with a § keyhole — cover of the guide to cashing out a German company pension (bAV) after leaving Germany',
     },
     faqInSchema: true,
@@ -1162,7 +1162,7 @@ const PAGES = [
     datePublished: '2025-07-27',
     dateModified: '2026-11-09',
     cover: {
-      url: '/blog/german-widow-pension.webp',
+      url: '/marketing/posts/german-widow-pension.webp',
       alt: "A widow reading a letter at home — deciding between a German widow's pension and a contribution refund",
     },
     faqInSchema: true,
@@ -1328,6 +1328,8 @@ function build(page) {
   blocks = rv.blocks;
   if (page.cover) {
     // Re-hosted cover (no wixstatic.com on the new platform): first block.
+    // Covers live under public/marketing/posts/ — never add a top-level
+    // public folder named like a route (public/blog/ sent /blog to S3, 403).
     blocks.unshift({
       t: 'img',
       url: page.cover.url,
