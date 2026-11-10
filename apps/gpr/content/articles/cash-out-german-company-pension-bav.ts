@@ -30,11 +30,11 @@ const page: ArticleData = {
   datePublished: '2026-08-19',
   dateModified: '2026-11-10',
   imageUrl:
-    'https://www.germanypensionrefund.com/blog/cash-out-german-company-pension-bav.png',
+    'https://www.germanypensionrefund.com/marketing/posts/cash-out-german-company-pension-bav.png',
   blocks: [
     {
       t: 'img',
-      url: '/blog/cash-out-german-company-pension-bav.png',
+      url: '/marketing/posts/cash-out-german-company-pension-bav.png',
       alt: 'Unlocked padlock with a § keyhole — cover of the guide to cashing out a German company pension (bAV) after leaving Germany',
       cover: true,
     },

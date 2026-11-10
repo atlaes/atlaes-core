@@ -31,11 +31,11 @@ const page: ArticleData = {
   datePublished: '2025-07-27',
   dateModified: '2026-11-09',
   imageUrl:
-    'https://www.germanypensionrefund.com/blog/german-widow-pension.webp',
+    'https://www.germanypensionrefund.com/marketing/posts/german-widow-pension.webp',
   blocks: [
     {
       t: 'img',
-      url: '/blog/german-widow-pension.webp',
+      url: '/marketing/posts/german-widow-pension.webp',
       alt: "A widow reading a letter at home — deciding between a German widow's pension and a contribution refund",
       cover: true,
     },
