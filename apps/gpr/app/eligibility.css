@@ -164,7 +164,9 @@
   font-size: 1rem;
   color: #1e1b4b;
   background-color: white;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .eligibility-select:focus,
@@ -232,7 +234,9 @@
   color: #374151;
   background-color: white;
   cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
 }
 
 .eligibility-btn-back:hover {
@@ -356,7 +360,9 @@
   font-size: 0.9375rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
 }
 
 .eligibility-auth-btn.google {
@@ -573,4 +579,128 @@
   .eligibility-result-content {
     padding: 2rem 1.5rem;
   }
+}
+
+/* GPR-ELIG-2026-11-10 flow additions */
+.eligibility-form-section fieldset.eligibility-form-group {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.eligibility-form-section legend.eligibility-label {
+  display: block;
+  padding: 0;
+  margin-bottom: 0.5rem;
+}
+.elig-hint {
+  margin: -0.25rem 0 0.5rem;
+  color: #6b7280;
+}
+.elig-link-row {
+  margin: 0 0 1.25rem;
+}
+.elig-text-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: #4f46e5;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.elig-text-link:hover {
+  color: #3730a3;
+}
+.eligibility-result-icon.neutral {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+.elig-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+.elig-result-foot {
+  margin: 1.5rem 0 0;
+}
+.elig-inline-form {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: left;
+}
+.elig-inline-form .eligibility-btn-next {
+  margin-top: 0.5rem;
+}
+.elig-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  font-size: 0.9375rem;
+  color: #374151;
+  text-align: left;
+  cursor: pointer;
+}
+.elig-check input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: #6366f1;
+}
+.elig-attest {
+  max-width: 400px;
+  margin: 0 0 1.5rem;
+}
+.elig-confirm {
+  margin: 1.5rem 0 0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: #ecfdf5;
+  color: #065f46;
+  font-size: 0.9375rem;
+  max-width: 420px;
+}
+.elig-closing {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: #374151;
+}
+.elig-storage-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+.elig-storage-note a,
+.elig-legal a {
+  color: inherit;
+  text-decoration: underline;
+}
+.elig-hp {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.elig-legal {
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: #6b7280;
+  line-height: 1.5;
+}
+.elig-legal p {
+  margin: 0.25rem 0;
+}
+.eligibility-auth-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

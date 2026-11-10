@@ -24,7 +24,7 @@ export default function StepCard({
   onBack,
   stepIndicator,
 }: StepCardProps) {
-  const { goToNextStep, goToPreviousStep, canProceed, currentStep, flowType } =
+  const { goToNextStep, goToPreviousStep, canProceed, currentStep } =
     useEligibilityCheck();
 
   const handleNext = () => {
@@ -43,32 +43,8 @@ export default function StepCard({
     }
   };
 
-  // Calculate step indicator text based on flow type
-  const getStepIndicator = () => {
-    if (stepIndicator) return stepIndicator;
-
-    if (flowType === 'calculator') {
-      // Calculator: only 1 form step before result
-      if (currentStep === 0) return 'Step 1 of 2';
-      return '';
-    }
-
-    if (flowType === '2-step') {
-      // 2-step: 2 form steps before result
-      if (currentStep <= 1) return `Step ${currentStep + 1} of 2`;
-      return '';
-    }
-
-    if (flowType === '3-step') {
-      // 3-step: 3 form steps before result
-      if (currentStep <= 2) return `Step ${currentStep + 1} of 3`;
-      return '';
-    }
-
-    return '';
-  };
-
-  const indicator = getStepIndicator();
+  // One step counter only (ST-034): the progress stepper above the card.
+  const indicator = stepIndicator || '';
 
   return (
     <div className="eligibility-card">

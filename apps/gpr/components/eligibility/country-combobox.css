@@ -1,0 +1,49 @@
+/* Searchable country select (components/eligibility/CountryCombobox.tsx) */
+.gpr-cc-wrap {
+  position: relative;
+}
+.gpr-cc-input {
+  width: 100%;
+}
+.gpr-cc-hint {
+  margin: -0.25rem 0 0.5rem;
+}
+.gpr-cc-list {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 280px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+.gpr-cc-option {
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  color: #1e1b4b;
+  cursor: pointer;
+  text-align: left;
+}
+.gpr-cc-option[data-active='true'] {
+  background: #eef2ff;
+}
+.gpr-cc-option[aria-selected='true'] {
+  font-weight: 600;
+}
+.gpr-cc-divider {
+  height: 1px;
+  margin: 4px 0;
+  background: #e5e7eb;
+}
+.gpr-cc-empty {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  color: #6b7280;
+}

@@ -21,6 +21,10 @@ import {
   rateLimitExceeded,
 } from '../middleware/rate-limiter';
 import { GPRApplicationService } from '../services/gpr-application';
+import {
+  createEligibilitySignup,
+  eligibilityCheckSchema,
+} from '../services/leads/gpr-eligibility';
 import { sendMagicLinkEmail } from '../services/email';
 import { isE2eRequest } from '../utils/e2e';
 import { db } from '../utils/db';
@@ -473,6 +477,12 @@ const extendedMagicLinkRequestSchema = z.object({
           lastEmploymentYear: z.string().optional(),
           contributionDuration: z.string().optional(),
           dateOfBirth: z.string().optional(),
+          // GPR-ELIG-2026-11-10 check (/check/3-step); accepted, not stored
+          // on the pending session (the answers go to eligibilityCheck).
+          secondCitizenship: z.string().optional().nullable(),
+          ruleSet: z.string().optional(),
+          result: z.string().optional(),
+          blockReason: z.string().optional().nullable(),
           eligibilityResult: z
             .object({
               isEligible: z.boolean(),
@@ -483,6 +493,15 @@ const extendedMagicLinkRequestSchema = z.object({
         .optional(),
     })
     .optional(),
+  // GPR eligibility check the visitor attested to before creating the
+  // account (stored as a gpr-elig-signup lead). A malformed record is
+  // logged and dropped: it must never block the sign-in link.
+  eligibilityCheck: eligibilityCheckSchema.optional().catch((ctx) => {
+    logger.warn('Ignoring invalid eligibilityCheck on magic-link request', {
+      issues: ctx.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`),
+    });
+    return undefined;
+  }),
 });
 
 // Request magic link endpoint (with optional GPR session data)
@@ -492,8 +511,13 @@ auth.post(
   zValidator('json', extendedMagicLinkRequestSchema),
   async (c) => {
     try {
-      const { email, callbackUrl, redirectUrl, gprSessionData } =
-        c.req.valid('json');
+      const {
+        email,
+        callbackUrl,
+        redirectUrl,
+        gprSessionData,
+        eligibilityCheck,
+      } = c.req.valid('json');
 
       // Staging e2e login (utils/e2e.ts): a secret-bearing request for an
       // @e2e.test address gets the link in the response instead of by mail
@@ -531,6 +555,27 @@ auth.post(
         } catch (sessionError) {
           logger.error('Failed to save GPR session data:', sessionError);
           // Don't fail the magic link request if session save fails
+        }
+      }
+
+      // Eligibility check from the GPR funnel: keep what was attested.
+      if (eligibilityCheck) {
+        try {
+          await createEligibilitySignup(email, eligibilityCheck, {
+            ipAddress:
+              c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ??
+              c.req.header('x-real-ip') ??
+              null,
+            userAgent: c.req.header('user-agent') ?? null,
+          });
+        } catch (signupError) {
+          logger.error('Failed to store eligibility sign-up record:', {
+            message:
+              signupError instanceof Error
+                ? signupError.message
+                : String(signupError),
+          });
+          // Don't fail the magic link request if this save fails
         }
       }
 

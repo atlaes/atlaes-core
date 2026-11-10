@@ -253,6 +253,13 @@
       "when": 1791620254025,
       "tag": "0038_users_sessions_revoked_at",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1791706654025,
+      "tag": "0039_gpr_eligibility_leads",
+      "breakpoints": true
     }
   ]
 }

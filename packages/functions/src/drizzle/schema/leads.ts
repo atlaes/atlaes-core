@@ -3,6 +3,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   timestamp,
   uuid,
   varchar,
@@ -18,6 +19,10 @@ import { gpr } from './gpr';
  *   'v0900-guide'  — German V0900 guide PDF request (widget gpr-v0900-capture)
  *   'wegzug-guide' — German Wegzugs-Checkliste PDF request (gpr-wegzug-capture)
  *   'claim-lead'   — English refund-widget lead (gpr-refund-widget, verdict etc.)
+ *   'vbl-reminder' — VBL waiting-period reminder (services/leads/vbl-reminder.ts)
+ *   'gpr-elig-reminder' / 'gpr-elig-review' / 'gpr-elig-signup' — GPR
+ *                    eligibility check /check/3-step (migration 0039,
+ *                    services/leads/gpr-eligibility.ts)
  *
  * Reminder rule (guides only, explicit opt-in): the 24-month waiting period
  * ends 24 full calendar months after the last contribution month, so the
@@ -51,6 +56,16 @@ export const leads = gpr.table(
     canApplyFrom: varchar('can_apply_from', { length: 50 }),
     estimateEur: integer('estimate_eur'),
     incomeEntered: varchar('income_entered', { length: 50 }),
+
+    // GPR eligibility check (gpr-elig-* rows, migration 0039): the rule set
+    // the browser evaluated, its outcome, the answers as given and, for a
+    // "not yet" result, the first filing date.
+    ruleSet: varchar('rule_set', { length: 40 }),
+    result: varchar('result', { length: 30 }), // PROCEED | PROCEED_FROM_DATE | NOT_NOW
+    blockReason: varchar('block_reason', { length: 40 }),
+    answers: jsonb('answers').$type<Record<string, unknown>>(),
+    fileFrom: date('file_from'),
+    attestedAt: timestamp('attested_at', { withTimezone: true }),
 
     // Attribution
     widget: varchar('widget', { length: 100 }),
@@ -98,6 +113,10 @@ export const leads = gpr.table(
       table.reminderOptIn,
       table.reminderSentAt,
       table.reminderDueOn
+    ),
+    typeCreatedIdx: index('leads_type_created_idx').on(
+      table.type,
+      table.createdAt
     ),
   })
 );

@@ -106,6 +106,12 @@ describe('staging e2e login', () => {
       await sql`DELETE FROM shared.users WHERE id = ${id}::uuid`;
     }
     await sql.end();
+    // Files share one process (isolate: false): leave no stage behind for
+    // tests that read process.env.APP_STAGE (auth-admin-email.test.ts).
+    for (const [key, value] of Object.entries(savedEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   });
 
   describe('POST /api/auth/magic-link/request under NODE_ENV=production', () => {
