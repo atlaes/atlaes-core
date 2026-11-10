@@ -58,9 +58,11 @@ export function ArticleHero({
     .split(' ')
     .map((p) => p.charAt(0))
     .join('');
-  // A by-line that already names the author ("By Johannes Kühn, …") is
-  // shown on its own, as in the article frames (e.g. 928:14822).
-  const named = showReviewer && !(reviewLine && /^(By|Von) /.test(reviewLine));
+  // A by-line that already names the author ("By Johannes Kühn, …",
+  // "Written by Johannes Kühn · …") is shown on its own, as in the article
+  // frames (e.g. 928:14822).
+  const named =
+    showReviewer && !(reviewLine && /^(By|Von|Written by) /.test(reviewLine));
   return (
     <header className="mk-art-hero">
       <HeroGlyph className="mk-art-deco" />

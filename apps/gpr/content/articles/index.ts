@@ -5,6 +5,9 @@ import whichGermanPensionOfficeHandlesYourClaim from './which-german-pension-off
 import germanSocialSecurityNumber from './german-social-security-number';
 import germanPensionRefundWaitingPeriod from './german-pension-refund-waiting-period';
 import brexit from './brexit';
+import vblPensionRefund from './vbl-pension-refund';
+import cashOutGermanCompanyPensionBav from './cash-out-german-company-pension-bav';
+import germanWidowPension from './german-widow-pension';
 import germanPensionRefundProcessingTime from './german-pension-refund-processing-time';
 
 export const articles: Record<string, ArticleData> = {
@@ -14,6 +17,9 @@ export const articles: Record<string, ArticleData> = {
   'german-social-security-number': germanSocialSecurityNumber,
   'german-pension-refund-waiting-period': germanPensionRefundWaitingPeriod,
   brexit: brexit,
+  'vbl-pension-refund': vblPensionRefund,
+  'cash-out-german-company-pension-bav': cashOutGermanCompanyPensionBav,
+  'german-widow-pension': germanWidowPension,
   'german-pension-refund-processing-time': germanPensionRefundProcessingTime,
 };
 

@@ -160,8 +160,20 @@ export const LINKS: Record<string, LinkTarget> = {
   '/post/german-widow-pension': {
     path: '/post/german-widow-pension',
     label: 'German widow pension',
-    live: false,
-    note: 'linked from country pages; no route in repo',
+    live: true,
+    note: 'Nov 2026 post handoff — route exists under app/(marketing)',
+  },
+  '/post/vbl-pension-refund': {
+    path: '/post/vbl-pension-refund',
+    label: 'VBL pension refund',
+    live: true,
+    note: 'Nov 2026 post handoff — route exists under app/(marketing)',
+  },
+  '/post/cash-out-german-company-pension-bav': {
+    path: '/post/cash-out-german-company-pension-bav',
+    label: 'Company pension (bAV) cash-out',
+    live: true,
+    note: 'Nov 2026 post handoff — route exists under app/(marketing)',
   },
   '/german-pension-refund-processing-time': {
     path: '/german-pension-refund-processing-time',
