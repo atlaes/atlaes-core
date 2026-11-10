@@ -30,6 +30,7 @@ export type ArticleBlock =
   | ({ t: 'p' } & Rich)
   | { t: 'h2'; x: string; id: string }
   | { t: 'h3'; x: string }
+  | { t: 'h4'; x: string }
   /** Blockquote from the copy (ID-02 disclaimer) — rendered as a callout. */
   | ({ t: 'quote' } & Rich)
   /** Italic aside from the copy. */
@@ -48,7 +49,14 @@ export type ArticleBlock =
   /** Registry-driven official-downloads list for the given form numbers. */
   | { t: 'downloads'; forms: string[] }
   /** Body image (blog CMS posts). */
-  | { t: 'img'; url: string; alt: string; caption?: string };
+  | {
+      t: 'img';
+      url: string;
+      alt: string;
+      caption?: string;
+      /** Post cover (first block): shown as a cropped banner. */
+      cover?: boolean;
+    };
 
 export interface ArticleFaqItem extends FaqItem {
   /**

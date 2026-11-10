@@ -39,6 +39,12 @@ export const BLOG_EXCERPTS: Record<string, string> = {
     'Deutsche Rentenversicherung is 16 carriers, not one office. Find the one responsible for your refund claim — and where to send your application.',
   brexit:
     'Why UK citizens and anyone living in the UK generally cannot get a German pension refund before retirement age after Brexit — and the three exceptions.',
+  'vbl-pension-refund':
+    'Left a public-sector job in Germany before completing 60 months in the VBL? You may be able to get your own VBL contributions back. Who qualifies, what is refunded and how to apply.',
+  'cash-out-german-company-pension-bav':
+    'Your German state pension refund and your company pension (bAV) are two separate claims — and the second is routinely forgotten. Once your DRV contributions have been refunded, § 3 (3) BetrAVG gives you the legal right to demand a lump-sum settlement of your vested company pension, whatever its size. This guide covers which schemes qualify, the 2026 small-entitlement thresholds, how the payout is calculated, tax when you live abroad, and the exact steps from refund to payout.',
+  'german-widow-pension':
+    "Widow's pension or contribution refund? What survivors abroad can claim from Germany in 2026 — eligibility, amounts, deadlines, and how to check in minutes.",
   'german-social-security-number':
     'Learn how to get a social security number in Germany, including requirements for employees, freelancers, and students, and answers to frequently asked questions.',
 };

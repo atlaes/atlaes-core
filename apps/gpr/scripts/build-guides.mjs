@@ -290,7 +290,7 @@ function joinLines(ls) {
 // --- block parser ---------------------------------------------------------
 const SRC_PREFIX =
   /^(Sources:|Quellen:|Official basis:|Official sources:|Official basis\s|Legal basis and official guidance:|Main FAQ sources:|Tax source:|Last checked:|Zuletzt geprüft:)/;
-const FAQ_H2 = /^(FAQ|Frequently asked questions|Häufig gestellte Fragen)$/i;
+const FAQ_H2 = /^(FAQs?|Frequently asked questions|Häufig gestellte Fragen)$/i;
 const ITEM = /^\s{0,3}(-|\d+\.)\s+/;
 
 function parseBody(body, page) {
@@ -331,7 +331,9 @@ function parseBody(body, page) {
       if (rule) rule.tools.forEach((kind) => blocks.push({ t: 'tool', kind }));
       return;
     }
-    if (/^\*\[component:/.test(trimmed)) return;
+    // *[component: …]* / *[button: …]* are build instructions (the page CTA
+    // pills carry the button).
+    if (/^\*\[(component|button):/.test(trimmed)) return;
     if (/^(Updated|Aktualisiert): /.test(trimmed)) {
       page._updated = trimmed;
       return;
@@ -414,6 +416,12 @@ function parseBody(body, page) {
     if (l.startsWith('### ')) {
       flush();
       blocks.push({ t: 'h3', x: plain(l.slice(4), page, warn) });
+      i++;
+      continue;
+    }
+    if (l.startsWith('#### ')) {
+      flush();
+      blocks.push({ t: 'h4', x: plain(l.slice(5), page, warn) });
       i++;
       continue;
     }
@@ -529,7 +537,8 @@ function extractFaq(blocks, page) {
     if (
       inFaq &&
       ((b.t === 'src' && /^(Sources|Quellen|Main FAQ sources):/.test(b.x)) ||
-        b.t === 'tool')
+        b.t === 'tool' ||
+        (page.faqEnd && b.t === 'p' && page.faqEnd.test(b.x)))
     ) {
       if (cur) faq.push(cur);
       cur = null;
@@ -632,6 +641,14 @@ function readAppendixFaq(file) {
   const txt = readFileSync(join(HANDOFFS, file), 'utf8');
   const line = txt.match(/^\{"@context".*"FAQPage".*$/m);
   return line ? faqFromGraph(JSON.parse(line[0])) : null;
+}
+
+/** FAQPage from the pretty-printed ```json block of an "Appendix B". */
+function readFencedFaq(file) {
+  const txt = readFileSync(join(HANDOFFS, file), 'utf8');
+  const app = txt.slice(txt.indexOf('## Appendix B'));
+  const m = app.match(/```json\n([\s\S]*?)\n```/);
+  return m ? faqFromGraph(JSON.parse(m[1])) : null;
 }
 
 // --- page configuration ----------------------------------------------------
@@ -1051,6 +1068,116 @@ const PAGES = [
     source:
       'GPR_Brexit_Post_Refresh_Content_Handoff_2026-09-10.md (v1.1 refresh)',
   },
+  // --- Nov 2026 post handoffs (record of the live Wix posts + register
+  // edits; copy from "# H1:" to "Appendix A", FAQ schema from Appendix B).
+  {
+    id: 'vbl-pension-refund',
+    out: 'articles',
+    kind: 'post',
+    lang: 'en',
+    file: 'GPR_VBL_Post_Content_Handoff_2026-11-09.md',
+    extract: 'h1',
+    path: '/post/vbl-pension-refund',
+    title: 'VBL Pension Refund Guide | Who Qualifies & How to Claim',
+    meta: "VBL pension refund: who qualifies after leaving Germany's public sector, what the VBL refunds, the age-69 deadline and how to apply.",
+    eyebrow: 'Guide · VBL',
+    rail: 'VBL refund',
+    crumbs: [
+      { label: 'Home', href: '/' },
+      NEWS_CRUMB,
+      { label: 'VBL pension refund' },
+    ],
+    // The live post has no author line (open point 3: owner's call).
+    showReviewer: false,
+    datePublished: '2025-07-06',
+    dateModified: '2026-11-10',
+    cover: {
+      url: '/blog/vbl-pension-refund.jpg',
+      alt: 'German public service employees',
+    },
+    faqEnd: /^Have more questions\?/,
+    faqInSchema: true,
+    faqSchema: () =>
+      readFencedFaq('GPR_VBL_Post_Content_Handoff_2026-11-09.md'),
+    cta: CTA_EN,
+    source: 'GPR_VBL_Post_Content_Handoff_2026-11-09.md (draft v1.0 refresh)',
+  },
+  {
+    id: 'cash-out-german-company-pension-bav',
+    out: 'articles',
+    kind: 'post',
+    lang: 'en',
+    file: 'GPR_bAV_Post_Content_Handoff_2026-11-09.md',
+    extract: 'h1',
+    path: '/post/cash-out-german-company-pension-bav',
+    title: 'German Company Pension (bAV) Cash-Out After Leaving Germany',
+    meta: "Left Germany and got your state pension refund? Your company pension (bAV) is a separate claim — § 3 (3) BetrAVG may let you cash it out. Here's how.",
+    eyebrow: 'Guide · Company pension (bAV)',
+    rail: 'Company pension',
+    crumbs: [
+      { label: 'Home', href: '/' },
+      NEWS_CRUMB,
+      { label: 'Company pension (bAV)' },
+    ],
+    // "In this guide:" labels the TOC component — the article rail is the TOC.
+    rawStrip: [/^\*\*In this guide:\*\*\s*\n/m],
+    // Same date as the "How we researched this guide" section.
+    reviewLine: 'Last legal review: 20 August 2026',
+    datePublished: '2026-08-19',
+    dateModified: '2026-11-10',
+    cover: {
+      url: '/blog/cash-out-german-company-pension-bav.png',
+      alt: 'Unlocked padlock with a § keyhole — cover of the guide to cashing out a German company pension (bAV) after leaving Germany',
+    },
+    faqInSchema: true,
+    faqSchema: () =>
+      readFencedFaq('GPR_bAV_Post_Content_Handoff_2026-11-09.md'),
+    cta: CTA_EN,
+    source: 'GPR_bAV_Post_Content_Handoff_2026-11-09.md (live post + 5 edits)',
+  },
+  {
+    id: 'german-widow-pension',
+    out: 'articles',
+    kind: 'post',
+    lang: 'en',
+    file: 'GPR_Widow_Post_Content_Handoff_2026-11-09.md',
+    extract: 'h1',
+    path: '/post/german-widow-pension',
+    title: "German Widow's Pension (Witwenrente) 2026: Claims from Abroad",
+    meta: "German widow's pension (Witwenrente) for survivors abroad: eligibility, 2026 amounts, the 12-month rule — and the refund route if the record is under 5 years.",
+    eyebrow: 'Guide · Survivors',
+    rail: "Widow's pension",
+    crumbs: [
+      { label: 'Home', href: '/' },
+      NEWS_CRUMB,
+      { label: "Widow's pension" },
+    ],
+    // The three-line byline under the H1 becomes the hero review line.
+    rawStrip: [
+      /^Written by Johannes Kühn ·[\s\S]*?Next review: July 2027\s*\n/m,
+    ],
+    reviewLine:
+      'Written by Johannes Kühn · Last reviewed 21 August 2026 · Pension value and income allowance valid 1 July 2026 – 30 June 2027; contribution ceiling and average earnings for calendar year 2026 · Next review: July 2027',
+    inlineFaqQuestions: /^## Frequently asked questions$/m,
+    datePublished: '2025-07-27',
+    dateModified: '2026-11-09',
+    cover: {
+      url: '/blog/german-widow-pension.webp',
+      alt: "A widow reading a letter at home — deciding between a German widow's pension and a contribution refund",
+    },
+    faqInSchema: true,
+    faqSchema: () =>
+      readFencedFaq('GPR_Widow_Post_Content_Handoff_2026-11-09.md'),
+    cta: [
+      {
+        label: 'Start the survivor check →',
+        href: '/get-your-refund?case=survivor',
+      },
+      { label: 'Check your eligibility — free →', href: '/refund-calculator' },
+    ],
+    source:
+      'GPR_Widow_Post_Content_Handoff_2026-11-09.md (live post + 3 edits)',
+  },
   {
     id: 'german-pension-refund-processing-time',
     out: 'articles',
@@ -1113,6 +1240,17 @@ function extractBody(txt, page) {
     body = body.replace('# H1: ', '# ').replace(/^## H2: /gm, '## ');
     return body;
   }
+  if (page.extract === 'h1') {
+    // Nov 2026 post handoffs: copy runs from "# H1: …" to "## Appendix A".
+    const from = txt.indexOf('\n# H1: ');
+    const to = txt.indexOf('\n## Appendix A');
+    if (from === -1 || to === -1)
+      throw new Error(`${page.id}: H1 / Appendix A markers not found`);
+    return txt
+      .slice(from + 1, to)
+      .replace(/\n---\s*$/, '\n')
+      .replace(/^# H1: /, '# ');
+  }
   const start = txt.search(/ARTICLE COPY STARTS HERE/);
   const end = txt.search(/ARTICLE COPY ENDS HERE/);
   if (start === -1 || end === -1)
@@ -1150,6 +1288,20 @@ function build(page) {
       );
     body = body.split(from).join(to);
   }
+  if (page.inlineFaqQuestions) {
+    // "**Question?** Answer" on one line → question paragraph + answer.
+    // Only inside the FAQ section (from its H2 to the next H2).
+    const at = body.search(page.inlineFaqQuestions);
+    if (at === -1) warnings.push(`${page.id}: FAQ heading not found`);
+    else {
+      const next = body.slice(at + 3).search(/^## /m);
+      const end = next === -1 ? body.length : at + 3 + next;
+      const faq = body
+        .slice(at, end)
+        .replace(/^(\*\*[^*]+\?\*\*) (?=\S)/gm, '$1\n');
+      body = body.slice(0, at) + faq + body.slice(end);
+    }
+  }
   const parsed = parseBody(body, page);
   warnings.push(...parsed.warnings);
   for (const rep of page.paraReplace || []) {
@@ -1174,6 +1326,15 @@ function build(page) {
   }
   const rv = extractReview(blocks, page);
   blocks = rv.blocks;
+  if (page.cover) {
+    // Re-hosted cover (no wixstatic.com on the new platform): first block.
+    blocks.unshift({
+      t: 'img',
+      url: page.cover.url,
+      alt: page.cover.alt,
+      cover: true,
+    });
+  }
   const fq = extractFaq(blocks, page);
   blocks = assignIds(fq.blocks);
   if (page.downloads) {
@@ -1284,10 +1445,11 @@ function build(page) {
     rail: page.rail,
     crumbs: page.crumbs,
     reviewLine: rv.review,
-    showReviewer: page.kind !== 'collection' && page.id !== 'brexit',
+    showReviewer:
+      page.showReviewer ?? (page.kind !== 'collection' && page.id !== 'brexit'),
     datePublished: page.datePublished,
     dateModified: page.dateModified,
-    imageUrl: page.imageUrl || LOGO,
+    imageUrl: page.cover ? SITE + page.cover.url : page.imageUrl || LOGO,
     blocks,
     faqTitle: fq.faqTitle,
     faq,

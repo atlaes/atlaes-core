@@ -175,6 +175,12 @@ export function ArticleBlocks({
                 {resolveTokens(b.x)}
               </h3>
             );
+          case 'h4':
+            return (
+              <h4 key={i} className="mk-h4">
+                {resolveTokens(b.x)}
+              </h4>
+            );
           case 'quote':
             return (
               <Callout key={i} tone="surface">
@@ -218,7 +224,12 @@ export function ArticleBlocks({
             return <Downloads key={i} forms={b.forms} lang={lang} />;
           case 'img':
             return (
-              <figure key={i} className="mk-art-figure">
+              <figure
+                key={i}
+                className={
+                  b.cover ? 'mk-art-figure mk-art-cover' : 'mk-art-figure'
+                }
+              >
                 {/* Plain img: CMS uploads live on the API host (no next/image remote config). */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={b.url} alt={b.alt} loading="lazy" decoding="async" />

@@ -312,6 +312,19 @@
     font-size: 36px;
   }
 }
+.mk-art-cover img {
+  width: 100%;
+  max-height: 420px;
+  object-fit: cover;
+}
+
+.mk-art-col .mk-h4 {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--mk-ink);
+}
+
 .mk-art-col .mk-h3 {
   font-size: 22px;
   font-weight: 700;
