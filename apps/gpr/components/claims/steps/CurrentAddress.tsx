@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ClaimsStepContainer from '../ClaimsStepContainer';
 import { useClaimQuery, useUpdateClaimMutation, useCompleteStepMutation } from '@/lib/queries/claims-queries';
 import { useClaimsStore } from '@/lib/stores/claims-store';
 import { COUNTRY_OPTIONS } from '@/content/offices';
+import { useGooglePlacesAutocomplete } from '@/hooks/useGooglePlacesAutocomplete';
 
 // Full ISO list shared with the eligibility widgets (codes stored as before).
 const COUNTRIES = COUNTRY_OPTIONS;
@@ -37,6 +38,24 @@ export default function CurrentAddress({ claimId }: CurrentAddressProps) {
 
   const [errors, setErrors] = useState<Partial<FormData>>({});
   const [touched, setTouched] = useState<Partial<Record<keyof FormData, boolean>>>({});
+
+  // Google Places suggestions on address line 1. Picking one fills line 1,
+  // city, postal code and country; line 2 (apartment etc.) stays as typed.
+  // Without NEXT_PUBLIC_GOOGLE_MAPS_API_KEY this is a plain text field.
+  const line1Ref = useRef<HTMLInputElement>(null);
+  const attachLine1 = useGooglePlacesAutocomplete(line1Ref, {
+    onPlaceSelected: (place) => {
+      const known = COUNTRIES.some((c) => c.code === place.countryCode);
+      setFormData((prev) => ({
+        ...prev,
+        addressLine1: place.streetAndNumber,
+        city: place.city,
+        postalCode: place.postalCode,
+        country: known ? place.countryCode : prev.country,
+      }));
+      setErrors({});
+    },
+  });
 
   // Initialize form from claim data
   useEffect(() => {
@@ -136,8 +155,10 @@ export default function CurrentAddress({ claimId }: CurrentAddressProps) {
             Address line 1
           </label>
           <input
+            ref={attachLine1}
             type="text"
             id="addressLine1"
+            autoComplete="off"
             value={formData.addressLine1}
             onChange={(e) => handleChange('addressLine1', e.target.value)}
             onBlur={() => handleBlur('addressLine1')}
