@@ -1,7 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { parsePlace, type ParsedPlace } from '@/lib/places-address';
 
+export type { ParsedPlace };
+
+// Keep this hook identical in apps/vbl and apps/gpr (the apps share no
+// package). Field mapping lives in lib/places-address.ts (tested).
+//
 // Client #13: Google Places Autocomplete integration for the address step.
 // Lazy-loads the Google Maps JS SDK once per session. If the API key is
 // missing or the script fails to load, the hook is a no-op and the plain
@@ -18,16 +24,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 // itself appears/changes/disappears, and re-attaches after the async SDK
 // script load resolves regardless of mount timing.
 
-export interface ParsedPlace {
-  streetAndNumber: string;
-  postalCode: string;
-  city: string;
-  // ISO 3166-1 alpha-2 — matches the value format used by the country list.
-  countryCode: string;
-}
-
 interface Options {
   onPlaceSelected: (place: ParsedPlace) => void;
+  /** ISO 3166-1 alpha-2: only suggest addresses in this country. Read once
+   * when the widget attaches. */
+  country?: string;
 }
 
 // Hoist loader state so multiple mounts share a single script tag.
@@ -63,41 +64,17 @@ const loadGoogleMapsSdk = (apiKey: string): Promise<void> => {
   return loaderPromise;
 };
 
-const parseAddressComponents = (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  place: any
-): ParsedPlace => {
-  const parts: Record<string, string> = {};
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (place.address_components ?? []).forEach((c: any) => {
-    c.types.forEach((t: string) => {
-      parts[t] = c.long_name;
-      parts[`${t}__short`] = c.short_name;
-    });
-  });
-
-  const streetAndNumber = [parts.street_number, parts.route]
-    .filter(Boolean)
-    .join(' ')
-    .trim();
-
-  return {
-    streetAndNumber,
-    postalCode: parts.postal_code ?? '',
-    city: parts.locality || parts.postal_town || parts.sublocality || '',
-    countryCode: (parts.country__short ?? '').toUpperCase(),
-  };
-};
-
 export const useGooglePlacesAutocomplete = (
   inputRef: React.RefObject<HTMLInputElement>,
-  { onPlaceSelected }: Options
+  { onPlaceSelected, country }: Options
 ) => {
   // Keep the latest callback without re-running the attach effect.
   const callbackRef = useRef(onPlaceSelected);
   useEffect(() => {
     callbackRef.current = onPlaceSelected;
   }, [onPlaceSelected]);
+  const countryRef = useRef(country);
+  countryRef.current = country;
 
   // Task 11: track the actual DOM node via state (populated by a callback
   // ref below) instead of relying on the caller's RefObject identity, which
@@ -133,6 +110,14 @@ export const useGooglePlacesAutocomplete = (
     let listener: any = null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let autocomplete: any = null;
+    // What the customer typed last. Google overwrites the input with the
+    // suggestion text (no input event), so this keeps the typed house
+    // number for results that come back without one.
+    let typed = node.value;
+    const onInput = () => {
+      typed = node.value;
+    };
+    node.addEventListener('input', onInput);
 
     loadGoogleMapsSdk(apiKey)
       .then(() => {
@@ -141,9 +126,13 @@ export const useGooglePlacesAutocomplete = (
         const google = (window as any).google;
         if (!google?.maps?.places?.Autocomplete) return;
 
+        const restrict = countryRef.current;
         autocomplete = new google.maps.places.Autocomplete(node, {
           types: ['address'],
           fields: ['address_components', 'formatted_address'],
+          ...(restrict
+            ? { componentRestrictions: { country: restrict.toLowerCase() } }
+            : {}),
         });
         attachedNodeRef.current = node;
         // Testable seam: autocomplete itself can't be e2e-tested (external
@@ -154,7 +143,10 @@ export const useGooglePlacesAutocomplete = (
         listener = autocomplete.addListener('place_changed', () => {
           const place = autocomplete.getPlace();
           if (!place?.address_components) return;
-          callbackRef.current(parseAddressComponents(place));
+          const parsed = parsePlace(place.address_components, typed);
+          // No street in the result (city-only pick): keep what was typed.
+          if (!parsed.streetAndNumber) parsed.streetAndNumber = typed.trim();
+          callbackRef.current(parsed);
         });
       })
       .catch(() => {
@@ -163,6 +155,7 @@ export const useGooglePlacesAutocomplete = (
 
     return () => {
       cancelled = true;
+      node.removeEventListener('input', onInput);
       if (listener && listener.remove) listener.remove();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const google = (window as any).google;

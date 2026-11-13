@@ -44,6 +44,10 @@ export const gprApp = new sst.aws.Nextjs('GPRApp', {
       $app.stage === 'production'
         ? 'https://www.germanypensionrefund.com'
         : 'https://staging.gpr.atlaes.de',
+    // Places address suggestions in the claim (current address, last
+    // address in Germany). Same browser key as the VBL app.
+    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:
+      process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
   },
   domain:
     $app.stage === 'production' ? 'gpr.atlaes.de' : 'staging.gpr.atlaes.de',

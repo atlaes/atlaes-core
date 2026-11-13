@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Upload, FileText } from 'lucide-react';
 import ClaimsStepContainer from '../ClaimsStepContainer';
 import DocumentUpload from '../DocumentUpload';
@@ -15,6 +15,7 @@ import {
 import { useClaimsStore } from '@/lib/stores/claims-store';
 import { AbmeldungMethod } from '@/lib/claims-api';
 import { apiErrorMessage } from '@/lib/api';
+import { useGooglePlacesAutocomplete } from '@/hooks/useGooglePlacesAutocomplete';
 
 type MethodChoice = 'upload' | 'manual' | null;
 
@@ -61,6 +62,28 @@ export default function LastAddressInGermany({
     Partial<Record<keyof FormData, boolean>>
   >({});
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Google Places suggestions on the street field, German addresses only.
+  // The field only exists after "Enter manually"; the hook's callback ref
+  // attaches whenever it mounts. Plain text field without a Maps key.
+  const streetRef = useRef<HTMLInputElement>(null);
+  const attachStreet = useGooglePlacesAutocomplete(streetRef, {
+    country: 'DE',
+    onPlaceSelected: (place) => {
+      setFormData((prev) => ({
+        ...prev,
+        streetAddress: place.streetAndNumber,
+        city: place.city,
+        postalCode: place.postalCode,
+      }));
+      setErrors((prev) => ({
+        ...prev,
+        streetAddress: undefined,
+        city: undefined,
+        postalCode: undefined,
+      }));
+    },
+  });
 
   // Initialize from claim data
   useEffect(() => {
@@ -280,8 +303,10 @@ export default function LastAddressInGermany({
                 Street Address
               </label>
               <input
+                ref={attachStreet}
                 type="text"
                 id="streetAddress"
+                autoComplete="off"
                 value={formData.streetAddress}
                 onChange={(e) => handleChange('streetAddress', e.target.value)}
                 onBlur={() => handleBlur('streetAddress')}
