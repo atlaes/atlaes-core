@@ -1,4 +1,5 @@
 import { logger } from '../utils/logger';
+import { postMistralChat } from './mistral-chat';
 
 export interface PassportOCRResult {
   success: boolean;
@@ -31,7 +32,6 @@ interface IdentityDocumentClassification {
 }
 
 const MISTRAL_OCR_URL = 'https://api.mistral.ai/v1/ocr';
-const MISTRAL_CHAT_URL = 'https://api.mistral.ai/v1/chat/completions';
 const DEFAULT_OCR_MODEL = 'mistral-ocr-latest';
 const DEFAULT_EXTRACTION_MODEL = 'mistral-large-latest';
 const MAX_OCR_TEXT_CHARS = 25_000;
@@ -227,14 +227,11 @@ async function requestMistralJson({
   userPrompt: string;
   errorContext: string;
 }): Promise<Record<string, unknown>> {
-  const response = await fetch(MISTRAL_CHAT_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
+  const { response } = await postMistralChat({
+    apiKey,
+    model,
+    context: 'passport',
+    payload: {
       temperature: 0,
       response_format: { type: 'json_object' },
       messages: [
@@ -247,8 +244,7 @@ async function requestMistralJson({
           content: userPrompt,
         },
       ],
-    }),
-    signal: AbortSignal.timeout(60_000),
+    },
   });
 
   const responseJson = await readJsonResponse(response);

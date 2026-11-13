@@ -1,4 +1,5 @@
 import { logger } from '../utils/logger';
+import { postMistralChat } from './mistral-chat';
 
 export type PensionDocumentType = 'vbl_zvk' | 'vddb_vddko' | 'bav_private';
 
@@ -80,7 +81,6 @@ export class PensionDocumentExtractionProviderError extends Error {
 }
 
 const MISTRAL_OCR_URL = 'https://api.mistral.ai/v1/ocr';
-const MISTRAL_CHAT_URL = 'https://api.mistral.ai/v1/chat/completions';
 const DEFAULT_OCR_MODEL = 'mistral-ocr-latest';
 const DEFAULT_EXTRACTION_MODEL = 'mistral-large-latest';
 const MAX_OCR_TEXT_CHARS = 45_000;
@@ -222,7 +222,7 @@ export async function extractPensionDocumentDetails({
     ocrModel,
   });
 
-  const parsed = await requestMistralExtraction({
+  const { parsed, model: usedModel } = await requestMistralExtraction({
     rawText,
     pensionType,
     apiKey,
@@ -231,7 +231,7 @@ export async function extractPensionDocumentDetails({
 
   return normalizeExtraction(
     parsed,
-    `${ocrModel}+${model}`,
+    `${ocrModel}+${usedModel}`,
     rawText,
     pensionType
   );
@@ -304,15 +304,12 @@ async function requestMistralExtraction({
   pensionType: PensionDocumentType;
   apiKey: string;
   model: string;
-}): Promise<MistralExtractionPayload> {
-  const response = await fetch(MISTRAL_CHAT_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
+}): Promise<{ parsed: MistralExtractionPayload; model: string }> {
+  const { response, model: usedModel } = await postMistralChat({
+    apiKey,
+    model,
+    context: 'pension document',
+    payload: {
       temperature: 0,
       response_format: { type: 'json_object' },
       messages: [
@@ -325,8 +322,7 @@ async function requestMistralExtraction({
           content: `Extract the calculator JSON from this OCR text:\n\n${rawText}`,
         },
       ],
-    }),
-    signal: AbortSignal.timeout(60_000),
+    },
   });
 
   const responseJson = await readJsonResponse(response);
@@ -347,7 +343,7 @@ async function requestMistralExtraction({
     );
   }
 
-  return parseExtractionJson(content);
+  return { parsed: parseExtractionJson(content), model: usedModel };
 }
 
 function buildMistralDocument(fileBuffer: Buffer, mimeType: string) {
