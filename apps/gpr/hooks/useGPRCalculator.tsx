@@ -1,6 +1,16 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+} from 'react';
+import {
+  loadCalculatorData,
+  saveCalculatorData,
+} from '@/lib/calculator-storage';
 
 // Constants
 export const MONTHS = [
@@ -137,6 +147,23 @@ export const GPRCalculatorProvider: React.FC<{ children: React.ReactNode }> = ({
   const [currentJobIndex, setCurrentJobIndex] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
+  // Restore answers saved by another page in this tab (e.g. the
+  // /refund-calculator embed before "Check your eligibility"). Read after
+  // mount so the server render and the first client render match.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    const saved = loadCalculatorData();
+    if (saved) setFormData(saved);
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    // Not before hydration: the initial empty state would wipe what the
+    // effect above is restoring.
+    if (!hydrated) return;
+    saveCalculatorData(formData);
+  }, [formData, hydrated]);
+
   const updateFormData = useCallback((data: Partial<GPRFormData>) => {
     setFormData(prev => {
       const updated = { ...prev, ...data };
@@ -157,6 +184,7 @@ export const GPRCalculatorProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         updated.jobs = currentJobs;
+        updated.calculationResult = null;
       }
 
       return updated;
@@ -169,7 +197,10 @@ export const GPRCalculatorProvider: React.FC<{ children: React.ReactNode }> = ({
       if (jobs[index]) {
         jobs[index] = { ...jobs[index], ...data };
       }
-      return { ...prev, jobs };
+      // The estimate no longer matches the jobs; Results recalculates it.
+      // Without this a stale result is persisted and could be sent with
+      // the magic-link request if the recalculation fails.
+      return { ...prev, jobs, calculationResult: null };
     });
   }, []);
 
