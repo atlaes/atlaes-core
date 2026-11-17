@@ -146,4 +146,19 @@ describe('passport OCR service', () => {
     expect(result.error).toBe('Uploaded file is not a passport or national ID');
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
+
+  it('reports OCR as unavailable when Mistral times out', async () => {
+    vi.stubEnv('MISTRAL_API_KEY', 'test-mistral-key');
+    global.fetch = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.reject(new DOMException('timed out', 'TimeoutError'))
+      );
+    const result = await extractPassportData(
+      Buffer.from('%PDF-1.4'),
+      'passport.pdf',
+      'application/pdf'
+    );
+    expect(result).toMatchObject({ success: false, reason: 'unavailable' });
+  });
 });
