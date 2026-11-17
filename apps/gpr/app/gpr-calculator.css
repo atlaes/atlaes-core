@@ -441,6 +441,36 @@
   font-weight: 700;
 }
 
+/* Zero-estimate notice (replaces the total banner when it would read 0 €) */
+.gpr-results-notice {
+  background-color: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  color: #78350f;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.gpr-results-notice p + p {
+  margin-top: 0.5rem;
+}
+
+.gpr-results-notice-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e1b4b;
+}
+
+.gpr-results-notice-foot {
+  color: #92400e;
+  font-size: 0.8125rem;
+}
+
 /* Eligibility Button */
 .gpr-eligibility-button {
   display: inline-flex;

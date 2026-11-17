@@ -2,14 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Info, CheckCircle, Loader2 } from 'lucide-react';
+import { Info, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import { useGPRCalculator, GPRCalculationResult, MONTHS } from '@/hooks/useGPRCalculator';
 import StepContainer from '../StepContainer';
 import apiClient from '@/lib/api';
 
 export default function Results() {
   const router = useRouter();
-  const { formData, setCalculationResult, goToPreviousJob } = useGPRCalculator();
+  const { formData, setCalculationResult, goToPreviousStep } = useGPRCalculator();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDrvTooltip, setShowDrvTooltip] = useState(false);
@@ -55,6 +55,11 @@ export default function Results() {
   }, [formData.jobs, setCalculationResult]);
 
   const result = formData.calculationResult;
+  // Mirrors the backend: only public-sector schemes are assessed, so only
+  // then is the supplementary reason worth showing next to the DRV one.
+  const hasSupplementaryAnswer = formData.jobs.some(
+    (job) => job.sector === 'public' && !!job.supplementaryPension
+  );
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -67,7 +72,7 @@ export default function Results() {
 
   if (isLoading) {
     return (
-      <StepContainer showBackButton={true} showNextButton={false} onBack={goToPreviousJob}>
+      <StepContainer showBackButton={true} showNextButton={false} onBack={goToPreviousStep}>
         <div className="gpr-results-loading">
           <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
           <h2 className="gpr-question">Calculating your refund...</h2>
@@ -79,7 +84,7 @@ export default function Results() {
 
   if (error) {
     return (
-      <StepContainer showBackButton={true} showNextButton={false} onBack={goToPreviousJob}>
+      <StepContainer showBackButton={true} showNextButton={false} onBack={goToPreviousStep}>
         <div className="gpr-results-error">
           <h2 className="gpr-question">Calculation Error</h2>
           <p className="gpr-description text-red-600">{error}</p>
@@ -102,7 +107,7 @@ export default function Results() {
     <StepContainer
       showBackButton={true}
       showNextButton={false}
-      onBack={goToPreviousJob}
+      onBack={goToPreviousStep}
       backText="Back to jobs"
     >
       <div className="gpr-results">
@@ -164,14 +169,32 @@ export default function Results() {
           </div>
         </div>
 
-        {/* Total Refund Banner */}
-        <div className="gpr-total-banner">
-          <div className="gpr-total-banner-content">
-            <CheckCircle className="w-5 h-5" />
-            <span className="gpr-total-label">Total Estimated Refund:</span>
+        {result.totalRefund > 0 ? (
+          /* Total Refund Banner */
+          <div className="gpr-total-banner">
+            <div className="gpr-total-banner-content">
+              <CheckCircle className="w-5 h-5" />
+              <span className="gpr-total-label">Total Estimated Refund:</span>
+            </div>
+            <p className="gpr-total-amount">{formatCurrency(result.totalRefund)}</p>
           </div>
-          <p className="gpr-total-amount">{formatCurrency(result.totalRefund)}</p>
-        </div>
+        ) : (
+          /* Zero estimate: say why instead of a bare "0 €" banner. The
+             reasons were only reachable through the ⓘ tooltips before. */
+          <div className="gpr-results-notice" role="note">
+            <p className="gpr-results-notice-title">
+              <AlertCircle className="w-5 h-5" aria-hidden="true" />
+              <span>No refund expected from these answers</span>
+            </p>
+            <p>{result.details.drvReason}</p>
+            {hasSupplementaryAnswer && <p>{result.details.supplementaryReason}</p>}
+            <p className="gpr-results-notice-foot">
+              This estimate uses simplified rules. The eligibility check looks at
+              your citizenship, residence and dates, and we review every case
+              individually.
+            </p>
+          </div>
+        )}
 
         {/* CTA Button */}
         <button
