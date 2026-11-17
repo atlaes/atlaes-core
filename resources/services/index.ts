@@ -105,11 +105,8 @@ export const backend = new sst.aws.Service('AtlaesBackend', {
     ADMIN_MIGRATION_TOKEN: adminMigrationToken.value,
     MISTRAL_API_KEY: mistralApiKey.value,
     MISTRAL_OCR_MODEL: process.env.MISTRAL_OCR_MODEL ?? 'mistral-ocr-latest',
-    // Model for the field-extraction chat call after OCR. Mistral stopped
-    // accepting mistral-large-latest on 13 Nov 2026; services/mistral-chat.ts
-    // still falls back to other models if this one is rejected.
     MISTRAL_EXTRACTION_MODEL:
-      process.env.MISTRAL_EXTRACTION_MODEL ?? 'mistral-medium-latest',
+      process.env.MISTRAL_EXTRACTION_MODEL ?? 'mistral-large-latest',
     // Lettershop claim mailing. Staging stays in 'test' mode: orders are
     // parked in the vendor's shopping cart, where they can be reviewed or
     // released by hand and are auto-deleted after 7 days — never printed,
