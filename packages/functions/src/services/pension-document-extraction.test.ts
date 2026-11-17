@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   extractPensionDocumentDetails,
   PensionDocumentExtractionConfigError,
+  PensionDocumentExtractionProviderError,
   normalizeEuroAmount,
 } from './pension-document-extraction';
 
@@ -135,6 +136,25 @@ describe('pension document extraction', () => {
         apiKey: '',
       })
     ).rejects.toBeInstanceOf(PensionDocumentExtractionConfigError);
+  });
+
+  it('turns a Mistral timeout into a provider error (502), not a 504', async () => {
+    const timedOut = () =>
+      Promise.reject(new DOMException('timed out', 'TimeoutError'));
+    global.fetch = vi.fn().mockImplementation(timedOut);
+    const result = extractPensionDocumentDetails({
+      fileBuffer: Buffer.from('%PDF-1.4'),
+      fileName: 'statement.pdf',
+      mimeType: 'application/pdf',
+      pensionType: 'vbl_zvk',
+      apiKey: 'test-key',
+    });
+    await expect(result).rejects.toBeInstanceOf(
+      PensionDocumentExtractionProviderError
+    );
+    await expect(result).rejects.toThrow('timed out');
+    // OCR is not retried with another model; it is one call.
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 });
 

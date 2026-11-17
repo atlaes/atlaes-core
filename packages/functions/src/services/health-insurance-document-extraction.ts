@@ -1,5 +1,12 @@
 import { logger } from '../utils/logger';
-import { postMistralChat } from './mistral-chat';
+import {
+  MISTRAL_OCR_TIMEOUT_MS,
+  MistralTimeoutError,
+  mistralFetch,
+  postMistralChat,
+  startMistralDeadline,
+  type MistralDeadline,
+} from './mistral-chat';
 
 // Task 15: Health Insurance substep OCR autofill (bAV/private pension type
 // only). Mirrors packages/functions/src/services/pension-document-extraction.ts
@@ -124,21 +131,35 @@ export async function extractHealthInsuranceDocumentDetails({
     );
   }
 
-  const rawText = await requestMistralOcr({
-    fileBuffer,
-    fileName,
-    mimeType,
-    apiKey,
-    ocrModel,
-  });
+  // One time budget for every Mistral call of this upload, so a slow
+  // answer ends in our own error before the load balancer's 60 s 504.
+  const deadline = startMistralDeadline();
+  try {
+    const rawText = await requestMistralOcr({
+      deadline,
+      fileBuffer,
+      fileName,
+      mimeType,
+      apiKey,
+      ocrModel,
+    });
 
-  const parsed = await requestMistralExtraction({
-    rawText,
-    apiKey,
-    model,
-  });
+    const parsed = await requestMistralExtraction({
+      deadline,
+      rawText,
+      apiKey,
+      model,
+    });
 
-  return normalizeExtraction(parsed, `${ocrModel}+${model}`, rawText);
+    return normalizeExtraction(parsed, `${ocrModel}+${model}`, rawText);
+  } catch (error) {
+    if (error instanceof MistralTimeoutError) {
+      throw new HealthInsuranceDocumentExtractionProviderError(
+        'Health insurance document reading timed out'
+      );
+    }
+    throw error;
+  }
 }
 
 async function requestMistralOcr({
@@ -147,26 +168,37 @@ async function requestMistralOcr({
   mimeType,
   apiKey,
   ocrModel,
+  deadline,
 }: {
   fileBuffer: Buffer;
   fileName: string;
   mimeType: string;
   apiKey: string;
   ocrModel: string;
+  /** The upload's shared Mistral time budget, if any. */
+  deadline?: MistralDeadline;
 }): Promise<string> {
-  const response = await fetch(MISTRAL_OCR_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
+  const response = await mistralFetch(
+    MISTRAL_OCR_URL,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: ocrModel,
+        document: buildMistralDocument(fileBuffer, mimeType),
+        include_image_base64: false,
+      }),
     },
-    body: JSON.stringify({
-      model: ocrModel,
-      document: buildMistralDocument(fileBuffer, mimeType),
-      include_image_base64: false,
-    }),
-    signal: AbortSignal.timeout(60_000),
-  });
+    {
+      deadline,
+      // Without an upload deadline (background OCR) keep the old 60 s cap.
+      timeoutMs: deadline ? MISTRAL_OCR_TIMEOUT_MS : 60_000,
+      context: 'health insurance OCR',
+    }
+  );
 
   const responseJson = await readJsonResponse(response);
   if (!response.ok) {
@@ -202,14 +234,17 @@ async function requestMistralExtraction({
   rawText,
   apiKey,
   model,
+  deadline,
 }: {
   rawText: string;
   apiKey: string;
   model: string;
+  deadline: MistralDeadline;
 }): Promise<MistralExtractionPayload> {
   const { response } = await postMistralChat({
     apiKey,
     model,
+    deadline,
     context: 'health insurance',
     payload: {
       temperature: 0,

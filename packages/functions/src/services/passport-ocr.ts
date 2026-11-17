@@ -1,5 +1,11 @@
 import { logger } from '../utils/logger';
-import { postMistralChat } from './mistral-chat';
+import {
+  MISTRAL_OCR_TIMEOUT_MS,
+  mistralFetch,
+  postMistralChat,
+  startMistralDeadline,
+  type MistralDeadline,
+} from './mistral-chat';
 
 export interface PassportOCRResult {
   success: boolean;
@@ -60,7 +66,11 @@ export async function extractPassportData(
 
   try {
     logger.info(`Starting Mistral passport OCR for file: ${fileName}`);
+    // OCR, classification and extraction share one time budget, so a slow
+    // Mistral ends here (document saved without data) instead of in a 504.
+    const deadline = startMistralDeadline();
     const rawText = await requestMistralOcr({
+      deadline,
       fileBuffer,
       fileName,
       mimeType: mimeType || inferMimeType(fileName),
@@ -72,6 +82,7 @@ export async function extractPassportData(
       rawText,
       apiKey,
       model: process.env.MISTRAL_EXTRACTION_MODEL || DEFAULT_EXTRACTION_MODEL,
+      deadline,
     });
 
     if (!classification.isIdentityDocument) {
@@ -90,6 +101,7 @@ export async function extractPassportData(
       rawText,
       apiKey,
       model: process.env.MISTRAL_EXTRACTION_MODEL || DEFAULT_EXTRACTION_MODEL,
+      deadline,
     });
 
     logger.info('Passport data extracted successfully with Mistral', {
@@ -122,26 +134,31 @@ async function requestMistralOcr({
   mimeType,
   apiKey,
   ocrModel,
+  deadline,
 }: {
   fileBuffer: Buffer;
   fileName: string;
   mimeType: string;
   apiKey: string;
   ocrModel: string;
+  deadline: MistralDeadline;
 }): Promise<string> {
-  const response = await fetch(MISTRAL_OCR_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
+  const response = await mistralFetch(
+    MISTRAL_OCR_URL,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: ocrModel,
+        document: buildMistralDocument(fileBuffer, mimeType),
+        include_image_base64: false,
+      }),
     },
-    body: JSON.stringify({
-      model: ocrModel,
-      document: buildMistralDocument(fileBuffer, mimeType),
-      include_image_base64: false,
-    }),
-    signal: AbortSignal.timeout(60_000),
-  });
+    { deadline, timeoutMs: MISTRAL_OCR_TIMEOUT_MS, context: 'passport OCR' }
+  );
 
   const responseJson = await readJsonResponse(response);
   if (!response.ok) {
@@ -173,14 +190,17 @@ async function classifyIdentityDocument({
   rawText,
   apiKey,
   model,
+  deadline,
 }: {
   rawText: string;
   apiKey: string;
   model: string;
+  deadline: MistralDeadline;
 }): Promise<IdentityDocumentClassification> {
   const response = await requestMistralJson({
     apiKey,
     model,
+    deadline,
     systemPrompt:
       'Decide whether OCR text is from a passport or government-issued national ID. Return only JSON with keys: isIdentityDocument boolean, documentType string. Use documentType passport, national_id, or other.',
     userPrompt: `Classify this OCR text before extraction:\n\n${rawText}`,
@@ -197,14 +217,17 @@ async function extractIdentityDetails({
   rawText,
   apiKey,
   model,
+  deadline,
 }: {
   rawText: string;
   apiKey: string;
   model: string;
+  deadline: MistralDeadline;
 }): Promise<Required<PassportOCRResult>['data']> {
   const response = await requestMistralJson({
     apiKey,
     model,
+    deadline,
     systemPrompt:
       'Extract passport or national ID details from OCR text. Return only JSON with these string fields: firstName, lastName, dateOfBirth, gender, placeOfBirth, nationality, passportNumber, passportIssueDate, passportExpiryDate, issuingCountry, mrz1, mrz2. Use ISO dates YYYY-MM-DD when possible. For gender use male, female, or other. Use empty strings for unknown fields.',
     userPrompt: `Extract identity document JSON from this OCR text:\n\n${rawText}`,
@@ -220,9 +243,11 @@ async function requestMistralJson({
   systemPrompt,
   userPrompt,
   errorContext,
+  deadline,
 }: {
   apiKey: string;
   model: string;
+  deadline: MistralDeadline;
   systemPrompt: string;
   userPrompt: string;
   errorContext: string;
@@ -230,6 +255,7 @@ async function requestMistralJson({
   const { response } = await postMistralChat({
     apiKey,
     model,
+    deadline,
     context: 'passport',
     payload: {
       temperature: 0,
