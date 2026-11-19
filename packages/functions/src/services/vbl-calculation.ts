@@ -364,11 +364,21 @@ export class VBLCalculationService {
       rulesApplied.push('Maximum 119 months contribution period');
     }
 
-    // Rule 3: User left employment with specific conditions
+    // Rule 3: an applicant who is occupationally disabled or unable to work
+    // (berufsunfähig / erwerbsunfähig) cannot start the refund with us. The
+    // client decided this on 19 Nov 2026 (Figma: "any Yes stops the claim");
+    // it does not waive the 24-month wait.
+    const hasOccupationalDisability = input.hasOccupationalDisability || false;
+    if (hasOccupationalDisability) {
+      eligibilityReasons.push(
+        'Refund cannot be started while occupationally disabled or unable to work'
+      );
+    }
+
+    // Rule 4: User left employment with specific conditions
     const timeSinceEmploymentEnd = this.calculateMonthsSinceEmploymentEnd(
       input.employmentEnd
     );
-    const hasOccupationalDisability = input.hasOccupationalDisability || false;
     const isMandatoryInsuranceRequired =
       input.isMandatoryInsuranceRequired || false;
     const retirementAge = input.retirementAge || 67;
@@ -380,18 +390,12 @@ export class VBLCalculationService {
     if (timeSinceEmploymentEnd >= 24) {
       leftEmploymentConditionMet = true;
       conditionReason = '24 months have passed since employment end';
-    } else if (hasOccupationalDisability) {
-      leftEmploymentConditionMet = true;
-      conditionReason = 'User has occupational disability';
     } else if (!isMandatoryInsuranceRequired) {
       leftEmploymentConditionMet = true;
       conditionReason = 'Mandatory insurance no longer required';
     } else if (monthsToRetirement < 36) {
       leftEmploymentConditionMet = true;
       conditionReason = 'User too old to complete 36 months before retirement';
-    } else if (hasOccupationalDisability && timeSinceEmploymentEnd < 24) {
-      leftEmploymentConditionMet = true;
-      conditionReason = 'Occupational disability less than 2 years ago';
     }
 
     if (!leftEmploymentConditionMet) {
