@@ -288,11 +288,10 @@ test.describe('calculator · stage · 24-month wait', () => {
 });
 
 test.describe('calculator · stage · eligibility questions', () => {
-  test('a Yes on "occupationally disabled" stops the refund @pending-client', async ({
+  test('a Yes on "occupationally disabled" stops the refund', async ({
     page,
   }) => {
-    // Pending client decision: the disability question contradicts the
-    // product copy elsewhere. Assert today's behaviour: Yes blocks.
+    // Client decision 19 Nov 2026: Yes stops the claim (as in Figma).
     await chooseStageProvider(page, 'VddB');
     await enterContributionPeriod(page, 'January', '2019', 'December', '2020');
     await enterSalary(page, '4200');

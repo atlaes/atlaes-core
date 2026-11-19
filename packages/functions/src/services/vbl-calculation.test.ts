@@ -383,14 +383,41 @@ describe('VBLCalculationService', () => {
       );
     });
 
-    it('accepts eligibility with occupational disability', async () => {
+    // Client decision 19 Nov 2026: a Yes stops the claim, it does not waive
+    // the 24-month wait.
+    const DISABILITY_STOPS =
+      'Refund cannot be started while occupationally disabled or unable to work';
+
+    it('rejects an occupationally disabled applicant inside the 24-month wait', async () => {
+      const recentEnd = new Date();
+      recentEnd.setMonth(recentEnd.getMonth() - 6);
       const result = await VBLCalculationService.calculateVBLRefund(
         makeStageInput({
           hasOccupationalDisability: true,
           isMandatoryInsuranceRequired: true,
+          employmentStart: '2023-01-01',
+          employmentEnd: recentEnd.toISOString().split('T')[0],
         })
       );
+      expect(result.isEligible).toBe(false);
+      expect(result.eligibilityReasons).toContain(DISABILITY_STOPS);
+      expect(result.totalAmount).toBe(0);
+    });
+
+    it('rejects an occupationally disabled applicant after the 24-month wait', async () => {
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeStageInput({ hasOccupationalDisability: true })
+      );
+      expect(result.isEligible).toBe(false);
+      expect(result.eligibilityReasons).toEqual([DISABILITY_STOPS]);
+    });
+
+    it('accepts the same applicant when not occupationally disabled', async () => {
+      const result = await VBLCalculationService.calculateVBLRefund(
+        makeStageInput({ hasOccupationalDisability: false })
+      );
       expect(result.isEligible).toBe(true);
+      expect(result.eligibilityReasons).not.toContain(DISABILITY_STOPS);
     });
   });
 
