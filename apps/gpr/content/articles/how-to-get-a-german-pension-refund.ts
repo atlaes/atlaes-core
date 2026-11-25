@@ -4216,7 +4216,7 @@ const page: ArticleData = {
     },
     {
       t: 'p',
-      x: 'Last legal and form review: 7 August 2026. Service and processing-data wording updated: 25 August 2026.',
+      x: 'Last legal and form review: 7 August 2026. Service and processing-data wording updated: {{M-12.calculatedOn}}.',
       sp: [],
     },
     {

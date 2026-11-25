@@ -205,7 +205,7 @@ describe('renderWelcomeEmail', () => {
     expect(mail.text).toContain(
       'Step 1 — Please send: a signed copy of our customer agreement and a scan of your passport'
     );
-    expect(mail.text).toContain('229 of 300 (76.3%) within 90 days');
+    expect(mail.text).toContain('234 of 300 (78.0%) within 90 days');
   });
 
   it('adds the waiting paragraph and the photo when configured', () => {
