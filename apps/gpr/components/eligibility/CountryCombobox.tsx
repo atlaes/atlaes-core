@@ -100,15 +100,28 @@ export function CountryCombobox({
     (r): r is Extract<Row, { kind: 'option' }> => r.kind === 'option'
   );
 
+  // Set when the pointer, not the keyboard, moved the highlight: the
+  // option is already under the mouse, so the list must not move.
+  const fromPointer = useRef(false);
+
+  // Keep the active option visible by scrolling the list itself.
+  // `scrollIntoView` would also scroll the page (every scrollable
+  // ancestor), which made the homepage jump whenever a list opened or the
+  // mouse crossed an option near the bottom of the screen.
   useEffect(() => {
-    if (!open || !listRef.current) return;
-    const el = listRef.current.querySelector<HTMLElement>(
-      '[data-active="true"]'
-    );
-    if (el && typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ block: 'nearest' });
+    const list = listRef.current;
+    if (!open || !list) return;
+    if (fromPointer.current) {
+      fromPointer.current = false;
+      return;
     }
-  }, [active, open]);
+    const el = list.querySelector<HTMLElement>('[data-active="true"]');
+    if (!el) return;
+    const lr = list.getBoundingClientRect();
+    const er = el.getBoundingClientRect();
+    if (er.top < lr.top) list.scrollTop -= lr.top - er.top;
+    else if (er.bottom > lr.bottom) list.scrollTop += er.bottom - lr.bottom;
+  }, [active, open, query]);
 
   function choose(c: CountryOption) {
     onChange(c.code);
@@ -246,7 +259,11 @@ export function CountryCombobox({
                       e.preventDefault();
                       choose(r.country);
                     }}
-                    onMouseEnter={() => setActive(idx)}
+                    onMouseEnter={() => {
+                      if (idx === active) return;
+                      fromPointer.current = true;
+                      setActive(idx);
+                    }}
                   >
                     {r.country.name}
                   </li>
