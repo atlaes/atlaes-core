@@ -108,11 +108,11 @@ describe('homepage + how-it-works copy', () => {
     const intro = resolveTokens(INTRO.blocks[2].x);
     expect(intro).toContain('24 August 2026');
     expect(intro).toContain('under €200 to over €53,000');
-    expect(resolveTokens(STAT_TILES[1].figure)).toBe('76.3% within 90 days');
+    expect(resolveTokens(STAT_TILES[1].figure)).toBe('78.0% within 90 days');
     expect(resolveTokens(REVIEWS_SECTION.header.x)).toContain(
       '4.98 out of 5 on ProvenExpert, based on 1,252 reviews, including 1,007 reviews aggregated from three other sources (checked 25 August 2026)'
     );
-    expect(resolveTokens(MANAGED.blocks[2].x)).toContain('40.5 days');
+    expect(resolveTokens(MANAGED.blocks[2].x)).toContain('35 days');
   });
 
   it('has the sheet counts: 3 bullets, 3 tiles, 9 + 8 FAQs, 10 reviews, 3 articles', () => {

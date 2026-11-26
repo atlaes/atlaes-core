@@ -25,13 +25,13 @@ const page: ArticleData = {
     'Processing-data analysis: {{M-12.calculatedOn}} · Dataset {{S-14.dataset}} · Figures refreshed quarterly.',
   showReviewer: true,
   datePublished: '2026-08-25',
-  dateModified: '2026-08-26',
+  dateModified: '2026-11-23',
   imageUrl:
     'https://static.wixstatic.com/media/da88a8_eeadb28f689f4702b5a53c1ff8bab97d~mv2.png',
   blocks: [
     {
       t: 'p',
-      x: "Short answer: more than three quarters of the 300 most recent completed refunds managed by Germany Pension Refund reached the client escrow account within three months. Based on {{S-14.dataset}}, {{M-12.count}} of Germany Pension Refund's {{M-12.total}} most recent completed paid refunds ({{M-12.pct}}) reached the client escrow account within {{M-12.days}} days of complete submission. Individual processing times vary. The median was {{M-19.medianDays}} days; 185 of 300 ({{M-13.pct}}) reached escrow within eight weeks, and 280 of 300 ({{M-20.pct}}) within six months.",
+      x: "Short answer: more than three quarters of the 300 most recent completed refunds managed by Germany Pension Refund reached the client escrow account within three months. Based on {{S-14.dataset}}, {{M-12.count}} of Germany Pension Refund's {{M-12.total}} most recent completed paid refunds ({{M-12.pct}}) reached the client escrow account within {{M-12.days}} days of complete submission. Individual processing times vary. The median was {{M-19.medianDays}} days; {{M-13.count}} of {{M-13.total}} ({{M-13.pct}}) reached escrow within eight weeks, and {{M-20.count}} of {{M-20.total}} ({{M-20.pct}}) within six months.",
       sp: [
         {
           k: 'b',
@@ -75,7 +75,7 @@ const page: ArticleData = {
         ],
         [
           'Results',
-          'Median {{M-19.medianDays}} days · 185/300 ({{M-13.pct}}) within {{M-13.days}} days · {{M-12.count}}/{{M-12.total}} ({{M-12.pct}}) within {{M-12.days}} days · 280/300 ({{M-20.pct}}) within {{M-20.days}} days',
+          'Median {{M-19.medianDays}} days · {{M-13.count}}/{{M-13.total}} ({{M-13.pct}}) within {{M-13.days}} days · {{M-12.count}}/{{M-12.total}} ({{M-12.pct}}) within {{M-12.days}} days · {{M-20.count}}/{{M-20.total}} ({{M-20.pct}}) within {{M-20.days}} days',
         ],
         [
           'Nature',
@@ -190,7 +190,7 @@ const page: ArticleData = {
       t: 'ul',
       items: [
         {
-          x: 'The median was {{M-19.medianDays}} days — about 41 days. A median is a midpoint, not an average or a promise: half the measured completed refunds were faster, and half were slower.',
+          x: 'The median was {{M-19.medianDays}} days — exactly five weeks. A median is a midpoint, not an average or a promise: half the measured completed refunds were faster, and half were slower.',
           sp: [
             {
               k: 'b',
@@ -199,11 +199,11 @@ const page: ArticleData = {
           ],
         },
         {
-          x: '185 of 300 ({{M-13.pct}}) reached escrow within eight weeks ({{M-13.days}} days).',
+          x: '{{M-13.count}} of {{M-13.total}} ({{M-13.pct}}) reached escrow within eight weeks ({{M-13.days}} days).',
           sp: [
             {
               k: 'b',
-              x: '185 of 300 ({{M-13.pct}}) reached escrow within eight weeks',
+              x: '{{M-13.count}} of {{M-13.total}} ({{M-13.pct}}) reached escrow within eight weeks',
             },
           ],
         },
@@ -217,11 +217,11 @@ const page: ArticleData = {
           ],
         },
         {
-          x: '280 of 300 ({{M-20.pct}}) reached escrow within six months ({{M-20.days}} days). The remaining completed refunds took longer.',
+          x: '{{M-20.count}} of {{M-20.total}} ({{M-20.pct}}) reached escrow within six months ({{M-20.days}} days). The remaining completed refunds took longer.',
           sp: [
             {
               k: 'b',
-              x: '280 of 300 ({{M-20.pct}}) reached escrow within six months',
+              x: '{{M-20.count}} of {{M-20.total}} ({{M-20.pct}}) reached escrow within six months',
             },
           ],
         },
@@ -358,7 +358,7 @@ const page: ArticleData = {
           ],
         },
         {
-          x: 'Superseded numbers are retired, not defended. When a fresh calculation produces different results than an older analysis, the older claim comes down — including claims that sounded better. The figures on this page replaced earlier published ones for exactly that reason.',
+          x: 'Superseded numbers are retired, not defended. When a fresh calculation produces different results than an older analysis, the older claim comes down — including claims that sounded better. The figures on this page replaced earlier published ones for exactly that reason. Every published release stays listed in the release history below, so a retired figure can always be traced to its dated version.',
           sp: [
             {
               k: 'b',
@@ -374,6 +374,41 @@ const page: ArticleData = {
               x: 'Aggregate results only, honest labels.',
             },
           ],
+        },
+      ],
+    },
+    // Release history (D-36, Q4 deploy package 23 Nov 2026). The current row
+    // reads the token store, so it always matches the rest of the page. On
+    // each quarterly refresh: copy the current row's rendered figures into a
+    // new static "superseded {go-live date}" row directly below it, then
+    // update tokens.json. Never edit or remove older rows.
+    {
+      t: 'h2',
+      x: 'Release history',
+      id: 'release-history',
+    },
+    {
+      t: 'p',
+      x: 'Each quarterly refresh replaces the figures on this page and retires the previous release. Every published release is listed here with its dated version, so a figure you saw cited earlier — on this site or anywhere else — can be traced to the release it came from. Read the list for what it is: consecutive releases are overlapping cohorts, not independent periods (each is the 300 most recent completed refunds at its own calculation date, so a case can appear in more than one release), and it is a record of published calculations, not a trend or a promise about future quarters. The history begins with the first published release, August 2026.',
+      sp: [],
+    },
+    {
+      t: 'p',
+      x: '{{S-14.dataset}} — current. Calculated {{M-12.calculatedOn}} · median {{M-19.medianDays}} days · {{M-13.count}}/{{M-13.total}} ({{M-13.pct}}) within {{M-13.days}} days · {{M-12.count}}/{{M-12.total}} ({{M-12.pct}}) within {{M-12.days}} days · {{M-20.count}}/{{M-20.total}} ({{M-20.pct}}) within {{M-20.days}} days.',
+      sp: [
+        {
+          k: 'b',
+          x: '{{S-14.dataset}} — current.',
+        },
+      ],
+    },
+    {
+      t: 'p',
+      x: 'GPR-PTS-2026-Q3-v3 — superseded 23 November 2026. Calculated 25 August 2026 · median 40.5 days · 185/300 (61.7%) within 56 days · 229/300 (76.3%) within 90 days · 280/300 (93.3%) within 180 days.',
+      sp: [
+        {
+          k: 'b',
+          x: 'GPR-PTS-2026-Q3-v3 — superseded 23 November 2026.',
         },
       ],
     },

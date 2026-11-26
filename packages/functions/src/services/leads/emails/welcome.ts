@@ -1,6 +1,7 @@
 /**
  * English welcome auto-reply for refund-widget leads (sendWelcome in the
- * Apps Script, wording of v7.1/v7). Verbatim. The script attached the
+ * Apps Script, wording of v7.1/v7; timing figures as v7.5, 2026-11-24:
+ * GPR-PTS-2026-Q4-v3, TM-01/M-12/M-19). Verbatim. The script attached the
  * customer agreement from Drive; without an attachment the script's own
  * "we'll send it in our personal follow-up" variant applies.
  */
@@ -85,8 +86,8 @@ export function renderWelcomeEmail(input: WelcomeEmailInput): RenderedEmail {
     P +
     'Once we have your information, we prepare everything for you and handle the communication with the ' +
     'pension office. More than three quarters of our 300 most recent completed refunds reached the client ' +
-    'escrow account within <b>three months</b> of complete submission — 229 of 300 (76.3%) within 90 days, ' +
-    'with a median of about 41 days. Individual processing times vary.</p>' +
+    'escrow account within <b>three months</b> of complete submission — 234 of 300 (78.0%) within 90 days, ' +
+    'with a median of 35 days. Individual processing times vary.</p>' +
     P +
     'If you’d like to see how others experienced working with us, here’s a quick look:<br>' +
     '👉 <a href="' +
@@ -126,8 +127,8 @@ export function renderWelcomeEmail(input: WelcomeEmailInput): RenderedEmail {
     'employer(s), approx. employment periods, job title(s), bank details (bank name, account holder, ' +
     'account number, SWIFT, currency). If you have your Abmeldung, please send it too.\n\n' +
     'More than three quarters of our 300 most recent completed refunds reached the client escrow account ' +
-    'within three months of complete submission — 229 of 300 (76.3%) within 90 days, with a median of ' +
-    'about 41 days. Individual processing times vary.\n\n' +
+    'within three months of complete submission — 234 of 300 (78.0%) within 90 days, with a median of ' +
+    '35 days. Individual processing times vary.\n\n' +
     'Reviews: ' +
     input.reviewsUrl +
     '\n' +
